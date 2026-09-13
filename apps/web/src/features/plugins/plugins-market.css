@@ -1,0 +1,170 @@
+/* Plugin marketplace */
+
+.joy-plugins {
+  min-height: 100%;
+  padding: 28px 32px 64px;
+}
+
+.joy-plugins-inner {
+  margin: 0 auto;
+  max-width: 1100px;
+}
+
+.joy-plugins-header {
+  margin-bottom: 28px;
+}
+
+.joy-plugins-title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--foreground);
+}
+
+.joy-plugins-desc {
+  margin: 0;
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+.joy-plugins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.joy-plugin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  background: color-mix(in oklab, var(--card) 88%, transparent);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.joy-plugin-card:hover {
+  border-color: color-mix(in oklab, var(--ring) 40%, var(--border));
+  box-shadow: 0 12px 36px -28px rgb(0 0 0 / 0.35);
+  transform: translateY(-1px);
+}
+
+.joy-plugin-card.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.joy-plugin-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.joy-plugin-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--secondary) 80%, transparent);
+  color: var(--foreground);
+}
+
+.joy-plugin-card-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.joy-plugin-card-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.joy-plugin-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.joy-plugin-tag {
+  border-radius: 999px;
+  background: var(--secondary);
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+/* Plugin detail shell */
+.joy-plugin-detail {
+  min-height: 100%;
+  padding: 24px 32px 64px;
+}
+
+.joy-plugin-detail-inner {
+  margin: 0 auto;
+  max-width: 960px;
+}
+
+.joy-plugin-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  text-decoration: none;
+}
+
+.joy-plugin-back:hover {
+  color: var(--foreground);
+}
+
+.joy-plugin-detail-header {
+  margin-bottom: 22px;
+}
+
+.joy-plugin-detail-title {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.joy-plugin-detail-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+html.joy-appearance-active .joy-plugins,
+html.joy-appearance-active .joy-plugin-detail {
+  background: transparent;
+}
+
+html.joy-appearance-active .joy-plugin-card {
+  backdrop-filter: blur(var(--joy-glass-blur)) saturate(1.35);
+  -webkit-backdrop-filter: blur(var(--joy-glass-blur)) saturate(1.35);
+}
+
+@media (max-width: 640px) {
+  .joy-plugins,
+  .joy-plugin-detail {
+    padding: 20px 16px 48px;
+  }
+}

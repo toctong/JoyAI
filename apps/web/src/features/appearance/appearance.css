@@ -1,0 +1,204 @@
+/* Appearance / wallpaper + liquid glass tokens */
+
+:root {
+  --joy-wp-blur: 0px;
+  --joy-scrim: 0.25;
+  --joy-border-boost: 0.35;
+  --joy-glass-blur: 24px;
+}
+
+.joy-wallpaper {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.joy-wallpaper-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: blur(var(--joy-wp-blur));
+  transform: scale(1.04);
+  transform-origin: center;
+  /* Avoid native video chrome leaking into the stage */
+  pointer-events: none;
+}
+
+.joy-wallpaper-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / var(--joy-scrim));
+}
+
+/* Wallpaper only on inspire: transparent shell + glass rail */
+html.joy-appearance-active,
+html.joy-appearance-active body {
+  background: transparent !important;
+}
+
+html.joy-appearance-active [data-app-shell] {
+  background: transparent;
+}
+
+/* Inspire always uses dark rail text/icons (shell has .dark) */
+html.joy-appearance-active [data-inspire-home] .joy-sidebar {
+  background: transparent;
+  border-right: 1px solid
+    color-mix(
+      in oklab,
+      #fff calc(8% + var(--joy-border-boost) * 12%),
+      transparent
+    );
+  backdrop-filter: blur(calc(var(--joy-glass-blur) * 0.45)) saturate(1.25);
+  -webkit-backdrop-filter: blur(calc(var(--joy-glass-blur) * 0.45))
+    saturate(1.25);
+  color: #f4f4f5;
+}
+
+html.joy-appearance-active .joy-home {
+  background: transparent;
+}
+
+html.joy-appearance-active .joy-home-hero-bg {
+  opacity: 0;
+}
+
+/* Liquid glass composer on inspire when wallpaper active */
+html.joy-appearance-active .joy-composer {
+  --jc-bg: color-mix(
+    in oklab,
+    var(--card) calc(42% + (1 - var(--joy-scrim)) * 28%),
+    transparent
+  );
+  --jc-border: color-mix(
+    in oklab,
+    var(--foreground) calc(8% + var(--joy-border-boost) * 22%),
+    transparent
+  );
+  background: linear-gradient(
+      155deg,
+      rgb(255 255 255 / 0.22),
+      rgb(255 255 255 / 0.06) 42%,
+      rgb(255 255 255 / 0.02)
+    ),
+    var(--jc-bg);
+  backdrop-filter: blur(var(--joy-glass-blur)) saturate(1.55);
+  -webkit-backdrop-filter: blur(var(--joy-glass-blur)) saturate(1.55);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.28) inset,
+    0 -1px 0 rgb(255 255 255 / 0.06) inset,
+    0 18px 48px -28px rgb(0 0 0 / 0.45);
+}
+
+html.joy-appearance-active.dark .joy-composer,
+html.joy-appearance-active .dark .joy-composer {
+  --jc-bg: color-mix(in oklab, #1c1c22 48%, transparent);
+  --jc-border: color-mix(
+    in oklab,
+    #fff calc(10% + var(--joy-border-boost) * 28%),
+    transparent
+  );
+  background: linear-gradient(
+      155deg,
+      rgb(255 255 255 / 0.1),
+      rgb(255 255 255 / 0.03) 45%,
+      rgb(255 255 255 / 0.01)
+    ),
+    var(--jc-bg);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.14) inset,
+    0 22px 56px -24px rgb(0 0 0 / 0.7);
+}
+
+/* Appearance panel (plugin detail) */
+.joy-appearance-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.joy-appearance-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+}
+
+.joy-appearance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.joy-appearance-thumb {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: var(--muted);
+  padding: 0;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.joy-appearance-thumb img,
+.joy-appearance-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.joy-appearance-thumb:hover {
+  border-color: color-mix(in oklab, var(--ring) 45%, transparent);
+}
+
+.joy-appearance-thumb.is-active {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 28%, transparent);
+}
+
+.joy-appearance-thumb-label {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 4px 6px;
+  font-size: 10px;
+  line-height: 1.2;
+  color: #fff;
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.65));
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-appearance-thumb-live {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 1;
+  border-radius: 4px;
+  background: rgb(220 38 38 / 0.88);
+  padding: 2px 5px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: #fff;
+}
+
+.joy-appearance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

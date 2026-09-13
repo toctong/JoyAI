@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  creator
+}
+
+enum JobKind {
+  image
+  video
+}
+
+enum JobStatus {
+  queued
+  running
+  polling
+  succeeded
+  failed
+  cancelled
+}
+
+model User {
+  id            String          @id @default(cuid())
+  username      String          @unique
+  passwordHash  String
+  role          UserRole        @default(creator)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  jobs          Job[]
+  assets        Asset[]
+  canvases      CanvasProject[]
+  canvasFolders CanvasFolder[]
+}
+
+model Channel {
+  id        String   @id @default(cuid())
+  name      String
+  platform  String
+  apiKey    String
+  baseUrl   String
+  enabled   Boolean  @default(true)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  models    Model[]
+}
+
+model Model {
+  id        String   @id @default(cuid())
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  name      String
+  kind      JobKind
+  remoteId  String
+  enabled   Boolean  @default(true)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([channelId])
+  @@index([kind, enabled])
+}
+
+model Job {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind            JobKind
+  status          JobStatus @default(queued)
+  input           Json
+  result          Json?
+  error           String?
+  remoteTaskId    String?
+  progress        Int       @default(0)
+  canvasProjectId String?
+  canvasNodeId    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  assets          Asset[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model Asset {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobId     String?
+  job       Job?     @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  kind      String
+  url       String
+  md5       String?
+  mimeType  String?
+  size      Int?
+  width     Int?
+  height    Int?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([md5])
+}
+
+model CanvasFolder {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    CanvasFolder?  @relation("CanvasFolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children  CanvasFolder[] @relation("CanvasFolderTree")
+  title     String         @default("新建文件夹")
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  projects  CanvasProject[]
+
+  @@index([userId, parentId, updatedAt])
+}
+
+model CanvasProject {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folderId  String?
+  folder    CanvasFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  title     String        @default("未命名项目")
+  coverUrl  String?
+  snapshot  Json?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([userId, folderId, updatedAt])
+  @@index([userId, updatedAt])
+}
+
+model AppSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}

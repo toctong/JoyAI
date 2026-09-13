@@ -1,0 +1,120 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../features/appearance/appearance.css";
+
+/* next-themes 用 class 切主题；必须声明，否则 dark: 只跟系统走 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light — match joyai.com soft pastel studio */
+:root {
+  --background: #f7f8fa;
+  --foreground: #0d0d0d;
+  --card: #ffffff;
+  --card-foreground: #0d0d0d;
+  --popover: #ffffff;
+  --popover-foreground: #0d0d0d;
+  --primary: #0d0d0d;
+  --primary-foreground: #fafafa;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #27272a;
+  --muted: #f4f4f5;
+  --muted-foreground: #5d5d5d;
+  --accent: #f4f4f5;
+  --accent-foreground: #0d0d0d;
+  --destructive: #dc2626;
+  --destructive-foreground: #fef2f2;
+  --border: #eeeeee;
+  --input: #f2f2f5;
+  --ring: #84b3ff;
+  --radius: 0.75rem;
+  --atmosphere: #f7f8fa;
+}
+
+/* Dark — 专业深色台 */
+.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #121216;
+  --card-foreground: #f4f4f5;
+  --popover: #18181b;
+  --popover-foreground: #f4f4f5;
+  --primary: #fafafa;
+  --primary-foreground: #09090b;
+  --secondary: #1f1f24;
+  --secondary-foreground: #e4e4e7;
+  --muted: #1c1c21;
+  --muted-foreground: #a1a1aa;
+  --accent: #1c1c21;
+  --accent-foreground: #f4f4f5;
+  --destructive: #f87171;
+  --destructive-foreground: #450a0a;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #84b3ff;
+  --atmosphere: #09090b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family:
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    var(--font-geist-sans),
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  background: var(--atmosphere);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+.joy-sidebar {
+  background: var(--card);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Inspire page forces dark shell — keep rail readable even without wallpaper */
+[data-inspire-home].dark .joy-sidebar {
+  color: #f4f4f5;
+}

@@ -1,0 +1,153 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* next-themes class 策略 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * new-api / Mirora Admin 风格 token
+ * 主色偏 indigo，侧栏独立 sidebar-* 
+ */
+:root {
+  --radius: 0.75rem;
+  --app-header-height: 3rem;
+  --primary-hue: 243.716;
+
+  --background: oklch(0.985 0.002 250);
+  --foreground: oklch(0.18 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.02 260);
+  --primary: oklch(0.55 0.18 var(--primary-hue));
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.01 250);
+  --secondary-foreground: oklch(0.35 0.04 260);
+  --muted: oklch(0.96 0.008 250);
+  --muted-foreground: oklch(0.5 0.02 260);
+  --accent: color-mix(in oklch, var(--primary) 12%, var(--background));
+  --accent-foreground: oklch(0.28 0.08 var(--primary-hue));
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.9 0.01 250);
+  --input: oklch(0.9 0.01 250);
+  --ring: oklch(0.55 0.16 var(--primary-hue));
+
+  --sidebar: oklch(0.99 0.004 250);
+  --sidebar-foreground: oklch(0.22 0.02 260);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: color-mix(in oklch, var(--primary) 10%, var(--sidebar));
+  --sidebar-accent-foreground: oklch(0.32 0.1 var(--primary-hue));
+  --sidebar-border: oklch(0.91 0.01 250);
+
+  --table-row: var(--card);
+  --table-header: color-mix(in oklab, var(--muted) 55%, var(--card));
+}
+
+.dark {
+  --background: oklch(0.16 0.02 260);
+  --foreground: oklch(0.96 0.01 250);
+  --card: oklch(0.2 0.025 260);
+  --card-foreground: oklch(0.96 0.01 250);
+  --popover: oklch(0.22 0.025 260);
+  --popover-foreground: oklch(0.96 0.01 250);
+  --primary: oklch(0.72 0.14 var(--primary-hue));
+  --primary-foreground: oklch(0.18 0.04 260);
+  --secondary: oklch(0.26 0.025 260);
+  --secondary-foreground: oklch(0.92 0.01 250);
+  --muted: oklch(0.26 0.02 260);
+  --muted-foreground: oklch(0.72 0.02 250);
+  --accent: color-mix(in oklch, var(--primary) 18%, var(--background));
+  --accent-foreground: oklch(0.95 0.02 250);
+  --destructive: oklch(0.65 0.2 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.3 0.02 260);
+  --input: oklch(0.3 0.02 260);
+  --ring: oklch(0.65 0.12 var(--primary-hue));
+
+  --sidebar: oklch(0.14 0.02 260);
+  --sidebar-foreground: oklch(0.94 0.01 250);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: oklch(0.16 0.03 260);
+  --sidebar-accent: color-mix(in oklch, var(--primary) 16%, var(--sidebar));
+  --sidebar-accent-foreground: oklch(0.96 0.02 250);
+  --sidebar-border: oklch(0.28 0.02 260);
+
+  --table-row: var(--card);
+  --table-header: color-mix(in oklab, var(--muted) 40%, var(--card));
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family:
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    var(--font-geist-sans),
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+  min-height: 100vh;
+}
+
+/* new-api 风格表格行 */
+.admin-table thead tr {
+  background: var(--table-header);
+}
+
+.admin-table tbody tr {
+  background: var(--table-row);
+  transition: background-color 0.12s ease;
+}
+
+.admin-table tbody tr:hover {
+  background: color-mix(in oklab, var(--primary) 6%, var(--table-row));
+}

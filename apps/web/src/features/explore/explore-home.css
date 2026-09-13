@@ -1,0 +1,33 @@
+.joy-explore {
+  min-height: 100%;
+  padding: 28px 20px 64px;
+  background: #f7f8fa;
+}
+
+.dark .joy-explore {
+  background: #09090b;
+}
+
+.joy-explore-inner {
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.joy-explore-header {
+  margin-bottom: 24px;
+}
+
+.joy-explore-title {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--foreground);
+}
+
+.joy-explore-desc {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}

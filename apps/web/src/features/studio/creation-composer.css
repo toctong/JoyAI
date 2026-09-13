@@ -1,0 +1,465 @@
+/* JoyAI composer — Jimeng-aligned AI prompt shell */
+
+.joy-composer {
+  --jc-radius: 24px;
+  --jc-border: color-mix(in oklab, var(--border) 90%, transparent);
+  --jc-bg: color-mix(in oklab, var(--card) 92%, transparent);
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-radius: var(--jc-radius);
+  background: var(--jc-bg);
+  border: 1px solid var(--jc-border);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 18px 48px -28px rgba(0, 0, 0, 0.35);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  /* keep tilted reference card from being clipped */
+  overflow: visible;
+}
+
+.dark .joy-composer {
+  --jc-bg: rgba(32, 32, 36, 0.92);
+  --jc-border: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 22px 56px -24px rgba(0, 0, 0, 0.65);
+}
+
+.joy-composer.is-hero {
+  border-width: 1.5px;
+  box-shadow:
+    0 8px 28px rgba(132, 179, 255, 0.06),
+    0 2px 12px rgba(255, 180, 200, 0.05);
+}
+
+.joy-composer.is-dock {
+  border-radius: 28px;
+  padding: 16px 16px 14px;
+  box-shadow:
+    0 24px 64px -28px rgba(15, 23, 42, 0.28),
+    0 10px 28px rgba(132, 179, 255, 0.07),
+    0 4px 16px rgba(255, 180, 210, 0.06);
+}
+
+.dark .joy-composer.is-dock {
+  box-shadow: 0 28px 70px -22px rgba(0, 0, 0, 0.7);
+}
+
+.joy-composer.is-dragging {
+  border-color: color-mix(in oklab, var(--ring) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 25%, transparent);
+}
+
+.joy-composer-ripple {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.joy-composer-ripple[data-idle] {
+  opacity: 0.95;
+}
+
+.joy-composer-ripple canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.joy-composer-body,
+.joy-composer-toolbar,
+.joy-composer-params-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.joy-composer-body {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+/* Jimeng-style tilted reference card */
+.joy-composer-upload {
+  flex-shrink: 0;
+  width: 56px;
+  height: 74px;
+  margin-top: 4px;
+  margin-left: 2px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in oklab, var(--foreground) 18%, transparent);
+  background: color-mix(in oklab, var(--muted) 78%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  cursor: pointer;
+  transform: rotate(-8deg);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.04) inset,
+    0 8px 18px -10px rgb(0 0 0 / 0.45);
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.dark .joy-composer-upload {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(20, 20, 24, 0.92);
+  color: rgba(255, 255, 255, 0.45);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.06) inset,
+    0 10px 22px -12px rgb(0 0 0 / 0.75);
+}
+
+.joy-composer-upload:hover {
+  border-color: color-mix(in oklab, var(--foreground) 32%, var(--border));
+  color: var(--foreground);
+  background: var(--muted);
+  transform: rotate(-8deg) translateY(-1px);
+}
+
+.dark .joy-composer-upload:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(36, 36, 42, 0.95);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.joy-composer-upload.has-preview {
+  border-style: solid;
+  padding: 0;
+}
+
+.joy-composer-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-composer-upload-label {
+  max-width: 100%;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 1.15;
+  text-align: center;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.joy-composer-main {
+  min-width: 0;
+  flex: 1;
+  padding-top: 2px;
+}
+
+.joy-composer-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.joy-composer-ref {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.joy-composer-ref img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-composer-ref button {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.joy-composer .joy-ai-prompt .ProseMirror {
+  min-height: 64px;
+  max-height: 180px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+
+.joy-composer .joy-ai-prompt .ProseMirror p.is-editor-empty:first-child::before {
+  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent);
+}
+
+.joy-composer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.joy-composer-toolbar-left,
+.joy-composer-toolbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.joy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.joy-chip:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.joy-chip-kind {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--secondary) 88%, var(--foreground) 4%);
+  color: #4f8cff;
+  font-weight: 600;
+}
+
+.joy-chip-kind:hover {
+  background: color-mix(in oklab, #4f8cff 14%, var(--secondary));
+  color: #4f8cff;
+}
+
+.dark .joy-chip-kind {
+  background: #262626;
+  color: #6ea1ff;
+}
+
+.dark .joy-chip-kind:hover {
+  background: #2e2e2e;
+  color: #6ea1ff;
+}
+
+.joy-chip-model {
+  max-width: min(220px, 42vw);
+  color: var(--foreground);
+}
+
+.joy-chip-model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-chip-sparkle {
+  flex-shrink: 0;
+  color: #4f8cff;
+}
+
+.dark .joy-chip-sparkle {
+  color: #6ea1ff;
+}
+
+.joy-chip-params {
+  gap: 6px;
+  padding: 0 10px;
+  color: var(--foreground);
+}
+
+.joy-chip-params:hover {
+  background: var(--muted);
+}
+
+.joy-chip-params-quality {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.joy-chip-dot {
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
+
+.joy-chip-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.joy-composer-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.joy-composer-send {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--muted) 90%, var(--foreground) 4%);
+  color: color-mix(in oklab, var(--muted-foreground) 80%, transparent);
+  cursor: not-allowed;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform 0.15s;
+}
+
+.joy-composer-send.is-ready {
+  background: var(--foreground);
+  color: var(--background);
+  cursor: pointer;
+}
+
+.joy-composer-send.is-ready:hover {
+  transform: translateY(-1px);
+}
+
+.joy-composer-send:disabled {
+  opacity: 0.75;
+}
+
+.joy-composer-wrap {
+  width: 100%;
+}
+
+.joy-composer-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 0 2px;
+}
+
+.joy-composer-skill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--secondary) 75%, transparent);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.joy-composer-skill:hover {
+  background: var(--secondary);
+  border-color: color-mix(in oklab, var(--foreground) 18%, var(--border));
+}
+
+.joy-composer-skill-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #4f8cff;
+}
+
+.joy-composer-skill-badge.is-hot {
+  color: #ff7a3d;
+}
+
+.joy-composer-params-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 220px;
+  padding: 4px;
+}
+
+.joy-composer-params-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.joy-composer-params-label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.joy-composer-params-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.joy-composer-params-option {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.joy-composer-params-option.is-on {
+  border-color: transparent;
+  background: var(--foreground);
+  color: var(--background);
+}

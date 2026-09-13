@@ -1,0 +1,201 @@
+/* Folder card art — plate + fan sheets + frosted flap */
+
+.joy-folder {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.joy-projects-media:has(.joy-folder) {
+  border-color: transparent;
+  background: transparent;
+}
+
+.joy-folder__plate {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+:root:not(.dark) .joy-folder__plate-a {
+  stop-color: #ececef;
+}
+
+:root:not(.dark) .joy-folder__plate-b {
+  stop-color: #dadade;
+}
+
+:root:not(.dark) .joy-folder__plate rect {
+  stroke: rgba(0, 0, 0, 0.06);
+  stroke-opacity: 1;
+}
+
+.joy-folder__fan {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  top: 12%;
+  height: 54%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.joy-folder__sheet {
+  position: absolute;
+  top: 0;
+  width: 46%;
+  height: 100%;
+  border-radius: 14px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+  background: linear-gradient(180deg, #fff 0%, #f3f3f6 100%);
+}
+
+.dark .joy-folder__sheet {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4);
+  background: linear-gradient(180deg, #3a3a40 0%, #222226 100%);
+}
+
+.joy-folder__sheet.is-l {
+  left: 0;
+  transform: rotate(-11deg) translateY(8%);
+  z-index: 1;
+  opacity: 0.92;
+}
+
+.joy-folder__sheet.is-c {
+  left: 50%;
+  width: 48%;
+  transform: translateX(-50%) translateY(-2%);
+  z-index: 3;
+  opacity: 1;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.dark .joy-folder__sheet.is-c {
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+}
+
+.joy-folder__sheet.is-r {
+  right: 0;
+  left: auto;
+  transform: rotate(11deg) translateY(8%);
+  z-index: 2;
+  opacity: 0.92;
+}
+
+.joy-folder__sheet.is-blank {
+  background: linear-gradient(
+    165deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(245, 245, 248, 0.82) 100%
+  );
+}
+
+.dark .joy-folder__sheet.is-blank {
+  background: linear-gradient(
+    165deg,
+    rgba(70, 70, 78, 0.85) 0%,
+    rgba(36, 36, 42, 0.9) 100%
+  );
+}
+
+.joy-folder__flap {
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 36%;
+  bottom: 11%;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.12));
+}
+
+.dark .joy-folder__flap {
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.35));
+}
+
+.joy-folder__flap::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.58) 0%,
+    rgba(255, 255, 255, 0.28) 100%
+  );
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cpath fill='black' d='M14 34C14 24 22 18 34 18H78C88 18 94 24 98 32L108 46H186C194 46 200 52 200 60V108C200 116 194 120 186 120H14C6 120 0 116 0 108V48C0 40 6 34 14 34Z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cpath fill='black' d='M14 34C14 24 22 18 34 18H78C88 18 94 24 98 32L108 46H186C194 46 200 52 200 60V108C200 116 194 120 186 120H14C6 120 0 116 0 108V48C0 40 6 34 14 34Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+
+.dark .joy-folder__flap::before {
+  background: linear-gradient(
+    180deg,
+    rgba(80, 80, 88, 0.5) 0%,
+    rgba(20, 20, 24, 0.58) 100%
+  );
+}
+
+.joy-folder__flap-shape {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.joy-folder__flap-shape path {
+  fill: rgba(255, 255, 255, 0.22);
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 1.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.dark .joy-folder__flap-shape path {
+  fill: rgba(255, 255, 255, 0.04);
+  stroke: rgba(255, 255, 255, 0.18);
+}
+
+.joy-folder__mark {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.32);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  pointer-events: none;
+}
+
+.joy-folder__mark svg {
+  width: 20px;
+  height: 20px;
+}
+
+.dark .joy-folder__mark {
+  background: rgba(40, 40, 46, 0.88);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}

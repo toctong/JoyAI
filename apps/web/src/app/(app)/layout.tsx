@@ -1,0 +1,69 @@
+"use client";
+
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuthHydrated, useAuthStore } from "@/shared/lib/auth-store";
+import { AppSidebar } from "@/features/shell/app-sidebar";
+import {
+  AppearanceTokens,
+  WallpaperLayer,
+} from "@/features/appearance";
+import { cn } from "@/shared/lib/utils";
+
+export default function AppShellLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const token = useAuthStore((s) => s.token);
+  const hydrated = useAuthHydrated();
+  const isCanvasEditor = /^\/canvas\/[^/]+$/.test(pathname);
+  /** Wallpaper plugin only paints the inspire home (updream-style). */
+  const isInspireHome =
+    pathname === "/inspire" || pathname.startsWith("/inspire/");
+  const wallpaperActive = isInspireHome && !isCanvasEditor;
+
+  useEffect(() => {
+    if (hydrated && !token) router.replace("/login");
+  }, [hydrated, token, router]);
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
+        加载中…
+      </div>
+    );
+  }
+
+  if (!token) {
+    return <div className="min-h-svh bg-background" />;
+  }
+
+  return (
+    <>
+      <AppearanceTokens disabled={!wallpaperActive} />
+      <WallpaperLayer disabled={!wallpaperActive} />
+      <div
+        data-app-shell
+        data-inspire-home={isInspireHome ? "" : undefined}
+        className={cn(
+          "relative z-10 flex min-h-svh bg-background",
+          /* Inspire is always dark chrome (sidebar + page), ignore global theme */
+          isInspireHome && "dark",
+        )}
+      >
+        <AppSidebar />
+        <main
+          className={cn(
+            "min-w-0 flex-1",
+            isCanvasEditor ? "overflow-hidden" : "overflow-auto",
+          )}
+        >
+          {children}
+        </main>
+      </div>
+    </>
+  );
+}
