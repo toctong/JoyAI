@@ -1,0 +1,255 @@
+/* Admin — fixed header + ScrollArea body */
+
+.joy-admin {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.joy-admin-header {
+  z-index: 20;
+  flex-shrink: 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.joy-admin-header-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 16px;
+}
+
+.joy-admin-tab {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  outline: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.joy-admin-tab-icon-wrap {
+  display: inline-flex;
+  height: 20px;
+  width: 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.joy-admin-tab-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.joy-admin-tab-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.42px;
+}
+
+.joy-admin-tab:hover {
+  color: var(--foreground);
+}
+
+.joy-admin-tab:hover .joy-admin-tab-icon {
+  opacity: 1;
+}
+
+.joy-admin-tab.is-active {
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.joy-admin-tab.is-active .joy-admin-tab-icon {
+  opacity: 1;
+}
+
+.joy-admin-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.joy-admin-body {
+  padding: 24px 28px 72px;
+}
+
+.joy-admin-inner {
+  margin: 0 auto;
+  max-width: 1280px;
+}
+
+.joy-admin-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--foreground);
+}
+
+.joy-admin-desc {
+  margin: 8px 0 0;
+  max-width: 42rem;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.joy-admin-panel {
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
+  background: var(--card);
+}
+
+.joy-admin-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.joy-admin-card-item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
+  background: color-mix(in oklab, var(--card) 96%, var(--background));
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.joy-admin-card-item:hover {
+  border-color: color-mix(in oklab, var(--border) 70%, var(--foreground) 12%);
+  background: var(--card);
+}
+
+.joy-admin-card-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.joy-admin-card-item-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-admin-card-item-sub {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-admin-card-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.joy-admin-card-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+.joy-admin-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
+}
+
+.joy-admin-empty {
+  display: flex;
+  min-height: 36vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+
+.joy-admin-empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.joy-admin-empty-desc {
+  margin: 0;
+  max-width: 22rem;
+  font-size: 13px;
+  line-height: 1.5;
+  color: color-mix(in oklab, var(--muted-foreground) 90%, transparent);
+}
+
+@media (max-width: 640px) {
+  .joy-admin-header-inner {
+    padding: 8px 10px;
+    gap: 2px;
+  }
+
+  .joy-admin-tab {
+    padding: 6px 10px;
+  }
+
+  .joy-admin-tab-label {
+    font-size: 12px;
+  }
+
+  .joy-admin-body {
+    padding: 18px 14px 56px;
+  }
+
+  .joy-admin-title {
+    font-size: 22px;
+  }
+}

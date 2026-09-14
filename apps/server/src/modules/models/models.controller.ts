@@ -1,9 +1,50 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { IsBoolean, IsEnum, IsOptional, IsString } from "class-validator";
+import {
+  IsBoolean,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  IsString,
+} from "class-validator";
+import { Transform } from "class-transformer";
 import { JobKind } from "@prisma/client";
+import {
+  PaginationQueryDto,
+  toOptionalBoolean,
+} from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
 import { ModelsService } from "./models.service";
+
+class ListModelsQueryDto extends PaginationQueryDto {
+  @IsOptional()
+  @IsEnum(JobKind)
+  kind?: JobKind;
+
+  @IsOptional()
+  @Transform(toOptionalBoolean)
+  @IsBoolean()
+  enabled?: boolean;
+
+  @IsOptional()
+  @Transform(toOptionalBoolean)
+  @IsBoolean()
+  isDefault?: boolean;
+
+  @IsOptional()
+  @IsString()
+  channelId?: string;
+}
 
 class CreateModelDto {
   @IsString()
@@ -17,6 +58,18 @@ class CreateModelDto {
 
   @IsString()
   remoteId!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsObject()
+  pricing?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsObject()
+  capabilities?: Record<string, unknown>;
 
   @IsOptional()
   @IsBoolean()
@@ -37,12 +90,30 @@ class UpdateModelDto {
   remoteId?: string;
 
   @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsObject()
+  pricing?: Record<string, unknown>;
+
+  @IsOptional()
+  @IsObject()
+  capabilities?: Record<string, unknown>;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;
+}
+
+class ImportCatalogDto {
+  @IsOptional()
+  @IsBoolean()
+  forceRename?: boolean;
 }
 
 @ApiTags("models")
@@ -61,8 +132,16 @@ export class ModelsController {
   @Roles("admin")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get("admin/models")
-  list() {
-    return this.models.list();
+  list(@Query() query: ListModelsQueryDto) {
+    return this.models.list(query);
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get("admin/models/catalog")
+  catalog(@Query("platform") platform: string) {
+    return this.models.catalogPreview(platform ?? "");
   }
 
   @ApiBearerAuth()
@@ -70,7 +149,7 @@ export class ModelsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Post("admin/models")
   create(@Body() dto: CreateModelDto) {
-    return this.models.create(dto);
+    return this.models.create(dto as Parameters<ModelsService["create"]>[0]);
   }
 
   @ApiBearerAuth()
@@ -78,7 +157,7 @@ export class ModelsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Patch("admin/models/:id")
   update(@Param("id") id: string, @Body() dto: UpdateModelDto) {
-    return this.models.update(id, dto);
+    return this.models.update(id, dto as Parameters<ModelsService["update"]>[1]);
   }
 
   @ApiBearerAuth()
@@ -87,5 +166,18 @@ export class ModelsController {
   @Delete("admin/models/:id")
   remove(@Param("id") id: string) {
     return this.models.remove(id);
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post("admin/channels/:id/import-catalog")
+  importCatalog(
+    @Param("id") id: string,
+    @Body() dto: ImportCatalogDto,
+  ) {
+    return this.models.importCatalog(id, {
+      forceRename: dto.forceRename,
+    });
   }
 }

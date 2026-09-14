@@ -18,7 +18,7 @@
 
 - 生图/视频禁止 HTTP 同步长阻塞
 - poll 退避可配置；失败写 Job.error
-- Redis 生产必需；本地 `docker compose up -d`
+- Redis 生产必需；本地 `docker compose up -d`（仅 Redis；库为 SQLite `apps/server/prisma/sql.db`）
 
 ## 画板
 
@@ -49,4 +49,4 @@
 2. `pnpm install`（自行安装）
 3. `pnpm build:packages`
 4. `pnpm db:generate && pnpm db:push`
-5. 分别启动 server / web / admin
+5. 分别启动 server / web（运维 UI 在 web 的 `/admin`，需 admin 角色；已无独立 `apps/admin`）

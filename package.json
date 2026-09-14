@@ -7,11 +7,10 @@
   },
   "scripts": {
     "build:packages": "pnpm --filter @joyai/shared build && pnpm --filter @joyai/ai-providers build",
-    "dev": "pnpm build:packages && pnpm -r --parallel --filter @joyai/server --filter @joyai/web --filter @joyai/admin run dev",
+    "dev": "pnpm build:packages && pnpm -r --parallel --filter @joyai/server --filter @joyai/web run dev",
     "dev:server": "pnpm build:packages && pnpm --filter @joyai/server dev",
     "dev:web": "pnpm build:packages && pnpm --filter @joyai/web dev",
-    "dev:admin": "pnpm build:packages && pnpm --filter @joyai/admin dev",
-    "build": "pnpm build:packages && pnpm -r --filter @joyai/server --filter @joyai/web --filter @joyai/admin run build",
+    "build": "pnpm build:packages && pnpm -r --filter @joyai/server --filter @joyai/web run build",
     "lint": "pnpm -r run lint",
     "db:generate": "pnpm --filter @joyai/server prisma:generate",
     "db:migrate": "pnpm --filter @joyai/server prisma:migrate",

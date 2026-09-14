@@ -1,8 +1,13 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as bcrypt from "bcryptjs";
+import {
+  CHANNEL_PRESETS,
+  ProviderPlatform,
+  getCatalogForPlatform,
+} from "@joyai/shared";
+import { Prisma } from "@prisma/client";
 import { PrismaService } from "./prisma/prisma.service";
-import { ProviderPlatform } from "@joyai/shared";
 
 @Injectable()
 export class BootstrapService {
@@ -15,7 +20,26 @@ export class BootstrapService {
 
   async run() {
     await this.ensureAdmin();
-    await this.ensureDefaultChannel();
+    await this.ensureChannelFromEnv(
+      ProviderPlatform.VOLCENGINE,
+      "ARK_API_KEY",
+      "ARK_BASE_URL",
+    );
+    await this.ensureChannelFromEnv(
+      ProviderPlatform.APIMART,
+      "APIMART_API_KEY",
+      "APIMART_BASE_URL",
+    );
+    await this.ensureChannelFromEnv(
+      ProviderPlatform.TOAPIS,
+      "TOAPIS_API_KEY",
+      "TOAPIS_BASE_URL",
+    );
+    await this.ensureChannelFromEnv(
+      ProviderPlatform.DASHSCOPE,
+      "DASHSCOPE_API_KEY",
+      "DASHSCOPE_BASE_URL",
+    );
   }
 
   private async ensureAdmin() {
@@ -34,53 +58,72 @@ export class BootstrapService {
     this.logger.log(`Bootstrap admin created: ${username}`);
   }
 
-  private async ensureDefaultChannel() {
-    const apiKey = this.config.get<string>("ARK_API_KEY");
+  private async ensureChannelFromEnv(
+    platform: (typeof ProviderPlatform)[keyof typeof ProviderPlatform],
+    apiKeyEnv: string,
+    baseUrlEnv: string,
+  ) {
+    const apiKey = this.config.get<string>(apiKeyEnv);
     if (!apiKey) return;
 
-    const count = await this.prisma.channel.count();
-    if (count > 0) return;
+    const existing = await this.prisma.channel.findFirst({
+      where: { platform },
+    });
+    if (existing) return;
 
-    const baseUrl =
-      this.config.get<string>("ARK_BASE_URL") ??
-      "https://ark.cn-beijing.volces.com/api/v3";
-    const imageModel =
-      this.config.get<string>("ARK_IMAGE_MODEL") ?? "doubao-seedream-4-0-250828";
-    const videoModel =
-      this.config.get<string>("ARK_VIDEO_MODEL") ??
-      "doubao-seedance-1-0-pro-250528";
+    const preset = CHANNEL_PRESETS[platform];
+    const baseUrl = this.config.get<string>(baseUrlEnv) ?? preset.baseUrl;
+    const metadata: Record<string, unknown> = {};
+    if (preset.dashscopeApiBase) {
+      metadata.dashscopeApiBase = preset.dashscopeApiBase;
+    }
+
+    // Legacy env overrides for volcengine model ids
+    const catalog = getCatalogForPlatform(platform).map((m) => {
+      if (platform === ProviderPlatform.VOLCENGINE && m.kind === "image") {
+        const id =
+          this.config.get<string>("ARK_IMAGE_MODEL") ?? m.remoteId;
+        return { ...m, remoteId: id };
+      }
+      if (platform === ProviderPlatform.VOLCENGINE && m.kind === "video") {
+        const id =
+          this.config.get<string>("ARK_VIDEO_MODEL") ?? m.remoteId;
+        return { ...m, remoteId: id };
+      }
+      return m;
+    });
 
     const channel = await this.prisma.channel.create({
       data: {
-        name: "Volcengine Ark",
-        platform: ProviderPlatform.VOLCENGINE,
+        name: preset.defaultName,
+        platform,
         apiKey,
         baseUrl,
         enabled: true,
+        metadata: Object.keys(metadata).length
+          ? (metadata as Prisma.InputJsonValue)
+          : undefined,
       },
     });
 
-    await this.prisma.model.createMany({
-      data: [
-        {
+    for (const item of catalog) {
+      await this.prisma.model.create({
+        data: {
           channelId: channel.id,
-          name: "Seedream",
-          kind: "image",
-          remoteId: imageModel,
+          name: item.name,
+          kind: item.kind,
+          remoteId: item.remoteId,
+          description: item.description,
+          pricing: item.pricing as Prisma.InputJsonValue,
+          capabilities: item.capabilities as Prisma.InputJsonValue,
           enabled: true,
-          isDefault: true,
+          isDefault: item.isDefault ?? false,
         },
-        {
-          channelId: channel.id,
-          name: "Seedance",
-          kind: "video",
-          remoteId: videoModel,
-          enabled: true,
-          isDefault: true,
-        },
-      ],
-    });
+      });
+    }
 
-    this.logger.log("Bootstrap volcengine channel + models from env");
+    this.logger.log(
+      `Bootstrap ${platform} channel + ${catalog.length} catalog models from env`,
+    );
   }
 }

@@ -8,6 +8,7 @@ import {
   AppearanceTokens,
   WallpaperLayer,
 } from "@/features/appearance";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/shared/lib/utils";
 
 export default function AppShellLayout({
@@ -20,6 +21,8 @@ export default function AppShellLayout({
   const token = useAuthStore((s) => s.token);
   const hydrated = useAuthHydrated();
   const isCanvasEditor = /^\/canvas\/[^/]+$/.test(pathname);
+  const isAdmin =
+    pathname === "/admin" || pathname.startsWith("/admin/");
   /** Wallpaper plugin only paints the inspire home (updream-style). */
   const isInspireHome =
     pathname === "/inspire" || pathname.startsWith("/inspire/");
@@ -31,14 +34,14 @@ export default function AppShellLayout({
 
   if (!hydrated) {
     return (
-      <div className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
+      <div className="flex h-svh items-center justify-center text-sm text-muted-foreground">
         加载中…
       </div>
     );
   }
 
   if (!token) {
-    return <div className="min-h-svh bg-background" />;
+    return <div className="h-svh bg-background" />;
   }
 
   return (
@@ -49,19 +52,20 @@ export default function AppShellLayout({
         data-app-shell
         data-inspire-home={isInspireHome ? "" : undefined}
         className={cn(
-          "relative z-10 flex min-h-svh bg-background",
+          "relative z-10 flex h-svh overflow-hidden bg-card",
           /* Inspire is always dark chrome (sidebar + page), ignore global theme */
           isInspireHome && "dark",
         )}
       >
         <AppSidebar />
-        <main
-          className={cn(
-            "min-w-0 flex-1",
-            isCanvasEditor ? "overflow-hidden" : "overflow-auto",
+        <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          {isCanvasEditor || isAdmin ? (
+            children
+          ) : (
+            <ScrollArea className="h-full" type="hover">
+              {children}
+            </ScrollArea>
           )}
-        >
-          {children}
         </main>
       </div>
     </>

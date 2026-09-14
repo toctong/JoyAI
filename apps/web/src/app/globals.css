@@ -5,9 +5,9 @@
 /* next-themes 用 class 切主题；必须声明，否则 dark: 只跟系统走 */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Light — match joyai.com soft pastel studio */
+/* Light — chrome uses previous sidebar white (#fff) */
 :root {
-  --background: #f7f8fa;
+  --background: #ffffff;
   --foreground: #0d0d0d;
   --card: #ffffff;
   --card-foreground: #0d0d0d;
@@ -27,7 +27,7 @@
   --input: #f2f2f5;
   --ring: #84b3ff;
   --radius: 0.75rem;
-  --atmosphere: #f7f8fa;
+  --atmosphere: #ffffff;
 }
 
 /* Dark — 专业深色台 */
@@ -93,6 +93,18 @@
 html,
 body {
   height: 100%;
+  overflow: hidden;
+}
+
+/* Hide native scrollbars; app uses Radix ScrollArea */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 body {
@@ -105,13 +117,88 @@ body {
     system-ui,
     sans-serif;
   background: var(--atmosphere);
-  min-height: 100vh;
+  height: 100%;
   -webkit-font-smoothing: antialiased;
 }
 
 .joy-sidebar {
   background: var(--card);
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-table thead tr {
+  background: transparent;
+}
+
+.admin-table thead th {
+  letter-spacing: 0.01em;
+}
+
+.admin-table tbody tr {
+  background: transparent;
+  transition: background-color 0.12s ease;
+}
+
+.admin-table tbody tr:hover {
+  background: color-mix(in oklab, var(--secondary) 70%, transparent);
+}
+
+.admin-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+/* Sticky right actions column (horizontal scroll) */
+.admin-table th.admin-col-sticky-right,
+.admin-table td.admin-col-sticky-right {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: var(--card);
+  box-shadow: -10px 0 12px -10px color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+.admin-table thead th.admin-col-sticky-right {
+  z-index: 3;
+}
+
+.admin-table tbody tr:hover td.admin-col-sticky-right {
+  background: color-mix(in oklab, var(--secondary) 70%, var(--card));
+}
+
+/* Admin tables need a visible scrollbar (globals hide scrollbars) */
+.admin-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent)
+    transparent;
+}
+
+.admin-table-scroll::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 8px;
+}
+
+.admin-table-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+}
+
+
+.joy-admin .joy-admin-panel [data-slot="tabs-list"],
+.joy-admin [role="tablist"].inline-flex {
+  height: auto;
+  gap: 4px;
+  border-radius: 12px;
+  background: transparent;
+  padding: 0;
+}
+
+.joy-admin [role="tab"][data-state] {
+  height: 36px;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 /* Inspire page forces dark shell — keep rail readable even without wallpaper */

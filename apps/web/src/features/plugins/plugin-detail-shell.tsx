@@ -17,7 +17,7 @@ export function PluginDetailShell({
   return (
     <div className="joy-plugin-detail">
       <div className="joy-plugin-detail-inner">
-        <Link href="/plugins" className="joy-plugin-back">
+        <Link href="/admin/plugins" className="joy-plugin-back">
           <ArrowLeft className="h-3.5 w-3.5" />
           插件市场
         </Link>

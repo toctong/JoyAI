@@ -1,11 +1,11 @@
 .joy-explore {
   min-height: 100%;
   padding: 28px 20px 64px;
-  background: #f7f8fa;
+  background: var(--card);
 }
 
 .dark .joy-explore {
-  background: #09090b;
+  background: var(--card);
 }
 
 .joy-explore-inner {

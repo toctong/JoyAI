@@ -15,7 +15,7 @@ description: >-
 3. **Generation is always async** via BullMQ; HTTP returns job id immediately.
 4. **Canvas snapshots** store `assetId`/URL only — no base64 blobs.
 
-## Frontend layout (`apps/web`, `apps/admin`)
+## Frontend layout (`apps/web`)
 
 ```
 src/
@@ -32,6 +32,7 @@ src/
 - UI: official shadcn + Radix under `components/ui/` (`components.json` configured). Prefer `npx shadcn@latest add <name>`; do not hand-roll Radix-less fakes.
 - Theme: `next-themes` light / dark / system; tokens in `globals.css` (`:root` + `.dark`).
 - Web IA: left icon rail — 灵感 `/inspire` · 创作 `/studio` · 画布 `/canvas` · 资产 `/assets`.
+- Ops UI lives under `/admin` (role `admin` only); no separate `apps/admin`.
 - Imports: external → `@joyai/*` → `@/` aliases; no deep relative `../../../`.
 
 ## Backend layout (`apps/server`)

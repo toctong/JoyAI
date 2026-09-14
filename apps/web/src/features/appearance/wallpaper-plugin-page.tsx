@@ -11,7 +11,7 @@ import {
 } from "./appearance-store";
 import "./appearance.css";
 
-/** Wallpaper plugin module UI — used under /plugins/wallpaper. */
+/** Wallpaper plugin module UI — used under /admin/plugins/wallpaper. */
 export function WallpaperPluginPage() {
   const active = useActiveWallpaper();
   const wallpaperId = useAppearanceStore((s) => s.wallpaperId);

@@ -3,12 +3,13 @@
 ## Monorepo
 
 ```
-apps/web       Next.js 创作者端
-apps/admin     Next.js 轻量后台
-apps/server    NestJS + Fastify API
+apps/web       Next.js 创作者端 + 运维 UI（/admin，role 门禁）
+apps/server    NestJS + Fastify API（Prisma → SQLite sql.db）
 packages/shared        共享类型 / zod / 画板契约
 packages/ai-providers  Provider 适配器（首期 volcengine）
 ```
+
+数据：SQLite 文件 `apps/server/prisma/sql.db`（`DATABASE_URL=file:./sql.db`）。Redis 仍用于 BullMQ。
 
 ## 请求与任务
 

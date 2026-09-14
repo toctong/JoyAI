@@ -16,6 +16,7 @@ type PollPayload = {
   platform: string;
   apiKey: string;
   baseUrl: string;
+  metadata?: Record<string, unknown> | null;
   attempt: number;
 };
 
@@ -45,6 +46,7 @@ export class VideoPollProcessor extends WorkerHost {
       remoteTaskId: payload.remoteTaskId,
       apiKey: payload.apiKey,
       baseUrl: payload.baseUrl,
+      metadata: payload.metadata ?? null,
     });
 
     if (result.status === "succeeded") {

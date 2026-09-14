@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Compass, LogOut, Puzzle, type LucideIcon } from "lucide-react";
+import { Compass, LogOut, Shield, type LucideIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/lib/auth-store";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
@@ -75,8 +75,8 @@ export function AppSidebar() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const initial = (user?.username ?? "U").slice(0, 1).toUpperCase();
-  const pluginsActive =
-    pathname === "/plugins" || pathname.startsWith("/plugins/");
+  const isAdmin = user?.role === "admin";
+  const adminActive = pathname === "/admin" || pathname.startsWith("/admin/");
 
   return (
     <aside className="joy-sidebar sticky top-0 z-40 flex h-svh w-16 shrink-0 flex-col items-center bg-card py-3">
@@ -139,24 +139,26 @@ export function AppSidebar() {
       </nav>
 
       <div className="mt-auto flex w-full flex-col items-center gap-2 px-1">
-        <Link
-          href="/plugins"
-          className={cn(
-            "flex w-full flex-col items-center justify-center gap-0.5 py-1.5 outline-none transition-colors",
-            pluginsActive
-              ? "text-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-          aria-label="插件市场"
-          title="插件市场"
-        >
-          <span className="inline-flex h-8 w-8 items-center justify-center">
-            <Puzzle className="h-5 w-5" />
-          </span>
-          <span className="max-w-full truncate text-center text-[13px] font-medium leading-5 tracking-[-0.42px]">
-            插件
-          </span>
-        </Link>
+        {isAdmin ? (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex w-full flex-col items-center justify-center gap-0.5 py-1.5 outline-none transition-colors",
+              adminActive
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+            aria-label="管理后台"
+            title="管理后台"
+          >
+            <span className="inline-flex h-8 w-8 items-center justify-center">
+              <Shield className="h-5 w-5" />
+            </span>
+            <span className="max-w-full truncate text-center text-[13px] font-medium leading-5 tracking-[-0.42px]">
+              管理
+            </span>
+          </Link>
+        ) : null}
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -180,6 +182,12 @@ export function AppSidebar() {
               {user?.username}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {isAdmin ? (
+              <DropdownMenuItem onClick={() => router.push("/admin")}>
+                <Shield className="h-4 w-4" />
+                管理后台
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               onClick={() => {
                 logout();

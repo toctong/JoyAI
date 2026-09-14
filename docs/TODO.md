@@ -6,7 +6,7 @@
 - [x] docs 全套
 - [x] joyai-engineering skill
 - [x] packages/shared · packages/ai-providers 骨架
-- [x] apps/server · web · admin 骨架
+- [x] apps/server · web 骨架（运维 UI 合入 web `/admin`；`apps/admin` 已移除）
 
 ## Phase 1 — 核心 API
 
@@ -82,7 +82,6 @@ pnpm db:generate
 pnpm db:push
 pnpm dev:server
 pnpm dev:web
-pnpm dev:admin
 ```
 
-填写 `.env` 中 `ARK_*` 与 `TOS_*` 后，Admin 可补渠道/模型，或依赖 bootstrap 自动建渠道。
+填写 `.env` 中 `ARK_*` 与 `TOS_*` 后，以 admin 角色登录 web 访问 `/admin` 可补渠道/模型，或依赖 bootstrap 自动建渠道。

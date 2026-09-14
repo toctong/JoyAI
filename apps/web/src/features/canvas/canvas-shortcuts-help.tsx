@@ -2,6 +2,7 @@
 
 import { Keyboard } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ROWS: { keys: string; desc: string }[] = [
   { keys: "Space / 中键", desc: "平移画布" },
@@ -48,19 +49,21 @@ export function CanvasShortcutsHelp({ open, onClose }: Props) {
           关闭
         </button>
       </div>
-      <ul className="max-h-[320px] space-y-1 overflow-y-auto px-3 py-2">
-        {ROWS.map((row) => (
-          <li
-            key={row.keys}
-            className="flex items-baseline justify-between gap-3 py-1 text-xs"
-          >
-            <span className="shrink-0 rounded bg-white/8 px-1.5 py-0.5 font-mono text-[10px] text-white/75">
-              {row.keys}
-            </span>
-            <span className={cn("text-right text-white/50")}>{row.desc}</span>
-          </li>
-        ))}
-      </ul>
+      <ScrollArea className="h-[320px]" type="hover">
+        <ul className="space-y-1 px-3 py-2">
+          {ROWS.map((row) => (
+            <li
+              key={row.keys}
+              className="flex items-baseline justify-between gap-3 py-1 text-xs"
+            >
+              <span className="shrink-0 rounded bg-white/8 px-1.5 py-0.5 font-mono text-[10px] text-white/75">
+                {row.keys}
+              </span>
+              <span className={cn("text-right text-white/50")}>{row.desc}</span>
+            </li>
+          ))}
+        </ul>
+      </ScrollArea>
     </div>
   );
 }

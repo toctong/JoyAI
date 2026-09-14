@@ -34,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -664,7 +665,8 @@ export function ProjectLibrary() {
           <DialogHeader>
             <DialogTitle>移动至文件夹</DialogTitle>
           </DialogHeader>
-          <div className="max-h-72 space-y-1 overflow-y-auto">
+          <ScrollArea className="h-72" type="hover">
+            <div className="space-y-1 pr-3">
             <button
               type="button"
               className="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition hover:bg-accent"
@@ -701,7 +703,8 @@ export function ProjectLibrary() {
                 还没有其他文件夹
               </p>
             ) : null}
-          </div>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>

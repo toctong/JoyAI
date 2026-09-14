@@ -2,7 +2,7 @@
 
 ## 产品
 
-JoyAI 是 AIGC 创意工坊：创作者用对话式首页生成图片/视频，用无限画板组织素材与生成卡片；运维用轻量 Admin 配置渠道与模型。
+JoyAI 是 AIGC 创意工坊：创作者用对话式首页生成图片/视频，用无限画板组织素材与生成卡片；运维 UI 合入 `apps/web` 的 `/admin`（admin 角色门禁），不再单独打包 `apps/admin`。
 
 产品可参考公开 AIGC 产品的能力范式（对话生图、无限画板节点），体验与品牌按 JoyAI 自研。
 
@@ -16,7 +16,7 @@ JoyAI 是 AIGC 创意工坊：创作者用对话式首页生成图片/视频，�
 - 资产与历史
 - 无限画板 MVP（image / text / prompt / video 节点）
 - 火山 Ark + TOS
-- 轻量 Admin（渠道、模型、用户、任务）
+- 运维 UI（`apps/web` `/admin`：渠道、模型、用户、任务；role gate）
 
 ## 明确不做（首期）
 

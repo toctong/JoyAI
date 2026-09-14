@@ -4,7 +4,7 @@ export type PluginManifest = {
   id: string;
   name: string;
   description: string;
-  /** Route under /plugins/... */
+  /** Route under /admin/plugins/... */
   href: string;
   tags: string[];
   status: PluginStatus;

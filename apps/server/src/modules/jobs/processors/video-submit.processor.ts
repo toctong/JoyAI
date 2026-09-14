@@ -55,6 +55,8 @@ export class VideoSubmitProcessor extends WorkerHost {
       );
 
       const provider = getVideoProvider(model.channel.platform);
+      const channelMeta =
+        (model.channel.metadata as Record<string, unknown> | null) ?? null;
       const { remoteTaskId } = await provider.submit({
         prompt: input.prompt,
         model: model.remoteId,
@@ -63,6 +65,7 @@ export class VideoSubmitProcessor extends WorkerHost {
         ratio: input.ratio,
         duration: input.duration,
         referenceUrls,
+        metadata: channelMeta,
       });
 
       await this.prisma.job.update({
@@ -82,6 +85,7 @@ export class VideoSubmitProcessor extends WorkerHost {
           platform: model.channel.platform,
           apiKey: model.channel.apiKey,
           baseUrl: model.channel.baseUrl,
+          metadata: channelMeta,
           attempt: 0,
         },
         { delay: 3000, removeOnComplete: 100, removeOnFail: 200 },

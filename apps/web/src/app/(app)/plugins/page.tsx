@@ -1,7 +1,5 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { PluginsMarket } from "@/features/plugins";
-
-export default function PluginsPage() {
-  return <PluginsMarket />;
+export default function PluginsRedirectPage() {
+  redirect("/admin/plugins");
 }

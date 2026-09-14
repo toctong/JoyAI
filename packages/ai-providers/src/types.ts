@@ -23,7 +23,11 @@ export type VideoSubmitInput = {
   baseUrl: string;
   ratio?: string;
   duration?: number;
+  resolution?: string;
+  watermark?: boolean;
   referenceUrls?: string[];
+  /** Channel metadata (e.g. dashscopeApiBase) */
+  metadata?: Record<string, unknown> | null;
 };
 
 export type VideoPollResult =
@@ -43,5 +47,6 @@ export interface VideoProvider {
     remoteTaskId: string;
     apiKey: string;
     baseUrl: string;
+    metadata?: Record<string, unknown> | null;
   }): Promise<VideoPollResult>;
 }
