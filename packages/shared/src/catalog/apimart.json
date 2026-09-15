@@ -1,0 +1,2326 @@
+{
+  "platform": "apimart",
+  "updatedAt": "2026-09-14",
+  "llm": [
+    {
+      "name": "GPT-5.5",
+      "remoteId": "gpt-5.5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 36,
+        "outputPer1M": 216,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      },
+      "description": "apiMart"
+    },
+    {
+      "name": "GPT-5",
+      "remoteId": "gpt-5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 36,
+        "outputPer1M": 108,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "GPT-5 Mini",
+      "remoteId": "gpt-5-mini",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 1.8,
+        "outputPer1M": 14.4,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision"
+        ]
+      }
+    },
+    {
+      "name": "GPT-5 Nano",
+      "remoteId": "gpt-5-nano",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 0.36,
+        "outputPer1M": 2.88,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat"
+        ]
+      }
+    },
+    {
+      "name": "GPT-4o",
+      "remoteId": "gpt-4o",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 18,
+        "outputPer1M": 72,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision"
+        ]
+      }
+    },
+    {
+      "name": "GPT-4o Mini",
+      "remoteId": "gpt-4o-mini",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 1.08,
+        "outputPer1M": 4.32,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision"
+        ]
+      }
+    },
+    {
+      "name": "o3",
+      "remoteId": "o3",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 72,
+        "outputPer1M": 288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "o4 Mini",
+      "remoteId": "o4-mini",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 7.92,
+        "outputPer1M": 31.68,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "Claude Opus 4.5",
+      "remoteId": "claude-opus-4-5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 108,
+        "outputPer1M": 540,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "Claude Sonnet 4.5",
+      "remoteId": "claude-sonnet-4-5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 21.6,
+        "outputPer1M": 108,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "Claude Haiku 4.5",
+      "remoteId": "claude-haiku-4-5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 7.2,
+        "outputPer1M": 36,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision"
+        ]
+      }
+    },
+    {
+      "name": "Gemini 2.5 Pro",
+      "remoteId": "gemini-2.5-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 9,
+        "outputPer1M": 72,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "video-input",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "Gemini 2.5 Flash",
+      "remoteId": "gemini-2.5-flash",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 1.08,
+        "outputPer1M": 4.32,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "video-input"
+        ]
+      }
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "remoteId": "gemini-2.0-flash",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 0.72,
+        "outputPer1M": 2.88,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "video-input"
+        ]
+      }
+    },
+    {
+      "name": "Gemini 2.0 Flash Thinking",
+      "remoteId": "gemini-2.0-flash-thinking",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 1.08,
+        "outputPer1M": 4.32,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "Qwen3.8 Max",
+      "remoteId": "qwen3.8-max",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 8.64,
+        "outputPer1M": 34.56,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "DeepSeek V4 Pro",
+      "remoteId": "deepseek-v4-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 8.64,
+        "outputPer1M": 17.28,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "DeepSeek V3",
+      "remoteId": "deepseek-chat",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 1.944,
+        "outputPer1M": 7.92,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat"
+        ]
+      }
+    },
+    {
+      "name": "Grok 4",
+      "remoteId": "grok-4",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 21.6,
+        "outputPer1M": 108,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
+    },
+    {
+      "name": "Kimi K2.5",
+      "remoteId": "kimi-k2.5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "token",
+        "inputPer1M": 4.32,
+        "outputPer1M": 17.28,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision"
+        ]
+      }
+    }
+  ],
+  "image": [
+    {
+      "name": "GPT Image 1",
+      "remoteId": "gpt-image-1",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perImage": 0.288,
+        "tiers": [
+          {
+            "label": "标准",
+            "perImage": 0.288
+          },
+          {
+            "label": "高质",
+            "perImage": 0.576
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 15,
+        "features": [
+          "t2i",
+          "i2i",
+          "inpaint"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "标准",
+          "高质"
+        ]
+      },
+      "description": "OpenAI 文/图生图",
+      "isDefault": true
+    },
+    {
+      "name": "GPT Image 1.5",
+      "remoteId": "gpt-image-1.5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.36,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 15,
+        "features": [
+          "t2i",
+          "i2i",
+          "inpaint"
+        ],
+        "async": true
+      }
+    },
+    {
+      "name": "GPT Image 2",
+      "remoteId": "gpt-image-2",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perImage": 0.3096,
+        "tiers": [
+          {
+            "label": "1K",
+            "resolution": "1K",
+            "perImage": 0.3096
+          },
+          {
+            "label": "2K",
+            "resolution": "2K",
+            "perImage": 0.504
+          },
+          {
+            "label": "4K",
+            "resolution": "4K",
+            "perImage": 0.864
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 15,
+        "features": [
+          "t2i",
+          "i2i",
+          "inpaint"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "GPT Image 2 Official",
+      "remoteId": "gpt-image-2-official",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perImage": 0.36,
+        "tiers": [
+          {
+            "label": "1K",
+            "resolution": "1K",
+            "perImage": 0.36
+          },
+          {
+            "label": "2K",
+            "resolution": "2K",
+            "perImage": 0.576
+          },
+          {
+            "label": "4K",
+            "resolution": "4K",
+            "perImage": 1.008
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 16,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "GPT Image 2.5 Flare",
+      "remoteId": "gpt-image-2.5-flare",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.432,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 16,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "GPT Image 2.5 Sunburst",
+      "remoteId": "gpt-image-2.5-sunburst",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.576,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 16,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "Nano Banana",
+      "remoteId": "nano-banana",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.144,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 14,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "Nano Banana Pro",
+      "remoteId": "nano-banana-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 14,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "Nano Banana 2",
+      "remoteId": "nano-banana-2",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.252,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 14,
+        "features": [
+          "t2i",
+          "i2i",
+          "search"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "Nano Banana Lite",
+      "remoteId": "nano-banana-lite",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.0864,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 14,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K"
+        ]
+      }
+    },
+    {
+      "name": "Imagen 4.0",
+      "remoteId": "imagen-4.0",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "image"
+        ],
+        "features": [
+          "t2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4"
+        ]
+      }
+    },
+    {
+      "name": "Seedream 4.0",
+      "remoteId": "seedream-4.0",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.216,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 4,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true
+      }
+    },
+    {
+      "name": "Seedream 4.5",
+      "remoteId": "seedream-4.5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.252,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 4,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true
+      }
+    },
+    {
+      "name": "Seedream 5.0 Lite",
+      "remoteId": "seedream-5.0-lite",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 4,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "2K",
+          "3K"
+        ]
+      }
+    },
+    {
+      "name": "Seedream 5.0 Pro",
+      "remoteId": "seedream-5.0-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.432,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 10,
+        "features": [
+          "t2i",
+          "i2i",
+          "layers"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "1.5K",
+          "2K"
+        ]
+      }
+    },
+    {
+      "name": "Flux Kontext Pro",
+      "remoteId": "flux-kontext-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 4,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true
+      }
+    },
+    {
+      "name": "Flux Kontext Max",
+      "remoteId": "flux-kontext-max",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.576,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 4,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true
+      }
+    },
+    {
+      "name": "Flux 2.0",
+      "remoteId": "flux-2",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.252,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "image"
+        ],
+        "features": [
+          "t2i"
+        ],
+        "async": true
+      }
+    },
+    {
+      "name": "Qwen Image 2.0",
+      "remoteId": "qwen-image-2.0",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.144,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 3,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K"
+        ]
+      }
+    },
+    {
+      "name": "Qwen Image 3.0",
+      "remoteId": "qwen-image-3.0",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.18,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 3,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K"
+        ]
+      }
+    },
+    {
+      "name": "Qwen Image 3.0 Pro",
+      "remoteId": "qwen-image-3.0-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 3,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K"
+        ]
+      }
+    },
+    {
+      "name": "Z-Image Turbo",
+      "remoteId": "z-image-turbo",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.072,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "image"
+        ],
+        "features": [
+          "t2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K"
+        ]
+      }
+    },
+    {
+      "name": "Grok Imagine",
+      "remoteId": "grok-imagine-image",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.36,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 3,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true
+      }
+    },
+    {
+      "name": "Grok Imagine 2.0",
+      "remoteId": "grok-imagine-image-2.0",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.576,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 3,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K"
+        ]
+      }
+    },
+    {
+      "name": "Wan 2.7 Image",
+      "remoteId": "wan2.7-image",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.1555,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 4,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "Wan 2.7 Image Pro",
+      "remoteId": "wan2.7-image-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 4,
+        "features": [
+          "t2i",
+          "i2i"
+        ],
+        "async": true,
+        "resolutions": [
+          "1K",
+          "2K",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "Midjourney",
+      "remoteId": "midjourney",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_image",
+        "perImage": 0.288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ],
+        "maxRefImages": 4,
+        "features": [
+          "t2i",
+          "i2i",
+          "upscale",
+          "vary",
+          "inpaint"
+        ],
+        "async": true
+      },
+      "description": "MJ Imagine / 垫图 / 二次操作"
+    }
+  ],
+  "video": [
+    {
+      "name": "Sora 2",
+      "remoteId": "sora-2",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perSecond": 0.72,
+        "tiers": [
+          {
+            "label": "720p",
+            "resolution": "720p",
+            "perSecond": 0.72
+          },
+          {
+            "label": "1080p",
+            "resolution": "1080p",
+            "perSecond": 2.16
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 20,
+        "resolutions": [
+          "720p",
+          "1080p"
+        ]
+      },
+      "description": "OpenAI Sora2",
+      "isDefault": true
+    },
+    {
+      "name": "Sora 2 Pro",
+      "remoteId": "sora-2-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perSecond": 2.16,
+        "tiers": [
+          {
+            "label": "720p",
+            "resolution": "720p",
+            "perSecond": 2.16
+          },
+          {
+            "label": "1080p",
+            "resolution": "1080p",
+            "perSecond": 3.6
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 20,
+        "resolutions": [
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "VEO 3",
+      "remoteId": "veo-3",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perVideo": 3.6,
+        "tiers": [
+          {
+            "label": "4s",
+            "perVideo": 2.88
+          },
+          {
+            "label": "8s",
+            "perVideo": 5.4
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 8,
+        "resolutions": [
+          "720p",
+          "1080p",
+          "4k",
+          "4s",
+          "8s"
+        ]
+      }
+    },
+    {
+      "name": "VEO 3 Official",
+      "remoteId": "veo-3-official",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perVideo": 4.32,
+        "tiers": [
+          {
+            "label": "4s",
+            "perVideo": 3.24
+          },
+          {
+            "label": "8s",
+            "perVideo": 6.48
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio"
+        ],
+        "maxDurationSec": 8,
+        "resolutions": [
+          "720P",
+          "1080P",
+          "4s",
+          "8s"
+        ]
+      }
+    },
+    {
+      "name": "Seedance 1.0 Pro",
+      "remoteId": "seedance-1-0-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.36,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 12,
+        "resolutions": [
+          "480p",
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "Seedance 1.5 Pro",
+      "remoteId": "seedance-1-5-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.432,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio"
+        ],
+        "maxDurationSec": 12,
+        "resolutions": [
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "Seedance 2.0",
+      "remoteId": "seedance-2.0",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.36,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "ref-video",
+          "audio"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "480p",
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "Seedance 2.5",
+      "remoteId": "seedance-2.5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.576,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 30,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "edit",
+          "extend"
+        ],
+        "maxDurationSec": 30,
+        "resolutions": [
+          "480p",
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "Kling 2.6",
+      "remoteId": "kling-v2-6",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.504,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio"
+        ],
+        "maxDurationSec": 10,
+        "resolutions": [
+          "720P",
+          "1080P"
+        ]
+      }
+    },
+    {
+      "name": "Kling V3",
+      "remoteId": "kling-v3",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perSecond": 0.6048,
+        "tiers": [
+          {
+            "label": "720P 静音",
+            "resolution": "720P",
+            "perSecond": 0.6048
+          },
+          {
+            "label": "720P 有声",
+            "resolution": "720P",
+            "perSecond": 0.9072
+          },
+          {
+            "label": "1080P 静音",
+            "resolution": "1080P",
+            "perSecond": 0.8064
+          },
+          {
+            "label": "1080P 有声",
+            "resolution": "1080P",
+            "perSecond": 1.2096
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "720P",
+          "1080P",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "Kling 3.0 Turbo",
+      "remoteId": "kling-3.0-turbo",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.432,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "720P",
+          "1080P"
+        ]
+      }
+    },
+    {
+      "name": "Kling V3 Omni",
+      "remoteId": "kling-v3-omni",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.72,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 4,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "omni",
+          "audio"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "720P",
+          "1080P",
+          "4K"
+        ]
+      }
+    },
+    {
+      "name": "MiniMax Hailuo 02",
+      "remoteId": "MiniMax-Hailuo-02",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.36,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 10,
+        "resolutions": [
+          "768p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "MiniMax Hailuo 2.3",
+      "remoteId": "MiniMax-Hailuo-2.3",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.396,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 10,
+        "resolutions": [
+          "768p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "MiniMax H3",
+      "remoteId": "MiniMax-H3",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.576,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 4,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio",
+          "ref-video"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "768P",
+          "2K"
+        ]
+      }
+    },
+    {
+      "name": "Wan 2.6",
+      "remoteId": "wan2.6",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.576,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "Wan 2.7",
+      "remoteId": "wan2.7",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.648,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio",
+          "extend"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "720P",
+          "1080P"
+        ]
+      }
+    },
+    {
+      "name": "Wan 3.0",
+      "remoteId": "wan3.0",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.72,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 4,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "r2v",
+          "omni"
+        ],
+        "maxDurationSec": 30,
+        "resolutions": [
+          "480P",
+          "720P",
+          "1080P"
+        ]
+      }
+    },
+    {
+      "name": "HappyHorse 1.1",
+      "remoteId": "happyhorse-1.1",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perSecond": 0.9,
+        "tiers": [
+          {
+            "label": "720P",
+            "resolution": "720P",
+            "perSecond": 0.9
+          },
+          {
+            "label": "1080P",
+            "resolution": "1080P",
+            "perSecond": 1.2024
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 9,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "r2v"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "720P",
+          "1080P"
+        ]
+      }
+    },
+    {
+      "name": "HappyHorse 1.0",
+      "remoteId": "happyhorse-1.0",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.9,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 9,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "720P",
+          "1080P"
+        ]
+      }
+    },
+    {
+      "name": "Vidu Q3 Pro",
+      "remoteId": "vidu-q3-pro",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.432,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio"
+        ],
+        "maxDurationSec": 16,
+        "resolutions": [
+          "540p",
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "Grok Imagine Video 1.5",
+      "remoteId": "grok-imagine-video-1.5",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perSecond": 0.576,
+        "tiers": [
+          {
+            "label": "480p",
+            "resolution": "480p",
+            "perSecond": 0.576
+          },
+          {
+            "label": "720p",
+            "resolution": "720p",
+            "perSecond": 1.008
+          },
+          {
+            "label": "1080p",
+            "resolution": "1080p",
+            "perSecond": 1.584
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 10,
+        "maxRefVideos": 0,
+        "maxRefAudios": 0,
+        "resolutions": [
+          "480p",
+          "720p",
+          "1080p"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ]
+      }
+    },
+    {
+      "name": "Pixverse V6",
+      "remoteId": "pixverse-v6",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.36,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 4,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "extend"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "360p",
+          "540p",
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "Gemini Omni Flash",
+      "remoteId": "gemini_omni_flash",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "tiered",
+        "perVideo": 3.24,
+        "tiers": [
+          {
+            "label": "720P 4s",
+            "resolution": "720P",
+            "perVideo": 3.24
+          },
+          {
+            "label": "720P 8s",
+            "resolution": "720P",
+            "perVideo": 5.4
+          },
+          {
+            "label": "1080p 10s",
+            "resolution": "1080p",
+            "perVideo": 6.48
+          }
+        ],
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 3,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio",
+          "edit"
+        ],
+        "maxDurationSec": 10,
+        "resolutions": [
+          "720p",
+          "1080p",
+          "4k",
+          "720P"
+        ]
+      }
+    },
+    {
+      "name": "SkyReels V4 Fast",
+      "remoteId": "skyreels-v4-fast",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.288,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 4,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "480p",
+          "720p",
+          "1080p"
+        ]
+      }
+    },
+    {
+      "name": "FLUX 3 Video",
+      "remoteId": "flux-3-video",
+      "pricing": {
+        "currency": "CNY",
+        "billing": "per_second",
+        "perSecond": 0.504,
+        "note": "中转参考价（美元×7.2），以控制台实付为准",
+        "updatedAt": "2026-09-14"
+      },
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "audio",
+          "extend"
+        ],
+        "maxDurationSec": 20,
+        "resolutions": [
+          "hd",
+          "fhd"
+        ]
+      }
+    }
+  ]
+}

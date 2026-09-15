@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, Save } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { api } from "@/shared/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

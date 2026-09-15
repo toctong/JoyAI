@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
+import { confirmDialog } from "@/shared/lib/confirm";
 import type { ModelCapabilities, ModelPricing } from "@joyai/shared";
 import { api } from "@/shared/lib/api";
 import { buildAdminQuery } from "@/shared/lib/admin-query";
@@ -66,7 +67,6 @@ type Model = {
   pricing?: ModelPricing | null;
   capabilities?: ModelCapabilities | null;
   enabled: boolean;
-  isDefault: boolean;
   channelId: string;
   channel?: { name: string; platform?: string };
 };
@@ -101,7 +101,6 @@ const schema = z.object({
   resolutions: z.string().optional(),
   ratios: z.string().optional(),
   sizes: z.string().optional(),
-  isDefault: z.boolean().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -174,7 +173,6 @@ export default function ModelsPage() {
   const [keyword, setKeyword] = useState("");
   const [kindFilter, setKindFilter] = useState<string>("all");
   const [enabledFilter, setEnabledFilter] = useState<string>("all");
-  const [defaultFilter, setDefaultFilter] = useState<string>("all");
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [refreshing, setRefreshing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -199,7 +197,6 @@ export default function ModelsPage() {
       resolutions: "",
       ratios: "",
       sizes: "",
-      isDefault: false,
     },
   });
 
@@ -231,10 +228,6 @@ export default function ModelsPage() {
               enabledFilter === "all"
                 ? undefined
                 : enabledFilter === "enabled",
-            isDefault:
-              defaultFilter === "all"
-                ? undefined
-                : defaultFilter === "default",
             channelId: channelFilter === "all" ? undefined : channelFilter,
           })}`,
         );
@@ -260,7 +253,6 @@ export default function ModelsPage() {
       keyword,
       kindFilter,
       enabledFilter,
-      defaultFilter,
       channelFilter,
     ],
   );
@@ -303,7 +295,6 @@ export default function ModelsPage() {
       resolutions: "",
       ratios: "",
       sizes: "",
-      isDefault: false,
     });
     setOpen(true);
   }
@@ -336,7 +327,6 @@ export default function ModelsPage() {
       resolutions: (c?.resolutions ?? []).join(","),
       ratios: (c?.ratios ?? []).join(","),
       sizes: (c?.sizes ?? []).join(","),
-      isDefault: m.isDefault,
     });
     setOpen(true);
   }
@@ -354,7 +344,6 @@ export default function ModelsPage() {
             description: values.description,
             pricing,
             capabilities,
-            isDefault: values.isDefault,
           },
         });
         toast.success("模型已更新");
@@ -369,7 +358,6 @@ export default function ModelsPage() {
             description: values.description,
             pricing,
             capabilities,
-            isDefault: values.isDefault,
           },
         });
         toast.success("模型已创建");
@@ -394,7 +382,13 @@ export default function ModelsPage() {
   }
 
   async function remove(m: Model) {
-    if (!window.confirm(`确定删除模型「${m.name}」？`)) return;
+    const ok = await confirmDialog({
+      title: `删除模型「${m.name}」？`,
+      description: "删除后不可恢复。",
+      confirmText: "删除",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api(`/admin/models/${m.id}`, { method: "DELETE" });
       toast.success("已删除");
@@ -412,7 +406,6 @@ export default function ModelsPage() {
     !!keyword ||
     kindFilter !== "all" ||
     enabledFilter !== "all" ||
-    defaultFilter !== "all" ||
     channelFilter !== "all";
 
   function renderActions(m: Model) {
@@ -487,21 +480,6 @@ export default function ModelsPage() {
                   <SelectItem value="all">全部状态</SelectItem>
                   <SelectItem value="enabled">启用</SelectItem>
                   <SelectItem value="disabled">停用</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select
-                value={defaultFilter}
-                onValueChange={(v) =>
-                  resetPageAnd(() => setDefaultFilter(v))
-                }
-              >
-                <SelectTrigger className="h-9 w-[110px] rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">全部默认</SelectItem>
-                  <SelectItem value="default">默认</SelectItem>
-                  <SelectItem value="non-default">非默认</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -601,9 +579,6 @@ export default function ModelsPage() {
                     ) : null}
                     <span className="truncate">{m.channel?.name ?? "—"}</span>
                   </span>
-                  {m.isDefault ? (
-                    <Badge className="px-1.5">默认</Badge>
-                  ) : null}
                 </div>
                 <PriceSummary pricing={m.pricing} />
                 <CapabilityBadges capabilities={m.capabilities} />
@@ -637,9 +612,6 @@ export default function ModelsPage() {
                   </TableHead>
                   <TableHead className="min-w-[240px] whitespace-nowrap">
                     能力 / 限制
-                  </TableHead>
-                  <TableHead className="w-[72px] whitespace-nowrap">
-                    默认
                   </TableHead>
                   <TableHead className="w-[72px] whitespace-nowrap">
                     启用
@@ -708,13 +680,6 @@ export default function ModelsPage() {
                         capabilities={m.capabilities}
                         compact
                       />
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">
-                      {m.isDefault ? (
-                        <Badge className="px-1.5">默认</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <Switch
@@ -1001,13 +966,6 @@ export default function ModelsPage() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={!!form.watch("isDefault")}
-                  onCheckedChange={(v) => form.setValue("isDefault", v)}
-                />
-                设为该类型默认模型
-              </label>
             </div>
             <DialogFooter className="shrink-0 border-t border-border/70 px-6 py-4">
               <Button

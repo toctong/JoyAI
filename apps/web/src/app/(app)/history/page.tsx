@@ -47,7 +47,9 @@ export default function HistoryPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
 
   async function load() {
-    setJobs(await api<Job[]>("/jobs?take=50"));
+    const res = await api<{ items: Job[] }>("/jobs?take=50");
+    // 历史页：新的在前
+    setJobs([...res.items].reverse());
   }
 
   useEffect(() => {

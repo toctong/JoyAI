@@ -1,9 +1,9 @@
 import { ProviderPlatform, type ProviderPlatformId } from "./model-meta";
 import type { CatalogModel } from "./catalog/helpers";
-import { APIMART_CATALOG } from "./catalog/apimart";
-import { DASHSCOPE_CATALOG } from "./catalog/dashscope";
-import { TOAPIS_CATALOG } from "./catalog/toapis";
-import { VOLCENGINE_CATALOG } from "./catalog/volcengine";
+import {
+  CHANNEL_CATALOG_JSON,
+  flattenChannelCatalog,
+} from "./catalog/load";
 
 export {
   USD_TO_CNY,
@@ -11,11 +11,24 @@ export {
   type CatalogModel,
 } from "./catalog/helpers";
 
+export type {
+  ChannelCatalogJson,
+  CatalogModelJson,
+} from "./catalog/load";
+
 export const MODEL_CATALOG: Record<ProviderPlatformId, CatalogModel[]> = {
-  [ProviderPlatform.VOLCENGINE]: VOLCENGINE_CATALOG,
-  [ProviderPlatform.APIMART]: APIMART_CATALOG,
-  [ProviderPlatform.TOAPIS]: TOAPIS_CATALOG,
-  [ProviderPlatform.DASHSCOPE]: DASHSCOPE_CATALOG,
+  [ProviderPlatform.VOLCENGINE]: flattenChannelCatalog(
+    CHANNEL_CATALOG_JSON.volcengine!,
+  ),
+  [ProviderPlatform.APIMART]: flattenChannelCatalog(
+    CHANNEL_CATALOG_JSON.apimart!,
+  ),
+  [ProviderPlatform.TOAPIS]: flattenChannelCatalog(
+    CHANNEL_CATALOG_JSON.toapis!,
+  ),
+  [ProviderPlatform.DASHSCOPE]: flattenChannelCatalog(
+    CHANNEL_CATALOG_JSON.dashscope!,
+  ),
 };
 
 export function getCatalogForPlatform(platform: string): CatalogModel[] {

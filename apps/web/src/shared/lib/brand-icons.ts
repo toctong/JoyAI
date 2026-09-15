@@ -153,19 +153,88 @@ export function channelIconSrc(platform: string): string | null {
   return CHANNEL_ICON[key] ?? null;
 }
 
-export function modelIconSrc(input: {
+/** Resolve model family key from remoteId / name. */
+export function modelFamilyKey(input: {
   remoteId?: string;
   name?: string;
   kind?: string;
 }): string | null {
   const hay = `${input.remoteId ?? ""} ${input.name ?? ""}`.toLowerCase();
-  if (hay.trim()) {
-    for (const rule of MODEL_RULES) {
-      if (rule.re.test(hay)) {
-        const src = resolveFamilyIcon(rule.family);
-        if (src) return src;
-      }
-    }
+  if (!hay.trim()) return null;
+  for (const rule of MODEL_RULES) {
+    if (rule.re.test(hay)) return rule.family;
   }
   return null;
+}
+
+export function modelIconSrc(input: {
+  remoteId?: string;
+  name?: string;
+  kind?: string;
+}): string | null {
+  const family = modelFamilyKey(input);
+  return family ? resolveFamilyIcon(family) : null;
+}
+
+const FAMILY_VENDOR: Record<string, string> = {
+  seedream: "字节跳动",
+  seedance: "字节跳动",
+  seed: "字节跳动",
+  doubao: "字节跳动",
+  jimeng: "字节跳动",
+  bytedance: "字节跳动",
+  wan: "阿里云",
+  qwen: "阿里云",
+  tongyi: "阿里云",
+  alibaba: "阿里云",
+  openai: "OpenAI",
+  sora: "OpenAI",
+  gemini: "Google",
+  veo: "Google",
+  google: "Google",
+  claude: "Anthropic",
+  anthropic: "Anthropic",
+  grok: "xAI",
+  flux: "Black Forest Labs",
+  kling: "快手",
+  keling: "快手",
+  midjourney: "Midjourney",
+  runway: "Runway",
+  luma: "Luma",
+  minimax: "MiniMax",
+  hailuo: "MiniMax",
+  happyhorse: "MiniMax",
+  hunyuan: "腾讯",
+  deepseek: "DeepSeek",
+  zhipu: "智谱",
+  cogview: "智谱",
+  ideogram: "Ideogram",
+  recraft: "Recraft",
+  vidu: "Vidu",
+  pika: "Pika",
+  pixverse: "PixVerse",
+  skyreels: "SkyReels",
+  "nano-banana": "Google",
+  moonshot: "月之暗面",
+  stepfun: "阶跃星辰",
+  yi: "零一万物",
+  baichuan: "百川",
+  spark: "讯飞",
+  wenxin: "百度",
+  llama: "Meta",
+  meta: "Meta",
+  mistral: "Mistral",
+  perplexity: "Perplexity",
+  stability: "Stability AI",
+};
+
+/** 模型厂商展示名，如「字节跳动」「xAI」 */
+export function modelVendorLabel(input: {
+  remoteId?: string;
+  name?: string;
+  kind?: string;
+}): string | null {
+  const family = modelFamilyKey(input);
+  if (!family) return null;
+  return FAMILY_VENDOR[family] ?? null;
 }

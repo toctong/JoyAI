@@ -3,7 +3,8 @@
 import * as React from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/sonner";
+import { ConfirmDialogHost } from "@/components/confirm-dialog-host";
+import { AppToaster } from "@/shared/lib/toast";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -15,7 +16,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
     >
       <TooltipProvider delayDuration={200}>
         {children}
-        <Toaster richColors position="top-center" />
+        <ConfirmDialogHost />
+        <AppToaster />
       </TooltipProvider>
     </NextThemesProvider>
   );

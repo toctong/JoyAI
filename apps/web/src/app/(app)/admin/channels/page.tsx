@@ -12,7 +12,8 @@ import {
   RadioTower,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
+import { confirmDialog } from "@/shared/lib/confirm";
 import { CHANNEL_PRESETS, type ProviderPlatformId } from "@joyai/shared";
 import { api } from "@/shared/lib/api";
 import { buildAdminQuery } from "@/shared/lib/admin-query";
@@ -337,11 +338,13 @@ export default function ChannelsPage() {
   }
 
   async function remove(channel: Channel) {
-    if (
-      !window.confirm(`确定删除渠道「${channel.name}」？关联模型将一并删除。`)
-    ) {
-      return;
-    }
+    const ok = await confirmDialog({
+      title: `删除渠道「${channel.name}」？`,
+      description: "关联模型将一并删除，此操作不可恢复。",
+      confirmText: "删除",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api(`/admin/channels/${channel.id}`, { method: "DELETE" });
       toast.success("已删除");

@@ -287,7 +287,7 @@
 }
 
 .joy-chip-model {
-  max-width: min(220px, 42vw);
+  max-width: min(280px, 48vw);
   color: var(--foreground);
 }
 
@@ -295,6 +295,60 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.joy-composer-model-menu {
+  max-height: min(360px, 50vh);
+  overflow: auto;
+  padding: 6px;
+}
+
+.joy-composer-model-item {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 10px !important;
+  border-radius: 10px;
+}
+
+.joy-composer-model-item.is-selected {
+  background: var(--accent);
+}
+
+.joy-composer-model-item-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.joy-composer-model-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.joy-composer-model-item-vendor {
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+.joy-composer-model-item-badge {
+  flex-shrink: 0;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 20px;
 }
 
 .joy-chip-sparkle {
@@ -314,6 +368,12 @@
 
 .joy-chip-params:hover {
   background: var(--muted);
+}
+
+.joy-chip-params-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .joy-chip-params-quality {

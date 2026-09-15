@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, User } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { api, ApiError } from "@/shared/lib/api";
 import { useAuthStore, type AuthUser } from "@/shared/lib/auth-store";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";

@@ -5,6 +5,9 @@
 /* next-themes 用 class 切主题；必须声明，否则 dark: 只跟系统走 */
 @custom-variant dark (&:where(.dark, .dark *));
 
+*:focus {
+  outline-color:#eee;
+}
 /* Light — chrome uses previous sidebar white (#fff) */
 :root {
   --background: #ffffff;

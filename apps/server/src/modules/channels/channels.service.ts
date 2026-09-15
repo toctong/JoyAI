@@ -248,28 +248,16 @@ export class ChannelsService {
       return model;
     }
 
-    const model = await this.models.findOne({
+    const fallback = await this.models.findOne({
       where: {
         kind: kind as JobKind,
         enabled: true,
-        isDefault: true,
         channel: { enabled: true },
       },
       relations: ["channel"],
       order: { updatedAt: "DESC" },
     });
-    if (!model) {
-      const fallback = await this.models.findOne({
-        where: {
-          kind: kind as JobKind,
-          enabled: true,
-          channel: { enabled: true },
-        },
-        relations: ["channel"],
-      });
-      if (!fallback) throw new NotFoundException(`没有可用的 ${kind} 模型`);
-      return fallback;
-    }
-    return model;
+    if (!fallback) throw new NotFoundException(`没有可用的 ${kind} 模型`);
+    return fallback;
   }
 }

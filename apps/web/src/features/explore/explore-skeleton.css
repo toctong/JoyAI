@@ -1,0 +1,142 @@
+.joy-explore-skel-feed {
+  column-count: 4;
+  column-gap: 12px;
+}
+
+.joy-explore-skel-card {
+  display: inline-block;
+  width: 100%;
+  margin-bottom: 12px;
+  border-radius: calc(var(--radius) + 2px);
+  break-inside: avoid;
+}
+
+/* 瀑布流错峰，避免整齐闪动 */
+.joy-explore-skel-card:nth-child(4n + 1) {
+  animation-delay: 0s, 0s;
+}
+.joy-explore-skel-card:nth-child(4n + 2) {
+  animation-delay: 0.15s, 0.2s;
+}
+.joy-explore-skel-card:nth-child(4n + 3) {
+  animation-delay: 0.3s, 0.4s;
+}
+.joy-explore-skel-card:nth-child(4n + 4) {
+  animation-delay: 0.45s, 0.1s;
+}
+
+.joy-explore-dialog-skel {
+  height: 100%;
+}
+
+.joy-explore-dialog-skel-media {
+  width: 100%;
+  height: 100%;
+  border-radius: calc(var(--radius) + 2px);
+  animation-duration: 1.8s, 2.4s;
+}
+
+.joy-explore-dialog-skel-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.joy-explore-dialog-skel-name {
+  width: 96px;
+  height: 16px;
+  border-radius: 6px;
+}
+
+.joy-explore-dialog-skel-like {
+  width: 52px;
+  height: 28px;
+  border-radius: 999px;
+}
+
+.joy-explore-dialog-skel-model {
+  width: 120px;
+  height: 28px;
+  margin-bottom: 18px;
+  border-radius: 999px;
+}
+
+.joy-explore-dialog-skel-label {
+  width: 48px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.joy-explore-dialog-skel-copy {
+  width: 52px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.joy-explore-dialog-skel-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 120px;
+  margin-bottom: 16px;
+}
+
+.joy-explore-dialog-skel-line {
+  width: 100%;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.joy-explore-dialog-skel-line.is-mid {
+  width: 78%;
+}
+
+.joy-explore-dialog-skel-line.is-short {
+  width: 56%;
+}
+
+.joy-explore-dialog-skel-line:nth-child(1) {
+  animation-delay: 0s, 0s;
+}
+.joy-explore-dialog-skel-line:nth-child(2) {
+  animation-delay: 0.1s, 0.15s;
+}
+.joy-explore-dialog-skel-line:nth-child(3) {
+  animation-delay: 0.2s, 0.3s;
+}
+.joy-explore-dialog-skel-line:nth-child(4) {
+  animation-delay: 0.3s, 0.45s;
+}
+
+.joy-explore-dialog-skel-meta {
+  width: 180px;
+  height: 14px;
+  margin-bottom: 14px;
+  border-radius: 4px;
+}
+
+.joy-explore-dialog-skel-cta {
+  width: 100%;
+  height: 44px;
+  border-radius: var(--radius);
+}
+
+@media (max-width: 1280px) {
+  .joy-explore-skel-feed {
+    column-count: 3;
+  }
+}
+
+@media (max-width: 1024px) {
+  .joy-explore-skel-feed {
+    column-count: 3;
+  }
+}
+
+@media (max-width: 640px) {
+  .joy-explore-skel-feed {
+    column-count: 2;
+  }
+}

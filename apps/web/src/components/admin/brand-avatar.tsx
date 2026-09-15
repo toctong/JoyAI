@@ -12,6 +12,10 @@ type BrandAvatarProps = {
   rounded?: "md" | "lg" | "full";
 };
 
+/**
+ * Brand logos (often `fill=currentColor` SVGs) render black as <img>.
+ * Keep a light tile behind them so they stay readable in dark mode.
+ */
 export function BrandAvatar({
   src,
   label,
@@ -46,21 +50,25 @@ export function BrandAvatar({
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- static /brand SVG/PNG
-    <img
-      src={src}
-      alt=""
-      width={size}
-      height={size}
+    <span
       className={cn(
-        "shrink-0 border border-border/60 bg-card object-contain p-px",
+        "joy-brand-avatar inline-flex shrink-0 items-center justify-center border border-black/8 bg-white p-px",
         radius,
         className,
       )}
       style={{ width: size, height: size }}
       title={label}
-      onError={() => setFailed(true)}
-    />
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- static /brand SVG/PNG */}
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        className={cn("joy-brand-avatar-img h-full w-full object-contain", radius)}
+        onError={() => setFailed(true)}
+      />
+    </span>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { api } from "@/shared/lib/api";
 import { formatDurationMs } from "@/shared/lib/format-duration";
 import { Badge } from "@/components/ui/badge";

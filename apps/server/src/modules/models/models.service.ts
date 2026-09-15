@@ -98,14 +98,13 @@ export class ModelsService {
         channel: { enabled: true },
       },
       relations: ["channel"],
-      order: { kind: "ASC", isDefault: "DESC" },
+      order: { kind: "ASC", name: "ASC" },
     });
 
     return rows.map((m) => ({
       id: m.id,
       name: m.name,
       kind: m.kind,
-      isDefault: m.isDefault,
       description: m.description,
       pricing: m.pricing,
       capabilities: m.capabilities,

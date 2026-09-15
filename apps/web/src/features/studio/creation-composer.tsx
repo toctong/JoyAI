@@ -19,8 +19,10 @@ import {
   Video,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
 import { api, apiUpload } from "@/shared/lib/api";
+import { modelIconSrc } from "@/shared/lib/brand-icons";
+import { BrandAvatar } from "@/components/admin/brand-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +38,6 @@ import { SLASH_COMMANDS } from "@/features/ai-prompt/slash-items";
 import { cn } from "@/shared/lib/utils";
 import { ComposerRipple } from "./composer-ripple";
 import "./creation-composer.css";
-
 const ASPECTS = [
   { id: "1:1", label: "1:1", width: 1024, height: 1024 },
   { id: "16:9", label: "16:9", width: 1280, height: 720 },
@@ -61,7 +62,11 @@ type PublicModel = {
   id: string;
   name: string;
   kind: "image" | "video";
-  isDefault: boolean;
+  remoteId?: string;
+  channel?: {
+    platform?: string;
+    name?: string;
+  };
 };
 
 type UploadedRef = { id: string; url: string };
@@ -74,9 +79,108 @@ type Props = {
   promptSeed?: string;
 };
 
-function pickDefaultModel(models: PublicModel[], kind: "image" | "video") {
-  const list = models.filter((m) => m.kind === kind);
-  return list.find((m) => m.isDefault)?.id ?? list[0]?.id ?? "";
+const COMPOSER_PREFS_KEY = "joyai.studio.composer.prefs";
+/** @deprecated migrated into prefs.kind */
+const COMPOSER_KIND_KEY_LEGACY = "joyai.studio.composer.kind";
+
+type KindPrefs = {
+  modelId?: string;
+  aspect?: string;
+  imageQuality?: ImageQuality;
+  videoQuality?: VideoQuality;
+  n?: number;
+  duration?: number;
+  refMode?: RefMode;
+};
+
+type ComposerPrefs = {
+  kind?: "image" | "video";
+  image?: KindPrefs;
+  video?: KindPrefs;
+};
+
+function readPrefs(): ComposerPrefs {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(COMPOSER_PREFS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ComposerPrefs;
+      if (parsed && typeof parsed === "object") return parsed;
+    }
+    const legacy = window.localStorage.getItem(COMPOSER_KIND_KEY_LEGACY);
+    if (legacy === "image" || legacy === "video") return { kind: legacy };
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+function writePrefs(next: ComposerPrefs) {
+  try {
+    window.localStorage.setItem(COMPOSER_PREFS_KEY, JSON.stringify(next));
+    if (next.kind) {
+      window.localStorage.setItem(COMPOSER_KIND_KEY_LEGACY, next.kind);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function patchPrefs(patch: {
+  kind?: "image" | "video";
+  image?: KindPrefs;
+  video?: KindPrefs;
+}) {
+  const cur = readPrefs();
+  writePrefs({
+    kind: patch.kind ?? cur.kind,
+    image: patch.image ? { ...cur.image, ...patch.image } : cur.image,
+    video: patch.video ? { ...cur.video, ...patch.video } : cur.video,
+  });
+}
+
+function isAspectId(v: string | undefined): v is (typeof ASPECTS)[number]["id"] {
+  return ASPECTS.some((a) => a.id === v);
+}
+
+function isDuration(v: number | undefined): v is (typeof VIDEO_DURATIONS)[number] {
+  return VIDEO_DURATIONS.some((d) => d === v);
+}
+
+function isRefMode(v: string | undefined): v is RefMode {
+  return REF_MODES.some((m) => m.id === v);
+}
+
+function initialComposerKind(searchType: string | null): "image" | "video" {
+  if (searchType === "video" || searchType === "image") return searchType;
+  return "image";
+}
+
+function firstModelId(models: PublicModel[], kind: "image" | "video") {
+  return models.find((m) => m.kind === kind)?.id ?? "";
+}
+
+function resolveModelId(
+  models: PublicModel[],
+  kind: "image" | "video",
+  preferred?: string | null,
+) {
+  if (preferred && models.some((m) => m.id === preferred && m.kind === kind)) {
+    return preferred;
+  }
+  return firstModelId(models, kind);
+}
+
+/** 括号内展示渠道名（非模型原厂） */
+function modelChannelLabel(m: PublicModel) {
+  return m.channel?.name?.trim() || null;
+}
+
+function modelBrandMeta(m: PublicModel) {
+  return {
+    icon: modelIconSrc({ remoteId: m.remoteId, name: m.name }),
+    channel: modelChannelLabel(m),
+  };
 }
 
 export function CreationComposer({
@@ -89,13 +193,15 @@ export function CreationComposer({
   const search = useSearchParams();
   const [refs, setRefs] = useState<UploadedRef[]>([]);
   const [prompt, setPrompt] = useState(initialPrompt);
-  const [kind, setKind] = useState<"image" | "video">(
-    search.get("type") === "video" ? "video" : "image",
+  const [kind, setKind] = useState<"image" | "video">(() =>
+    initialComposerKind(search.get("type")),
   );
-  const [aspect, setAspect] = useState(
-    search.get("type") === "video" ? "16:9" : "1:1",
+  const [aspect, setAspect] = useState(() =>
+    initialComposerKind(search.get("type")) === "video" ? "16:9" : "1:1",
   );
-  const [n, setN] = useState(search.get("type") === "video" ? 1 : 2);
+  const [n, setN] = useState(() =>
+    initialComposerKind(search.get("type")) === "video" ? 1 : 2,
+  );
   const [imageQuality, setImageQuality] = useState<ImageQuality>("2k");
   const [videoQuality, setVideoQuality] = useState<VideoQuality>("720p");
   const [duration, setDuration] = useState<(typeof VIDEO_DURATIONS)[number]>(4);
@@ -108,12 +214,16 @@ export function CreationComposer({
   const [composerHovered, setComposerHovered] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const seeded = useRef(false);
+  const [prefsHydrated, setPrefsHydrated] = useState(false);
 
   const kindModels = useMemo(
     () => models.filter((m) => m.kind === kind),
     [models, kind],
   );
   const selectedModel = kindModels.find((m) => m.id === modelId);
+  const selectedBrand = selectedModel
+    ? modelBrandMeta(selectedModel)
+    : { icon: null as string | null, channel: null as string | null };
   const refModeLabel =
     REF_MODES.find((m) => m.id === refMode)?.label ?? "全能参考";
   const qualityLabel =
@@ -138,8 +248,31 @@ export function CreationComposer({
 
   const placeholder =
     kind === "video"
-      ? "上传参考图、输入文字或 @ 素材，描述你想生成的视频。"
-      : "上传参考图、输入文字或 @ 素材，描述你想生成的图片。";
+      ? "上传文字、图片或 @ 素材，创造你想生成的视频"
+      : "上传文字、图片或 @ 不同图片，创造你想生成的图片";
+
+  function applyKindPrefs(next: "image" | "video", kp: KindPrefs = {}) {
+    setKind(next);
+    if (next === "video") {
+      setAspect(isAspectId(kp.aspect) ? kp.aspect : "16:9");
+      setN(typeof kp.n === "number" && kp.n >= 1 && kp.n <= 4 ? kp.n : 1);
+      setVideoQuality(kp.videoQuality === "1080p" ? "1080p" : "720p");
+      setDuration(isDuration(kp.duration) ? kp.duration : 4);
+      setRefMode(isRefMode(kp.refMode) ? kp.refMode : "omni");
+      if (kp.modelId) setModelId(kp.modelId);
+    } else {
+      setAspect(isAspectId(kp.aspect) ? kp.aspect : "1:1");
+      setN(typeof kp.n === "number" && kp.n >= 1 && kp.n <= 4 ? kp.n : 2);
+      setImageQuality(kp.imageQuality === "1k" ? "1k" : "2k");
+      if (kp.modelId) setModelId(kp.modelId);
+    }
+  }
+
+  function applyKind(next: "image" | "video") {
+    const prefs = readPrefs();
+    applyKindPrefs(next, prefs[next] ?? {});
+    patchPrefs({ kind: next });
+  }
 
   useEffect(() => {
     void api<PublicModel[]>("/models")
@@ -154,20 +287,63 @@ export function CreationComposer({
       });
   }, []);
 
+  // 首屏：URL ?type= 优先，否则从本地恢复工具与参数
   useEffect(() => {
+    const prefs = readPrefs();
     const t = search.get("type");
-    if (t === "video" || t === "image") setKind(t);
-  }, [search]);
+    const nextKind =
+      t === "video" || t === "image"
+        ? t
+        : prefs.kind === "video"
+          ? "video"
+          : "image";
+    applyKindPrefs(nextKind, prefs[nextKind] ?? {});
+    patchPrefs({ kind: nextKind });
+    setPrefsHydrated(true);
+    // 仅挂载时恢复；后续由下方 type 监听与用户操作驱动
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!prefsHydrated) return;
+    const t = search.get("type");
+    if (t === "video" || t === "image") applyKind(t);
+  }, [search, prefsHydrated]);
 
   useEffect(() => {
     if (models.length === 0) return;
     setModelId((prev) => {
-      if (prev && models.some((m) => m.id === prev && m.kind === kind)) {
-        return prev;
-      }
-      return pickDefaultModel(models, kind);
+      const preferred = prev || readPrefs()[kind]?.modelId || null;
+      return resolveModelId(models, kind, preferred);
     });
   }, [kind, models]);
+
+  // 参数变更后写回本地（首屏恢复完成后再写，避免覆盖缓存）
+  useEffect(() => {
+    if (!prefsHydrated) return;
+    const slice: KindPrefs = {
+      modelId: modelId || undefined,
+      aspect,
+      n,
+      ...(kind === "image"
+        ? { imageQuality }
+        : { videoQuality, duration, refMode }),
+    };
+    patchPrefs({
+      kind,
+      ...(kind === "image" ? { image: slice } : { video: slice }),
+    });
+  }, [
+    prefsHydrated,
+    kind,
+    modelId,
+    aspect,
+    n,
+    imageQuality,
+    videoQuality,
+    duration,
+    refMode,
+  ]);
 
   useEffect(() => {
     const q = promptSeed || search.get("prompt") || initialPrompt;
@@ -180,20 +356,6 @@ export function CreationComposer({
     );
     return () => window.clearTimeout(t);
   }, [search, initialPrompt, promptSeed]);
-
-  function applyKind(next: "image" | "video") {
-    setKind(next);
-    if (next === "video") {
-      setAspect("16:9");
-      setN(1);
-      setVideoQuality("720p");
-      setDuration(4);
-    } else {
-      setAspect("1:1");
-      setN(2);
-      setImageQuality("2k");
-    }
-  }
 
   const onDrop = useCallback(async (files: File[]) => {
     try {
@@ -403,26 +565,64 @@ export function CreationComposer({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" className="joy-chip joy-chip-model">
-                  <Box className="h-3.5 w-3.5 opacity-80" />
+                  {selectedModel ? (
+                    <BrandAvatar
+                      src={selectedBrand.icon}
+                      label={selectedModel.name}
+                      size={16}
+                      rounded="md"
+                    />
+                  ) : (
+                    <Box className="h-3.5 w-3.5 opacity-80" />
+                  )}
                   <span className="joy-chip-model-name">
-                    {selectedModel?.name ?? "默认模型"}
+                    {selectedModel
+                      ? selectedBrand.channel
+                        ? `${selectedModel.name}（${selectedBrand.channel}）`
+                        : selectedModel.name
+                      : "选择模型"}
                   </span>
-                  <Sparkles className="joy-chip-sparkle h-3 w-3" />
+                  <ChevronDown className="h-3.5 w-3.5 opacity-70" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="min-w-[200px]">
+              <DropdownMenuContent
+                align="start"
+                className="joy-composer-model-menu min-w-[260px]"
+              >
                 {kindModels.length === 0 ? (
                   <DropdownMenuItem disabled>暂无可用模型</DropdownMenuItem>
                 ) : (
-                  kindModels.map((m) => (
-                    <DropdownMenuItem
-                      key={m.id}
-                      onClick={() => setModelId(m.id)}
-                    >
-                      {m.name}
-                      {m.isDefault ? " · 默认" : ""}
-                    </DropdownMenuItem>
-                  ))
+                  kindModels.map((m) => {
+                    const { icon, channel } = modelBrandMeta(m);
+                    const selected = m.id === modelId;
+                    return (
+                      <DropdownMenuItem
+                        key={m.id}
+                        className={cn(
+                          "joy-composer-model-item",
+                          selected && "is-selected",
+                        )}
+                        onClick={() => setModelId(m.id)}
+                      >
+                        <BrandAvatar
+                          src={icon}
+                          label={m.name}
+                          size={22}
+                          rounded="md"
+                        />
+                        <span className="joy-composer-model-item-text">
+                          <span className="joy-composer-model-item-name">
+                            {m.name}
+                            {channel ? (
+                              <span className="joy-composer-model-item-vendor">
+                                （{channel}）
+                              </span>
+                            ) : null}
+                          </span>
+                        </span>
+                      </DropdownMenuItem>
+                    );
+                  })
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -450,23 +650,33 @@ export function CreationComposer({
             ) : null}
 
             <DropdownMenu open={paramsOpen} onOpenChange={setParamsOpen}>
-              <DropdownMenuTrigger asChild>
-                <button type="button" className="joy-chip joy-chip-params">
-                  <RectangleHorizontal className="h-3.5 w-3.5 opacity-70" />
-                  <span>{aspect}</span>
-                  <span className="joy-chip-dot" aria-hidden>
-                    ·
-                  </span>
+              <div className="joy-chip-params-group">
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="joy-chip">
+                    <RectangleHorizontal className="h-3.5 w-3.5 opacity-70" />
+                    <span>{aspect}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <button
+                  type="button"
+                  className="joy-chip"
+                  onClick={() => setParamsOpen(true)}
+                >
                   <span className="joy-chip-params-quality">
-                    {qualityLabel}
+                    {kind === "image" ? `高清${qualityLabel}` : qualityLabel}
                     <Sparkles className="joy-chip-sparkle h-3 w-3" />
                   </span>
-                  <span className="joy-chip-dot" aria-hidden>
-                    ·
-                  </span>
-                  <span>{n}</span>
                 </button>
-              </DropdownMenuTrigger>
+                {kind === "image" ? (
+                  <button
+                    type="button"
+                    className="joy-chip"
+                    onClick={() => setParamsOpen(true)}
+                  >
+                    <span>{n}张</span>
+                  </button>
+                ) : null}
+              </div>
               <DropdownMenuContent align="start" className="p-3">
                 <div className="joy-composer-params-panel">
                   <div className="joy-composer-params-row">
@@ -548,6 +758,26 @@ export function CreationComposer({
                       ))}
                     </div>
                   </div>
+                  {kind === "video" ? (
+                    <div className="joy-composer-params-row">
+                      <span className="joy-composer-params-label">时长</span>
+                      <div className="joy-composer-params-options">
+                        {[5, 10].map((sec) => (
+                          <button
+                            key={sec}
+                            type="button"
+                            className={cn(
+                              "joy-composer-params-option",
+                              duration === sec && "is-on",
+                            )}
+                            onClick={() => setDuration(sec)}
+                          >
+                            {sec}s
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>

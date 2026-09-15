@@ -93,14 +93,64 @@ export class JobsService {
     return this.withDuration(job);
   }
 
-  async list(userId: string, take = 50) {
+  /**
+   * Studio chat feed: returns a page of jobs sorted ASC by generation time
+   * (finishedAt ?? createdAt). Initial call (no before) = newest window.
+   * Pass before/beforeId of the oldest visible job to load earlier history.
+   *
+   * Sort/paginate in memory — sql.js + TypeORM does not reliably support
+   * COALESCE(...) in ORDER BY.
+   */
+  async list(
+    userId: string,
+    opts: { take?: number; before?: string; beforeId?: string } = {},
+  ) {
+    const take = Math.min(Math.max(Number(opts.take) || 30, 1), 100);
+
     const rows = await this.jobs.find({
       where: { userId },
       order: { createdAt: "DESC" },
-      take,
       relations: ["assets"],
     });
-    return this.enrichMany(rows);
+    const enriched = await this.enrichMany(rows);
+
+    const timed = enriched.map((job) => {
+      const ms = Date.parse(String(job.finishedAt ?? job.createdAt));
+      return {
+        job,
+        ms: Number.isFinite(ms) ? ms : 0,
+      };
+    });
+
+    // Newest first for cursor window
+    timed.sort((a, b) => {
+      if (a.ms !== b.ms) return b.ms - a.ms;
+      return String(b.job.id).localeCompare(String(a.job.id));
+    });
+
+    let filtered = timed;
+    const beforeRaw = opts.before?.trim();
+    if (beforeRaw) {
+      const beforeMs = Date.parse(beforeRaw);
+      if (Number.isFinite(beforeMs)) {
+        const beforeId = opts.beforeId?.trim() || "";
+        filtered = timed.filter((row) => {
+          if (row.ms < beforeMs) return true;
+          if (row.ms > beforeMs) return false;
+          return String(row.job.id).localeCompare(beforeId) < 0;
+        });
+      }
+    }
+
+    const hasMore = filtered.length > take;
+    const pageDesc = hasMore ? filtered.slice(0, take) : filtered;
+
+    // Chat layout: older at top → ASC
+    const items = pageDesc
+      .map((row) => row.job)
+      .reverse();
+
+    return { items, hasMore };
   }
 
   async listAll(take = 100) {
@@ -127,6 +177,13 @@ export class JobsService {
     if (!job) throw new NotFoundException("任务不存在");
     const [enriched] = await this.enrichMany([job]);
     return enriched;
+  }
+
+  async remove(userId: string, id: string) {
+    const job = await this.jobs.findOne({ where: { id, userId } });
+    if (!job) throw new NotFoundException("任务不存在");
+    await this.jobs.remove(job);
+    return { ok: true, id };
   }
 
   async resolveReferenceUrls(

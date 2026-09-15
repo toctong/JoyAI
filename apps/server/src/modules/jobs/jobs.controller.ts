@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "../../common/guards";
 import { CurrentUser, AuthUser } from "../../common/current-user.decorator";
@@ -17,12 +26,26 @@ export class JobsController {
   }
 
   @Get()
-  list(@CurrentUser() user: AuthUser, @Query("take") take?: string) {
-    return this.jobs.list(user.id, take ? Number(take) : 50);
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query("take") take?: string,
+    @Query("before") before?: string,
+    @Query("beforeId") beforeId?: string,
+  ) {
+    return this.jobs.list(user.id, {
+      take: take ? Number(take) : 30,
+      before,
+      beforeId,
+    });
   }
 
   @Get(":id")
   get(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.jobs.get(user.id, id);
+  }
+
+  @Delete(":id")
+  remove(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.jobs.remove(user.id, id);
   }
 }

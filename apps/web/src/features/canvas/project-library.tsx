@@ -23,7 +23,8 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/shared/lib/toast";
+import { confirmDialog } from "@/shared/lib/confirm";
 import { api } from "@/shared/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -198,9 +199,13 @@ export function ProjectLibrary() {
 
   async function deleteProjects(ids: string[]) {
     if (!ids.length) return;
-    if (!window.confirm(`确定删除 ${ids.length} 个项目？此操作不可恢复。`)) {
-      return;
-    }
+    const ok = await confirmDialog({
+      title: `删除 ${ids.length} 个项目？`,
+      description: "此操作不可恢复。",
+      confirmText: "删除",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api("/canvas/projects/batch-delete", {
         method: "POST",
@@ -215,11 +220,13 @@ export function ProjectLibrary() {
   }
 
   async function deleteFolder(id: string) {
-    if (
-      !window.confirm("删除文件夹后，其中的项目会移回上一级，确定继续？")
-    ) {
-      return;
-    }
+    const ok = await confirmDialog({
+      title: "删除文件夹？",
+      description: "删除后，其中的项目会移回上一级。",
+      confirmText: "删除",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api(`/canvas/folders/${id}`, { method: "DELETE" });
       toast.success("已删除文件夹");

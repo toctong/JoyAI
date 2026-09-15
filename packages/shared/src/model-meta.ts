@@ -82,7 +82,7 @@ export const CHANNEL_PRESETS: Record<
   [ProviderPlatform.APIMART]: {
     label: "APIMart",
     defaultName: "APIMart 中转",
-    baseUrl: "https://api.apimart.ai/v1",
+    baseUrl: "https://apib.ai/v1",
     docsUrl: "https://docs.apib.ai/cn",
   },
   [ProviderPlatform.TOAPIS]: {
@@ -94,7 +94,7 @@ export const CHANNEL_PRESETS: Record<
   [ProviderPlatform.DASHSCOPE]: {
     label: "阿里云百炼",
     defaultName: "阿里云百炼 / 千问",
-    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    baseUrl: "https://llm-oxwm46w4kzmd5vir.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
     dashscopeApiBase: "https://dashscope.aliyuncs.com/api/v1",
     docsUrl: "https://dashscope.aliyuncs.com/",
   },
