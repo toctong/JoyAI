@@ -1,15 +1,18 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { InjectRepository } from "@nestjs/typeorm";
+import { In, Repository } from "typeorm";
+import { Asset } from "../../database/entities/asset.entity";
 
 @Injectable()
 export class AssetsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(Asset) private readonly assets: Repository<Asset>,
+  ) {}
 
   findByMd5(userId: string, md5: string) {
-    return this.prisma.asset.findFirst({
+    return this.assets.findOne({
       where: { userId, md5: md5.trim().toLowerCase() },
-      orderBy: { createdAt: "desc" },
+      order: { createdAt: "DESC" },
     });
   }
 
@@ -23,37 +26,48 @@ export class AssetsService {
     size?: number;
     width?: number;
     height?: number;
-    meta?: Prisma.InputJsonValue;
+    meta?: Record<string, unknown> | null;
   }) {
-    return this.prisma.asset.create({
-      data: {
-        ...data,
-        md5: data.md5?.trim().toLowerCase(),
-      },
-    });
+    return this.assets.save(
+      this.assets.create({
+        userId: data.userId,
+        jobId: data.jobId ?? null,
+        kind: data.kind,
+        url: data.url,
+        md5: data.md5?.trim().toLowerCase() ?? null,
+        mimeType: data.mimeType ?? null,
+        size: data.size ?? null,
+        width: data.width ?? null,
+        height: data.height ?? null,
+        meta: data.meta ?? null,
+      }),
+    );
   }
 
   list(userId: string, take = 50) {
-    return this.prisma.asset.findMany({
+    return this.assets.find({
       where: { userId },
-      orderBy: { createdAt: "desc" },
+      order: { createdAt: "DESC" },
       take,
-      include: {
-        job: {
-          select: {
-            id: true,
-            canvasProjectId: true,
-            canvasNodeId: true,
-          },
-        },
-      },
-    });
+      relations: ["job"],
+    }).then((rows) =>
+      rows.map((a) => ({
+        ...a,
+        job: a.job
+          ? {
+              id: a.job.id,
+              canvasProjectId: a.job.canvasProjectId,
+              canvasNodeId: a.job.canvasNodeId,
+            }
+          : null,
+      })),
+    );
   }
 
   findByIds(userId: string, ids: string[]) {
     if (!ids.length) return Promise.resolve([]);
-    return this.prisma.asset.findMany({
-      where: { userId, id: { in: ids } },
+    return this.assets.find({
+      where: { userId, id: In(ids) },
     });
   }
 }

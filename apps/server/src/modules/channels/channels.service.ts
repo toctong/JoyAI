@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 import axios from "axios";
+import { formatProviderErrorBody } from "@joyai/ai-providers";
 import {
   normalizePage,
   type PaginatedResult,
 } from "../../common/dto/pagination-query.dto";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { Channel } from "../../database/entities/channel.entity";
+import { Model } from "../../database/entities/model.entity";
+import { JobKind } from "../../database/enums";
 
 export type ChannelTestResult = {
   ok: boolean;
@@ -27,45 +31,58 @@ export type ChannelLastProbe = {
 
 @Injectable()
 export class ChannelsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(Channel)
+    private readonly channels: Repository<Channel>,
+    @InjectRepository(Model) private readonly models: Repository<Model>,
+  ) {}
 
-  async list(query: {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    platform?: string;
-    enabled?: boolean;
-  } = {}) {
+  async list(
+    query: {
+      page?: number;
+      pageSize?: number;
+      keyword?: string;
+      platform?: string;
+      enabled?: boolean;
+    } = {},
+  ) {
     const { page, pageSize, skip } = normalizePage(query.page, query.pageSize);
-    const where: Prisma.ChannelWhereInput = {};
 
-    if (query.platform) where.platform = query.platform;
-    if (query.enabled !== undefined) where.enabled = query.enabled;
+    const qb = this.channels
+      .createQueryBuilder("channel")
+      .loadRelationCountAndMap("channel.modelCount", "channel.models")
+      .orderBy("channel.createdAt", "DESC")
+      .skip(skip)
+      .take(pageSize);
+
+    if (query.platform) {
+      qb.andWhere("channel.platform = :platform", {
+        platform: query.platform,
+      });
+    }
+    if (query.enabled !== undefined) {
+      qb.andWhere("channel.enabled = :enabled", { enabled: query.enabled });
+    }
 
     const keyword = query.keyword?.trim();
     if (keyword) {
-      where.OR = [
-        { name: { contains: keyword } },
-        { platform: { contains: keyword } },
-        { baseUrl: { contains: keyword } },
-      ];
+      qb.andWhere(
+        "(channel.name LIKE :kw OR channel.platform LIKE :kw OR channel.baseUrl LIKE :kw)",
+        { kw: `%${keyword}%` },
+      );
     }
 
-    const [rows, total] = await Promise.all([
-      this.prisma.channel.findMany({
-        where,
-        include: { _count: { select: { models: true } } },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: pageSize,
-      }),
-      this.prisma.channel.count({ where }),
-    ]);
+    const [rows, total] = await qb.getManyAndCount();
 
-    const items = rows.map(({ _count, ...channel }) => ({
-      ...channel,
-      modelCount: _count.models,
-    }));
+    const items = rows.map((row) => {
+      const { modelCount, ...channel } = row as Channel & {
+        modelCount?: number;
+      };
+      return {
+        ...channel,
+        modelCount: modelCount ?? 0,
+      };
+    });
 
     return { items, total, page, pageSize } satisfies PaginatedResult<
       (typeof items)[number]
@@ -78,9 +95,18 @@ export class ChannelsService {
     apiKey: string;
     baseUrl: string;
     enabled?: boolean;
-    metadata?: Prisma.InputJsonValue;
+    metadata?: Record<string, unknown> | null;
   }) {
-    return this.prisma.channel.create({ data });
+    return this.channels.save(
+      this.channels.create({
+        name: data.name,
+        platform: data.platform,
+        apiKey: data.apiKey,
+        baseUrl: data.baseUrl,
+        enabled: data.enabled ?? true,
+        metadata: data.metadata ?? null,
+      }),
+    );
   }
 
   async update(
@@ -90,22 +116,24 @@ export class ChannelsService {
       apiKey: string;
       baseUrl: string;
       enabled: boolean;
-      metadata: Prisma.InputJsonValue;
+      metadata: Record<string, unknown> | null;
     }>,
   ) {
-    await this.require(id);
-    return this.prisma.channel.update({ where: { id }, data });
+    const channel = await this.require(id);
+    Object.assign(channel, data);
+    return this.channels.save(channel);
   }
 
   async require(id: string) {
-    const channel = await this.prisma.channel.findUnique({ where: { id } });
+    const channel = await this.channels.findOne({ where: { id } });
     if (!channel) throw new NotFoundException("渠道不存在");
     return channel;
   }
 
   async remove(id: string) {
-    await this.require(id);
-    return this.prisma.channel.delete({ where: { id } });
+    const channel = await this.require(id);
+    await this.channels.delete(id);
+    return channel;
   }
 
   /**
@@ -134,14 +162,10 @@ export class ChannelsService {
       channel.metadata &&
       typeof channel.metadata === "object" &&
       !Array.isArray(channel.metadata)
-        ? (channel.metadata as Record<string, unknown>)
+        ? channel.metadata
         : {};
-    await this.prisma.channel.update({
-      where: { id },
-      data: {
-        metadata: { ...prev, lastProbe } as Prisma.InputJsonValue,
-      },
-    });
+    channel.metadata = { ...prev, lastProbe };
+    await this.channels.save(channel);
     return { ...result, testedAt };
   }
 
@@ -195,13 +219,14 @@ export class ChannelsService {
           message: "未找到 /models，请确认 Base URL 是否以 /v1 结尾",
         };
       }
-      const detail =
-        data?.error?.message ?? data?.message ?? data?.code ?? `HTTP ${status}`;
+      const detail = formatProviderErrorBody(data, status, {
+        fallback: `HTTP ${status}`,
+      });
       return {
         ok: false,
         latencyMs,
         httpStatus: status,
-        message: String(detail),
+        message: detail,
       };
     } catch (error) {
       const latencyMs = Date.now() - started;
@@ -213,9 +238,9 @@ export class ChannelsService {
 
   async resolveForKind(kind: "image" | "video", modelId?: string) {
     if (modelId) {
-      const model = await this.prisma.model.findUnique({
+      const model = await this.models.findOne({
         where: { id: modelId },
-        include: { channel: true },
+        relations: ["channel"],
       });
       if (!model || !model.enabled || !model.channel.enabled) {
         throw new NotFoundException("模型不可用");
@@ -223,20 +248,24 @@ export class ChannelsService {
       return model;
     }
 
-    const model = await this.prisma.model.findFirst({
+    const model = await this.models.findOne({
       where: {
-        kind,
+        kind: kind as JobKind,
         enabled: true,
         isDefault: true,
         channel: { enabled: true },
       },
-      include: { channel: true },
-      orderBy: { updatedAt: "desc" },
+      relations: ["channel"],
+      order: { updatedAt: "DESC" },
     });
     if (!model) {
-      const fallback = await this.prisma.model.findFirst({
-        where: { kind, enabled: true, channel: { enabled: true } },
-        include: { channel: true },
+      const fallback = await this.models.findOne({
+        where: {
+          kind: kind as JobKind,
+          enabled: true,
+          channel: { enabled: true },
+        },
+        relations: ["channel"],
       });
       if (!fallback) throw new NotFoundException(`没有可用的 ${kind} 模型`);
       return fallback;

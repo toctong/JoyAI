@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/shared/lib/api";
+import { formatDurationMs } from "@/shared/lib/format-duration";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -46,6 +47,7 @@ type JobInput = {
   n?: number;
   ratio?: string;
   size?: string;
+  modelId?: string;
 };
 
 type Job = {
@@ -54,6 +56,10 @@ type Job = {
   status: string;
   progress?: number;
   createdAt: string;
+  durationMs?: number | null;
+  modelName?: string | null;
+  channelName?: string | null;
+  platform?: string | null;
   input?: JobInput;
   assets?: Asset[];
   error?: string | null;
@@ -79,13 +85,24 @@ function qualityLabel(input?: JobInput) {
   return null;
 }
 
-function jobMeta(job: Job) {
+function jobMeta(job: Job, assetCount = 0) {
+  const duration =
+    job.durationMs != null ? formatDurationMs(job.durationMs) : null;
+  const ratio = aspectLabel(job.input);
+  const quality = qualityLabel(job.input);
+  const sizePart =
+    ratio && quality ? `${ratio} · ${quality}` : ratio || quality;
+  const countPart =
+    job.kind === "image" && assetCount > 1 ? `${assetCount} 张` : null;
   const parts = [
-    aspectLabel(job.input),
-    qualityLabel(job.input),
+    job.channelName,
+    job.modelName,
+    sizePart,
+    countPart,
     job.kind === "video" ? "视频" : null,
+    duration && duration !== "—" ? `用时 ${duration}` : null,
   ].filter(Boolean);
-  return parts.join(" | ");
+  return parts.join(" · ");
 }
 
 function isBusy(status: string) {
@@ -97,6 +114,17 @@ function isVideoAsset(asset: Asset) {
     asset.kind === "video" ||
     Boolean(asset.url.match(/\.(mp4|webm|mov)(\?|$)/i))
   );
+}
+
+function aspectCss(input?: JobInput): string {
+  const w = input?.width;
+  const h = input?.height;
+  if (w && h && w > 0 && h > 0) return `${w} / ${h}`;
+  if (input?.ratio?.includes(":")) {
+    const [a, b] = input.ratio.split(":").map(Number);
+    if (a > 0 && b > 0) return `${a} / ${b}`;
+  }
+  return "1 / 1";
 }
 
 function StudioInner() {
@@ -202,14 +230,79 @@ function StudioInner() {
             {feed.map((job) => {
               const assets = job.assets ?? [];
               const busy = isBusy(job.status);
-              const meta = jobMeta(job);
+              const meta = jobMeta(job, assets.length);
               const skeletonCount = Math.min(
                 Math.max(job.input?.n ?? (job.kind === "image" ? 2 : 1), 1),
                 4,
               );
+              const ar = aspectCss(job.input);
+              const gridCount = assets.length > 0 ? assets.length : skeletonCount;
 
               return (
                 <article key={job.id} className="joy-studio-job">
+                  <div className="joy-studio-prompt-block">
+                    {meta ? <p className="joy-studio-meta">{meta}</p> : null}
+                    <p className="joy-studio-prompt">
+                      {job.input?.prompt || "未命名创作"}
+                    </p>
+                    {busy ? (
+                      <div className="joy-studio-status">
+                        <Progress value={job.progress ?? 18} />
+                      </div>
+                    ) : null}
+                    {job.error ? (
+                      <p className="joy-studio-error">{job.error}</p>
+                    ) : null}
+                  </div>
+
+                  {assets.length > 0 ? (
+                    <div
+                      className={cn(
+                        "joy-studio-grid",
+                        gridCount === 1 && "is-single",
+                        gridCount >= 3 && "is-multi",
+                      )}
+                    >
+                      {assets.map((asset) =>
+                        isVideoAsset(asset) ? (
+                          <div
+                            key={asset.id}
+                            className="joy-studio-thumb"
+                            style={{ aspectRatio: ar }}
+                          >
+                            <video src={asset.url} controls playsInline />
+                          </div>
+                        ) : (
+                          <PhotoView key={asset.id} src={asset.url}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={asset.url}
+                              alt=""
+                              className="joy-studio-thumb"
+                              style={{ aspectRatio: ar }}
+                            />
+                          </PhotoView>
+                        ),
+                      )}
+                    </div>
+                  ) : busy ? (
+                    <div
+                      className={cn(
+                        "joy-studio-grid",
+                        gridCount === 1 && "is-single",
+                        gridCount >= 3 && "is-multi",
+                      )}
+                    >
+                      {Array.from({ length: skeletonCount }).map((_, i) => (
+                        <div
+                          key={`${job.id}-sk-${i}`}
+                          className="joy-studio-thumb-skeleton"
+                          style={{ aspectRatio: ar }}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+
                   <div className="joy-studio-actions">
                     <button
                       type="button"
@@ -261,61 +354,6 @@ function StudioInner() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-
-                  <div className="joy-studio-prompt-block">
-                    {meta ? <p className="joy-studio-meta">{meta}</p> : null}
-                    <p className="joy-studio-prompt">
-                      {job.input?.prompt || "未命名创作"}
-                    </p>
-                    {busy ? (
-                      <div className="joy-studio-status">
-                        <Progress value={job.progress ?? 18} />
-                      </div>
-                    ) : null}
-                    {job.error ? (
-                      <p className="joy-studio-error">{job.error}</p>
-                    ) : null}
-                  </div>
-
-                  {assets.length > 0 ? (
-                    <div
-                      className={cn(
-                        "joy-studio-grid",
-                        assets.length === 1 && "is-single",
-                      )}
-                    >
-                      {assets.map((asset) =>
-                        isVideoAsset(asset) ? (
-                          <div key={asset.id} className="joy-studio-thumb">
-                            <video src={asset.url} controls playsInline />
-                          </div>
-                        ) : (
-                          <PhotoView key={asset.id} src={asset.url}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={asset.url}
-                              alt=""
-                              className="joy-studio-thumb"
-                            />
-                          </PhotoView>
-                        ),
-                      )}
-                    </div>
-                  ) : busy ? (
-                    <div
-                      className={cn(
-                        "joy-studio-grid",
-                        skeletonCount === 1 && "is-single",
-                      )}
-                    >
-                      {Array.from({ length: skeletonCount }).map((_, i) => (
-                        <div
-                          key={`${job.id}-sk-${i}`}
-                          className="joy-studio-thumb-skeleton"
-                        />
-                      ))}
-                    </div>
-                  ) : null}
                 </article>
               );
             })}

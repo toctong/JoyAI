@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
+import { UserRole } from "../../database/enums";
 import { UsersService } from "../users/users.service";
 
 @Injectable()
@@ -19,14 +20,14 @@ export class AuthService {
   }
 
   async register(username: string, password: string) {
-    const user = await this.users.create(username, password, "creator");
+    const user = await this.users.create(username, password, UserRole.creator);
     return this.tokenFor(user);
   }
 
   private tokenFor(user: {
     id: string;
     username: string;
-    role: "admin" | "creator";
+    role: UserRole;
   }) {
     const payload = {
       sub: user.id,

@@ -143,9 +143,14 @@ export function CreationComposer({
 
   useEffect(() => {
     void api<PublicModel[]>("/models")
-      .then(setModels)
+      .then((list) => {
+        setModels(list);
+        if (list.length === 0) {
+          toast.message("暂无可用模型，请先在运维后台启用渠道与模型");
+        }
+      })
       .catch(() => {
-        /* 无模型配置时仍可提交，后端走默认渠道 */
+        toast.error("加载模型列表失败");
       });
   }, []);
 
@@ -241,7 +246,8 @@ export function CreationComposer({
         new Set([...refs.map((r) => r.id), ...payload.assetIds]),
       );
       const preset = ASPECTS.find((a) => a.id === aspect) ?? ASPECTS[0];
-      const scale = imageQuality === "2k" ? 1 : 0.75;
+      // ASPECTS ≈ 1K pixels; 2K doubles. Avoid sub-1K sizes (Seedream rejects < ~921600 px).
+      const scale = imageQuality === "2k" ? 2 : 1;
       if (kind === "image") {
         await api("/jobs", {
           method: "POST",

@@ -2,7 +2,7 @@ import { Module, OnModuleInit } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { BullModule } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
-import { PrismaModule } from "./common/prisma/prisma.module";
+import { DatabaseModule } from "./database/database.module";
 import { CommonModule } from "./common/common.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -15,6 +15,7 @@ import { CanvasModule } from "./modules/canvas/canvas.module";
 import { SettingsModule } from "./modules/settings/settings.module";
 import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { HealthModule } from "./modules/health/health.module";
 import { BootstrapService } from "./common/bootstrap.service";
 
 @Module({
@@ -31,8 +32,9 @@ import { BootstrapService } from "./common/bootstrap.service";
         },
       }),
     }),
-    PrismaModule,
+    DatabaseModule,
     CommonModule,
+    HealthModule,
     AuthModule,
     UsersModule,
     ChannelsModule,

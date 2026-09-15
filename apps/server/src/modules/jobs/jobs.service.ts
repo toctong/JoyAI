@@ -2,19 +2,32 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
+import { InjectRepository } from "@nestjs/typeorm";
 import { Queue } from "bullmq";
+import { In, IsNull, Repository } from "typeorm";
 import { CreateJobSchema, QUEUE } from "@joyai/shared";
-import { Prisma } from "@prisma/client";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { Job } from "../../database/entities/job.entity";
+import { Model } from "../../database/entities/model.entity";
+import { Asset } from "../../database/entities/asset.entity";
+import { User } from "../../database/entities/user.entity";
+import { JobKind, JobStatus } from "../../database/enums";
 import { ChannelsService } from "../channels/channels.service";
 import { AssetsService } from "../assets/assets.service";
+
+type JobWithAssets = Job & { assets: Asset[] };
+type JobListRow = Omit<Job, "assignId"> & {
+  assets: Asset[];
+  user?: Pick<User, "id" | "username">;
+};
 
 @Injectable()
 export class JobsService {
   constructor(
-    private readonly prisma: PrismaService,
+    @InjectRepository(Job) private readonly jobs: Repository<Job>,
+    @InjectRepository(Model) private readonly models: Repository<Model>,
     private readonly channels: ChannelsService,
     private readonly assets: AssetsService,
     @InjectQueue(QUEUE.IMAGE) private readonly imageQueue: Queue,
@@ -28,63 +41,92 @@ export class JobsService {
     }
     const { kind, input } = parsed.data;
 
-    await this.channels.resolveForKind(kind, input.modelId);
+    const model = await this.channels.resolveForKind(kind, input.modelId);
 
-    const job = await this.prisma.job.create({
-      data: {
+    const job = await this.jobs.save(
+      this.jobs.create({
         userId,
-        kind,
-        status: "queued",
-        input: input as Prisma.InputJsonValue,
-        canvasProjectId: input.canvasProjectId,
-        canvasNodeId: input.canvasNodeId,
-      },
-    });
+        kind: kind as JobKind,
+        status: JobStatus.queued,
+        input: {
+          ...input,
+          modelId: model.id,
+        },
+        modelId: model.id,
+        modelName: model.name,
+        channelId: model.channelId,
+        channelName: model.channel.name,
+        platform: model.channel.platform,
+        canvasProjectId: input.canvasProjectId ?? null,
+        canvasNodeId: input.canvasNodeId ?? null,
+      }),
+    );
 
-    if (kind === "image") {
-      await this.imageQueue.add(
-        "generate",
-        { jobId: job.id },
-        { removeOnComplete: 100, removeOnFail: 200 },
-      );
-    } else {
-      await this.videoSubmitQueue.add(
-        "submit",
-        { jobId: job.id },
-        { removeOnComplete: 100, removeOnFail: 200 },
+    try {
+      if (kind === "image") {
+        await this.imageQueue.add(
+          "generate",
+          { jobId: job.id },
+          { removeOnComplete: 100, removeOnFail: 200 },
+        );
+      } else {
+        await this.videoSubmitQueue.add(
+          "submit",
+          { jobId: job.id },
+          { removeOnComplete: 100, removeOnFail: 200 },
+        );
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "队列入队失败";
+      await this.jobs.update(job.id, {
+        status: JobStatus.failed,
+        error: `队列不可用：${message}`,
+        finishedAt: new Date(),
+        progress: 100,
+      });
+      throw new ServiceUnavailableException(
+        "任务队列不可用，请确认 Redis 已启动（docker compose up -d）",
       );
     }
 
-    return job;
+    return this.withDuration(job);
   }
 
-  list(userId: string, take = 50) {
-    return this.prisma.job.findMany({
+  async list(userId: string, take = 50) {
+    const rows = await this.jobs.find({
       where: { userId },
-      orderBy: { createdAt: "desc" },
+      order: { createdAt: "DESC" },
       take,
-      include: { assets: true },
+      relations: ["assets"],
     });
+    return this.enrichMany(rows);
   }
 
-  listAll(take = 100) {
-    return this.prisma.job.findMany({
-      orderBy: { createdAt: "desc" },
+  async listAll(take = 100) {
+    const rows = await this.jobs.find({
+      order: { createdAt: "DESC" },
       take,
-      include: {
-        user: { select: { id: true, username: true } },
-        assets: true,
-      },
+      relations: ["user", "assets"],
     });
+    return this.enrichMany(
+      rows.map((row) => ({
+        ...row,
+        user: row.user
+          ? { id: row.user.id, username: row.user.username }
+          : undefined,
+      })) as JobListRow[],
+    );
   }
 
   async get(userId: string, id: string) {
-    const job = await this.prisma.job.findFirst({
+    const job = await this.jobs.findOne({
       where: { id, userId },
-      include: { assets: true },
+      relations: ["assets"],
     });
     if (!job) throw new NotFoundException("任务不存在");
-    return job;
+    const [enriched] = await this.enrichMany([job]);
+    return enriched;
   }
 
   async resolveReferenceUrls(
@@ -98,5 +140,83 @@ export class JobsService {
       for (const a of assets) urls.push(a.url);
     }
     return urls;
+  }
+
+  /** Mark worker start once; safe to call repeatedly. */
+  markStarted(jobId: string) {
+    return this.jobs.update(
+      { id: jobId, startedAt: IsNull() },
+      { startedAt: new Date() },
+    );
+  }
+
+  markFinished(jobId: string) {
+    return this.jobs.update(jobId, { finishedAt: new Date() });
+  }
+
+  private withDuration<
+    T extends {
+      startedAt?: Date | string | null;
+      finishedAt?: Date | string | null;
+      createdAt: Date | string;
+      updatedAt: Date | string;
+      status: string;
+    },
+  >(job: T) {
+    const toMs = (value: Date | string | null | undefined) => {
+      if (value == null) return null;
+      const ms = value instanceof Date ? value.getTime() : Date.parse(String(value));
+      return Number.isFinite(ms) ? ms : null;
+    };
+    const start = toMs(job.startedAt) ?? toMs(job.createdAt) ?? Date.now();
+    const terminal = job.status === "succeeded" || job.status === "failed";
+    const end =
+      toMs(job.finishedAt) ??
+      (terminal ? toMs(job.updatedAt) : null) ??
+      Date.now();
+    const durationMs = Math.max(0, end - start);
+    return { ...job, durationMs };
+  }
+
+  /** Backfill channel/model names for legacy rows that only stored input.modelId. */
+  private async enrichMany(rows: Array<JobWithAssets | JobListRow>) {
+    const missingIds = [
+      ...new Set(
+        rows
+          .filter((j) => !j.modelName || !j.channelName)
+          .map((j) => {
+            if (j.modelId) return j.modelId;
+            const input = j.input as { modelId?: string } | null;
+            return input?.modelId;
+          })
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    const models =
+      missingIds.length === 0
+        ? []
+        : await this.models.find({
+            where: { id: In(missingIds) },
+            relations: ["channel"],
+          });
+    const byId = new Map(models.map((m) => [m.id, m]));
+
+    return rows.map((job) => {
+      if (job.modelName && job.channelName) {
+        return this.withDuration(job);
+      }
+      const inputModelId = (job.input as { modelId?: string } | null)?.modelId;
+      const mid = job.modelId || inputModelId;
+      const model = mid ? byId.get(mid) : undefined;
+      return this.withDuration({
+        ...job,
+        modelId: job.modelId ?? model?.id ?? null,
+        modelName: job.modelName ?? model?.name ?? null,
+        channelId: job.channelId ?? model?.channelId ?? null,
+        channelName: job.channelName ?? model?.channel.name ?? null,
+        platform: job.platform ?? model?.channel.platform ?? null,
+      });
+    });
   }
 }

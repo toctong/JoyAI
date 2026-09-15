@@ -156,6 +156,8 @@ export default function ChannelsPage() {
             return;
           }
         }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "加载渠道失败");
       } finally {
         setRefreshing(false);
       }

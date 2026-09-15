@@ -1,10 +1,12 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import { Job as BullJob } from "bullmq";
+import { Repository } from "typeorm";
 import { getImageProvider } from "@joyai/ai-providers";
 import { QUEUE } from "@joyai/shared";
-import { Prisma } from "@prisma/client";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { Job } from "../../../database/entities/job.entity";
+import { JobStatus } from "../../../database/enums";
 import { ChannelsService } from "../../channels/channels.service";
 import { JobsService } from "../jobs.service";
 import { StorageService } from "../../storage/storage.service";
@@ -17,7 +19,7 @@ export class ImageProcessor extends WorkerHost {
   private readonly logger = new Logger(ImageProcessor.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    @InjectRepository(Job) private readonly jobsRepo: Repository<Job>,
     private readonly channels: ChannelsService,
     private readonly jobs: JobsService,
     private readonly storage: StorageService,
@@ -30,13 +32,14 @@ export class ImageProcessor extends WorkerHost {
 
   async process(bullJob: BullJob<{ jobId: string }>) {
     const { jobId } = bullJob.data;
-    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+    const job = await this.jobsRepo.findOne({ where: { id: jobId } });
     if (!job) return;
 
     try {
-      await this.prisma.job.update({
-        where: { id: jobId },
-        data: { status: "running", progress: 10 },
+      await this.jobs.markStarted(jobId);
+      await this.jobsRepo.update(jobId, {
+        status: JobStatus.running,
+        progress: 10,
       });
       this.realtime.emitJob(job.userId, "job:progress", {
         jobId,
@@ -84,18 +87,29 @@ export class ImageProcessor extends WorkerHost {
             : input.prompt;
 
       const provider = getImageProvider(model.channel.platform);
-      const result = await provider.generate({
-        prompt,
-        negativePrompt: input.negativePrompt,
-        size: input.size,
-        width: input.width,
-        height: input.height,
-        n: input.n,
-        referenceUrls,
-        model: model.remoteId,
-        apiKey: model.channel.apiKey,
-        baseUrl: model.channel.baseUrl,
-      });
+      const count = Math.max(1, Math.min(Number(input.n) || 1, 4));
+      // Seedream 等模型常忽略 n / 只当组图上限；数量选择按「独立出图」并发请求，保证张数
+      const batches = await Promise.all(
+        Array.from({ length: count }, () =>
+          provider.generate({
+            prompt,
+            negativePrompt: input.negativePrompt,
+            size: input.size,
+            width: input.width,
+            height: input.height,
+            n: 1,
+            watermark: false,
+            referenceUrls,
+            model: model.remoteId,
+            apiKey: model.channel.apiKey,
+            baseUrl: model.channel.baseUrl,
+          }),
+        ),
+      );
+      const result = {
+        images: batches.flatMap((b) => b.images),
+        raw: count === 1 ? batches[0]?.raw : batches.map((b) => b.raw),
+      };
 
       const createdAssets = [];
       for (const img of result.images) {
@@ -157,15 +171,13 @@ export class ImageProcessor extends WorkerHost {
         createdAssets.push(asset);
       }
 
-      await this.prisma.job.update({
-        where: { id: jobId },
-        data: {
-          status: "succeeded",
-          progress: 100,
-          result: {
-            assetIds: createdAssets.map((a) => a.id),
-            urls: createdAssets.map((a) => a.url),
-          } as Prisma.InputJsonValue,
+      await this.jobsRepo.update(jobId, {
+        status: JobStatus.succeeded,
+        progress: 100,
+        finishedAt: new Date(),
+        result: {
+          assetIds: createdAssets.map((a) => a.id),
+          urls: createdAssets.map((a) => a.url),
         },
       });
 
@@ -190,9 +202,11 @@ export class ImageProcessor extends WorkerHost {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Image job ${jobId} failed: ${message}`);
-      await this.prisma.job.update({
-        where: { id: jobId },
-        data: { status: "failed", error: message, progress: 100 },
+      await this.jobsRepo.update(jobId, {
+        status: JobStatus.failed,
+        error: message,
+        progress: 100,
+        finishedAt: new Date(),
       });
       this.realtime.emitJob(job.userId, "job:failed", {
         jobId,

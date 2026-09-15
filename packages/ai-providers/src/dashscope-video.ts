@@ -5,6 +5,7 @@ import type {
   VideoProvider,
   VideoSubmitInput,
 } from "./types";
+import { formatProviderError, formatProviderErrorBody } from "./http-error";
 
 function authHeaders(apiKey: string, async = false) {
   const h: Record<string, string> = {
@@ -71,22 +72,34 @@ export class DashscopeVideoProvider implements VideoProvider {
       ];
     }
 
-    const { data } = await axios.post(
-      `${apiBase}/services/aigc/video-generation/video-synthesis`,
-      body,
-      {
-        headers: authHeaders(input.apiKey, true),
-        timeout: 60_000,
-      },
-    );
+    try {
+      const { data } = await axios.post(
+        `${apiBase}/services/aigc/video-generation/video-synthesis`,
+        body,
+        {
+          headers: authHeaders(input.apiKey, true),
+          timeout: 60_000,
+        },
+      );
 
-    const remoteTaskId = data?.output?.task_id ?? data?.task_id;
-    if (!remoteTaskId) {
+      const remoteTaskId = data?.output?.task_id ?? data?.task_id;
+      if (!remoteTaskId) {
+        throw new Error(
+          formatProviderErrorBody(data, undefined, {
+            platform: ProviderPlatform.DASHSCOPE,
+            fallback: "视频提交失败：未返回 task_id",
+          }),
+        );
+      }
+      return { remoteTaskId: String(remoteTaskId) };
+    } catch (error) {
       throw new Error(
-        data?.message ?? data?.code ?? "DashScope video submit missing task_id",
+        formatProviderError(error, {
+          platform: ProviderPlatform.DASHSCOPE,
+          fallback: "视频提交失败",
+        }),
       );
     }
-    return { remoteTaskId: String(remoteTaskId) };
   }
 
   async poll(params: {
@@ -96,34 +109,43 @@ export class DashscopeVideoProvider implements VideoProvider {
     metadata?: Record<string, unknown> | null;
   }): Promise<VideoPollResult> {
     const apiBase = resolveDashscopeApiBase(params.baseUrl, params.metadata);
-    const { data } = await axios.get(`${apiBase}/tasks/${params.remoteTaskId}`, {
-      headers: authHeaders(params.apiKey),
-      timeout: 30_000,
-    });
+    try {
+      const { data } = await axios.get(`${apiBase}/tasks/${params.remoteTaskId}`, {
+        headers: authHeaders(params.apiKey),
+        timeout: 30_000,
+      });
 
-    const status = String(
-      data?.output?.task_status ?? data?.task_status ?? "",
-    ).toUpperCase();
+      const status = String(
+        data?.output?.task_status ?? data?.task_status ?? "",
+      ).toUpperCase();
 
-    if (status === "SUCCEEDED") {
-      const videoUrl = data?.output?.video_url;
-      if (!videoUrl) {
-        return { status: "failed", error: "Missing video_url", raw: data };
+      if (status === "SUCCEEDED") {
+        const videoUrl = data?.output?.video_url;
+        if (!videoUrl) {
+          return { status: "failed", error: "未返回视频地址", raw: data };
+        }
+        return { status: "succeeded", videoUrl, raw: data };
       }
-      return { status: "succeeded", videoUrl, raw: data };
-    }
-    if (status === "FAILED" || status === "CANCELED" || status === "UNKNOWN") {
+      if (status === "FAILED" || status === "CANCELED" || status === "UNKNOWN") {
+        return {
+          status: "failed",
+          error: formatProviderErrorBody(data, undefined, {
+            platform: ProviderPlatform.DASHSCOPE,
+            fallback: status,
+          }),
+          raw: data,
+        };
+      }
+      if (status === "PENDING") return { status: "queued" };
+      return { status: "running" };
+    } catch (error) {
       return {
         status: "failed",
-        error:
-          data?.output?.message ??
-          data?.message ??
-          data?.output?.code ??
-          status,
-        raw: data,
+        error: formatProviderError(error, {
+          platform: ProviderPlatform.DASHSCOPE,
+          fallback: "视频轮询失败",
+        }),
       };
     }
-    if (status === "PENDING") return { status: "queued" };
-    return { status: "running" };
   }
 }

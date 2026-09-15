@@ -3,40 +3,45 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { TypeOrmCrudService } from "@dataui/crud-typeorm";
+import { Repository } from "typeorm";
 import * as bcrypt from "bcryptjs";
-import { PrismaService } from "../../common/prisma/prisma.service";
-import { UserRole } from "@prisma/client";
+import { User } from "../../database/entities/user.entity";
+import { UserRole } from "../../database/enums";
 
 @Injectable()
-export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+export class UsersService extends TypeOrmCrudService<User> {
+  constructor(@InjectRepository(User) repo: Repository<User>) {
+    super(repo);
+  }
 
   findByUsername(username: string) {
-    return this.prisma.user.findUnique({ where: { username } });
+    return this.repo.findOne({ where: { username } });
   }
 
   findById(id: string) {
-    return this.prisma.user.findUnique({ where: { id } });
+    return this.repo.findOne({ where: { id } });
   }
 
-  async create(username: string, password: string, role: UserRole = "creator") {
+  async create(
+    username: string,
+    password: string,
+    role: UserRole = UserRole.creator,
+  ) {
     const exists = await this.findByUsername(username);
     if (exists) throw new ConflictException("用户名已存在");
     const passwordHash = await bcrypt.hash(password, 10);
-    return this.prisma.user.create({
-      data: { username, passwordHash, role },
-    });
+    return this.repo.save(
+      this.repo.create({ username, passwordHash, role }),
+    );
   }
 
+  /** Admin list — keep plain array for existing web contract. */
   list() {
-    return this.prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        role: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
+    return this.repo.find({
+      select: ["id", "username", "role", "createdAt"],
+      order: { createdAt: "DESC" },
     });
   }
 

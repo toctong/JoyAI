@@ -10,7 +10,7 @@
 
 ## Phase 1 — 核心 API
 
-- [x] Prisma schema + migrate/push
+- [x] TypeORM schema + SQLite synchronize（原 Prisma 已移除）
 - [x] Auth JWT + bootstrap admin
 - [x] Settings
 - [x] TOS Storage + upload
@@ -78,8 +78,6 @@ cp .env.example .env
 docker compose up -d
 pnpm install
 pnpm build:packages
-pnpm db:generate
-pnpm db:push
 pnpm dev:server
 pnpm dev:web
 ```

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import dayjs from "dayjs";
 import { api } from "@/shared/lib/api";
+import { formatDurationMs } from "@/shared/lib/format-duration";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge } from "@/components/admin/status-badge";
@@ -36,6 +37,9 @@ type Job = {
   kind: string;
   status: string;
   createdAt: string;
+  durationMs?: number | null;
+  modelName?: string | null;
+  channelName?: string | null;
   user?: { username: string };
   input?: { prompt?: string };
   error?: string | null;
@@ -276,6 +280,21 @@ export default function AdminDashboardPage() {
                         {job.kind === "image" ? "图片" : "视频"}
                       </Badge>
                       <JobStatusBadge status={job.status} />
+                      {job.channelName ? (
+                        <span className="text-muted-foreground">
+                          {job.channelName}
+                        </span>
+                      ) : null}
+                      {job.modelName ? (
+                        <span className="text-muted-foreground">
+                          {job.modelName}
+                        </span>
+                      ) : null}
+                      {typeof job.durationMs === "number" ? (
+                        <span className="tabular-nums text-muted-foreground">
+                          {formatDurationMs(job.durationMs)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <time

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { JobKind, Prisma } from "@prisma/client";
+import { InjectRepository } from "@nestjs/typeorm";
+import { In, Repository } from "typeorm";
 import {
   CHANNEL_PRESETS,
   getCatalogForPlatform,
@@ -11,75 +12,109 @@ import {
   normalizePage,
   type PaginatedResult,
 } from "../../common/dto/pagination-query.dto";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { Channel } from "../../database/entities/channel.entity";
+import { Model } from "../../database/entities/model.entity";
+import { JobKind } from "../../database/enums";
 
 @Injectable()
 export class ModelsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(Model) private readonly models: Repository<Model>,
+    @InjectRepository(Channel)
+    private readonly channels: Repository<Channel>,
+  ) {}
 
-  async list(query: {
-    page?: number;
-    pageSize?: number;
-    keyword?: string;
-    kind?: JobKind;
-    enabled?: boolean;
-    isDefault?: boolean;
-    channelId?: string;
-  } = {}) {
+  async list(
+    query: {
+      page?: number;
+      pageSize?: number;
+      keyword?: string;
+      kind?: JobKind;
+      enabled?: boolean;
+      isDefault?: boolean;
+      channelId?: string;
+    } = {},
+  ) {
     const { page, pageSize, skip } = normalizePage(query.page, query.pageSize);
-    const where: Prisma.ModelWhereInput = {};
 
-    if (query.kind) where.kind = query.kind;
-    if (query.enabled !== undefined) where.enabled = query.enabled;
-    if (query.isDefault !== undefined) where.isDefault = query.isDefault;
-    if (query.channelId) where.channelId = query.channelId;
+    const qb = this.models
+      .createQueryBuilder("model")
+      .leftJoinAndSelect("model.channel", "channel")
+      .orderBy("model.createdAt", "DESC")
+      .skip(skip)
+      .take(pageSize);
+
+    if (query.kind) {
+      qb.andWhere("model.kind = :kind", { kind: query.kind });
+    }
+    if (query.enabled !== undefined) {
+      qb.andWhere("model.enabled = :enabled", { enabled: query.enabled });
+    }
+    if (query.isDefault !== undefined) {
+      qb.andWhere("model.isDefault = :isDefault", {
+        isDefault: query.isDefault,
+      });
+    }
+    if (query.channelId) {
+      qb.andWhere("model.channelId = :channelId", {
+        channelId: query.channelId,
+      });
+    }
 
     const keyword = query.keyword?.trim();
     if (keyword) {
-      where.OR = [
-        { name: { contains: keyword } },
-        { remoteId: { contains: keyword } },
-        { description: { contains: keyword } },
-        { channel: { name: { contains: keyword } } },
-      ];
+      qb.andWhere(
+        "(model.name LIKE :kw OR model.remoteId LIKE :kw OR model.description LIKE :kw OR channel.name LIKE :kw)",
+        { kw: `%${keyword}%` },
+      );
     }
 
-    const [items, total] = await Promise.all([
-      this.prisma.model.findMany({
-        where,
-        include: {
-          channel: { select: { id: true, name: true, platform: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        skip,
-        take: pageSize,
-      }),
-      this.prisma.model.count({ where }),
-    ]);
+    const [rows, total] = await qb.getManyAndCount();
 
-    return { items, total, page, pageSize } satisfies PaginatedResult<(typeof items)[number]>;
+    const items = rows.map((m) => ({
+      ...m,
+      channel: m.channel
+        ? {
+            id: m.channel.id,
+            name: m.channel.name,
+            platform: m.channel.platform,
+          }
+        : null,
+    }));
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+    } satisfies PaginatedResult<(typeof items)[number]>;
   }
 
-  listPublic() {
-    return this.prisma.model.findMany({
+  async listPublic() {
+    const rows = await this.models.find({
       where: {
         enabled: true,
+        kind: In([JobKind.image, JobKind.video]),
         channel: { enabled: true },
-        kind: { in: ["image", "video"] },
       },
-      select: {
-        id: true,
-        name: true,
-        kind: true,
-        isDefault: true,
-        description: true,
-        pricing: true,
-        capabilities: true,
-        remoteId: true,
-        channel: { select: { platform: true, name: true } },
-      },
-      orderBy: [{ kind: "asc" }, { isDefault: "desc" }],
+      relations: ["channel"],
+      order: { kind: "ASC", isDefault: "DESC" },
     });
+
+    return rows.map((m) => ({
+      id: m.id,
+      name: m.name,
+      kind: m.kind,
+      isDefault: m.isDefault,
+      description: m.description,
+      pricing: m.pricing,
+      capabilities: m.capabilities,
+      remoteId: m.remoteId,
+      channel: {
+        platform: m.channel.platform,
+        name: m.channel.name,
+      },
+    }));
   }
 
   create(data: {
@@ -93,20 +128,20 @@ export class ModelsService {
     enabled?: boolean;
     isDefault?: boolean;
   }) {
-    return this.prisma.model.create({
-      data: {
+    return this.models.save(
+      this.models.create({
         channelId: data.channelId,
         name: data.name,
         kind: data.kind,
         remoteId: data.remoteId,
-        description: data.description,
-        pricing: (data.pricing ?? undefined) as Prisma.InputJsonValue | undefined,
-        capabilities: (data.capabilities ??
-          undefined) as Prisma.InputJsonValue | undefined,
-        enabled: data.enabled,
-        isDefault: data.isDefault,
-      },
-    });
+        description: data.description ?? null,
+        pricing: (data.pricing as Record<string, unknown> | null) ?? null,
+        capabilities:
+          (data.capabilities as Record<string, unknown> | null) ?? null,
+        enabled: data.enabled ?? true,
+        isDefault: data.isDefault ?? false,
+      }),
+    );
   }
 
   async update(
@@ -121,35 +156,30 @@ export class ModelsService {
       isDefault: boolean;
     }>,
   ) {
-    const model = await this.prisma.model.findUnique({ where: { id } });
+    const model = await this.models.findOne({ where: { id } });
     if (!model) throw new NotFoundException("模型不存在");
 
-    const patch: Prisma.ModelUpdateInput = {};
-    if (data.name !== undefined) patch.name = data.name;
-    if (data.remoteId !== undefined) patch.remoteId = data.remoteId;
-    if (data.description !== undefined) patch.description = data.description;
-    if (data.enabled !== undefined) patch.enabled = data.enabled;
-    if (data.isDefault !== undefined) patch.isDefault = data.isDefault;
+    if (data.name !== undefined) model.name = data.name;
+    if (data.remoteId !== undefined) model.remoteId = data.remoteId;
+    if (data.description !== undefined) model.description = data.description;
+    if (data.enabled !== undefined) model.enabled = data.enabled;
+    if (data.isDefault !== undefined) model.isDefault = data.isDefault;
     if (data.pricing !== undefined) {
-      patch.pricing =
-        data.pricing === null
-          ? Prisma.DbNull
-          : (data.pricing as Prisma.InputJsonValue);
+      model.pricing = (data.pricing as Record<string, unknown> | null) ?? null;
     }
     if (data.capabilities !== undefined) {
-      patch.capabilities =
-        data.capabilities === null
-          ? Prisma.DbNull
-          : (data.capabilities as Prisma.InputJsonValue);
+      model.capabilities =
+        (data.capabilities as Record<string, unknown> | null) ?? null;
     }
 
-    return this.prisma.model.update({ where: { id }, data: patch });
+    return this.models.save(model);
   }
 
   async remove(id: string) {
-    const model = await this.prisma.model.findUnique({ where: { id } });
+    const model = await this.models.findOne({ where: { id } });
     if (!model) throw new NotFoundException("模型不存在");
-    return this.prisma.model.delete({ where: { id } });
+    await this.models.delete(id);
+    return model;
   }
 
   /**
@@ -160,9 +190,7 @@ export class ModelsService {
     channelId: string,
     opts?: { forceRename?: boolean },
   ): Promise<{ created: number; updated: number; skipped: number }> {
-    const channel = await this.prisma.channel.findUnique({
-      where: { id: channelId },
-    });
+    const channel = await this.channels.findOne({ where: { id: channelId } });
     if (!channel) throw new NotFoundException("渠道不存在");
 
     const catalog = getCatalogForPlatform(channel.platform);
@@ -172,44 +200,37 @@ export class ModelsService {
 
     let created = 0;
     let updated = 0;
-    let skipped = 0;
+    const skipped = 0;
 
     for (const item of catalog) {
-      const existing = await this.prisma.model.findUnique({
-        where: {
-          channelId_remoteId: {
-            channelId,
-            remoteId: item.remoteId,
-          },
-        },
+      const existing = await this.models.findOne({
+        where: { channelId, remoteId: item.remoteId },
       });
 
       if (existing) {
-        await this.prisma.model.update({
-          where: { id: existing.id },
-          data: {
-            ...(opts?.forceRename ? { name: item.name } : {}),
-            description: item.description ?? existing.description,
-            pricing: item.pricing as Prisma.InputJsonValue,
-            capabilities: item.capabilities as Prisma.InputJsonValue,
-            kind: item.kind,
-          },
-        });
+        if (opts?.forceRename) existing.name = item.name;
+        existing.description = item.description ?? existing.description;
+        existing.pricing = (item.pricing as Record<string, unknown>) ?? null;
+        existing.capabilities =
+          (item.capabilities as Record<string, unknown>) ?? null;
+        existing.kind = item.kind as JobKind;
+        await this.models.save(existing);
         updated += 1;
       } else {
-        await this.prisma.model.create({
-          data: {
+        await this.models.save(
+          this.models.create({
             channelId,
             name: item.name,
-            kind: item.kind,
+            kind: item.kind as JobKind,
             remoteId: item.remoteId,
-            description: item.description,
-            pricing: item.pricing as Prisma.InputJsonValue,
-            capabilities: item.capabilities as Prisma.InputJsonValue,
+            description: item.description ?? null,
+            pricing: (item.pricing as Record<string, unknown>) ?? null,
+            capabilities:
+              (item.capabilities as Record<string, unknown>) ?? null,
             enabled: true,
             isDefault: item.isDefault ?? false,
-          },
-        });
+          }),
+        );
         created += 1;
       }
     }
@@ -218,8 +239,7 @@ export class ModelsService {
   }
 
   catalogPreview(platform: string) {
-    const preset =
-      CHANNEL_PRESETS[platform as ProviderPlatformId] ?? null;
+    const preset = CHANNEL_PRESETS[platform as ProviderPlatformId] ?? null;
     return {
       platform,
       preset,

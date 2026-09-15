@@ -1,3 +1,4 @@
+import "./common/crud.config";
 import { NestFactory } from "@nestjs/core";
 import {
   FastifyAdapter,
@@ -26,6 +27,8 @@ async function bootstrap() {
   app.enableCors({
     origin: origins,
     credentials: true,
+    // Nest+Fastify 默认只有 GET,HEAD,POST；管理端更新/删除需要 PATCH/PUT/DELETE
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
   await app.register(helmet, { contentSecurityPolicy: false });

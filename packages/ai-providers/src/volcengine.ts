@@ -8,6 +8,7 @@ import type {
   VideoSubmitInput,
 } from "./types";
 import { ProviderPlatform } from "@joyai/shared";
+import { formatProviderError, formatProviderErrorBody } from "./http-error";
 
 function authHeaders(apiKey: string) {
   return {
@@ -32,6 +33,8 @@ export class VolcengineImageProvider implements ImageProvider {
       n: input.n ?? 1,
       size,
       response_format: "url",
+      // Seedream defaults to a visible 「AI 生成」mark unless explicitly off
+      watermark: input.watermark ?? false,
     };
 
     if (input.negativePrompt) {
@@ -41,18 +44,29 @@ export class VolcengineImageProvider implements ImageProvider {
       body.image = input.referenceUrls[0];
     }
 
-    const { data } = await axios.post(
-      `${input.baseUrl.replace(/\/$/, "")}/images/generations`,
-      body,
-      { headers: authHeaders(input.apiKey), timeout: 180_000 },
-    );
+    try {
+      const { data } = await axios.post(
+        `${input.baseUrl.replace(/\/$/, "")}/images/generations`,
+        body,
+        { headers: authHeaders(input.apiKey), timeout: 180_000 },
+      );
 
-    const images = (data?.data ?? []).map((item: { url?: string; b64_json?: string }) => ({
-      url: item.url,
-      b64: item.b64_json,
-    }));
+      const images = (data?.data ?? []).map(
+        (item: { url?: string; b64_json?: string }) => ({
+          url: item.url,
+          b64: item.b64_json,
+        }),
+      );
 
-    return { images, raw: data };
+      return { images, raw: data };
+    } catch (error) {
+      throw new Error(
+        formatProviderError(error, {
+          platform: ProviderPlatform.VOLCENGINE,
+          fallback: "图片生成失败",
+        }),
+      );
+    }
   }
 }
 
@@ -79,17 +93,26 @@ export class VolcengineVideoProvider implements VideoProvider {
     if (input.ratio) body.ratio = input.ratio;
     if (input.duration) body.duration = input.duration;
 
-    const { data } = await axios.post(
-      `${input.baseUrl.replace(/\/$/, "")}/contents/generations/tasks`,
-      body,
-      { headers: authHeaders(input.apiKey), timeout: 60_000 },
-    );
+    try {
+      const { data } = await axios.post(
+        `${input.baseUrl.replace(/\/$/, "")}/contents/generations/tasks`,
+        body,
+        { headers: authHeaders(input.apiKey), timeout: 60_000 },
+      );
 
-    const remoteTaskId = data?.id as string | undefined;
-    if (!remoteTaskId) {
-      throw new Error("Volcengine video submit missing task id");
+      const remoteTaskId = data?.id as string | undefined;
+      if (!remoteTaskId) {
+        throw new Error("Volcengine video submit missing task id");
+      }
+      return { remoteTaskId };
+    } catch (error) {
+      throw new Error(
+        formatProviderError(error, {
+          platform: ProviderPlatform.VOLCENGINE,
+          fallback: "视频提交失败",
+        }),
+      );
     }
-    return { remoteTaskId };
   }
 
   async poll(params: {
@@ -97,29 +120,42 @@ export class VolcengineVideoProvider implements VideoProvider {
     apiKey: string;
     baseUrl: string;
   }): Promise<VideoPollResult> {
-    const { data } = await axios.get(
-      `${params.baseUrl.replace(/\/$/, "")}/contents/generations/tasks/${params.remoteTaskId}`,
-      { headers: authHeaders(params.apiKey), timeout: 30_000 },
-    );
+    try {
+      const { data } = await axios.get(
+        `${params.baseUrl.replace(/\/$/, "")}/contents/generations/tasks/${params.remoteTaskId}`,
+        { headers: authHeaders(params.apiKey), timeout: 30_000 },
+      );
 
-    const status = String(data?.status ?? "").toLowerCase();
-    if (status === "succeeded" || status === "success") {
-      const videoUrl =
-        data?.content?.video_url ??
-        data?.output?.video_url ??
-        data?.result?.video_url;
-      if (!videoUrl) {
-        return { status: "failed", error: "Missing video_url", raw: data };
+      const status = String(data?.status ?? "").toLowerCase();
+      if (status === "succeeded" || status === "success") {
+        const videoUrl =
+          data?.content?.video_url ??
+          data?.output?.video_url ??
+          data?.result?.video_url;
+        if (!videoUrl) {
+          return { status: "failed", error: "未返回视频地址", raw: data };
+        }
+        return { status: "succeeded", videoUrl, raw: data };
       }
-      return { status: "succeeded", videoUrl, raw: data };
-    }
-    if (status === "failed" || status === "cancelled") {
+      if (status === "failed" || status === "cancelled") {
+        return {
+          status: "failed",
+          error: formatProviderErrorBody(data, undefined, {
+            platform: ProviderPlatform.VOLCENGINE,
+            fallback: status,
+          }),
+          raw: data,
+        };
+      }
+      return { status: status === "queued" ? "queued" : "running" };
+    } catch (error) {
       return {
         status: "failed",
-        error: data?.error?.message ?? data?.message ?? status,
-        raw: data,
+        error: formatProviderError(error, {
+          platform: ProviderPlatform.VOLCENGINE,
+          fallback: "视频轮询失败",
+        }),
       };
     }
-    return { status: status === "queued" ? "queued" : "running" };
   }
 }

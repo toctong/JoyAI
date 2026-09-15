@@ -1,9 +1,12 @@
 import { Processor, WorkerHost, InjectQueue } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import { Job as BullJob, Queue } from "bullmq";
+import { Repository } from "typeorm";
 import { getVideoProvider } from "@joyai/ai-providers";
 import { QUEUE } from "@joyai/shared";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { Job } from "../../../database/entities/job.entity";
+import { JobStatus } from "../../../database/enums";
 import { ChannelsService } from "../../channels/channels.service";
 import { JobsService } from "../jobs.service";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
@@ -13,7 +16,7 @@ export class VideoSubmitProcessor extends WorkerHost {
   private readonly logger = new Logger(VideoSubmitProcessor.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    @InjectRepository(Job) private readonly jobsRepo: Repository<Job>,
     private readonly channels: ChannelsService,
     private readonly jobs: JobsService,
     private readonly realtime: RealtimeGateway,
@@ -24,13 +27,14 @@ export class VideoSubmitProcessor extends WorkerHost {
 
   async process(bullJob: BullJob<{ jobId: string }>) {
     const { jobId } = bullJob.data;
-    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+    const job = await this.jobsRepo.findOne({ where: { id: jobId } });
     if (!job) return;
 
     try {
-      await this.prisma.job.update({
-        where: { id: jobId },
-        data: { status: "running", progress: 5 },
+      await this.jobs.markStarted(jobId);
+      await this.jobsRepo.update(jobId, {
+        status: JobStatus.running,
+        progress: 5,
       });
       this.realtime.emitJob(job.userId, "job:progress", {
         jobId,
@@ -68,13 +72,10 @@ export class VideoSubmitProcessor extends WorkerHost {
         metadata: channelMeta,
       });
 
-      await this.prisma.job.update({
-        where: { id: jobId },
-        data: {
-          status: "polling",
-          remoteTaskId,
-          progress: 20,
-        },
+      await this.jobsRepo.update(jobId, {
+        status: JobStatus.polling,
+        remoteTaskId,
+        progress: 20,
       });
 
       await this.pollQueue.add(
@@ -99,9 +100,11 @@ export class VideoSubmitProcessor extends WorkerHost {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Video submit ${jobId} failed: ${message}`);
-      await this.prisma.job.update({
-        where: { id: jobId },
-        data: { status: "failed", error: message, progress: 100 },
+      await this.jobsRepo.update(jobId, {
+        status: JobStatus.failed,
+        error: message,
+        progress: 100,
+        finishedAt: new Date(),
       });
       this.realtime.emitJob(job.userId, "job:failed", {
         jobId,

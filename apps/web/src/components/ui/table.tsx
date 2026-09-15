@@ -10,7 +10,7 @@ export function Table({
   return (
     <div className="admin-table-scroll w-full overflow-x-auto">
       <table
-        className={cn(
+      className={cn(
           "admin-table w-full min-w-[720px] caption-bottom text-sm",
           className,
         )}

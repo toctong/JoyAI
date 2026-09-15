@@ -7,12 +7,12 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:push": "prisma db push",
+    "db:reset": "node -e \"const fs=require('fs');const p=require('path');const f=p.resolve(__dirname,'data/sql.db');try{fs.unlinkSync(f);console.log('removed',f)}catch(e){console.log('no db file')}\"",
     "postinstall": "node -e \"try{require('fs').copyFileSync(require('path').resolve(__dirname,'../../.env'),require('path').resolve(__dirname,'.env'))}catch(e){}\""
   },
   "dependencies": {
+    "@dataui/crud": "5.3.4",
+    "@dataui/crud-typeorm": "5.3.4",
     "@fastify/helmet": "^13.0.1",
     "@fastify/multipart": "^9.0.3",
     "@fastify/rate-limit": "^10.2.2",
@@ -24,12 +24,15 @@
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.0.12",
     "@nestjs/jwt": "^11.0.0",
+    "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-fastify": "^11.0.12",
     "@nestjs/platform-socket.io": "^11.0.12",
     "@nestjs/swagger": "^11.1.1",
+    "@nestjs/terminus": "^11.0.0",
+    "@nestjs/typeorm": "11.0.0",
     "@nestjs/websockets": "^11.0.12",
-    "@prisma/client": "^6.5.0",
+    "@paralleldrive/cuid2": "^3.3.0",
     "@volcengine/tos-sdk": "^2.7.3",
     "axios": "^1.8.4",
     "bcryptjs": "^3.0.2",
@@ -43,7 +46,9 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "sql.js": "^1.14.2",
+    "typeorm": "0.3.22"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.6",
@@ -52,7 +57,6 @@
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.13.10",
     "@types/passport-jwt": "^4.0.1",
-    "prisma": "^6.5.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }

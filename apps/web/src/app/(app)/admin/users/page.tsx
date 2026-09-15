@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
+import { toast } from "sonner";
 import { api } from "@/shared/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
@@ -39,6 +40,8 @@ export default function UsersPage() {
     setRefreshing(true);
     try {
       setUsers(await api<User[]>("/admin/users"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "加载用户失败");
     } finally {
       setRefreshing(false);
     }

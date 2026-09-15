@@ -3,9 +3,11 @@ import {
   NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { InjectRepository } from "@nestjs/typeorm";
+import { DataSource, In, IsNull, Repository } from "typeorm";
 import { CanvasSnapshotSchema, normalizeCanvasSnapshot } from "@joyai/shared";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { CanvasFolder } from "../../database/entities/canvas-folder.entity";
+import { CanvasProject } from "../../database/entities/canvas-project.entity";
 
 function extractCoverUrl(snapshot: unknown): string | null {
   const normalized = normalizeCanvasSnapshot(snapshot);
@@ -25,76 +27,89 @@ function extractCoverUrl(snapshot: unknown): string | null {
 
 @Injectable()
 export class CanvasService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(CanvasFolder)
+    private readonly folders: Repository<CanvasFolder>,
+    @InjectRepository(CanvasProject)
+    private readonly projects: Repository<CanvasProject>,
+    private readonly dataSource: DataSource,
+  ) {}
 
   async library(userId: string, folderId?: string | null) {
     const parentId = folderId ?? null;
 
     if (parentId) {
-      const folder = await this.prisma.canvasFolder.findFirst({
+      const folder = await this.folders.findOne({
         where: { id: parentId, userId },
-        select: { id: true, title: true, parentId: true },
+        select: ["id", "title", "parentId"],
       });
       if (!folder) throw new NotFoundException("文件夹不存在");
     }
 
-    const [folders, projects] = await Promise.all([
-      this.prisma.canvasFolder.findMany({
-        where: { userId, parentId },
-        orderBy: { updatedAt: "desc" },
-        select: {
-          id: true,
-          title: true,
-          parentId: true,
-          createdAt: true,
-          updatedAt: true,
-          projects: {
-            take: 3,
-            orderBy: { updatedAt: "desc" },
-            select: { coverUrl: true },
-          },
+    const [folderRows, projects] = await Promise.all([
+      this.folders.find({
+        where: {
+          userId,
+          parentId: parentId === null ? IsNull() : parentId,
         },
+        order: { updatedAt: "DESC" },
+        select: ["id", "title", "parentId", "createdAt", "updatedAt"],
       }),
-      this.prisma.canvasProject.findMany({
-        where: { userId, folderId: parentId },
-        orderBy: { updatedAt: "desc" },
-        select: {
-          id: true,
-          title: true,
-          coverUrl: true,
-          folderId: true,
-          createdAt: true,
-          updatedAt: true,
+      this.projects.find({
+        where: {
+          userId,
+          folderId: parentId === null ? IsNull() : parentId,
         },
+        order: { updatedAt: "DESC" },
+        select: [
+          "id",
+          "title",
+          "coverUrl",
+          "folderId",
+          "createdAt",
+          "updatedAt",
+        ],
       }),
     ]);
 
+    const folderIds = folderRows.map((f) => f.id);
+    const coverProjects =
+      folderIds.length === 0
+        ? []
+        : await this.projects.find({
+            where: { userId, folderId: In(folderIds) },
+            order: { updatedAt: "DESC" },
+            select: ["folderId", "coverUrl"],
+          });
+
+    const coversByFolder = new Map<string, string[]>();
+    for (const p of coverProjects) {
+      if (!p.folderId || !p.coverUrl) continue;
+      const list = coversByFolder.get(p.folderId) ?? [];
+      if (list.length >= 3) continue;
+      list.push(p.coverUrl);
+      coversByFolder.set(p.folderId, list);
+    }
+
     return {
       folderId: parentId,
-      folders: folders.map((f) => ({
+      folders: folderRows.map((f) => ({
         id: f.id,
         title: f.title,
         parentId: f.parentId,
         createdAt: f.createdAt,
         updatedAt: f.updatedAt,
-        coverUrls: f.projects
-          .map((p) => p.coverUrl)
-          .filter((u): u is string => Boolean(u)),
+        coverUrls: coversByFolder.get(f.id) ?? [],
       })),
       projects,
     };
   }
 
   listFolders(userId: string) {
-    return this.prisma.canvasFolder.findMany({
+    return this.folders.find({
       where: { userId },
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        parentId: true,
-        updatedAt: true,
-      },
+      order: { updatedAt: "DESC" },
+      select: ["id", "title", "parentId", "updatedAt"],
     });
   }
 
@@ -104,20 +119,20 @@ export class CanvasService {
     parentId?: string | null,
   ) {
     if (parentId) await this.requireFolder(userId, parentId);
-    return this.prisma.canvasFolder.create({
-      data: {
+    const folder = await this.folders.save(
+      this.folders.create({
         userId,
         title: title?.trim() || "新建文件夹",
         parentId: parentId ?? null,
-      },
-      select: {
-        id: true,
-        title: true,
-        parentId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+      }),
+    );
+    return {
+      id: folder.id,
+      title: folder.title,
+      parentId: folder.parentId,
+      createdAt: folder.createdAt,
+      updatedAt: folder.updatedAt,
+    };
   }
 
   async updateFolder(
@@ -133,55 +148,57 @@ export class CanvasService {
       await this.requireFolder(userId, data.parentId);
       await this.assertNotDescendant(userId, id, data.parentId);
     }
-    return this.prisma.canvasFolder.update({
-      where: { id: folder.id },
-      data: {
-        ...(data.title !== undefined
-          ? { title: data.title.trim() || "新建文件夹" }
-          : {}),
-        ...(data.parentId !== undefined ? { parentId: data.parentId } : {}),
-      },
-      select: {
-        id: true,
-        title: true,
-        parentId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    if (data.title !== undefined) {
+      folder.title = data.title.trim() || "新建文件夹";
+    }
+    if (data.parentId !== undefined) {
+      folder.parentId = data.parentId;
+    }
+    const saved = await this.folders.save(folder);
+    return {
+      id: saved.id,
+      title: saved.title,
+      parentId: saved.parentId,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
   }
 
   async deleteFolder(userId: string, id: string) {
     const folder = await this.requireFolder(userId, id);
-    await this.prisma.$transaction([
-      this.prisma.canvasProject.updateMany({
-        where: { userId, folderId: id },
-        data: { folderId: folder.parentId },
-      }),
-      this.prisma.canvasFolder.updateMany({
-        where: { userId, parentId: id },
-        data: { parentId: folder.parentId },
-      }),
-      this.prisma.canvasFolder.delete({ where: { id } }),
-    ]);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        CanvasProject,
+        { userId, folderId: id },
+        { folderId: folder.parentId },
+      );
+      await manager.update(
+        CanvasFolder,
+        { userId, parentId: id },
+        { parentId: folder.parentId },
+      );
+      await manager.delete(CanvasFolder, { id });
+    });
     return { ok: true };
   }
 
   list(userId: string, folderId?: string | null) {
-    return this.prisma.canvasProject.findMany({
+    return this.projects.find({
       where: {
         userId,
-        ...(folderId !== undefined ? { folderId } : {}),
+        ...(folderId !== undefined
+          ? { folderId: folderId === null ? IsNull() : folderId }
+          : {}),
       },
-      orderBy: { updatedAt: "desc" },
-      select: {
-        id: true,
-        title: true,
-        coverUrl: true,
-        folderId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      order: { updatedAt: "DESC" },
+      select: [
+        "id",
+        "title",
+        "coverUrl",
+        "folderId",
+        "createdAt",
+        "updatedAt",
+      ],
     });
   }
 
@@ -192,26 +209,26 @@ export class CanvasService {
       viewport: { x: 0, y: 0, zoom: 1 },
       nodes: [],
     };
-    return this.prisma.canvasProject.create({
-      data: {
+    const project = await this.projects.save(
+      this.projects.create({
         userId,
         title: title?.trim() || "未命名项目",
         folderId: folderId ?? null,
         snapshot,
-      },
-      select: {
-        id: true,
-        title: true,
-        coverUrl: true,
-        folderId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+      }),
+    );
+    return {
+      id: project.id,
+      title: project.title,
+      coverUrl: project.coverUrl,
+      folderId: project.folderId,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+    };
   }
 
   async get(userId: string, id: string) {
-    const project = await this.prisma.canvasProject.findFirst({
+    const project = await this.projects.findOne({
       where: { id, userId },
     });
     if (!project) throw new NotFoundException("画板项目不存在");
@@ -227,51 +244,43 @@ export class CanvasService {
       folderId?: string | null;
     },
   ) {
-    await this.get(userId, id);
+    const project = await this.get(userId, id);
     if (data.folderId) {
       await this.requireFolder(userId, data.folderId);
     }
-    const patch: Prisma.CanvasProjectUpdateInput = {};
     if (data.title !== undefined) {
-      patch.title = data.title.trim() || "未命名项目";
+      project.title = data.title.trim() || "未命名项目";
     }
     if (data.folderId !== undefined) {
-      patch.folder =
-        data.folderId === null
-          ? { disconnect: true }
-          : { connect: { id: data.folderId } };
+      project.folderId = data.folderId;
     }
     if (data.snapshot !== undefined) {
       const normalized = normalizeCanvasSnapshot(data.snapshot);
       if (!normalized) {
         throw new BadRequestException("画板快照格式无效");
       }
-      // Also reject if raw fails schema (strict).
       const parsed = CanvasSnapshotSchema.safeParse(data.snapshot);
       if (!parsed.success) {
         throw new BadRequestException("画板快照格式无效");
       }
-      patch.snapshot = normalized as unknown as Prisma.InputJsonValue;
+      project.snapshot = normalized as unknown as Record<string, unknown>;
       const cover = extractCoverUrl(normalized);
-      if (cover) patch.coverUrl = cover;
+      if (cover) project.coverUrl = cover;
     }
-    return this.prisma.canvasProject.update({
-      where: { id },
-      data: patch,
-      select: {
-        id: true,
-        title: true,
-        coverUrl: true,
-        folderId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const saved = await this.projects.save(project);
+    return {
+      id: saved.id,
+      title: saved.title,
+      coverUrl: saved.coverUrl,
+      folderId: saved.folderId,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
   }
 
   async delete(userId: string, id: string) {
     await this.get(userId, id);
-    await this.prisma.canvasProject.delete({ where: { id } });
+    await this.projects.delete(id);
     return { ok: true };
   }
 
@@ -282,19 +291,20 @@ export class CanvasService {
   ) {
     if (!ids.length) throw new BadRequestException("未选择项目");
     if (folderId) await this.requireFolder(userId, folderId);
-    const result = await this.prisma.canvasProject.updateMany({
-      where: { userId, id: { in: ids } },
-      data: { folderId },
-    });
-    return { ok: true, count: result.count };
+    const result = await this.projects.update(
+      { userId, id: In(ids) },
+      { folderId },
+    );
+    return { ok: true, count: result.affected ?? 0 };
   }
 
   async deleteProjects(userId: string, ids: string[]) {
     if (!ids.length) throw new BadRequestException("未选择项目");
-    const result = await this.prisma.canvasProject.deleteMany({
-      where: { userId, id: { in: ids } },
+    const result = await this.projects.delete({
+      userId,
+      id: In(ids),
     });
-    return { ok: true, count: result.count };
+    return { ok: true, count: result.affected ?? 0 };
   }
 
   async patchNodeAsset(
@@ -322,17 +332,13 @@ export class CanvasService {
     });
 
     const next = { ...snapshot, version: 2 as const, nodes };
-    await this.prisma.canvasProject.update({
-      where: { id: projectId },
-      data: {
-        snapshot: next as unknown as Prisma.InputJsonValue,
-        coverUrl: extractCoverUrl(next) ?? project.coverUrl,
-      },
-    });
+    project.snapshot = next as unknown as Record<string, unknown>;
+    project.coverUrl = extractCoverUrl(next) ?? project.coverUrl;
+    await this.projects.save(project);
   }
 
   private async requireFolder(userId: string, id: string) {
-    const folder = await this.prisma.canvasFolder.findFirst({
+    const folder = await this.folders.findOne({
       where: { id, userId },
     });
     if (!folder) throw new NotFoundException("文件夹不存在");
@@ -352,11 +358,10 @@ export class CanvasService {
       }
       if (seen.has(cursor)) break;
       seen.add(cursor);
-      const next: { parentId: string | null } | null =
-        await this.prisma.canvasFolder.findFirst({
-          where: { id: cursor, userId },
-          select: { parentId: true },
-        });
+      const next = await this.folders.findOne({
+        where: { id: cursor, userId },
+        select: ["parentId"],
+      });
       cursor = next?.parentId ?? null;
     }
   }

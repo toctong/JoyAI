@@ -11,14 +11,8 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Transform } from "class-transformer";
-import {
-  IsBoolean,
-  IsObject,
-  IsOptional,
-  IsString,
-} from "class-validator";
+import { IsBoolean, IsOptional, IsString } from "class-validator";
 import { CHANNEL_PRESETS, type ProviderPlatformId } from "@joyai/shared";
-import { Prisma } from "@prisma/client";
 import {
   PaginationQueryDto,
   toOptionalBoolean,
@@ -26,6 +20,12 @@ import {
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
 import { ChannelsService } from "./channels.service";
 import { ModelsService } from "../models/models.service";
+import {
+  CreateChannelBodyDto,
+  ProbeChannelBodyDto,
+  TestChannelBodyDto,
+  UpdateChannelBodyDto,
+} from "./dto/channel-body.dto";
 
 class ListChannelsQueryDto extends PaginationQueryDto {
   @IsOptional()
@@ -36,72 +36,6 @@ class ListChannelsQueryDto extends PaginationQueryDto {
   @Transform(toOptionalBoolean)
   @IsBoolean()
   enabled?: boolean;
-}
-
-class CreateChannelDto {
-  @IsString()
-  name!: string;
-
-  @IsString()
-  platform!: string;
-
-  @IsString()
-  apiKey!: string;
-
-  @IsString()
-  baseUrl!: string;
-
-  @IsOptional()
-  @IsBoolean()
-  enabled?: boolean;
-
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, unknown>;
-
-  @IsOptional()
-  @IsBoolean()
-  importCatalog?: boolean;
-}
-
-class UpdateChannelDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  apiKey?: string;
-
-  @IsOptional()
-  @IsString()
-  baseUrl?: string;
-
-  @IsOptional()
-  @IsBoolean()
-  enabled?: boolean;
-
-  @IsOptional()
-  @IsObject()
-  metadata?: Record<string, unknown>;
-}
-
-class ProbeDto {
-  @IsString()
-  apiKey!: string;
-
-  @IsString()
-  baseUrl!: string;
-}
-
-class TestChannelDto {
-  @IsOptional()
-  @IsString()
-  apiKey?: string;
-
-  @IsOptional()
-  @IsString()
-  baseUrl?: string;
 }
 
 @ApiTags("channels")
@@ -126,7 +60,7 @@ export class ChannelsController {
   }
 
   @Post("probe")
-  probe(@Body() dto: ProbeDto) {
+  probe(@Body() dto: ProbeChannelBodyDto) {
     return this.channels.probe({
       apiKey: dto.apiKey,
       baseUrl: dto.baseUrl,
@@ -134,7 +68,7 @@ export class ChannelsController {
   }
 
   @Post()
-  async create(@Body() dto: CreateChannelDto) {
+  async create(@Body() dto: CreateChannelBodyDto) {
     const preset = CHANNEL_PRESETS[dto.platform as ProviderPlatformId];
     const metadata = {
       ...(dto.metadata ?? {}),
@@ -149,9 +83,7 @@ export class ChannelsController {
       apiKey: dto.apiKey,
       baseUrl: dto.baseUrl,
       enabled: dto.enabled,
-      metadata: Object.keys(metadata).length
-        ? (metadata as Prisma.InputJsonValue)
-        : undefined,
+      metadata: Object.keys(metadata).length ? metadata : null,
     });
 
     let catalog: { created: number; updated: number; skipped: number } | null =
@@ -164,18 +96,18 @@ export class ChannelsController {
   }
 
   @Patch(":id")
-  update(@Param("id") id: string, @Body() dto: UpdateChannelDto) {
+  update(@Param("id") id: string, @Body() dto: UpdateChannelBodyDto) {
     return this.channels.update(id, {
       name: dto.name,
       baseUrl: dto.baseUrl,
       enabled: dto.enabled,
       apiKey: dto.apiKey?.trim() || undefined,
-      metadata: dto.metadata as Prisma.InputJsonValue | undefined,
+      metadata: dto.metadata,
     });
   }
 
   @Post(":id/test")
-  test(@Param("id") id: string, @Body() dto: TestChannelDto) {
+  test(@Param("id") id: string, @Body() dto: TestChannelBodyDto) {
     return this.channels.testConnection(id, {
       apiKey: dto.apiKey,
       baseUrl: dto.baseUrl,

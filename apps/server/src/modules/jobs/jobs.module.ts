@@ -1,6 +1,9 @@
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { QUEUE } from "@joyai/shared";
+import { Job } from "../../database/entities/job.entity";
+import { Model } from "../../database/entities/model.entity";
 import { JobsService } from "./jobs.service";
 import { JobsController } from "./jobs.controller";
 import { ImageProcessor } from "./processors/image.processor";
@@ -14,6 +17,7 @@ import { CanvasModule } from "../canvas/canvas.module";
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([Job, Model]),
     BullModule.registerQueue(
       { name: QUEUE.IMAGE },
       { name: QUEUE.VIDEO_SUBMIT },

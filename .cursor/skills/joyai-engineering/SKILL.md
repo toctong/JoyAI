@@ -40,13 +40,17 @@ src/
 ```
 src/
   modules/<domain>/    # module, controller, service, dto
-  common/              # guards, filters, prisma
+  database/            # TypeORM entities + DatabaseModule
+  common/              # guards, filters, bootstrap
   config/
 ```
 
-- DTO: class-validator + Swagger decorators.
+- DTO: class-validator + Swagger decorators; prefer `@nestjs/swagger` `PartialType` / `@nestjs/mapped-types` for update DTOs.
 - One domain per module; jobs workers live under `modules/jobs`.
-- Prisma access via `PrismaService` only.
+- DB access via TypeORM `@InjectRepository` only (no Prisma).
+- Prefer extending `@dataui/crud-typeorm` `TypeOrmCrudService` for entity services; keep custom methods for domain logic. Do **not** blindly expose `@Crud()` on admin APIs that already have custom list contracts with the web app.
+- Health: `@nestjs/terminus` at `GET /api/health`.
+- Load `src/common/crud.config.ts` before `AppModule` import in `main.ts` (required by `@dataui/crud`).
 
 ## Packages
 
@@ -65,5 +69,5 @@ src/
 ## Naming
 
 - Files: `kebab-case.ts` / `PascalCase.tsx` for components.
-- DB: Prisma `PascalCase` models, `camelCase` fields.
+- DB: TypeORM entities (`PascalCase` class), `camelCase` columns; SQLite file `apps/server/data/sql.db`.
 - Queues: `image-generation`, `video-submit`, `video-poll`.

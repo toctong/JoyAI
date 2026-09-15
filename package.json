@@ -12,9 +12,7 @@
     "dev:web": "pnpm build:packages && pnpm --filter @joyai/web dev",
     "build": "pnpm build:packages && pnpm -r --filter @joyai/server --filter @joyai/web run build",
     "lint": "pnpm -r run lint",
-    "db:generate": "pnpm --filter @joyai/server prisma:generate",
-    "db:migrate": "pnpm --filter @joyai/server prisma:migrate",
-    "db:push": "pnpm --filter @joyai/server prisma:push"
+    "db:reset": "pnpm --filter @joyai/server db:reset"
   },
   "devDependencies": {
     "typescript": "^5.8.2"

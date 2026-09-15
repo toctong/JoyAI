@@ -7,6 +7,7 @@ import type {
   VideoProvider,
   VideoSubmitInput,
 } from "./types";
+import { formatProviderErrorBody } from "./http-error";
 
 function authHeaders(apiKey: string) {
   return {
@@ -38,6 +39,7 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
       n: input.n ?? 1,
       size,
       response_format: "url",
+      watermark: input.watermark ?? false,
     };
 
     if (input.negativePrompt) {
@@ -80,9 +82,11 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
       });
     }
 
-    const errMsg =
-      data?.error?.message ?? data?.message ?? "Image generation failed";
-    throw new Error(String(errMsg));
+    const errMsg = formatProviderErrorBody(data, undefined, {
+      platform: this.platform,
+      fallback: "图片生成失败",
+    });
+    throw new Error(errMsg);
   }
 
   private async pollImageTask(params: {
@@ -116,9 +120,10 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
             data?.error
           ) {
             throw new Error(
-              data?.error?.message ??
-                data?.message ??
-                (st || "Image task failed"),
+              formatProviderErrorBody(data, status, {
+                platform: this.platform,
+                fallback: st || "图片任务失败",
+              }),
             );
           }
           const images = extractImages(data);
@@ -204,8 +209,10 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
           validateStatus: () => true,
         });
         if (status >= 400) {
-          lastError =
-            data?.error?.message ?? data?.message ?? `HTTP ${status}`;
+          lastError = formatProviderErrorBody(data, status, {
+            platform: this.platform,
+            fallback: `HTTP ${status}`,
+          });
           continue;
         }
         const remoteTaskId =
@@ -250,7 +257,10 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
         if (["failed", "error", "cancelled"].includes(st)) {
           return {
             status: "failed",
-            error: data?.error?.message ?? data?.message ?? st,
+            error: formatProviderErrorBody(data, status, {
+              platform: this.platform,
+              fallback: st,
+            }),
             raw: data,
           };
         }

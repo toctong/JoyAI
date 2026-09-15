@@ -1,4 +1,7 @@
 import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { CanvasFolder } from "../../database/entities/canvas-folder.entity";
+import { CanvasProject } from "../../database/entities/canvas-project.entity";
 import { CanvasService } from "./canvas.service";
 import {
   CanvasController,
@@ -7,6 +10,7 @@ import {
 } from "./canvas.controller";
 
 @Module({
+  imports: [TypeOrmModule.forFeature([CanvasFolder, CanvasProject])],
   controllers: [
     CanvasLibraryController,
     CanvasFoldersController,

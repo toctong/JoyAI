@@ -1,10 +1,12 @@
 import { Processor, WorkerHost, InjectQueue } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import { Job as BullJob, Queue } from "bullmq";
+import { Repository } from "typeorm";
 import { getVideoProvider } from "@joyai/ai-providers";
 import { QUEUE } from "@joyai/shared";
-import { Prisma } from "@prisma/client";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { Job } from "../../../database/entities/job.entity";
+import { JobStatus } from "../../../database/enums";
 import { StorageService } from "../../storage/storage.service";
 import { AssetsService } from "../../assets/assets.service";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
@@ -26,7 +28,7 @@ export class VideoPollProcessor extends WorkerHost {
   private readonly maxAttempts = 120;
 
   constructor(
-    private readonly prisma: PrismaService,
+    @InjectRepository(Job) private readonly jobsRepo: Repository<Job>,
     private readonly storage: StorageService,
     private readonly assets: AssetsService,
     private readonly realtime: RealtimeGateway,
@@ -38,7 +40,7 @@ export class VideoPollProcessor extends WorkerHost {
 
   async process(bullJob: BullJob<PollPayload>) {
     const payload = bullJob.data;
-    const job = await this.prisma.job.findUnique({ where: { id: payload.jobId } });
+    const job = await this.jobsRepo.findOne({ where: { id: payload.jobId } });
     if (!job) return;
 
     const provider = getVideoProvider(payload.platform);
@@ -79,18 +81,16 @@ export class VideoPollProcessor extends WorkerHost {
         md5,
         mimeType: "video/mp4",
         size,
-        meta: meta as Prisma.InputJsonValue | undefined,
+        meta,
       });
 
-      await this.prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "succeeded",
-          progress: 100,
-          result: {
-            assetIds: [asset.id],
-            urls: [asset.url],
-          } as Prisma.InputJsonValue,
+      await this.jobsRepo.update(job.id, {
+        status: JobStatus.succeeded,
+        progress: 100,
+        finishedAt: new Date(),
+        result: {
+          assetIds: [asset.id],
+          urls: [asset.url],
         },
       });
 
@@ -116,13 +116,11 @@ export class VideoPollProcessor extends WorkerHost {
     }
 
     if (result.status === "failed") {
-      await this.prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "failed",
-          error: result.error,
-          progress: 100,
-        },
+      await this.jobsRepo.update(job.id, {
+        status: JobStatus.failed,
+        error: result.error ?? null,
+        progress: 100,
+        finishedAt: new Date(),
       });
       this.realtime.emitJob(job.userId, "job:failed", {
         jobId: job.id,
@@ -133,13 +131,11 @@ export class VideoPollProcessor extends WorkerHost {
     }
 
     if (payload.attempt >= this.maxAttempts) {
-      await this.prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: "failed",
-          error: "视频生成轮询超时",
-          progress: 100,
-        },
+      await this.jobsRepo.update(job.id, {
+        status: JobStatus.failed,
+        error: "视频生成轮询超时",
+        progress: 100,
+        finishedAt: new Date(),
       });
       this.realtime.emitJob(job.userId, "job:failed", {
         jobId: job.id,
@@ -150,9 +146,9 @@ export class VideoPollProcessor extends WorkerHost {
     }
 
     const progress = Math.min(90, 20 + payload.attempt);
-    await this.prisma.job.update({
-      where: { id: job.id },
-      data: { status: "polling", progress },
+    await this.jobsRepo.update(job.id, {
+      status: JobStatus.polling,
+      progress,
     });
     this.realtime.emitJob(job.userId, "job:progress", {
       jobId: job.id,

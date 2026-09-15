@@ -206,10 +206,14 @@ export default function ModelsPage() {
   const billing = form.watch("billing");
 
   const loadChannels = useCallback(async () => {
-    const res = await api<Paginated<Channel>>(
-      `/admin/channels${buildAdminQuery({ page: 1, pageSize: 100 })}`,
-    );
-    setChannels(res.items);
+    try {
+      const res = await api<Paginated<Channel>>(
+        `/admin/channels${buildAdminQuery({ page: 1, pageSize: 100 })}`,
+      );
+      setChannels(res.items);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "加载渠道失败");
+    }
   }, []);
 
   const loadModels = useCallback(
@@ -244,6 +248,8 @@ export default function ModelsPage() {
             return;
           }
         }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "加载模型失败");
       } finally {
         setRefreshing(false);
       }

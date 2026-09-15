@@ -18,12 +18,12 @@ import {
   IsString,
 } from "class-validator";
 import { Transform } from "class-transformer";
-import { JobKind } from "@prisma/client";
 import {
   PaginationQueryDto,
   toOptionalBoolean,
 } from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
+import { JobKind } from "../../database/enums";
 import { ModelsService } from "./models.service";
 
 class ListModelsQueryDto extends PaginationQueryDto {

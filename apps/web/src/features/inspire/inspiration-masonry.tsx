@@ -2,17 +2,29 @@
 
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import type { InspirationDemo } from "@/shared/brand/joyai-brand";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
 import "./inspiration-masonry.css";
 
+export type InspirationCard = {
+  id: string;
+  title: string;
+  author: string;
+  prompt: string;
+  image: string;
+  /** width span: 1 normal, 2 banner */
+  span?: 1 | 2;
+  aspect?: "tall" | "square" | "wide";
+};
+
 type Props = {
-  items: InspirationDemo[];
+  items: InspirationCard[];
   onRemix: (prompt: string) => void;
 };
 
 export function InspirationMasonry({ items, onRemix }: Props) {
+  if (items.length === 0) return null;
+
   return (
     <PhotoProvider>
       <div className="joy-masonry">
@@ -29,7 +41,11 @@ export function InspirationMasonry({ items, onRemix }: Props) {
           >
             <PhotoView src={card.image}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={card.image} alt={card.title} className="joy-masonry-img" />
+              <img
+                src={card.image}
+                alt={card.title}
+                className="joy-masonry-img"
+              />
             </PhotoView>
             <div className="joy-masonry-cover">
               <div className="joy-masonry-footer">

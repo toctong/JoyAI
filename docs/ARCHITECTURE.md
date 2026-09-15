@@ -4,12 +4,12 @@
 
 ```
 apps/web       Next.js 创作者端 + 运维 UI（/admin，role 门禁）
-apps/server    NestJS + Fastify API（Prisma → SQLite sql.db）
+apps/server    NestJS + Fastify API（TypeORM → SQLite sql.db）
 packages/shared        共享类型 / zod / 画板契约
 packages/ai-providers  Provider 适配器（首期 volcengine）
 ```
 
-数据：SQLite 文件 `apps/server/prisma/sql.db`（`DATABASE_URL=file:./sql.db`）。Redis 仍用于 BullMQ。
+数据：SQLite 文件 `apps/server/data/sql.db`（`DATABASE_PATH=./data/sql.db`，TypeORM sql.js + synchronize）。Redis 仍用于 BullMQ。
 
 ## 请求与任务
 
@@ -30,6 +30,6 @@ packages/ai-providers  Provider 适配器（首期 volcengine）
 - Board = pan/zoom + React 绝对节点（默认路径）；`@xyflow/react` 见 [ADR-001-xyflow.md](./ADR-001-xyflow.md)
 - 参考源与体验规格：[CANVAS.md](./CANVAS.md)（不以 `ai-comic-drama` 为标杆）
 
-## 核心 Prisma 模型
+## 核心 TypeORM 实体
 
-User · Channel · Model · Job · Asset · CanvasProject · AppSetting · AuditLog
+User · Channel · Model · Job · Asset · CanvasProject · CanvasFolder · AppSetting · AuditLog

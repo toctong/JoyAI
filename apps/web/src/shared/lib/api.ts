@@ -1,3 +1,8 @@
+import axios, {
+  AxiosHeaders,
+  isCancel,
+  type AxiosRequestConfig,
+} from "axios";
 import { useAuthStore } from "./auth-store";
 
 export const API_BASE =
@@ -15,49 +20,92 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = Omit<RequestInit, "body"> & {
+type JoyaiRequestConfig = AxiosRequestConfig & {
+  token?: string | null;
+};
+
+export const http = axios.create({
+  baseURL: API_BASE,
+  timeout: 120_000,
+});
+
+http.interceptors.request.use((config) => {
+  const headers = AxiosHeaders.from(config.headers);
+  const explicit = (config as JoyaiRequestConfig).token;
+  const token =
+    explicit !== undefined
+      ? explicit
+      : typeof window !== "undefined"
+        ? useAuthStore.getState().token
+        : null;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  config.headers = headers;
+  return config;
+});
+
+export function toApiError(error: unknown): ApiError {
+  if (isCancel(error)) {
+    return new ApiError("请求已取消", 0);
+  }
+  if (axios.isAxiosError(error)) {
+    if (!error.response) {
+      if (error.code === "ECONNABORTED") {
+        return new ApiError("请求超时，请稍后重试", 0);
+      }
+      // axios "Network Error" = no response (server down / CORS / offline)
+      return new ApiError(
+        "无法连接服务器，请确认后端 (3001) 已启动",
+        0,
+        { code: error.code ?? "NETWORK" },
+      );
+    }
+    const status = error.response.status;
+    const payload = error.response.data;
+    const message =
+      (payload as { message?: string | string[] } | undefined)?.message ??
+      error.message ??
+      "请求失败";
+    return new ApiError(
+      Array.isArray(message) ? message.join(", ") : String(message),
+      status,
+      payload,
+    );
+  }
+  if (error instanceof ApiError) return error;
+  return new ApiError(
+    error instanceof Error ? error.message : "请求失败",
+    0,
+  );
+}
+
+type RequestOptions = {
+  method?: string;
   body?: unknown;
   token?: string | null;
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
 };
 
 export async function api<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { body, token, headers, ...rest } = options;
-  const authToken =
-    token ??
-    (typeof window !== "undefined" ? useAuthStore.getState().token : null);
-
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...rest,
-    headers: {
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
-      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-      ...headers,
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
-
-  if (!res.ok) {
-    let payload: unknown = null;
-    try {
-      payload = await res.json();
-    } catch {
-      /* ignore */
-    }
-    const message =
-      (payload as { message?: string | string[] } | null)?.message ??
-      res.statusText;
-    throw new ApiError(
-      Array.isArray(message) ? message.join(", ") : String(message),
-      res.status,
-      payload,
-    );
+  const { body, token, headers, method = "GET", signal } = options;
+  try {
+    const config: JoyaiRequestConfig = {
+      url: path,
+      method,
+      headers,
+      signal,
+      token,
+    };
+    if (body !== undefined) config.data = body;
+    const res = await http.request<T>(config);
+    if (res.status === 204) return undefined as T;
+    return res.data;
+  } catch (error) {
+    throw toApiError(error);
   }
-
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
 }
 
 export async function apiUpload<T = unknown>(
@@ -65,11 +113,6 @@ export async function apiUpload<T = unknown>(
   file: File,
   token?: string | null,
 ): Promise<T> {
-  const authToken =
-    token ??
-    (typeof window !== "undefined" ? useAuthStore.getState().token : null);
-
-  // 前端预检：同用户同 MD5 直接复用，避免重复传文件
   try {
     const { md5HexOfFile } = await import("./content-hash");
     const md5 = await md5HexOfFile(file);
@@ -79,33 +122,25 @@ export async function apiUpload<T = unknown>(
     }>("/upload/check", {
       method: "POST",
       body: { md5, size: file.size, mimeType: file.type },
-      token: authToken,
+      token,
     });
     if (checked.exists && checked.asset) {
       return checked.asset;
     }
   } catch {
-    // 预检失败则走正常上传，由服务端再按 MD5 / TOS head 去重
+    // 预检失败则走正常上传
   }
 
   const form = new FormData();
   form.append("file", file);
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
-    body: form,
-  });
-
-  if (!res.ok) {
-    let payload: unknown = null;
-    try {
-      payload = await res.json();
-    } catch {
-      /* ignore */
-    }
-    throw new ApiError("Upload failed", res.status, payload);
+  try {
+    const res = await http.post<T>(path, form, {
+      token,
+    } as JoyaiRequestConfig);
+    return res.data;
+  } catch (error) {
+    const err = toApiError(error);
+    throw new ApiError(err.message || "上传失败", err.status, err.body);
   }
-
-  return (await res.json()) as T;
 }

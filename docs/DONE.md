@@ -15,3 +15,4 @@
 | 2026-09-13 | Phase 7：多选对齐/分布、轻量成组（groupId）与组包围框 |
 | 2026-09-14 | 运维 UI 合入 `apps/web` `/admin`（role gate）；移除独立 `apps/admin` |
 | 2026-09-14 | 数据库改 SQLite（`apps/server/prisma/sql.db`）；compose 仅保留 Redis |
+| 2026-09-15 | ORM 从 Prisma 迁到 TypeORM（sql.js + `apps/server/data/sql.db`，清空重建） |

@@ -1,24 +1,31 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { InjectRepository } from "@nestjs/typeorm";
+import { TypeOrmCrudService } from "@dataui/crud-typeorm";
+import { Repository } from "typeorm";
+import { AppSetting } from "../../database/entities/app-setting.entity";
 
 @Injectable()
-export class SettingsService {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async get(key: string) {
-    return this.prisma.appSetting.findUnique({ where: { key } });
+export class SettingsService extends TypeOrmCrudService<AppSetting> {
+  constructor(
+    @InjectRepository(AppSetting) repo: Repository<AppSetting>,
+  ) {
+    super(repo);
   }
 
-  async set(key: string, value: Prisma.InputJsonValue) {
-    return this.prisma.appSetting.upsert({
-      where: { key },
-      create: { key, value },
-      update: { value },
-    });
+  async get(key: string) {
+    return this.repo.findOne({ where: { key } });
+  }
+
+  async set(key: string, value: unknown) {
+    const existing = await this.repo.findOne({ where: { key } });
+    if (existing) {
+      existing.value = value;
+      return this.repo.save(existing);
+    }
+    return this.repo.save(this.repo.create({ key, value }));
   }
 
   list() {
-    return this.prisma.appSetting.findMany({ orderBy: { key: "asc" } });
+    return this.repo.find({ order: { key: "ASC" } });
   }
 }

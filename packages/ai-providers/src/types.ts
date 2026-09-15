@@ -5,6 +5,8 @@ export type ImageGenerateInput = {
   width?: number;
   height?: number;
   n?: number;
+  /** Seedream / compatible gateways: visible corner mark. Default false. */
+  watermark?: boolean;
   referenceUrls?: string[];
   model: string;
   apiKey: string;

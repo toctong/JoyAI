@@ -5,6 +5,7 @@ import Link from "next/link";
 import dayjs from "dayjs";
 import { Crosshair } from "lucide-react";
 import { api } from "@/shared/lib/api";
+import { formatDurationMs } from "@/shared/lib/format-duration";
 import { getJobsSocket } from "@/shared/lib/socket";
 import {
   Card,
@@ -20,6 +21,9 @@ type Job = {
   progress?: number | null;
   error?: string | null;
   createdAt: string;
+  durationMs?: number | null;
+  modelName?: string | null;
+  channelName?: string | null;
   canvasProjectId?: string | null;
   canvasNodeId?: string | null;
   input?: { prompt?: string; canvasProjectId?: string; canvasNodeId?: string };
@@ -86,6 +90,11 @@ export default function HistoryPage() {
                       {job.kind}
                     </span>
                     <span>{job.status}</span>
+                    {job.channelName ? <span>{job.channelName}</span> : null}
+                    {job.modelName ? <span>{job.modelName}</span> : null}
+                    {typeof job.durationMs === "number" ? (
+                      <span>用时 {formatDurationMs(job.durationMs)}</span>
+                    ) : null}
                     {typeof job.progress === "number" ? (
                       <span>{job.progress}%</span>
                     ) : null}

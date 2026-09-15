@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
+import { toast } from "sonner";
 import { api } from "@/shared/lib/api";
+import { formatDurationMs } from "@/shared/lib/format-duration";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -36,7 +38,13 @@ type Job = {
   status: string;
   progress?: number;
   createdAt: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  durationMs?: number | null;
   error?: string | null;
+  modelName?: string | null;
+  channelName?: string | null;
+  platform?: string | null;
   user?: { username: string };
   input?: { prompt?: string };
 };
@@ -52,6 +60,8 @@ export default function JobsPage() {
     setRefreshing(true);
     try {
       setJobs(await api<Job[]>("/admin/jobs?take=200"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "加载任务失败");
     } finally {
       setRefreshing(false);
     }
@@ -71,6 +81,9 @@ export default function JobsPage() {
         j.id.toLowerCase().includes(q) ||
         (j.user?.username ?? "").toLowerCase().includes(q) ||
         (j.input?.prompt ?? "").toLowerCase().includes(q) ||
+        (j.modelName ?? "").toLowerCase().includes(q) ||
+        (j.channelName ?? "").toLowerCase().includes(q) ||
+        (j.platform ?? "").toLowerCase().includes(q) ||
         (j.error ?? "").toLowerCase().includes(q)
       );
     });
@@ -87,26 +100,26 @@ export default function JobsPage() {
         <ListToolbar
           search={search}
           onSearchChange={setSearch}
-          searchPlaceholder="搜索用户 / 提示词 / 任务 ID"
+          searchPlaceholder="搜索用户 / 模型 / 渠道 / 提示词 / ID"
           filters={
             <>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 w-[120px] rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全部状态</SelectItem>
-                <SelectItem value="queued">排队</SelectItem>
-                <SelectItem value="running">运行中</SelectItem>
-                <SelectItem value="polling">轮询中</SelectItem>
-                <SelectItem value="succeeded">成功</SelectItem>
-                <SelectItem value="failed">失败</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={kindFilter} onValueChange={setKindFilter}>
-              <SelectTrigger className="h-9 w-[110px] rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
+                <SelectTrigger className="h-9 w-[120px] rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部状态</SelectItem>
+                  <SelectItem value="queued">排队</SelectItem>
+                  <SelectItem value="running">运行中</SelectItem>
+                  <SelectItem value="polling">轮询中</SelectItem>
+                  <SelectItem value="succeeded">成功</SelectItem>
+                  <SelectItem value="failed">失败</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={kindFilter} onValueChange={setKindFilter}>
+                <SelectTrigger className="h-9 w-[110px] rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">全部类型</SelectItem>
                   <SelectItem value="image">图片</SelectItem>
@@ -125,15 +138,18 @@ export default function JobsPage() {
           {filtered.length === 0 ? (
             <AdminEmptyState title={search ? "没有匹配任务" : "暂无任务"} />
           ) : (
-            <Table>
+            <Table className="min-w-[1100px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>用户</TableHead>
-                  <TableHead>类型</TableHead>
-                  <TableHead>状态</TableHead>
+                  <TableHead className="w-[88px]">用户</TableHead>
+                  <TableHead className="w-[72px]">类型</TableHead>
+                  <TableHead className="w-[110px]">渠道</TableHead>
+                  <TableHead className="min-w-[140px]">模型</TableHead>
+                  <TableHead className="w-[80px]">状态</TableHead>
+                  <TableHead className="w-[88px]">用时</TableHead>
                   <TableHead>提示词</TableHead>
-                  <TableHead>时间</TableHead>
-                  <TableHead>错误</TableHead>
+                  <TableHead className="w-[110px]">时间</TableHead>
+                  <TableHead className="min-w-[140px]">错误</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -142,15 +158,24 @@ export default function JobsPage() {
                     <TableCell className="font-medium">
                       {job.user?.username ?? "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Badge variant="secondary">
                         {job.kind === "image" ? "图片" : "视频"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="max-w-[140px] truncate text-muted-foreground">
+                      {job.channelName || "—"}
+                    </TableCell>
+                    <TableCell className="max-w-[160px] truncate">
+                      {job.modelName || "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <JobStatusBadge status={job.status} />
                     </TableCell>
-                    <TableCell className="max-w-[280px] truncate text-muted-foreground">
+                    <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
+                      {formatDurationMs(job.durationMs)}
+                    </TableCell>
+                    <TableCell className="max-w-[240px] truncate text-muted-foreground">
                       {job.input?.prompt || "—"}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-muted-foreground">
