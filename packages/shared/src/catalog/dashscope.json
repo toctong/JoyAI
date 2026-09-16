@@ -816,8 +816,7 @@
         "maxRefImages": 1,
         "features": [
           "i2i",
-          "edit",
-          "t2i"
+          "edit"
         ],
         "async": true,
         "ratios": [
