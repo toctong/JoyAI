@@ -116,80 +116,14 @@
   text-align: left;
 }
 
+/* Video media stays compact; don't shrink prompt/meta to the player width */
 .joy-studio-job.is-video {
-  max-width: min(520px, 100%);
-}
-
-.joy-studio-job.is-video .joy-studio-prompt-block {
-  max-width: min(480px, 100%);
-}
-
-.joy-studio-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.joy-studio-action {
-  display: inline-flex;
-  height: 34px;
-  align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
-  background: var(--card);
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--foreground);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.joy-studio-action:hover {
-  background: var(--secondary);
-}
-
-.joy-studio-action:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.joy-studio-action-icon {
-  display: inline-flex;
-  height: 34px;
-  width: 34px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
-  background: var(--card);
-  color: var(--muted-foreground);
-  cursor: pointer;
-}
-
-.joy-studio-action-icon:hover {
-  background: var(--secondary);
-  color: var(--foreground);
-}
-
-.joy-studio-action-icon.is-danger:hover {
-  background: color-mix(in oklab, var(--destructive) 12%, var(--card));
-  color: var(--destructive);
-  border-color: color-mix(in oklab, var(--destructive) 35%, var(--border));
-}
-
-.joy-studio-action-icon:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+  max-width: min(560px, 100%);
 }
 
 .joy-studio-prompt-block {
-  margin: 0 0 12px;
-  max-width: 520px;
+  margin: 0 0 14px;
+  max-width: 100%;
   text-align: left;
 }
 
@@ -206,6 +140,180 @@
 .joy-studio-meta-sub {
   margin-top: 8px;
   margin-bottom: 0;
+}
+
+.joy-studio-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.joy-studio-action {
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: transparent;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.joy-studio-action:hover {
+  background: color-mix(in oklab, var(--secondary) 70%, transparent);
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--border) 95%, transparent);
+}
+
+.joy-studio-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.joy-studio-action-icon {
+  display: inline-flex;
+  height: 30px;
+  width: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.joy-studio-action-icon:hover {
+  background: color-mix(in oklab, var(--secondary) 70%, transparent);
+  color: var(--foreground);
+}
+
+.joy-studio-action-icon.is-danger:hover {
+  background: color-mix(in oklab, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+  border-color: color-mix(in oklab, var(--destructive) 30%, var(--border));
+}
+
+.joy-studio-action-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.joy-studio-prompt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+}
+
+.joy-studio-prompt-row.has-refs {
+  gap: 10px;
+}
+
+.joy-studio-prompt-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.joy-studio-prompt-row .joy-studio-prompt-wrap {
+  min-width: 0;
+}
+
+.joy-studio-refs {
+  display: flex;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin: 1px 0 0;
+}
+
+.joy-studio-refs.is-stack {
+  gap: 0;
+  padding-right: 2px;
+}
+
+.joy-studio-ref-hit {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+  line-height: 0;
+}
+
+.joy-studio-refs.is-stack .joy-studio-ref-hit {
+  margin-left: -12px;
+}
+
+.joy-studio-refs.is-stack .joy-studio-ref-hit:first-child {
+  margin-left: 0;
+}
+
+.joy-studio-ref-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--muted);
+  border: 1.5px solid color-mix(in oklab, var(--background) 88%, var(--border));
+  box-shadow: 0 1px 3px color-mix(in oklab, #000 10%, transparent);
+}
+
+.joy-studio-ref-thumb.is-audio {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+}
+
+.joy-studio-ref-thumb img,
+.joy-studio-ref-thumb video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-studio-ref-audio {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.joy-studio-ref-index {
+  position: absolute;
+  left: 3px;
+  bottom: 3px;
+  min-width: 12px;
+  height: 12px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 650;
+  line-height: 12px;
+  text-align: center;
+}
+
+.joy-studio-ref-more {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 550;
+  color: var(--muted-foreground);
+  line-height: 1;
 }
 
 .joy-studio-prompt-wrap {
@@ -349,9 +457,11 @@
 }
 
 .joy-studio-grid.is-single.is-video {
-  grid-template-columns: minmax(0, min(440px, 100%));
-  width: 100%;
-  max-width: min(440px, 100%);
+  /* Keep feed videos compact — especially adaptive portrait */
+  grid-template-columns: max-content;
+  width: fit-content;
+  max-width: min(360px, 100%);
+  justify-items: start;
 }
 
 .joy-studio-grid.is-multi {
@@ -359,7 +469,8 @@
 }
 
 .joy-studio-grid.is-multi.is-video {
-  grid-template-columns: repeat(2, minmax(0, min(280px, 46vw)));
+  grid-template-columns: repeat(2, max-content);
+  justify-items: start;
 }
 
 .joy-studio-thumb {
@@ -375,6 +486,10 @@
 .joy-studio-thumb-video {
   cursor: default;
   background: #0a0a0a;
+  /* width set inline to fit max box; keep height from aspect-ratio */
+  max-width: min(360px, 100%);
+  height: auto;
+  border-radius: 12px;
 }
 
 .joy-studio-thumb > img,
@@ -385,19 +500,21 @@
   object-fit: cover;
 }
 
-/* Plyr fills the aspect-ratio frame; progress uses ring, control hover = black translucent */
+/* Compact Plyr chrome for feed cards — TikTok/Jimeng-like on portrait */
 .joy-studio-thumb-video .plyr {
-  --plyr-color-main: rgba(0, 0, 0, 0.45);
-  --plyr-video-control-color: #f4f4f5;
+  --plyr-color-main: rgba(255, 255, 255, 0.95);
+  --plyr-video-control-color: rgba(255, 255, 255, 0.95);
   --plyr-video-control-color-hover: #ffffff;
-  --plyr-audio-control-color: #f4f4f5;
-  --plyr-audio-control-color-hover: #ffffff;
-  --plyr-range-fill-background: var(--ring);
-  --plyr-video-progress-buffered-background: rgba(255, 255, 255, 0.25);
-  --plyr-range-thumb-background: var(--ring);
-  --plyr-range-track-height: 4px;
-  --plyr-control-icon-size: 18px;
-  --plyr-control-spacing: 12px;
+  --plyr-range-fill-background: rgba(255, 255, 255, 0.95);
+  --plyr-video-progress-buffered-background: rgba(255, 255, 255, 0.28);
+  --plyr-range-thumb-background: #ffffff;
+  --plyr-range-thumb-shadow: none;
+  --plyr-range-track-height: 2px;
+  --plyr-range-thumb-height: 8px;
+  --plyr-range-thumb-width: 8px;
+  --plyr-control-icon-size: 16px;
+  --plyr-control-spacing: 4px;
+  --plyr-control-padding: 4px;
 
   position: absolute;
   inset: 0;
@@ -425,35 +542,120 @@
   background: #0a0a0a;
 }
 
+/* Bottom strip: play + time + progress + mute + fullscreen */
 .joy-studio-thumb-video .plyr--video .plyr__controls {
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
-  padding-bottom: 8px;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 8px 8px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
+  /* Fade only — Plyr's default translateY(100%) makes chrome jump on play */
+  transition: opacity 0.2s ease !important;
+  transform: none !important;
 }
 
+.joy-studio-thumb-video .plyr--video.plyr--hide-controls .plyr__controls {
+  opacity: 0;
+  pointer-events: none;
+  transform: none !important;
+}
+
+.joy-studio-thumb-video .plyr__controls .plyr__controls__item {
+  margin: 0;
+}
+
+.joy-studio-thumb-video .plyr__controls .plyr__control {
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.joy-studio-thumb-video .plyr__time {
+  flex: 0 0 auto;
+  margin: 0 2px;
+  padding: 0 2px !important;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.92;
+}
+
+.joy-studio-thumb-video .plyr__progress__container {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 2px;
+  left: 0 !important;
+  padding-left: 0 !important;
+}
+
+.joy-studio-thumb-video .plyr__progress {
+  position: relative;
+  left: 0 !important;
+  margin: 0;
+}
+
+.joy-studio-thumb-video .plyr__progress input[type="range"] {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.joy-studio-thumb-video .plyr__control[data-plyr="fullscreen"],
+.joy-studio-thumb-video .plyr__control[data-plyr="mute"],
+.joy-studio-thumb-video .plyr__control[data-plyr="play"] {
+  flex: 0 0 auto;
+}
+
+.joy-studio-thumb-video .plyr__control[data-plyr="fullscreen"] svg,
+.joy-studio-thumb-video .plyr__control[data-plyr="mute"] svg,
+.joy-studio-thumb-video .plyr__control[data-plyr="play"] svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Keep centering translate intact — never animate/replace transform alone */
 .joy-studio-thumb-video .plyr__control--overlaid {
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  top: 50%;
+  left: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
   box-shadow: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  padding: 12px;
+  transform: translate(-50%, -50%);
+  transition:
+    opacity 0.15s ease,
+    visibility 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.joy-studio-thumb-video .plyr__control--overlaid svg {
+  width: 20px;
+  height: 20px;
 }
 
 .joy-studio-thumb-video .plyr__control--overlaid:hover,
 .joy-studio-thumb-video .plyr__control--overlaid:focus {
-  background: rgba(0, 0, 0, 0.65);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 255, 255, 0.34);
   color: #fff;
   box-shadow: none;
+  transform: translate(-50%, -50%) scale(1.04);
+}
+
+.joy-studio-thumb-video .plyr--playing .plyr__control--overlaid {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 .joy-studio-thumb-video .plyr--video .plyr__controls .plyr__control:hover,
 .joy-studio-thumb-video .plyr--video .plyr__controls .plyr__control:focus {
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
 
 .joy-studio-thumb-video .plyr--video .plyr__controls .plyr__control[aria-expanded="true"] {
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
 
@@ -556,8 +758,8 @@
 }
 
 .joy-studio-generating .joy-studio-grid.is-single.is-video {
-  max-width: min(440px, 100%);
-  width: 100%;
+  max-width: min(360px, 100%);
+  width: fit-content;
 }
 
 .joy-studio-generating .joy-studio-grid.is-multi {
@@ -645,8 +847,12 @@
   }
 
   .joy-studio-grid.is-single.is-video {
-    grid-template-columns: minmax(0, 100%);
-    max-width: 100%;
+    grid-template-columns: max-content;
+    max-width: min(100%, 320px);
+  }
+
+  .joy-studio-thumb-video {
+    max-width: min(100%, 320px);
   }
 
   .joy-studio-grid.is-multi {

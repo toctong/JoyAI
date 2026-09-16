@@ -22,6 +22,7 @@ function MentionTagView({ node, selected, deleteNode }: NodeViewProps) {
   const label = String(node.attrs.label || "@参考");
   const url = String(node.attrs.url || "");
   const kind = String(node.attrs.mediaKind || "");
+  const showThumb = Boolean(url) && (kind === "image" || kind === "");
 
   return (
     <NodeViewWrapper
@@ -29,15 +30,20 @@ function MentionTagView({ node, selected, deleteNode }: NodeViewProps) {
       className={`mention-tag${selected ? " is-selected" : ""}${kind ? ` media-${kind}` : ""}`}
       contentEditable={false}
     >
-      {url && kind === "image" ? (
+      {showThumb ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" className="mention-thumb" />
+        <img src={url} alt="" className="mention-thumb" draggable={false} />
       ) : null}
       <span className="mention-label">{label}</span>
       <button
         type="button"
         className="mention-remove"
         aria-label="移除引用"
+        tabIndex={-1}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();

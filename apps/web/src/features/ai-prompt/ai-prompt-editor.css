@@ -25,51 +25,85 @@
   color: var(--muted-foreground);
 }
 
+/* TipTap React node view defaults to block; keep mention chips inline */
+.joy-ai-prompt .ProseMirror .react-renderer.node-mentionTag {
+  display: inline;
+  margin: 0;
+  vertical-align: baseline;
+}
+
+.joy-ai-prompt .ProseMirror .react-renderer.node-mentionTag > * {
+  vertical-align: middle;
+}
+
 .joy-ai-prompt .mention-tag {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  margin: 0 3px;
-  padding: 2px 8px 2px 3px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, #4f8cff 28%, var(--border));
-  background: color-mix(in oklab, #4f8cff 12%, transparent);
-  color: var(--foreground);
-  font-size: 12px;
-  font-weight: 550;
-  line-height: 1.4;
-  vertical-align: baseline;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 22px;
+  margin: 0 2px;
+  padding: 0 6px 0 2px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in oklab, #3b82f6 22%, var(--border));
+  background: color-mix(in oklab, #3b82f6 10%, var(--background));
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  vertical-align: middle;
+  white-space: nowrap;
   user-select: none;
 }
 
 .joy-ai-prompt .mention-tag.is-selected {
-  outline: 2px solid color-mix(in oklab, #4f8cff 45%, transparent);
+  outline: 2px solid color-mix(in oklab, #3b82f6 40%, transparent);
+  outline-offset: 1px;
 }
 
 .joy-ai-prompt .mention-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
   object-fit: cover;
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+}
+
+.joy-ai-prompt .mention-label {
+  max-width: 7em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .joy-ai-prompt .mention-remove {
-  display: inline-grid;
-  place-items: center;
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
   width: 14px;
   height: 14px;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
+  border-radius: 3px;
   background: transparent;
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, #2563eb 70%, var(--muted-foreground));
   cursor: pointer;
   font-size: 12px;
+  font-weight: 600;
   line-height: 1;
+  appearance: none;
+}
+
+.joy-ai-prompt .mention-tag:hover .mention-remove,
+.joy-ai-prompt .mention-tag.is-selected .mention-remove {
+  display: inline-flex;
 }
 
 .joy-ai-prompt .mention-remove:hover {
-  color: var(--foreground);
-  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  color: #1d4ed8;
+  background: color-mix(in oklab, #3b82f6 14%, transparent);
 }
 
 .joy-prompt-menu {

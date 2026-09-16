@@ -285,20 +285,70 @@ export class JobsService {
           });
     const byId = new Map(models.map((m) => [m.id, m]));
 
-    return rows.map((job) => {
-      if (job.modelName && job.channelName) {
-        return this.withDuration(job);
+    // Backfill referenceUrls from referenceAssetIds for feed thumbnails
+    const refIdPairs: { userId: string; id: string }[] = [];
+    for (const job of rows) {
+      const input = job.input as {
+        referenceAssetIds?: string[];
+        referenceUrls?: string[];
+      } | null;
+      const existing = input?.referenceUrls?.filter(Boolean) ?? [];
+      if (existing.length > 0) continue;
+      for (const id of input?.referenceAssetIds ?? []) {
+        if (id) refIdPairs.push({ userId: job.userId, id });
       }
-      const inputModelId = (job.input as { modelId?: string } | null)?.modelId;
-      const mid = job.modelId || inputModelId;
+    }
+    const refUrlById = new Map<string, string>();
+    if (refIdPairs.length > 0) {
+      const byUser = new Map<string, string[]>();
+      for (const p of refIdPairs) {
+        const list = byUser.get(p.userId) ?? [];
+        list.push(p.id);
+        byUser.set(p.userId, list);
+      }
+      for (const [userId, ids] of byUser) {
+        const assets = await this.assets.findByIds(userId, [
+          ...new Set(ids),
+        ]);
+        for (const a of assets) refUrlById.set(a.id, a.url);
+      }
+    }
+
+    return rows.map((job) => {
+      const input = job.input as {
+        modelId?: string;
+        referenceAssetIds?: string[];
+        referenceUrls?: string[];
+      } | null;
+      let nextInput = job.input;
+      const existingUrls = input?.referenceUrls?.filter(Boolean) ?? [];
+      if (existingUrls.length === 0 && input?.referenceAssetIds?.length) {
+        const urls = input.referenceAssetIds
+          .map((id) => refUrlById.get(id))
+          .filter((u): u is string => Boolean(u));
+        if (urls.length > 0) {
+          nextInput = { ...input, referenceUrls: urls };
+        }
+      }
+
+      const base =
+        nextInput === job.input
+          ? job
+          : { ...job, input: nextInput };
+
+      if (base.modelName && base.channelName) {
+        return this.withDuration(base);
+      }
+      const inputModelId = input?.modelId;
+      const mid = base.modelId || inputModelId;
       const model = mid ? byId.get(mid) : undefined;
       return this.withDuration({
-        ...job,
-        modelId: job.modelId ?? model?.id ?? null,
-        modelName: job.modelName ?? model?.name ?? null,
-        channelId: job.channelId ?? model?.channelId ?? null,
-        channelName: job.channelName ?? model?.channel.name ?? null,
-        platform: job.platform ?? model?.channel.platform ?? null,
+        ...base,
+        modelId: base.modelId ?? model?.id ?? null,
+        modelName: base.modelName ?? model?.name ?? null,
+        channelId: base.channelId ?? model?.channelId ?? null,
+        channelName: base.channelName ?? model?.channel.name ?? null,
+        platform: base.platform ?? model?.channel.platform ?? null,
       });
     });
   }

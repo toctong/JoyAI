@@ -816,18 +816,24 @@ export function CreationComposer({
         ]),
       );
       const isRemoteUrl = (u: string) => /^https?:\/\//i.test(u);
-      const referenceUrls = [
-        ...payload.imageUrls,
-        ...(kind === "video" ? payload.videoUrls : []),
-        ...(kind === "video" ? payload.audioUrls : []),
-      ]
-        .map((u) => {
-          if (isRemoteUrl(u)) return u;
-          // blob preview from @mention → resolve via localId match on refs
-          const hit = refs.find((r) => r.url === u);
-          return hit ? localToAsset.get(hit.localId)?.url : undefined;
-        })
-        .filter((u): u is string => Boolean(u && isRemoteUrl(u)));
+      const referenceUrls = Array.from(
+        new Set(
+          [
+            ...payload.imageUrls,
+            ...(kind === "video" ? payload.videoUrls : []),
+            ...(kind === "video" ? payload.audioUrls : []),
+          ]
+            .map((u) => {
+              if (isRemoteUrl(u)) return u;
+              // blob preview from @mention → resolve via localId match on refs
+              const hit = refs.find((r) => r.url === u);
+              return hit ? localToAsset.get(hit.localId)?.url : undefined;
+            })
+            .filter((u): u is string => Boolean(u && isRemoteUrl(u)))
+            // Always persist uploaded ref URLs for feed thumbnails
+            .concat(uploaded.map((u) => u.url)),
+        ),
+      );
 
       const resolutionOpt = layout.showResolution
         ? (selectedResolution ??

@@ -8,6 +8,8 @@ type Props = {
   src: string;
   poster?: string | null;
   className?: string;
+  /** Fired once when intrinsic video dimensions are known (e.g. adaptive ratio). */
+  onNaturalAspect?: (ratio: string) => void;
 };
 
 type PlyrLike = {
@@ -20,11 +22,18 @@ type PlyrLike = {
 };
 
 /** Studio feed video — Plyr controls, no autoplay (multiple cards on page). */
-export function StudioPlyrPlayer({ src, poster, className }: Props) {
+export function StudioPlyrPlayer({
+  src,
+  poster,
+  className,
+  onNaturalAspect,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<PlyrLike | null>(null);
   const pendingSrcRef = useRef<string | null>(null);
   const appliedSrcRef = useRef(src);
+  const onNaturalAspectRef = useRef(onNaturalAspect);
+  onNaturalAspectRef.current = onNaturalAspect;
 
   useEffect(() => {
     const el = videoRef.current;
@@ -33,16 +42,24 @@ export function StudioPlyrPlayer({ src, poster, className }: Props) {
     let destroyed = false;
     let player: PlyrLike | null = null;
 
+    const reportAspect = () => {
+      const v = videoRef.current;
+      if (!v || v.videoWidth <= 0 || v.videoHeight <= 0) return;
+      onNaturalAspectRef.current?.(`${v.videoWidth} / ${v.videoHeight}`);
+    };
+
+    el.addEventListener("loadedmetadata", reportAspect);
+    if (el.readyState >= 1) reportAspect();
+
     void import("plyr").then(({ default: Plyr }) => {
       if (destroyed || !videoRef.current) return;
       player = new Plyr(videoRef.current, {
         controls: [
           "play-large",
           "play",
-          "progress",
           "current-time",
+          "progress",
           "mute",
-          "volume",
           "fullscreen",
         ],
         autoplay: false,
@@ -50,13 +67,18 @@ export function StudioPlyrPlayer({ src, poster, className }: Props) {
         hideControls: true,
         resetOnEnd: false,
         ratio: undefined,
+        volume: 0.8,
+        tooltips: { controls: false, seek: true },
+        keyboard: { focused: true, global: false },
       }) as unknown as PlyrLike;
       playerRef.current = player;
       appliedSrcRef.current = src;
+      reportAspect();
     });
 
     return () => {
       destroyed = true;
+      el.removeEventListener("loadedmetadata", reportAspect);
       playerRef.current = null;
       player?.destroy();
     };

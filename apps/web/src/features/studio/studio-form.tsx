@@ -53,6 +53,8 @@ type JobInput = {
   resolution?: string;
   duration?: number;
   modelId?: string;
+  referenceAssetIds?: string[];
+  referenceUrls?: string[];
 };
 
 type Job = {
@@ -169,6 +171,10 @@ function jobElapsedLabel(job: Job, now: number) {
   return label === "—" ? null : `用时 ${label}`;
 }
 
+/**
+ * 参考 Jimeng 风格：模型 | 清晰度 | 比例 | … | 时间
+ * 可按任务类型扩展更多字段。
+ */
 function jobMetaLine(job: Job, assetCount = 0, now = Date.now()) {
   const input = job.input;
   const model =
@@ -226,8 +232,39 @@ function aspectCss(input?: JobInput): string {
     const [a, b] = ratio.split(":").map(Number);
     if (a > 0 && b > 0) return `${a} / ${b}`;
   }
-  // auto / adaptive / missing → square placeholder
+  // auto / adaptive / missing → square placeholder (video may refine from metadata)
   return "1 / 1";
+}
+
+function isFlexibleAspect(input?: JobInput): boolean {
+  if (input?.width && input?.height && input.width > 0 && input.height > 0) {
+    return false;
+  }
+  const ratio = input?.ratio?.trim().toLowerCase() ?? "";
+  if (!ratio) return true;
+  if (ratio === "auto" || ratio === "adaptive" || ratio === "keep") return true;
+  return !ratio.includes(":");
+}
+
+function refMediaKind(url: string): "image" | "video" | "audio" | "other" {
+  if (/\.(mp4|webm|mov)(\?|$)/i.test(url)) return "video";
+  if (/\.(mp3|wav|m4a|aac|ogg|flac)(\?|$)/i.test(url)) return "audio";
+  if (/\.(png|jpe?g|webp|gif|bmp|avif)(\?|$)/i.test(url)) return "image";
+  // uploaded assets often lack extensions — treat as image for thumb strip
+  return "image";
+}
+
+function jobReferenceUrls(input?: JobInput): string[] {
+  const urls = input?.referenceUrls ?? [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of urls) {
+    const url = String(raw || "").trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+  }
+  return out;
 }
 
 const JOBS_PAGE = 30;
@@ -390,6 +427,110 @@ function StudioPrompt({
   );
 }
 
+function StudioJobRefs({ urls }: { urls: string[] }) {
+  if (urls.length === 0) return null;
+  const shown = urls.slice(0, 4);
+  const extra = urls.length - shown.length;
+  return (
+    <div
+      className={cn("joy-studio-refs", shown.length > 1 && "is-stack")}
+      aria-label="参考素材"
+    >
+      {shown.map((url, i) => {
+        const kind = refMediaKind(url);
+        const thumb = (
+          <div
+            className={cn("joy-studio-ref-thumb", `is-${kind}`)}
+            style={shown.length > 1 ? { zIndex: shown.length - i } : undefined}
+            title={`参考${i + 1}`}
+          >
+            {kind === "video" ? (
+              <video src={url} muted playsInline preload="metadata" />
+            ) : kind === "audio" ? (
+              <span className="joy-studio-ref-audio">音</span>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={url} alt={`参考${i + 1}`} />
+            )}
+            <span className="joy-studio-ref-index">{i + 1}</span>
+          </div>
+        );
+        return kind === "image" || kind === "other" ? (
+          <PhotoView key={`${url}-${i}`} src={url}>
+            <button type="button" className="joy-studio-ref-hit" aria-label={`预览参考${i + 1}`}>
+              {thumb}
+            </button>
+          </PhotoView>
+        ) : (
+          <div key={`${url}-${i}`} className="joy-studio-ref-hit">
+            {thumb}
+          </div>
+        );
+      })}
+      {extra > 0 ? (
+        <span className="joy-studio-ref-more">+{extra}</span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Video frame that can adopt intrinsic aspect for adaptive/auto jobs. */
+function StudioVideoThumb({
+  src,
+  fallbackAspect,
+  flexible,
+}: {
+  src: string;
+  fallbackAspect: string;
+  flexible: boolean;
+}) {
+  const [aspect, setAspect] = useState(fallbackAspect);
+
+  useEffect(() => {
+    setAspect(fallbackAspect);
+  }, [fallbackAspect, src]);
+
+  const frameStyle = useMemo(() => {
+    // Landscape wider; portrait height-capped but keep ≥200px wide for chrome
+    const maxW = 360;
+    const maxH = 380;
+    const minW = 200;
+    const parts = aspect.split("/").map((s) => Number(s.trim()));
+    const aw = parts[0];
+    const ah = parts[1];
+    if (!(aw > 0 && ah > 0)) {
+      return { aspectRatio: aspect, width: Math.min(maxW, 280) };
+    }
+    const heightAtMaxW = (maxW * ah) / aw;
+    if (heightAtMaxW <= maxH) {
+      return { aspectRatio: `${aw} / ${ah}`, width: maxW };
+    }
+    const widthAtMaxH = (maxH * aw) / ah;
+    return {
+      aspectRatio: `${aw} / ${ah}`,
+      width: Math.min(maxW, Math.max(minW, widthAtMaxH)),
+    };
+  }, [aspect]);
+
+  return (
+    <div
+      className="joy-studio-thumb joy-studio-thumb-video"
+      style={frameStyle}
+    >
+      <StudioPlyrPlayer
+        src={src}
+        onNaturalAspect={
+          flexible
+            ? (next) => {
+                setAspect((prev) => (prev === next ? prev : next));
+              }
+            : undefined
+        }
+      />
+    </div>
+  );
+}
+
 function JobActions({
   job,
   regeneratingId,
@@ -412,6 +553,7 @@ function JobActions({
         onClick={onRegenerate}
       >
         <RefreshCw
+          strokeWidth={1.75}
           className={cn(
             "h-3.5 w-3.5",
             regeneratingId === job.id && "animate-spin",
@@ -426,7 +568,7 @@ function JobActions({
         disabled={deletingId === job.id}
         onClick={onDelete}
       >
-        <Trash2 className="h-4 w-4" />
+        <Trash2 strokeWidth={1.75} className="h-3.5 w-3.5" />
       </button>
     </div>
   );
@@ -714,6 +856,8 @@ function StudioInner() {
                 4,
               );
               const ar = aspectCss(job.input);
+              const flexibleAr = isFlexibleAspect(job.input);
+              const refUrls = jobReferenceUrls(job.input);
               const gridCount =
                 assets.length > 0 ? assets.length : skeletonCount;
 
@@ -726,19 +870,29 @@ function StudioInner() {
                   className={cn("joy-studio-job", isVideoJob && "is-video")}
                 >
                   <div className="joy-studio-prompt-block">
-                    <StudioPrompt
-                      text={job.input?.prompt || "未命名创作"}
-                      onCopy={() => void copyPrompt(job)}
-                      onUse={() => usePrompt(job)}
-                    />
-                    {metaLine ? (
-                      <p className="joy-studio-meta joy-studio-meta-sub">
-                        {metaLine}
-                      </p>
-                    ) : null}
-                    {job.error ? (
-                      <p className="joy-studio-error">{job.error}</p>
-                    ) : null}
+                    <div
+                      className={cn(
+                        "joy-studio-prompt-row",
+                        refUrls.length > 0 && "has-refs",
+                      )}
+                    >
+                      <StudioJobRefs urls={refUrls} />
+                      <div className="joy-studio-prompt-col">
+                        <StudioPrompt
+                          text={job.input?.prompt || "未命名创作"}
+                          onCopy={() => void copyPrompt(job)}
+                          onUse={() => usePrompt(job)}
+                        />
+                        {metaLine ? (
+                          <p className="joy-studio-meta joy-studio-meta-sub">
+                            {metaLine}
+                          </p>
+                        ) : null}
+                        {job.error ? (
+                          <p className="joy-studio-error">{job.error}</p>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
 
                   {assets.length > 0 ? (
@@ -752,13 +906,12 @@ function StudioInner() {
                     >
                       {assets.map((asset) =>
                         isVideoAsset(asset) ? (
-                          <div
+                          <StudioVideoThumb
                             key={asset.id}
-                            className="joy-studio-thumb joy-studio-thumb-video"
-                            style={{ aspectRatio: ar }}
-                          >
-                            <StudioPlyrPlayer src={asset.url} />
-                          </div>
+                            src={asset.url}
+                            fallbackAspect={ar}
+                            flexible={flexibleAr}
+                          />
                         ) : (
                           <div
                             key={asset.id}
