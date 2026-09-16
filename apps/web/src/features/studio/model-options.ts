@@ -446,6 +446,7 @@ export type RefSlotLimits = {
   audios: number | null;
   minVideoSec: number | null;
   maxVideoSec: number | null;
+  minAudioSec: number | null;
   maxAudioSec: number | null;
   minImageSidePx: number | null;
   maxImageSidePx: number | null;
@@ -460,6 +461,7 @@ export type RefSlotLimits = {
 const emptyMediaLimits = {
   minVideoSec: null as number | null,
   maxVideoSec: null as number | null,
+  minAudioSec: null as number | null,
   maxAudioSec: null as number | null,
   minImageSidePx: null as number | null,
   maxImageSidePx: null as number | null,
@@ -484,6 +486,9 @@ function mediaLimitsFromCaps(
       : null,
     maxVideoSec: opts.allowVideo
       ? (caps?.maxRefVideoDurationSec ?? 15)
+      : null,
+    minAudioSec: opts.allowAudio
+      ? (caps?.minRefAudioDurationSec ?? null)
       : null,
     maxAudioSec: opts.allowAudio
       ? (caps?.maxRefAudioDurationSec ?? 15)

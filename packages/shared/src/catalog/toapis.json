@@ -1088,9 +1088,11 @@
           "4:3",
           "3:4"
         ],
-        "minRefImageSidePx": 360,
-        "maxRefImageSidePx": 2000,
-        "maxRefImageBytes": 10485760
+        "minRefImageSidePx": 240,
+        "maxRefImageSidePx": 8000,
+        "maxRefImageBytes": 20971520,
+        "minRefImageAspect": 0.125,
+        "maxRefImageAspect": 8
       }
     },
     {

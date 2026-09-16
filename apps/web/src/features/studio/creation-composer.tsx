@@ -682,14 +682,25 @@ export function CreationComposer({
               );
               continue;
             }
-          } else if (
-            limits.maxAudioSec != null &&
-            audioDurSum + durationSec > limits.maxAudioSec + 0.05
-          ) {
-            toast.error(
-              `参考音频总时长不能超过 ${limits.maxAudioSec} 秒（已用 ${audioDurSum.toFixed(1)}s）`,
-            );
-            continue;
+          } else if (mediaKind === "audio") {
+            if (
+              limits.minAudioSec != null &&
+              durationSec < limits.minAudioSec
+            ) {
+              toast.error(
+                `参考音频至少 ${limits.minAudioSec} 秒（${file.name} 约 ${durationSec.toFixed(1)}s）`,
+              );
+              continue;
+            }
+            if (
+              limits.maxAudioSec != null &&
+              audioDurSum + durationSec > limits.maxAudioSec + 0.05
+            ) {
+              toast.error(
+                `参考音频总时长不能超过 ${limits.maxAudioSec} 秒（已用 ${audioDurSum.toFixed(1)}s）`,
+              );
+              continue;
+            }
           }
         }
 

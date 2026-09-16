@@ -56,6 +56,8 @@ export const ModelCapabilitiesSchema = z.object({
   maxRefVideoDurationSec: z.number().optional(),
   /** 参考音频总时长上限（秒） */
   maxRefAudioDurationSec: z.number().optional(),
+  /** 单个参考音频最短时长（秒） */
+  minRefAudioDurationSec: z.number().optional(),
   /** 参考图最短边（px） */
   minRefImageSidePx: z.number().int().optional(),
   /** 参考图最长边（px） */

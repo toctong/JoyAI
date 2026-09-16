@@ -165,14 +165,19 @@ const REF_IMAGE_SEEDANCE1 = {
   maxRefImageBytes: 31457280,
 };
 
-/** DashScope Wan image / i2v / r2v common ref image envelope. */
+/** DashScope Wan i2v / r2v — official 百炼 image/audio limits. */
 const REF_MEDIA_WAN = {
-  minRefImageSidePx: 360,
-  maxRefImageSidePx: 2000,
-  maxRefImageBytes: 10485760,
+  minRefImageSidePx: 240,
+  maxRefImageSidePx: 8000,
+  minRefImageAspect: 0.125, // 1:8
+  maxRefImageAspect: 8, // 8:1
+  maxRefImageBytes: 20971520, // 20MB
+  minRefVideoDurationSec: 2,
   maxRefVideoDurationSec: 15,
   maxRefVideoBytes: 52428800,
-  maxRefAudioBytes: 15728640,
+  minRefAudioDurationSec: 2,
+  maxRefAudioDurationSec: 30,
+  maxRefAudioBytes: 15728640, // 15MB
 };
 
 function isRatioLike(s) {
@@ -419,7 +424,10 @@ function documentedPatch(platform, kind, item) {
         ...REF_MEDIA_WAN,
         maxRefVideoDurationSec: null,
         maxRefVideoBytes: null,
+        minRefAudioDurationSec: null,
+        maxRefAudioDurationSec: null,
         maxRefAudioBytes: null,
+        minRefVideoDurationSec: null,
       });
       // wanx2.1-t2i-plus: after hygiene, ensure sizes if pixels were in res
       if (/wanx2\.1-t2i-plus/i.test(id)) {
@@ -834,7 +842,10 @@ function assert(cond, msg) {
     "wan2.7-r2v",
   );
   assert(
-    wanR2v?.capabilities?.minRefImageSidePx === 360 &&
+    wanR2v?.capabilities?.minRefImageSidePx === 240 &&
+      wanR2v?.capabilities?.maxRefImageSidePx === 8000 &&
+      wanR2v?.capabilities?.maxRefImageBytes === 20971520 &&
+      wanR2v?.capabilities?.maxRefAudioDurationSec === 30 &&
       wanR2v?.capabilities?.maxRefVideos === 1,
     "dashscope wan2.7-r2v ref limits",
   );
