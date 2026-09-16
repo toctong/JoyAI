@@ -519,6 +519,8 @@ export function CreationComposer({
     if (!prefsHydrated) return;
     const t = search.get("type");
     if (t === "video" || t === "image") applyKind(t);
+    // applyKind 每轮 render 重建；仅跟随 URL type / 首屏 hydration
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, prefsHydrated]);
 
   useEffect(() => {
@@ -1246,7 +1248,10 @@ export function CreationComposer({
                   </>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="p-3">
+              <DropdownMenuContent
+                align="start"
+                className="p-3 max-w-[min(340px,calc(100vw-48px))]"
+              >
                 <div className="joy-composer-params-panel">
                   {layout.showRatio ? (
                     <div className="joy-composer-params-row">

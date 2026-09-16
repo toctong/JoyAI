@@ -192,22 +192,31 @@ export class ModelsService {
   /**
    * Upsert catalog presets for a channel. Updates pricing/capabilities/description;
    * keeps existing name/isDefault unless forceRename.
+   * Models whose remoteId is no longer in the catalog are disabled (not deleted),
+   * so stale entries like removed presets disappear from studio without wiping custom rows
+   * that still match a catalog id.
    */
   async importCatalog(
     channelId: string,
     opts?: { forceRename?: boolean },
-  ): Promise<{ created: number; updated: number; skipped: number }> {
+  ): Promise<{
+    created: number;
+    updated: number;
+    disabled: number;
+    skipped: number;
+  }> {
     const channel = await this.channels.findOne({ where: { id: channelId } });
     if (!channel) throw new NotFoundException("渠道不存在");
 
     const catalog = getCatalogForPlatform(channel.platform);
     if (!catalog.length) {
-      return { created: 0, updated: 0, skipped: 0 };
+      return { created: 0, updated: 0, disabled: 0, skipped: 0 };
     }
 
     let created = 0;
     let updated = 0;
     const skipped = 0;
+    const catalogIds = new Set(catalog.map((item) => item.remoteId));
 
     for (const item of catalog) {
       const existing = await this.models.findOne({
@@ -248,7 +257,17 @@ export class ModelsService {
       }
     }
 
-    return { created, updated, skipped };
+    const stale = await this.models.find({ where: { channelId } });
+    let disabled = 0;
+    for (const model of stale) {
+      if (catalogIds.has(model.remoteId) || !model.enabled) continue;
+      model.enabled = false;
+      if (model.isDefault) model.isDefault = false;
+      await this.models.save(model);
+      disabled += 1;
+    }
+
+    return { created, updated, disabled, skipped };
   }
 
   catalogPreview(platform: string) {

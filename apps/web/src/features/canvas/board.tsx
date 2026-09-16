@@ -202,16 +202,18 @@ export function CanvasBoard({
     return () => ro.disconnect();
   }, []);
 
-  const save = useCallback(
-    debounce(async () => {
-      const snapshot = getSnapshot();
-      await api(`/canvas/projects/${projectId}`, {
-        method: "PATCH",
-        body: { snapshot },
-      });
-      markClean();
-    }, 1000),
-    [projectId, getSnapshot, markClean],
+  const saveImmediate = useCallback(async () => {
+    const snapshot = getSnapshot();
+    await api(`/canvas/projects/${projectId}`, {
+      method: "PATCH",
+      body: { snapshot },
+    });
+    markClean();
+  }, [projectId, getSnapshot, markClean]);
+
+  const save = useMemo(
+    () => debounce(saveImmediate, 1000),
+    [saveImmediate],
   );
 
   useEffect(() => {

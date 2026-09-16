@@ -9,11 +9,15 @@ type Props = {
   className?: string;
 };
 
-function statusCopy(status?: string) {
+function statusCopy(status?: string, kind?: "image" | "video") {
   if (status === "queued") return "已加入普通队列，等待调度";
   // `polling` is reserved for post-success mirror / late settle — not "almost done" at submit.
   if (status === "polling") return "结果回传中，即将完成";
-  if (status === "running") return "视频生成中，Seedance 常需数分钟请稍候";
+  if (status === "running") {
+    return kind === "video"
+      ? "视频生成中，常需数分钟请稍候"
+      : "图片生成中，请稍候";
+  }
   return "已提交，正在准备生成";
 }
 
@@ -69,11 +73,17 @@ export function GeneratingThumb({
   );
 }
 
-export function GeneratingStatusBar({ status }: { status?: string }) {
+export function GeneratingStatusBar({
+  status,
+  kind,
+}: {
+  status?: string;
+  kind?: "image" | "video";
+}) {
   return (
     <div className="joy-gen-status">
       <span className="joy-gen-status-tag">普通队列</span>
-      <span className="joy-gen-status-text">{statusCopy(status)}</span>
+      <span className="joy-gen-status-text">{statusCopy(status, kind)}</span>
     </div>
   );
 }

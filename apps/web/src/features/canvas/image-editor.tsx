@@ -10,10 +10,14 @@ type Props = {
   onApply: (dataUrl: string) => void;
 };
 
+type FabricCanvasLike = {
+  dispose?: () => void;
+  toDataURL: (opts: { format: string; multiplier: number }) => string;
+};
+
 export function ImageEditor({ url, busy = false, onClose, onApply }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fabricRef = useRef<any>(null);
+  const fabricRef = useRef<FabricCanvasLike | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) return;

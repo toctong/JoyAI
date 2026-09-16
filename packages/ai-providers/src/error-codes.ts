@@ -123,6 +123,7 @@ const OPENAI_COMPAT_CODES: Record<string, string> = {
   account_deactivated: "账号已停用",
   engine_overloaded: "引擎过载，请稍后重试",
   server_error: "上游服务器错误",
+  task_failed: "上游任务失败",
 };
 
 const HTTP_STATUS_ZH: Record<number, string> = {
@@ -227,35 +228,64 @@ export function parseProviderErrorBody(
     root.error && typeof root.error === "object"
       ? (root.error as Record<string, unknown>)
       : null;
+  const dataField =
+    root.data && typeof root.data === "object" && !Array.isArray(root.data)
+      ? (root.data as Record<string, unknown>)
+      : null;
+  const nestedErr =
+    dataField?.error && typeof dataField.error === "object"
+      ? (dataField.error as Record<string, unknown>)
+      : null;
   const output =
     root.output && typeof root.output === "object"
       ? (root.output as Record<string, unknown>)
       : null;
 
+  // APIMart envelopes use top-level `code: 200` even on failed tasks;
+  // the real reason lives under `data.error`.
+  const rawRootCode = err?.code ?? root.code ?? output?.code;
+  const rootCode =
+    rawRootCode != null && !isSuccessBusinessCode(rawRootCode)
+      ? String(rawRootCode)
+      : undefined;
+
   const code =
-    (err?.code as string | undefined) ??
-    (root.code as string | undefined) ??
-    (output?.code as string | undefined) ??
+    (nestedErr?.code as string | number | undefined) ??
+    (err?.code as string | number | undefined) ??
+    rootCode ??
+    (nestedErr?.type as string | undefined) ??
     (err?.type as string | undefined);
   const type =
-    (err?.type as string | undefined) ?? (root.type as string | undefined);
+    (nestedErr?.type as string | undefined) ??
+    (err?.type as string | undefined) ??
+    (root.type as string | undefined);
   const message =
+    (nestedErr?.message as string | undefined) ??
     (err?.message as string | undefined) ??
     (root.message as string | undefined) ??
     (root.msg as string | undefined) ??
-    (output?.message as string | undefined);
+    (output?.message as string | undefined) ??
+    (dataField?.message as string | undefined);
 
   const requestId =
     (root.request_id as string | undefined) ??
     (root.requestId as string | undefined) ??
     (err?.request_id as string | undefined) ??
-    extractRequestId(message);
+    (nestedErr?.request_id as string | undefined) ??
+    extractRequestId(typeof message === "string" ? message : undefined);
 
-  if (code) out.code = String(code);
+  if (code != null && String(code).length) out.code = String(code);
   if (type) out.type = String(type);
   if (message) out.message = String(message).slice(0, 500);
   if (requestId) out.requestId = requestId;
   return out;
+}
+
+/** APIMart / similar gateways use numeric 200 as "HTTP-ish OK", not an error code. */
+function isSuccessBusinessCode(code: unknown): boolean {
+  if (code == null) return false;
+  const s = String(code).trim().toLowerCase();
+  return s === "200" || s === "0" || s === "ok" || s === "success";
 }
 
 function extractRequestId(message?: string): string | undefined {
@@ -285,20 +315,27 @@ export function formatParsedProviderError(
     translateHttpStatus(parsed.status);
 
   const rawMsg = parsed.message ? stripRequestId(parsed.message) : undefined;
+  const zhFromMsg = rawMsg ? translateEnglishMessage(rawMsg) : undefined;
   const msgLooksEnglish =
     rawMsg != null &&
     /[A-Za-z]/.test(rawMsg) &&
     !/[\u4e00-\u9fff]/.test(rawMsg);
 
   let text: string;
-  if (zhFromCode) {
+  if (zhFromCode || zhFromMsg) {
+    const zh = zhFromCode ?? zhFromMsg!;
     // Avoid duplicating when vendor already returned Chinese
-    if (rawMsg && !msgLooksEnglish && rawMsg !== zhFromCode) {
-      text = `${zhFromCode}：${rawMsg}`;
-    } else if (rawMsg && msgLooksEnglish && !isBoilerplateEnglish(rawMsg, parsed.code)) {
-      text = `${zhFromCode}：${rawMsg}`;
+    if (rawMsg && !msgLooksEnglish && rawMsg !== zh) {
+      text = `${zh}：${rawMsg}`;
+    } else if (
+      rawMsg &&
+      msgLooksEnglish &&
+      !zhFromMsg &&
+      !isBoilerplateEnglish(rawMsg, parsed.code)
+    ) {
+      text = `${zh}：${rawMsg}`;
     } else {
-      text = zhFromCode;
+      text = zh;
     }
   } else if (rawMsg) {
     text = rawMsg;
@@ -331,4 +368,24 @@ function isBoilerplateEnglish(message: string, code?: string): boolean {
     m.includes("exhausted its free trial quota") ||
     m.includes("access denied, please make sure your account")
   );
+}
+
+/** Map common English vendor messages when no machine code is present. */
+function translateEnglishMessage(message: string): string | undefined {
+  const m = message.toLowerCase();
+  if (
+    m.includes("content safety") ||
+    m.includes("content policy") ||
+    m.includes("rejected by the content") ||
+    m.includes("safety system")
+  ) {
+    return "内容未通过安全审核";
+  }
+  if (m.includes("insufficient") && (m.includes("balance") || m.includes("credit"))) {
+    return "余额不足";
+  }
+  if (m.includes("rate limit") || m.includes("too many requests")) {
+    return "请求过于频繁，请稍后重试";
+  }
+  return undefined;
 }

@@ -143,16 +143,17 @@ export class VideoPollProcessor extends WorkerHost {
     }
 
     if (payload.attempt >= this.maxAttempts) {
+      const timeoutMsg = "视频任务轮询超时，请稍后重试或到渠道后台查看任务状态";
       await this.jobsRepo.update(job.id, {
         status: JobStatus.failed,
-        error: "??????????????????????????????",
+        error: timeoutMsg,
         progress: 100,
         finishedAt: new Date(),
       });
       this.realtime.emitJob(job.userId, "job:failed", {
         jobId: job.id,
         status: "failed",
-        error: "??????????????????????????????",
+        error: timeoutMsg,
       });
       return;
     }

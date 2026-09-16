@@ -334,13 +334,13 @@ export function durationsFromCapabilities(
   caps?: ModelCapabilities | null,
 ): number[] {
   const max = caps?.maxDurationSec;
-  const candidates = [...DEFAULT_VIDEO_DURATIONS];
+  const candidates: number[] = [...DEFAULT_VIDEO_DURATIONS];
   if (typeof max === "number" && Number.isFinite(max) && max > 0) {
     const extras = [max];
     if (max >= 12) extras.push(12);
     if (max >= 15) extras.push(15);
     for (const d of extras) {
-      if (!candidates.includes(d as (typeof DEFAULT_VIDEO_DURATIONS)[number])) {
+      if (!candidates.includes(d)) {
         candidates.push(d);
       }
     }

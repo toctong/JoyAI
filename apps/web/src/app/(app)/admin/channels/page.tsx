@@ -297,7 +297,8 @@ export default function ChannelsPage() {
         const c = res.catalog;
         toast.success(
           c
-            ? `渠道已创建，导入模型 ${c.created} 新建 / ${c.updated} 更新`
+            ? `渠道已创建，导入模型 ${c.created} 新建 / ${c.updated} 更新` +
+                ((c.disabled ?? 0) > 0 ? ` / ${c.disabled} 下架` : "")
             : "渠道已创建",
         );
       }
@@ -311,11 +312,20 @@ export default function ChannelsPage() {
   async function importCatalog(channel: Channel) {
     setImportingId(channel.id);
     try {
-      const res = await api<{ created: number; updated: number }>(
-        `/admin/channels/${channel.id}/import-catalog`,
-        { method: "POST", body: {} },
+      const res = await api<{
+        created: number;
+        updated: number;
+        disabled?: number;
+      }>(`/admin/channels/${channel.id}/import-catalog`, {
+        method: "POST",
+        body: {},
+      });
+      const disabled = res.disabled ?? 0;
+      toast.success(
+        disabled > 0
+          ? `已导入：新建 ${res.created} · 更新 ${res.updated} · 下架 ${disabled}`
+          : `已导入：新建 ${res.created} · 更新 ${res.updated}`,
       );
-      toast.success(`已导入：新建 ${res.created} · 更新 ${res.updated}`);
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "导入失败");

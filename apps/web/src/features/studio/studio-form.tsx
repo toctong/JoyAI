@@ -730,7 +730,7 @@ function StudioInner() {
     };
   }, [loadOlder, hasJobs]);
 
-  function usePrompt(job: Job) {
+  function applyPrompt(job: Job) {
     const prompt = job.input?.prompt?.trim();
     if (!prompt) {
       toast.error("没有可用的提示词");
@@ -881,7 +881,7 @@ function StudioInner() {
                         <StudioPrompt
                           text={job.input?.prompt || "未命名创作"}
                           onCopy={() => void copyPrompt(job)}
-                          onUse={() => usePrompt(job)}
+                          onUse={() => applyPrompt(job)}
                         />
                         {metaLine ? (
                           <p className="joy-studio-meta joy-studio-meta-sub">
@@ -983,7 +983,10 @@ function StudioInner() {
                           />
                         ))}
                       </div>
-                      <GeneratingStatusBar status={job.status} />
+                      <GeneratingStatusBar
+                        status={job.status}
+                        kind={isVideoJob ? "video" : "image"}
+                      />
                     </div>
                   ) : null}
 

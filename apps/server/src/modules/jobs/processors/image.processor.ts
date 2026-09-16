@@ -15,7 +15,14 @@ import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { CanvasService } from "../../canvas/canvas.service";
 import { enqueueAssetMirror } from "../enqueue-asset-mirror";
 
-@Processor(QUEUE.IMAGE)
+/** Parallel image jobs per server process (cap 20). Override with JOB_IMAGE_CONCURRENCY. */
+function resolveImageConcurrency(): number {
+  const n = Number(process.env.JOB_IMAGE_CONCURRENCY);
+  if (!Number.isFinite(n) || n < 1) return 5;
+  return Math.min(Math.floor(n), 20);
+}
+
+@Processor(QUEUE.IMAGE, { concurrency: resolveImageConcurrency() })
 export class ImageProcessor extends WorkerHost {
   private readonly logger = new Logger(ImageProcessor.name);
 
@@ -138,6 +145,7 @@ export class ImageProcessor extends WorkerHost {
             model: model.remoteId,
             apiKey: model.channel.apiKey,
             baseUrl: model.channel.baseUrl,
+            metadata: model.channel.metadata ?? null,
           }),
         ),
       );

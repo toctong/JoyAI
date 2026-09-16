@@ -1,4 +1,5 @@
 import "./common/crud.config";
+import "./common/load-env";
 import { NestFactory } from "@nestjs/core";
 import {
   FastifyAdapter,

@@ -800,7 +800,7 @@ function assert(cond, msg) {
   );
   const turbo = findModel(apimart, "video", "kling-3.0-turbo");
   const kv3 = findModel(apimart, "video", "kling-v3");
-  const flux = findModel(apimart, "image", "flux-2");
+  const flux = findModel(apimart, "image", "flux-2-pro");
   assert(
     !turbo?.capabilities?.features?.includes("first-last-frame"),
     "apimart kling-3.0-turbo NO first-last",
@@ -810,8 +810,8 @@ function assert(cond, msg) {
     "apimart kling-v3 HAS first-last",
   );
   assert(
-    !(flux?.capabilities?.ratios?.length),
-    "apimart flux-2 still no ratios",
+    Boolean(flux?.capabilities?.ratios?.length),
+    "apimart flux-2-pro has ratios",
   );
 
   const volc = JSON.parse(

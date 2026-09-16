@@ -1,4 +1,5 @@
 import axios from "axios";
+import { ProviderPlatform } from "@joyai/shared";
 import type {
   ImageGenerateInput,
   ImageGenerateResult,
@@ -19,6 +20,132 @@ function authHeaders(apiKey: string) {
 
 function normalizeBase(baseUrl: string) {
   return baseUrl.replace(/\/$/, "");
+}
+
+const FLEXIBLE_RATIO = new Set(["auto", "adaptive", "keep"]);
+
+/** ToAPIs bills on K-tier (`1K`/`2K`); never send OpenAI-style `2048x2048`. */
+function normalizeKTier(raw?: string): string | undefined {
+  if (!raw?.trim()) return undefined;
+  const key = raw.trim().toLowerCase().replace(/\s+/g, "");
+  if (key === "1k") return "1K";
+  if (key === "1.5k" || key === "1_5k") return "1.5K";
+  if (key === "2k") return "2K";
+  if (key === "3k") return "3K";
+  if (key === "4k") return "4K";
+  return raw.trim();
+}
+
+function gcd(a: number, b: number): number {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y) {
+    const t = y;
+    y = x % y;
+    x = t;
+  }
+  return x || 1;
+}
+
+/**
+ * ToAPIs `size` is an aspect ratio (`1:1`), not pixel WxH.
+ * @see https://docs.toapis.com/docs/cn/api-reference/images/flux-2/generation
+ */
+function resolveToApisAspectSize(input: ImageGenerateInput): string {
+  const ratio = input.ratio?.trim();
+  if (ratio && !FLEXIBLE_RATIO.has(ratio.toLowerCase()) && /^\d+:\d+$/.test(ratio)) {
+    return ratio;
+  }
+  const size = input.size?.trim();
+  if (size && /^\d+:\d+$/.test(size)) return size;
+  if (size) {
+    const m = size.match(/^(\d+)\s*[x×]\s*(\d+)$/i);
+    if (m) {
+      const w = Number(m[1]);
+      const h = Number(m[2]);
+      if (w > 0 && h > 0) {
+        const g = gcd(w, h);
+        return `${w / g}:${h / g}`;
+      }
+    }
+  }
+  if (input.width && input.height) {
+    const g = gcd(input.width, input.height);
+    return `${input.width / g}:${input.height / g}`;
+  }
+  return "1:1";
+}
+
+/** Models that only accept prompt/size/n — no resolution tier or watermark metadata. */
+function isToApisBareImageModel(model: string): boolean {
+  return (
+    /^grok-imagine-1\.0$/i.test(model) || /^grok-4-\d-image$/i.test(model)
+  );
+}
+
+function isToApisImageEditModel(model: string): boolean {
+  return /^(grok-imagine-1\.0-edit)$/i.test(model) || /-edit$/i.test(model);
+}
+
+/**
+ * Build ToAPIs image body: ratio-as-size + optional resolution + image_urls.
+ * - GPT-Image: top-level `resolution` (lowercase)
+ * - Qwen / Seedream / Flux: top-level + `metadata.resolution` when provided
+ * - Grok Imagine / Grok Image: no resolution / no forced metadata (docs: model,prompt,size,n)
+ * - `*-edit` models: `/images/edits` shape — prompt + image_urls (+ n); no size/resolution
+ */
+function buildToApisImageBody(
+  input: ImageGenerateInput,
+): Record<string, unknown> {
+  const isEdit = isToApisImageEditModel(input.model);
+  const resolution = normalizeKTier(input.resolution);
+  const isGptImage = /^gpt-image/i.test(input.model);
+  const bare = isToApisBareImageModel(input.model);
+
+  if (isEdit) {
+    const body: Record<string, unknown> = {
+      model: input.model,
+      prompt: input.prompt,
+      n: input.n ?? 1,
+    };
+    if (input.referenceUrls?.length) {
+      body.image_urls = input.referenceUrls;
+    }
+    return body;
+  }
+
+  const size = resolveToApisAspectSize(input);
+  const body: Record<string, unknown> = {
+    model: input.model,
+    prompt: input.prompt,
+    n: input.n ?? 1,
+    size,
+  };
+
+  // GPT-Image docs use response_format; bare Grok models omit it.
+  if (!bare) {
+    body.response_format = "url";
+  }
+
+  if (isGptImage) {
+    if (resolution) body.resolution = resolution.toLowerCase();
+  } else if (!bare) {
+    if (resolution) body.resolution = resolution;
+    const metadata: Record<string, unknown> = {
+      watermark: input.watermark ?? false,
+    };
+    if (resolution) metadata.resolution = resolution;
+    body.metadata = metadata;
+  }
+
+  if (input.negativePrompt) {
+    body.negative_prompt = input.negativePrompt;
+  }
+  if (input.referenceUrls?.length) {
+    body.image_urls = input.referenceUrls;
+  }
+
+  return body;
 }
 
 const SUCCESS_STATUSES = new Set([
@@ -136,49 +263,143 @@ function mapMediaItem(
 }
 
 /**
+ * Default OpenAI-compatible image body (DashScope-style).
+ * Uses pixel WxH or keyword size — not APIMart / ToAPIs ratio-as-size.
+ */
+function buildOpenAICompatImageBody(
+  input: ImageGenerateInput,
+): Record<string, unknown> {
+  const size = resolveImageSize({
+    size: input.size,
+    width: input.width,
+    height: input.height,
+    ratio: input.ratio,
+    resolution: input.resolution,
+    catalogSizes: input.catalogSizes,
+    mode: input.sizeMode ?? "auto",
+    fallback: "1024x1024",
+  });
+
+  const body: Record<string, unknown> = {
+    model: input.model,
+    prompt: input.prompt,
+    n: input.n ?? 1,
+    size,
+    response_format: "url",
+    watermark: input.watermark ?? false,
+  };
+
+  if (input.ratio && !/^\d+x\d+$/i.test(size)) {
+    body.aspect_ratio = input.ratio;
+    body.ratio = input.ratio;
+  }
+
+  if (input.negativePrompt) {
+    body.negative_prompt = input.negativePrompt;
+  }
+  if (input.referenceUrls?.length) {
+    body.image = input.referenceUrls[0];
+    if (input.referenceUrls.length > 1) {
+      body.images = input.referenceUrls;
+    }
+  }
+
+  return body;
+}
+
+/**
+ * APIMart image body: aspect-ratio `size`, optional K-tier `resolution`, `image_urls`.
+ * Never send `width`/`height` — Flux Kontext and peers fail the async task if present.
+ * @see https://docs.apimart.ai/en/api-reference/images/flux-kontext/generation
+ */
+const APIMART_MODEL_ALIASES: Record<string, string> = {
+  "gpt-image-1": "gpt-image-1-official",
+  "gpt-image-1.5": "gpt-image-1.5-official",
+  "flux-2": "flux-2-pro",
+};
+
+function resolveApiMartModelId(model: string): string {
+  return APIMART_MODEL_ALIASES[model] ?? model;
+}
+
+function buildApiMartImageBody(
+  input: ImageGenerateInput,
+): Record<string, unknown> {
+  const model = resolveApiMartModelId(input.model);
+  const resolution = normalizeKTier(input.resolution);
+  const isGptImage = /^gpt-image/i.test(model);
+  const isGptImage1Family = /^gpt-image-1(\.5)?(-official)?$/i.test(model);
+  const isFluxKontext = /^flux-kontext/i.test(model);
+  // Official xAI async models reject `size`; use aspect_ratio + resolution.
+  const isGrokImagineXai = /^grok-imagine-image/i.test(model);
+
+  if (isGrokImagineXai) {
+    const ratio = input.ratio?.trim();
+    const aspectRatio =
+      ratio && FLEXIBLE_RATIO.has(ratio.toLowerCase())
+        ? "auto"
+        : ratio && /^\d+:\d+(\.\d+)?$/.test(ratio)
+          ? ratio
+          : resolveToApisAspectSize(input);
+
+    const body: Record<string, unknown> = {
+      model,
+      prompt: input.prompt,
+      n: input.n ?? 1,
+      aspect_ratio: aspectRatio,
+    };
+    if (resolution) body.resolution = resolution.toLowerCase();
+    if (input.referenceUrls?.length) {
+      body.image_urls = input.referenceUrls;
+    }
+    return body;
+  }
+
+  const size = resolveToApisAspectSize(input);
+  const body: Record<string, unknown> = {
+    model,
+    prompt: input.prompt,
+    n: input.n ?? 1,
+    size,
+  };
+
+  // GPT Image 1/1.5 use quality tiers, not K-resolution. Kontext ignores resolution.
+  // Seedream / Flux.2 / GPT Image 2 accept resolution when the UI sends it.
+  if (!isFluxKontext && !isGptImage1Family && resolution) {
+    body.resolution = isGptImage ? resolution.toLowerCase() : resolution;
+  }
+
+  if (input.negativePrompt) {
+    body.negative_prompt = input.negativePrompt;
+  }
+  if (input.referenceUrls?.length) {
+    body.image_urls = input.referenceUrls;
+  }
+
+  return body;
+}
+
+/**
  * OpenAI-compatible gateway used by APIMart / ToAPIs (and similar relays).
  */
 export class OpenAICompatibleImageProvider implements ImageProvider {
   constructor(readonly platform: string) {}
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
-    const size = resolveImageSize({
-      size: input.size,
-      width: input.width,
-      height: input.height,
-      ratio: input.ratio,
-      resolution: input.resolution,
-      catalogSizes: input.catalogSizes,
-      mode: input.sizeMode ?? "auto",
-      fallback: "1024x1024",
-    });
-
-    const body: Record<string, unknown> = {
-      model: input.model,
-      prompt: input.prompt,
-      n: input.n ?? 1,
-      size,
-      response_format: "url",
-      watermark: input.watermark ?? false,
-    };
-
-    if (input.ratio && !/^\d+x\d+$/i.test(size)) {
-      body.aspect_ratio = input.ratio;
-      body.ratio = input.ratio;
-    }
-
-    if (input.negativePrompt) {
-      body.negative_prompt = input.negativePrompt;
-    }
-    if (input.referenceUrls?.length) {
-      body.image = input.referenceUrls[0];
-      if (input.referenceUrls.length > 1) {
-        body.images = input.referenceUrls;
-      }
-    }
+    const body =
+      this.platform === ProviderPlatform.TOAPIS
+        ? buildToApisImageBody(input)
+        : this.platform === ProviderPlatform.APIMART
+          ? buildApiMartImageBody(input)
+          : buildOpenAICompatImageBody(input);
 
     const base = normalizeBase(input.baseUrl);
-    const { data } = await axios.post(`${base}/images/generations`, body, {
+    const path =
+      this.platform === ProviderPlatform.TOAPIS &&
+      isToApisImageEditModel(input.model)
+        ? `${base}/images/edits`
+        : `${base}/images/generations`;
+    const { data } = await axios.post(path, body, {
       headers: authHeaders(input.apiKey),
       timeout: 180_000,
       validateStatus: () => true,
@@ -224,6 +445,10 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
       `${params.baseUrl}/images/generations/${params.taskId}`,
       `${params.baseUrl}/images/tasks/${params.taskId}`,
     ];
+    const pollParams =
+      this.platform === ProviderPlatform.APIMART
+        ? { language: "zh" }
+        : undefined;
 
     for (let attempt = 0; attempt < 60; attempt++) {
       await sleep(2000);
@@ -232,13 +457,18 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
         try {
           const { data, status } = await axios.get(url, {
             headers: authHeaders(params.apiKey),
+            params: pollParams,
             timeout: 30_000,
             validateStatus: () => true,
           });
           if (status >= 400) continue;
 
           const st = readStatus(data);
-          if (FAILED_STATUSES.has(st) || (data as { error?: unknown })?.error) {
+          const payload = unwrapPayload(data);
+          const nestedError =
+            (payload as { error?: unknown }).error ??
+            (data as { error?: unknown })?.error;
+          if (FAILED_STATUSES.has(st) || nestedError) {
             throw new Error(
               formatProviderErrorBody(data, status, {
                 platform: this.platform,
@@ -258,19 +488,15 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
             return { images, raw: data };
           }
         } catch (e) {
+          // validateStatus never rejects — any Error here is a terminal
+          // business failure (failed task / missing URL). Do not swallow.
+          if (e instanceof Error) throw e;
           lastError = e;
-          if (
-            e instanceof Error &&
-            (e.message.includes("图片任务失败") ||
-              e.message.includes("未返回图片"))
-          ) {
-            throw e;
-          }
         }
       }
       if (attempt === 59 && lastError) throw lastError;
     }
-    throw new Error("Image task polling timed out");
+    throw new Error("图片任务轮询超时，请稍后重试");
   }
 }
 

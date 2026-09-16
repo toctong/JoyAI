@@ -85,7 +85,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
     const incoming = edges
       .filter((e) => e.target === node.id)
       .map((e) => nodes.find((n) => n.id === e.source))
-          .filter((n): n is CanvasNode => Boolean(n) && n.type === "image");
+      .filter((n): n is CanvasNode => n != null && n.type === "image");
     const edgeAssetIds = incoming
       .map((n) => String(n.data.assetId ?? ""))
       .filter(Boolean);

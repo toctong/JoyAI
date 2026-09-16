@@ -9,6 +9,7 @@ import {
   OpenAICompatibleVideoProvider,
 } from "./openai-compatible";
 import { DashscopeVideoProvider } from "./dashscope-video";
+import { DashscopeImageProvider } from "./dashscope-image";
 
 export * from "./types";
 export * from "./error-codes";
@@ -17,6 +18,7 @@ export * from "./image-size";
 export * from "./volcengine";
 export * from "./openai-compatible";
 export * from "./dashscope-video";
+export * from "./dashscope-image";
 
 const openaiImage = (platform: string) =>
   new OpenAICompatibleImageProvider(platform);
@@ -27,7 +29,7 @@ const imageProviders: Record<string, ImageProvider> = {
   [ProviderPlatform.VOLCENGINE]: new VolcengineImageProvider(),
   [ProviderPlatform.APIMART]: openaiImage(ProviderPlatform.APIMART),
   [ProviderPlatform.TOAPIS]: openaiImage(ProviderPlatform.TOAPIS),
-  [ProviderPlatform.DASHSCOPE]: openaiImage(ProviderPlatform.DASHSCOPE),
+  [ProviderPlatform.DASHSCOPE]: new DashscopeImageProvider(),
 };
 
 const videoProviders: Record<string, VideoProvider> = {

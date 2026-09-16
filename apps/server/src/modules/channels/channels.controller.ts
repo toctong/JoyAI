@@ -86,8 +86,12 @@ export class ChannelsController {
       metadata: Object.keys(metadata).length ? metadata : null,
     });
 
-    let catalog: { created: number; updated: number; skipped: number } | null =
-      null;
+    let catalog: {
+      created: number;
+      updated: number;
+      disabled: number;
+      skipped: number;
+    } | null = null;
     if (dto.importCatalog) {
       catalog = await this.models.importCatalog(channel.id);
     }

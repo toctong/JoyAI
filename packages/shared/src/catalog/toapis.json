@@ -947,7 +947,6 @@
         ],
         "resolutions": [
           "1K",
-          "1.5K",
           "2K"
         ],
         "minRefImageSidePx": 15,
@@ -1000,15 +999,31 @@
       "remoteId": "flux-2-pro",
       "capabilities": {
         "input": [
-          "text"
+          "text",
+          "image"
         ],
         "output": [
           "image"
         ],
+        "maxRefImages": 8,
         "features": [
-          "t2i"
+          "t2i",
+          "i2i"
         ],
-        "async": true
+        "async": true,
+        "ratios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "3:2",
+          "2:3"
+        ],
+        "resolutions": [
+          "1K",
+          "2K"
+        ]
       }
     },
     {
@@ -1016,15 +1031,31 @@
       "remoteId": "flux-2-flex",
       "capabilities": {
         "input": [
-          "text"
+          "text",
+          "image"
         ],
         "output": [
           "image"
         ],
+        "maxRefImages": 8,
         "features": [
-          "t2i"
+          "t2i",
+          "i2i"
         ],
-        "async": true
+        "async": true,
+        "ratios": [
+          "1:1",
+          "4:3",
+          "3:4",
+          "16:9",
+          "9:16",
+          "3:2",
+          "2:3"
+        ],
+        "resolutions": [
+          "1K",
+          "2K"
+        ]
       }
     },
     {
@@ -1057,80 +1088,6 @@
           "3:2",
           "2:3"
         ]
-      }
-    },
-    {
-      "name": "Wan 2.7 Image",
-      "remoteId": "wan2.7-image",
-      "capabilities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "image"
-        ],
-        "maxRefImages": 4,
-        "features": [
-          "t2i",
-          "i2i"
-        ],
-        "async": true,
-        "resolutions": [
-          "1K",
-          "2K",
-          "4K"
-        ],
-        "ratios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4"
-        ],
-        "minRefImageSidePx": 240,
-        "maxRefImageSidePx": 8000,
-        "maxRefImageBytes": 20971520,
-        "minRefImageAspect": 0.125,
-        "maxRefImageAspect": 8
-      }
-    },
-    {
-      "name": "Grok Imagine 1.0",
-      "remoteId": "grok-imagine-1.0",
-      "capabilities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "image"
-        ],
-        "maxRefImages": 3,
-        "features": [
-          "t2i",
-          "i2i"
-        ],
-        "async": true
-      }
-    },
-    {
-      "name": "Grok Imagine 1.0 Edit",
-      "remoteId": "grok-imagine-1.0-edit",
-      "capabilities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "image"
-        ],
-        "maxRefImages": 3,
-        "features": [
-          "i2i",
-          "edit"
-        ],
-        "async": true
       }
     }
   ],

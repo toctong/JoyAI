@@ -20,6 +20,8 @@ export type ImageGenerateInput = {
   model: string;
   apiKey: string;
   baseUrl: string;
+  /** Channel metadata (e.g. dashscopeApiBase) */
+  metadata?: Record<string, unknown> | null;
 };
 
 export type ImageGenerateResult = {

@@ -10,6 +10,7 @@ import { ImageProcessor } from "./processors/image.processor";
 import { VideoSubmitProcessor } from "./processors/video-submit.processor";
 import { VideoPollProcessor } from "./processors/video-poll.processor";
 import { AssetMirrorProcessor } from "./processors/asset-mirror.processor";
+import { JobTimeoutSweeper } from "./job-timeout.sweeper";
 import { ChannelsModule } from "../channels/channels.module";
 import { AssetsModule } from "../assets/assets.module";
 import { StorageModule } from "../storage/storage.module";
@@ -38,6 +39,7 @@ import { CanvasModule } from "../canvas/canvas.module";
     VideoSubmitProcessor,
     VideoPollProcessor,
     AssetMirrorProcessor,
+    JobTimeoutSweeper,
   ],
   exports: [JobsService],
 })
