@@ -1,30 +1,11 @@
 {
   "platform": "volcengine",
-  "updatedAt": "2026-03-26",
+  "updatedAt": "2026-09-16",
   "llm": [
-    {
-      "name": "Doubao Seed Evolving",
-      "remoteId": "doubao-seed-evolving",
-      "capabilities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "text"
-        ],
-        "features": [
-          "chat",
-          "vision",
-          "reasoning",
-          "long-context"
-        ]
-      },
-      "description": "豆包最新演进旗舰（目录）"
-    },
     {
       "name": "Doubao Seed 2.1 Pro",
       "remoteId": "doubao-seed-2-1-pro-260628",
+      "description": "旗舰推理 / 多模态",
       "capabilities": {
         "input": [
           "text",
@@ -39,12 +20,12 @@
           "reasoning",
           "long-context"
         ]
-      },
-      "description": "Seed 2.1 Pro，缓存命中约 ¥1.2/M 输入"
+      }
     },
     {
       "name": "Doubao Seed 2.1 Turbo",
       "remoteId": "doubao-seed-2-1-turbo-260628",
+      "description": "高吞吐生产档",
       "capabilities": {
         "input": [
           "text",
@@ -58,12 +39,29 @@
           "vision",
           "reasoning"
         ]
-      },
-      "description": "Seed 2.1 Turbo，缓存命中约 ¥0.6/M 输入"
+      }
+    },
+    {
+      "name": "Doubao Seed 2.0 Pro",
+      "remoteId": "doubao-seed-2-0-pro-260215",
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "text"
+        ],
+        "features": [
+          "chat",
+          "vision",
+          "reasoning"
+        ]
+      }
     },
     {
       "name": "Doubao Seed 2.0 Lite",
-      "remoteId": "doubao-seed-2-0-lite",
+      "remoteId": "doubao-seed-2-0-lite-260215",
       "capabilities": {
         "input": [
           "text",
@@ -80,7 +78,7 @@
     },
     {
       "name": "Doubao Seed 2.0 Mini",
-      "remoteId": "doubao-seed-2-0-mini",
+      "remoteId": "doubao-seed-2-0-mini-260215",
       "capabilities": {
         "input": [
           "text"
@@ -142,60 +140,13 @@
           "vision"
         ]
       }
-    },
-    {
-      "name": "DeepSeek V4 Pro (方舟)",
-      "remoteId": "deepseek-v4-pro",
-      "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "text"
-        ],
-        "features": [
-          "chat",
-          "reasoning"
-        ]
-      },
-      "description": "方舟托管 DeepSeek V4 Pro（目录）"
-    },
-    {
-      "name": "DeepSeek V4 Flash (方舟)",
-      "remoteId": "deepseek-v4-flash",
-      "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "text"
-        ],
-        "features": [
-          "chat"
-        ]
-      }
-    },
-    {
-      "name": "GLM-5.2 (方舟)",
-      "remoteId": "glm-5.2",
-      "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "text"
-        ],
-        "features": [
-          "chat",
-          "reasoning"
-        ]
-      }
     }
   ],
   "image": [
     {
       "name": "Seedream 5.0 Pro",
       "remoteId": "doubao-seedream-5-0-pro-260628",
+      "description": "旗舰生图；需在方舟开通 5.0 Pro",
       "capabilities": {
         "input": [
           "text",
@@ -218,21 +169,22 @@
           "2K"
         ],
         "ratios": [
+          "auto",
           "1:1",
           "16:9",
           "9:16",
           "4:3",
           "3:4",
           "3:2",
-          "2:3"
+          "2:3",
+          "21:9"
         ]
-      },
-      "description": "方舟旗舰生图，支持交互编辑 / 多参考图",
-      "isDefault": true
+      }
     },
     {
       "name": "Seedream 5.0 Lite",
-      "remoteId": "doubao-seedream-5-0-lite-260628",
+      "remoteId": "doubao-seedream-5-0-lite-260128",
+      "description": "Lite（别名 doubao-seedream-5-0-260128）；支持联网搜索",
       "capabilities": {
         "input": [
           "text",
@@ -241,15 +193,18 @@
         "output": [
           "image"
         ],
-        "maxRefImages": 4,
+        "maxRefImages": 14,
         "features": [
           "t2i",
-          "i2i"
+          "i2i",
+          "web-search",
+          "sequential"
         ],
         "async": false,
         "resolutions": [
           "2K",
-          "3K"
+          "3K",
+          "4K"
         ],
         "ratios": [
           "1:1",
@@ -258,14 +213,16 @@
           "4:3",
           "3:4",
           "3:2",
-          "2:3"
+          "2:3",
+          "21:9",
+          "auto"
         ]
-      },
-      "description": "Seedream 5.0 轻量版"
+      }
     },
     {
       "name": "Seedream 4.5",
       "remoteId": "doubao-seedream-4-5-251128",
+      "description": "4K / 多参考；兼容面广",
       "capabilities": {
         "input": [
           "text",
@@ -274,29 +231,35 @@
         "output": [
           "image"
         ],
-        "maxRefImages": 4,
+        "maxRefImages": 14,
         "features": [
           "t2i",
-          "i2i"
+          "i2i",
+          "sequential"
         ],
         "async": false,
         "resolutions": [
-          "2K"
+          "2K",
+          "4K"
         ],
         "ratios": [
+          "auto",
           "1:1",
           "16:9",
           "9:16",
           "4:3",
           "3:4",
           "3:2",
-          "2:3"
+          "2:3",
+          "21:9"
         ]
       }
     },
     {
       "name": "Seedream 4.0",
       "remoteId": "doubao-seedream-4-0-250828",
+      "description": "稳定常用档，多数账号已开通",
+      "isDefault": true,
       "capabilities": {
         "input": [
           "text",
@@ -305,56 +268,28 @@
         "output": [
           "image"
         ],
-        "maxRefImages": 1,
+        "maxRefImages": 14,
         "features": [
           "t2i",
           "i2i",
-          "outpaint",
-          "inpaint"
+          "sequential"
         ],
         "async": false,
         "resolutions": [
-          "1024x1024",
-          "2048x2048",
-          "2K"
+          "1K",
+          "2K",
+          "4K"
         ],
         "ratios": [
+          "auto",
           "1:1",
           "16:9",
           "9:16",
           "4:3",
           "3:4",
           "3:2",
-          "2:3"
-        ]
-      }
-    },
-    {
-      "name": "Seedream 3.0",
-      "remoteId": "doubao-seedream-3-0-t2i-250415",
-      "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "image"
-        ],
-        "features": [
-          "t2i"
-        ],
-        "async": false,
-        "resolutions": [
-          "1024x1024",
-          "2048x2048"
-        ],
-        "ratios": [
-          "1:1",
-          "16:9",
-          "9:16",
-          "4:3",
-          "3:4",
-          "3:2",
-          "2:3"
+          "2:3",
+          "21:9"
         ]
       }
     }
@@ -363,6 +298,8 @@
     {
       "name": "Seedance 2.5",
       "remoteId": "doubao-seedance-2-5-260628",
+      "description": "30 秒超长叙事，全模态参考扩容",
+      "isDefault": true,
       "capabilities": {
         "input": [
           "text",
@@ -372,6 +309,8 @@
           "video"
         ],
         "maxRefImages": 9,
+        "maxRefVideos": 1,
+        "maxRefAudios": 1,
         "async": true,
         "features": [
           "t2v",
@@ -380,12 +319,11 @@
           "audio",
           "reference-video"
         ],
-        "maxDurationSec": 15,
+        "maxDurationSec": 30,
         "resolutions": [
           "480p",
           "720p",
-          "1080p",
-          "4k"
+          "1080p"
         ],
         "ratios": [
           "16:9",
@@ -393,17 +331,15 @@
           "1:1",
           "4:3",
           "3:4",
-          "21:9"
-        ],
-        "maxRefVideos": 1,
-        "maxRefAudios": 1
-      },
-      "description": "最新 Seedance；官方按 token，控制台可看秒级估算",
-      "isDefault": true
+          "21:9",
+          "adaptive"
+        ]
+      }
     },
     {
       "name": "Seedance 2.0",
       "remoteId": "doubao-seedance-2-0-260128",
+      "description": "超强的参考一致性，极致拟真的视听稳定性",
       "capabilities": {
         "input": [
           "text",
@@ -413,6 +349,8 @@
           "video"
         ],
         "maxRefImages": 9,
+        "maxRefVideos": 1,
+        "maxRefAudios": 1,
         "async": true,
         "features": [
           "t2v",
@@ -434,52 +372,15 @@
           "1:1",
           "4:3",
           "3:4",
-          "21:9"
-        ],
-        "maxRefVideos": 1,
-        "maxRefAudios": 1
-      },
-      "description": "Seedance 2.0 标准（最高 4K）"
-    },
-    {
-      "name": "Seedance 2.0 Fast",
-      "remoteId": "doubao-seedance-2-0-fast-260128",
-      "capabilities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "video"
-        ],
-        "maxRefImages": 4,
-        "async": true,
-        "features": [
-          "t2v",
-          "i2v",
-          "audio"
-        ],
-        "maxDurationSec": 15,
-        "resolutions": [
-          "480p",
-          "720p"
-        ],
-        "maxRefVideos": 0,
-        "maxRefAudios": 1,
-        "ratios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4",
-          "21:9"
+          "21:9",
+          "adaptive"
         ]
-      },
-      "description": "Seedance 2.0 快速档"
+      }
     },
     {
       "name": "Seedance 2.0 Mini",
       "remoteId": "doubao-seedance-2-0-mini-260615",
+      "description": "音视图文参考，高性价比",
       "capabilities": {
         "input": [
           "text",
@@ -489,50 +390,20 @@
           "video"
         ],
         "maxRefImages": 4,
-        "async": true,
-        "features": [
-          "t2v",
-          "i2v"
-        ],
-        "maxDurationSec": 12,
-        "resolutions": [
-          "480p",
-          "720p"
-        ],
-        "maxRefVideos": 0,
-        "maxRefAudios": 0,
-        "ratios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4",
-          "21:9"
-        ]
-      }
-    },
-    {
-      "name": "Seedance 1.5 Pro",
-      "remoteId": "doubao-seedance-1-5-pro-251015",
-      "capabilities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "video"
-        ],
-        "maxRefImages": 1,
+        "maxRefVideos": 1,
+        "maxRefAudios": 1,
         "async": true,
         "features": [
           "t2v",
           "i2v",
-          "audio"
+          "r2v",
+          "audio",
+          "reference-video"
         ],
         "maxDurationSec": 15,
         "resolutions": [
-          "720p",
-          "1080p"
+          "480p",
+          "720p"
         ],
         "ratios": [
           "16:9",
@@ -540,13 +411,15 @@
           "1:1",
           "4:3",
           "3:4",
-          "21:9"
+          "21:9",
+          "adaptive"
         ]
       }
     },
     {
-      "name": "Seedance 1.0 Pro",
-      "remoteId": "doubao-seedance-1-0-pro-250528",
+      "name": "Seedance 2.0 Fast",
+      "remoteId": "doubao-seedance-2-0-fast-260128",
+      "description": "音视图文参考，更快，继承 2.0 核心优势",
       "capabilities": {
         "input": [
           "text",
@@ -555,40 +428,18 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 1,
+        "maxRefImages": 4,
+        "maxRefVideos": 1,
+        "maxRefAudios": 1,
         "async": true,
         "features": [
           "t2v",
-          "i2v"
+          "i2v",
+          "r2v",
+          "audio",
+          "reference-video"
         ],
-        "maxDurationSec": 12,
-        "resolutions": [
-          "480p",
-          "720p",
-          "1080p"
-        ],
-        "ratios": [
-          "16:9",
-          "9:16",
-          "1:1"
-        ]
-      }
-    },
-    {
-      "name": "Seedance 1.0 Lite",
-      "remoteId": "doubao-seedance-1-0-lite-t2v-250428",
-      "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "video"
-        ],
-        "async": true,
-        "features": [
-          "t2v"
-        ],
-        "maxDurationSec": 10,
+        "maxDurationSec": 15,
         "resolutions": [
           "480p",
           "720p"
@@ -596,9 +447,14 @@
         "ratios": [
           "16:9",
           "9:16",
-          "1:1"
+          "1:1",
+          "4:3",
+          "3:4",
+          "21:9",
+          "adaptive"
         ]
       }
     }
-  ]
+  ],
+  "note": "火山豆包视频仅保留 Seedance 2.5 / 2.0 / 2.0 Mini / 2.0 Fast。NotFound 多为方舟未开通该模型，不是 remoteId 写错。"
 }

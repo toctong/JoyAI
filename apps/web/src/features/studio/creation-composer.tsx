@@ -23,6 +23,7 @@ import { toast } from "@/shared/lib/toast";
 import { api, apiUpload } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { BrandAvatar } from "@/components/admin/brand-avatar";
+import type { ModelCapabilities } from "@joyai/shared";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,16 +38,13 @@ import {
 import { SLASH_COMMANDS } from "@/features/ai-prompt/slash-items";
 import { cn } from "@/shared/lib/utils";
 import { ComposerRipple } from "./composer-ripple";
+import {
+  durationsFromCapabilities,
+  formatQualityLabel,
+  layoutControlsFromCapabilities,
+  resolveResolutionOption,
+} from "./model-options";
 import "./creation-composer.css";
-const ASPECTS = [
-  { id: "1:1", label: "1:1", width: 1024, height: 1024 },
-  { id: "16:9", label: "16:9", width: 1280, height: 720 },
-  { id: "9:16", label: "9:16", width: 720, height: 1280 },
-  { id: "4:3", label: "4:3", width: 1024, height: 768 },
-  { id: "3:4", label: "3:4", width: 768, height: 1024 },
-] as const;
-
-const VIDEO_DURATIONS = [4, 5, 8, 10] as const;
 
 const REF_MODES = [
   { id: "omni", label: "全能参考" },
@@ -55,14 +53,13 @@ const REF_MODES = [
 ] as const;
 
 type RefMode = (typeof REF_MODES)[number]["id"];
-type ImageQuality = "1k" | "2k";
-type VideoQuality = "720p" | "1080p";
 
 type PublicModel = {
   id: string;
   name: string;
   kind: "image" | "video";
   remoteId?: string;
+  capabilities?: ModelCapabilities | null;
   channel?: {
     platform?: string;
     name?: string;
@@ -86,8 +83,9 @@ const COMPOSER_KIND_KEY_LEGACY = "joyai.studio.composer.kind";
 type KindPrefs = {
   modelId?: string;
   aspect?: string;
-  imageQuality?: ImageQuality;
-  videoQuality?: VideoQuality;
+  imageQuality?: string;
+  videoQuality?: string;
+  pixelSize?: string;
   n?: number;
   duration?: number;
   refMode?: RefMode;
@@ -139,16 +137,42 @@ function patchPrefs(patch: {
   });
 }
 
-function isAspectId(v: string | undefined): v is (typeof ASPECTS)[number]["id"] {
-  return ASPECTS.some((a) => a.id === v);
-}
-
-function isDuration(v: number | undefined): v is (typeof VIDEO_DURATIONS)[number] {
-  return VIDEO_DURATIONS.some((d) => d === v);
-}
-
 function isRefMode(v: string | undefined): v is RefMode {
   return REF_MODES.some((m) => m.id === v);
+}
+
+function pickAspect(
+  options: AspectOption[],
+  preferred: string | undefined,
+  kind: "image" | "video",
+) {
+  if (preferred && options.some((a) => a.id === preferred)) return preferred;
+  const flexible = options.find((a) => a.flexible);
+  if (flexible) return flexible.id;
+  const prefer =
+    kind === "video"
+      ? options.find((a) => a.id === "16:9")
+      : options.find((a) => a.id === "1:1");
+  return prefer?.id ?? options[0]?.id ?? (kind === "video" ? "16:9" : "1:1");
+}
+
+function pickResolution(
+  options: { id: string }[],
+  preferred: string | undefined,
+  kind: "image" | "video",
+) {
+  if (preferred && options.some((r) => r.id === preferred)) return preferred;
+  const prefer =
+    kind === "image"
+      ? options.find((r) => /2k/i.test(r.id)) ??
+        options.find((r) => /2/i.test(r.id))
+      : options.find((r) => /720p/i.test(r.id));
+  return prefer?.id ?? options[0]?.id ?? (kind === "image" ? "2K" : "720p");
+}
+
+function pickDuration(options: number[], preferred: number | undefined) {
+  if (preferred != null && options.includes(preferred)) return preferred;
+  return options.includes(5) ? 5 : (options[0] ?? 4);
 }
 
 function initialComposerKind(searchType: string | null): "image" | "video" {
@@ -202,9 +226,10 @@ export function CreationComposer({
   const [n, setN] = useState(() =>
     initialComposerKind(search.get("type")) === "video" ? 1 : 2,
   );
-  const [imageQuality, setImageQuality] = useState<ImageQuality>("2k");
-  const [videoQuality, setVideoQuality] = useState<VideoQuality>("720p");
-  const [duration, setDuration] = useState<(typeof VIDEO_DURATIONS)[number]>(4);
+  const [imageQuality, setImageQuality] = useState("2K");
+  const [videoQuality, setVideoQuality] = useState("720p");
+  const [pixelSize, setPixelSize] = useState("");
+  const [duration, setDuration] = useState(5);
   const [refMode, setRefMode] = useState<RefMode>("omni");
   const [models, setModels] = useState<PublicModel[]>([]);
   const [modelId, setModelId] = useState("");
@@ -221,19 +246,78 @@ export function CreationComposer({
     [models, kind],
   );
   const selectedModel = kindModels.find((m) => m.id === modelId);
+  const caps = selectedModel?.capabilities ?? null;
+
+  const layout = useMemo(
+    () => layoutControlsFromCapabilities(caps, kind),
+    [caps, kind],
+  );
+  const aspectOptions = layout.aspects;
+  const resolutionOptions = layout.resolutions;
+  const sizeOptions = layout.sizes;
+  const durationOptions = useMemo(
+    () => durationsFromCapabilities(caps),
+    [caps],
+  );
+  const maxRefImages = caps?.maxRefImages;
+
+  const selectedAspect =
+    aspectOptions.find((a) => a.id === aspect) ?? aspectOptions[0];
+  const selectedResolution =
+    resolutionOptions.find((r) =>
+      kind === "image" ? r.id === imageQuality : r.id === videoQuality,
+    ) ?? resolutionOptions[0];
+  const selectedSize =
+    sizeOptions.find((s) => s.id === pixelSize) ?? sizeOptions[0];
+
   const selectedBrand = selectedModel
     ? modelBrandMeta(selectedModel)
     : { icon: null as string | null, channel: null as string | null };
   const refModeLabel =
     REF_MODES.find((m) => m.id === refMode)?.label ?? "全能参考";
-  const qualityLabel =
-    kind === "image"
-      ? imageQuality === "2k"
-        ? "2K"
-        : "1K"
-      : videoQuality === "1080p"
-        ? "1080P"
-        : "720P";
+  const qualityLabel = selectedResolution
+    ? formatQualityLabel(selectedResolution, kind)
+    : kind === "image"
+      ? "2K"
+      : "720P";
+  const layoutChipLabel = layout.showRatio
+    ? (selectedAspect?.label ?? aspect)
+    : layout.showSizePicker
+      ? (selectedSize?.label ?? pixelSize || "尺寸")
+      : qualityLabel;
+
+  // Clamp params when model / catalog options change
+  useEffect(() => {
+    if (!layout.showRatio || !aspectOptions.length) return;
+    setAspect((prev) => pickAspect(aspectOptions, prev, kind));
+  }, [layout.showRatio, aspectOptions, kind]);
+
+  useEffect(() => {
+    if (!layout.showResolution || !resolutionOptions.length) return;
+    if (kind === "image") {
+      setImageQuality((prev) =>
+        pickResolution(resolutionOptions, prev, "image"),
+      );
+    } else {
+      setVideoQuality((prev) =>
+        pickResolution(resolutionOptions, prev, "video"),
+      );
+    }
+  }, [layout.showResolution, resolutionOptions, kind]);
+
+  useEffect(() => {
+    if (!layout.showSizePicker || !sizeOptions.length) return;
+    setPixelSize((prev) =>
+      prev && sizeOptions.some((s) => s.id === prev)
+        ? prev
+        : (sizeOptions[0]?.id ?? ""),
+    );
+  }, [layout.showSizePicker, sizeOptions]);
+
+  useEffect(() => {
+    if (kind !== "video" || !durationOptions.length) return;
+    setDuration((prev) => pickDuration(durationOptions, prev));
+  }, [durationOptions, kind]);
 
   const mentionItems = useMemo(
     () =>
@@ -253,19 +337,48 @@ export function CreationComposer({
 
   function applyKindPrefs(next: "image" | "video", kp: KindPrefs = {}) {
     setKind(next);
-    if (next === "video") {
-      setAspect(isAspectId(kp.aspect) ? kp.aspect : "16:9");
-      setN(typeof kp.n === "number" && kp.n >= 1 && kp.n <= 4 ? kp.n : 1);
-      setVideoQuality(kp.videoQuality === "1080p" ? "1080p" : "720p");
-      setDuration(isDuration(kp.duration) ? kp.duration : 4);
-      setRefMode(isRefMode(kp.refMode) ? kp.refMode : "omni");
-      if (kp.modelId) setModelId(kp.modelId);
-    } else {
-      setAspect(isAspectId(kp.aspect) ? kp.aspect : "1:1");
-      setN(typeof kp.n === "number" && kp.n >= 1 && kp.n <= 4 ? kp.n : 2);
-      setImageQuality(kp.imageQuality === "1k" ? "1k" : "2k");
-      if (kp.modelId) setModelId(kp.modelId);
+    const nextCaps =
+      models.find((m) => m.id === (kp.modelId ?? modelId) && m.kind === next)
+        ?.capabilities ??
+      models.find((m) => m.kind === next)?.capabilities ??
+      null;
+    const nextLayout = layoutControlsFromCapabilities(nextCaps, next);
+    const nextDurations = durationsFromCapabilities(nextCaps);
+
+    if (nextLayout.showRatio) {
+      setAspect(pickAspect(nextLayout.aspects, kp.aspect, next));
     }
+    if (nextLayout.showResolution) {
+      if (next === "video") {
+        setVideoQuality(
+          pickResolution(nextLayout.resolutions, kp.videoQuality, "video"),
+        );
+      } else {
+        setImageQuality(
+          pickResolution(nextLayout.resolutions, kp.imageQuality, "image"),
+        );
+      }
+    }
+    if (nextLayout.showSizePicker) {
+      const preferred = kp.pixelSize;
+      setPixelSize(
+        preferred && nextLayout.sizes.some((s) => s.id === preferred)
+          ? preferred
+          : (nextLayout.sizes[0]?.id ?? ""),
+      );
+    }
+    setN(
+      typeof kp.n === "number" && kp.n >= 1 && kp.n <= 4
+        ? kp.n
+        : next === "video"
+          ? 1
+          : 2,
+    );
+    if (next === "video") {
+      setDuration(pickDuration(nextDurations, kp.duration));
+      setRefMode(isRefMode(kp.refMode) ? kp.refMode : "omni");
+    }
+    if (kp.modelId) setModelId(kp.modelId);
   }
 
   function applyKind(next: "image" | "video") {
@@ -323,11 +436,16 @@ export function CreationComposer({
     if (!prefsHydrated) return;
     const slice: KindPrefs = {
       modelId: modelId || undefined,
-      aspect,
+      aspect: layout.showRatio ? aspect : undefined,
+      pixelSize: layout.showSizePicker ? pixelSize : undefined,
       n,
       ...(kind === "image"
-        ? { imageQuality }
-        : { videoQuality, duration, refMode }),
+        ? { imageQuality: layout.showResolution ? imageQuality : undefined }
+        : {
+            videoQuality: layout.showResolution ? videoQuality : undefined,
+            duration,
+            refMode,
+          }),
     };
     patchPrefs({
       kind,
@@ -338,11 +456,15 @@ export function CreationComposer({
     kind,
     modelId,
     aspect,
+    pixelSize,
     n,
     imageQuality,
     videoQuality,
     duration,
     refMode,
+    layout.showRatio,
+    layout.showSizePicker,
+    layout.showResolution,
   ]);
 
   useEffect(() => {
@@ -357,17 +479,33 @@ export function CreationComposer({
     return () => window.clearTimeout(t);
   }, [search, initialPrompt, promptSeed]);
 
-  const onDrop = useCallback(async (files: File[]) => {
-    try {
-      for (const file of files) {
-        const asset = await apiUpload<UploadedRef>("/upload", file);
-        setRefs((prev) => [...prev, { id: asset.id, url: asset.url }]);
+  const onDrop = useCallback(
+    async (files: File[]) => {
+      try {
+        const limit = maxRefImages;
+        let accepted = files;
+        if (typeof limit === "number" && limit > 0) {
+          const room = Math.max(0, limit - refs.length);
+          if (room <= 0) {
+            toast.error(`当前模型最多 ${limit} 张参考图`);
+            return;
+          }
+          if (files.length > room) {
+            toast.message(`当前模型最多 ${limit} 张参考图，已截取前 ${room} 张`);
+            accepted = files.slice(0, room);
+          }
+        }
+        for (const file of accepted) {
+          const asset = await apiUpload<UploadedRef>("/upload", file);
+          setRefs((prev) => [...prev, { id: asset.id, url: asset.url }]);
+        }
+        toast.success("参考图已上传");
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "上传失败");
       }
-      toast.success("参考图已上传");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "上传失败");
-    }
-  }, []);
+    },
+    [maxRefImages, refs.length],
+  );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: (files) => void onDrop(files),
@@ -407,39 +545,52 @@ export function CreationComposer({
       const referenceAssetIds = Array.from(
         new Set([...refs.map((r) => r.id), ...payload.assetIds]),
       );
-      const preset = ASPECTS.find((a) => a.id === aspect) ?? ASPECTS[0];
-      // ASPECTS ≈ 1K pixels; 2K doubles. Avoid sub-1K sizes (Seedream rejects < ~921600 px).
-      const scale = imageQuality === "2k" ? 2 : 1;
+      const resolutionOpt = layout.showResolution
+        ? (selectedResolution ??
+          layout.resolutions[0] ??
+          resolveResolutionOption(kind === "image" ? "2K" : "720p"))
+        : null;
+
       if (kind === "image") {
+        const input: Record<string, unknown> = {
+          prompt: promptText,
+          n,
+          modelId: modelId || undefined,
+          referenceAssetIds,
+          referenceUrls: payload.imageUrls,
+        };
+        if (layout.showRatio && selectedAspect) {
+          input.ratio = selectedAspect.id;
+        }
+        if (resolutionOpt) {
+          input.resolution = resolutionOpt.id;
+        }
+        if (layout.showSizePicker && selectedSize) {
+          input.size = selectedSize.id;
+          input.width = selectedSize.width;
+          input.height = selectedSize.height;
+        }
         await api("/jobs", {
           method: "POST",
-          body: {
-            kind: "image",
-            input: {
-              prompt: promptText,
-              width: Math.round(preset.width * scale),
-              height: Math.round(preset.height * scale),
-              n,
-              modelId: modelId || undefined,
-              referenceAssetIds,
-              referenceUrls: payload.imageUrls,
-            },
-          },
+          body: { kind: "image", input },
         });
       } else {
+        const input: Record<string, unknown> = {
+          prompt: promptText,
+          duration,
+          modelId: modelId || undefined,
+          referenceAssetIds,
+          referenceUrls: [...payload.imageUrls, ...payload.videoUrls],
+        };
+        if (layout.showRatio && selectedAspect) {
+          input.ratio = selectedAspect.id;
+        }
+        if (resolutionOpt) {
+          input.resolution = resolutionOpt.id;
+        }
         await api("/jobs", {
           method: "POST",
-          body: {
-            kind: "video",
-            input: {
-              prompt: promptText,
-              ratio: aspect,
-              duration,
-              modelId: modelId || undefined,
-              referenceAssetIds,
-              referenceUrls: [...payload.imageUrls, ...payload.videoUrls],
-            },
-          },
+          body: { kind: "video", input },
         });
       }
       toast.success("任务已提交");
@@ -651,22 +802,35 @@ export function CreationComposer({
 
             <DropdownMenu open={paramsOpen} onOpenChange={setParamsOpen}>
               <div className="joy-chip-params-group">
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="joy-chip">
-                    <RectangleHorizontal className="h-3.5 w-3.5 opacity-70" />
-                    <span>{aspect}</span>
+                {layout.showRatio || layout.showSizePicker ? (
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" className="joy-chip">
+                      <RectangleHorizontal className="h-3.5 w-3.5 opacity-70" />
+                      <span>{layoutChipLabel}</span>
+                    </button>
+                  </DropdownMenuTrigger>
+                ) : null}
+                {layout.showResolution ? (
+                  <button
+                    type="button"
+                    className="joy-chip"
+                    onClick={() => setParamsOpen(true)}
+                  >
+                    <span className="joy-chip-params-quality">
+                      {kind === "image" ? `高清${qualityLabel}` : qualityLabel}
+                      <Sparkles className="joy-chip-sparkle h-3 w-3" />
+                    </span>
                   </button>
-                </DropdownMenuTrigger>
-                <button
-                  type="button"
-                  className="joy-chip"
-                  onClick={() => setParamsOpen(true)}
-                >
-                  <span className="joy-chip-params-quality">
-                    {kind === "image" ? `高清${qualityLabel}` : qualityLabel}
-                    <Sparkles className="joy-chip-sparkle h-3 w-3" />
-                  </span>
-                </button>
+                ) : layout.showRatio || layout.showSizePicker ? null : (
+                  <DropdownMenuTrigger asChild>
+                    <button type="button" className="joy-chip">
+                      <span className="joy-chip-params-quality">
+                        参数
+                        <Sparkles className="joy-chip-sparkle h-3 w-3" />
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
+                )}
                 {kind === "image" ? (
                   <button
                     type="button"
@@ -679,66 +843,71 @@ export function CreationComposer({
               </div>
               <DropdownMenuContent align="start" className="p-3">
                 <div className="joy-composer-params-panel">
-                  <div className="joy-composer-params-row">
-                    <span className="joy-composer-params-label">比例</span>
-                    <div className="joy-composer-params-options">
-                      {ASPECTS.map((a) => (
-                        <button
-                          key={a.id}
-                          type="button"
-                          className={cn(
-                            "joy-composer-params-option",
-                            aspect === a.id && "is-on",
-                          )}
-                          onClick={() => setAspect(a.id)}
-                        >
-                          {a.label}
-                        </button>
-                      ))}
+                  {layout.showRatio ? (
+                    <div className="joy-composer-params-row">
+                      <span className="joy-composer-params-label">比例</span>
+                      <div className="joy-composer-params-options">
+                        {aspectOptions.map((a) => (
+                          <button
+                            key={a.id}
+                            type="button"
+                            className={cn(
+                              "joy-composer-params-option",
+                              aspect === a.id && "is-on",
+                            )}
+                            onClick={() => setAspect(a.id)}
+                          >
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                  <div className="joy-composer-params-row">
-                    <span className="joy-composer-params-label">清晰度</span>
-                    <div className="joy-composer-params-options">
-                      {kind === "image"
-                        ? (
-                            [
-                              ["2k", "2K"],
-                              ["1k", "1K"],
-                            ] as const
-                          ).map(([id, label]) => (
-                            <button
-                              key={id}
-                              type="button"
-                              className={cn(
-                                "joy-composer-params-option",
-                                imageQuality === id && "is-on",
-                              )}
-                              onClick={() => setImageQuality(id)}
-                            >
-                              {label}
-                            </button>
-                          ))
-                        : (
-                            [
-                              ["720p", "720P"],
-                              ["1080p", "1080P"],
-                            ] as const
-                          ).map(([id, label]) => (
-                            <button
-                              key={id}
-                              type="button"
-                              className={cn(
-                                "joy-composer-params-option",
-                                videoQuality === id && "is-on",
-                              )}
-                              onClick={() => setVideoQuality(id)}
-                            >
-                              {label}
-                            </button>
-                          ))}
+                  ) : null}
+                  {layout.showSizePicker ? (
+                    <div className="joy-composer-params-row">
+                      <span className="joy-composer-params-label">尺寸</span>
+                      <div className="joy-composer-params-options">
+                        {sizeOptions.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            className={cn(
+                              "joy-composer-params-option",
+                              pixelSize === s.id && "is-on",
+                            )}
+                            onClick={() => setPixelSize(s.id)}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
+                  {layout.showResolution ? (
+                    <div className="joy-composer-params-row">
+                      <span className="joy-composer-params-label">清晰度</span>
+                      <div className="joy-composer-params-options">
+                        {resolutionOptions.map((r) => (
+                          <button
+                            key={r.id}
+                            type="button"
+                            className={cn(
+                              "joy-composer-params-option",
+                              (kind === "image"
+                                ? imageQuality === r.id
+                                : videoQuality === r.id) && "is-on",
+                            )}
+                            onClick={() => {
+                              if (kind === "image") setImageQuality(r.id);
+                              else setVideoQuality(r.id);
+                            }}
+                          >
+                            {formatQualityLabel(r, kind)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="joy-composer-params-row">
                     <span className="joy-composer-params-label">数量</span>
                     <div className="joy-composer-params-options">
@@ -762,7 +931,7 @@ export function CreationComposer({
                     <div className="joy-composer-params-row">
                       <span className="joy-composer-params-label">时长</span>
                       <div className="joy-composer-params-options">
-                        {[5, 10].map((sec) => (
+                        {durationOptions.map((sec) => (
                           <button
                             key={sec}
                             type="button"
@@ -791,7 +960,7 @@ export function CreationComposer({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  {VIDEO_DURATIONS.map((d) => (
+                  {durationOptions.map((d) => (
                     <DropdownMenuItem key={d} onClick={() => setDuration(d)}>
                       {d} 秒
                     </DropdownMenuItem>
@@ -860,4 +1029,4 @@ export function CreationComposer({
   );
 }
 
-export { ASPECTS };
+export { DEFAULT_ASPECTS as ASPECTS } from "./model-options";

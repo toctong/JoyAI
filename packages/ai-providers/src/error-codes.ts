@@ -76,7 +76,8 @@ const VOLCENGINE_CODES: Record<string, string> = {
   ModelAccountRpmRateLimitExceeded: "账号模型 RPM 超限，请稍后重试",
   ModelAccountTpmRateLimitExceeded: "账号模型 TPM 超限，请稍后重试",
   InvalidEndpointOrModel: "模型或接入点不存在",
-  "InvalidEndpointOrModel.NotFound": "模型或接入点不存在",
+  "InvalidEndpointOrModel.NotFound":
+    "模型或接入点不存在（请到火山方舟「开通管理」启用该模型，或创建对应推理接入点）",
   SensitiveContentDetected: "内容未通过安全审核",
   OutputImageSensitiveContentDetected: "生成图片未通过安全审核",
   InvalidImageSize: "图片尺寸不符合模型要求",

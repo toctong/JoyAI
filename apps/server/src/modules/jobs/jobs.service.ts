@@ -96,7 +96,9 @@ export class JobsService {
       await Promise.race([
         queue.waitUntilReady().then(async () => {
           const client = await queue.client;
-          const pong = await client.ping();
+          const pong = await (
+            client as unknown as { ping: () => Promise<string> }
+          ).ping();
           if (pong !== "PONG" && pong !== "pong") {
             throw new Error("Redis ping failed");
           }
@@ -244,12 +246,17 @@ export class JobsService {
       const ms = value instanceof Date ? value.getTime() : Date.parse(String(value));
       return Number.isFinite(ms) ? ms : null;
     };
+    const terminal =
+      job.status === "succeeded" ||
+      job.status === "failed" ||
+      job.status === "cancelled";
+    // In-flight jobs: leave duration unset so the client can tick from 0.
+    if (!terminal) {
+      return { ...job, durationMs: null as number | null };
+    }
     const start = toMs(job.startedAt) ?? toMs(job.createdAt) ?? Date.now();
-    const terminal = job.status === "succeeded" || job.status === "failed";
     const end =
-      toMs(job.finishedAt) ??
-      (terminal ? toMs(job.updatedAt) : null) ??
-      Date.now();
+      toMs(job.finishedAt) ?? toMs(job.updatedAt) ?? Date.now();
     const durationMs = Math.max(0, end - start);
     return { ...job, durationMs };
   }

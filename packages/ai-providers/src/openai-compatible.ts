@@ -8,6 +8,7 @@ import type {
   VideoSubmitInput,
 } from "./types";
 import { formatProviderErrorBody } from "./http-error";
+import { resolveImageSize } from "./image-size";
 
 function authHeaders(apiKey: string) {
   return {
@@ -141,11 +142,16 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
   constructor(readonly platform: string) {}
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
-    const size =
-      input.size ??
-      (input.width && input.height
-        ? `${input.width}x${input.height}`
-        : "1024x1024");
+    const size = resolveImageSize({
+      size: input.size,
+      width: input.width,
+      height: input.height,
+      ratio: input.ratio,
+      resolution: input.resolution,
+      catalogSizes: input.catalogSizes,
+      mode: input.sizeMode ?? "auto",
+      fallback: "1024x1024",
+    });
 
     const body: Record<string, unknown> = {
       model: input.model,
@@ -155,6 +161,11 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
       response_format: "url",
       watermark: input.watermark ?? false,
     };
+
+    if (input.ratio && !/^\d+x\d+$/i.test(size)) {
+      body.aspect_ratio = input.ratio;
+      body.ratio = input.ratio;
+    }
 
     if (input.negativePrompt) {
       body.negative_prompt = input.negativePrompt;
@@ -328,6 +339,7 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
       prompt: input.prompt,
     };
     if (input.duration) body.duration = input.duration;
+    if (input.resolution) body.resolution = input.resolution;
     if (input.ratio) {
       body.ratio = input.ratio;
       body.aspect_ratio = input.ratio;

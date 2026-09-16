@@ -11,6 +11,9 @@ import {
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsObject,
@@ -116,6 +119,14 @@ class ImportCatalogDto {
   forceRename?: boolean;
 }
 
+class BatchDeleteModelsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  ids!: string[];
+}
+
 @ApiTags("models")
 @Controller()
 export class ModelsController {
@@ -158,6 +169,14 @@ export class ModelsController {
   @Patch("admin/models/:id")
   update(@Param("id") id: string, @Body() dto: UpdateModelDto) {
     return this.models.update(id, dto as Parameters<ModelsService["update"]>[1]);
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post("admin/models/batch-delete")
+  removeMany(@Body() dto: BatchDeleteModelsDto) {
+    return this.models.removeMany(dto.ids);
   }
 
   @ApiBearerAuth()

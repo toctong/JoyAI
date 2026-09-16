@@ -12,6 +12,7 @@ import { api } from "@/shared/lib/api";
 import { buildAdminQuery } from "@/shared/lib/admin-query";
 import { useAdminViewMode } from "@/shared/lib/use-admin-view-mode";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -177,6 +178,7 @@ export default function ModelsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Model | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { viewMode, setViewMode } = useAdminViewMode("joyai.admin.models.view");
 
   const form = useForm<FormValues>({
@@ -265,10 +267,43 @@ export default function ModelsPage() {
     void loadModels();
   }, [loadModels]);
 
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [keyword, kindFilter, enabledFilter, channelFilter]);
+
   function resetPageAnd(apply: () => void) {
     apply();
     setPage(1);
   }
+
+  function toggleSelected(id: string, checked: boolean) {
+    setSelectedIds((prev) =>
+      checked
+        ? prev.includes(id)
+          ? prev
+          : [...prev, id]
+        : prev.filter((x) => x !== id),
+    );
+  }
+
+  function toggleSelectAllPage(checked: boolean) {
+    const pageIds = models.map((m) => m.id);
+    setSelectedIds((prev) => {
+      if (checked) {
+        return [...new Set([...prev, ...pageIds])];
+      }
+      const drop = new Set(pageIds);
+      return prev.filter((id) => !drop.has(id));
+    });
+  }
+
+  const pageSelectedCount = models.filter((m) =>
+    selectedIds.includes(m.id),
+  ).length;
+  const allPageSelected =
+    models.length > 0 && pageSelectedCount === models.length;
+  const somePageSelected =
+    pageSelectedCount > 0 && pageSelectedCount < models.length;
 
   function openCreate() {
     setEditing(null);
@@ -392,6 +427,7 @@ export default function ModelsPage() {
     try {
       await api(`/admin/models/${m.id}`, { method: "DELETE" });
       toast.success("已删除");
+      setSelectedIds((prev) => prev.filter((id) => id !== m.id));
       const remaining = total - 1;
       const maxPage = Math.max(1, Math.ceil(remaining / pageSize));
       const nextPage = Math.min(page, maxPage);
@@ -399,6 +435,32 @@ export default function ModelsPage() {
       else await loadModels({ page: nextPage });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "删除失败");
+    }
+  }
+
+  async function removeSelected() {
+    if (selectedIds.length === 0) return;
+    const ok = await confirmDialog({
+      title: `批量删除 ${selectedIds.length} 个模型？`,
+      description: "删除后不可恢复。",
+      confirmText: "全部删除",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await api<{ deleted: number }>("/admin/models/batch-delete", {
+        method: "POST",
+        body: { ids: selectedIds },
+      });
+      toast.success(`已删除 ${res.deleted} 个模型`);
+      setSelectedIds([]);
+      const remaining = Math.max(0, total - res.deleted);
+      const maxPage = Math.max(1, Math.ceil(remaining / pageSize) || 1);
+      const nextPage = Math.min(page, maxPage);
+      if (nextPage !== page) setPage(nextPage);
+      else await loadModels({ page: nextPage });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "批量删除失败");
     }
   }
 
@@ -508,15 +570,28 @@ export default function ModelsPage() {
           onRefresh={() => void loadModels()}
           refreshing={refreshing}
           actions={
-            <Button
-              size="sm"
-              className="h-9 rounded-xl"
-              onClick={openCreate}
-              disabled={channels.length === 0}
-            >
-              <Plus className="size-3.5" />
-              新建模型
-            </Button>
+            <>
+              {selectedIds.length > 0 ? (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="h-9 rounded-xl"
+                  onClick={() => void removeSelected()}
+                >
+                  <Trash2 className="size-3.5" />
+                  删除所选 ({selectedIds.length})
+                </Button>
+              ) : null}
+              <Button
+                size="sm"
+                className="h-9 rounded-xl"
+                onClick={openCreate}
+                disabled={channels.length === 0}
+              >
+                <Plus className="size-3.5" />
+                新建模型
+              </Button>
+            </>
           }
         />
       </ListPageHeader>
@@ -542,11 +617,38 @@ export default function ModelsPage() {
             />
           </ListPageCard>
         ) : viewMode === "card" ? (
-          <div className="joy-admin-card-grid">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-0.5">
+              <Checkbox
+                checked={
+                  allPageSelected
+                    ? true
+                    : somePageSelected
+                      ? "indeterminate"
+                      : false
+                }
+                onCheckedChange={(v) => toggleSelectAllPage(v === true)}
+                aria-label="全选本页"
+              />
+              <span className="text-xs text-muted-foreground">
+                {pageSelectedCount > 0
+                  ? `本页已选 ${pageSelectedCount} / ${models.length}`
+                  : "全选本页"}
+              </span>
+            </div>
+            <div className="joy-admin-card-grid">
             {models.map((m) => (
               <article key={m.id} className="joy-admin-card-item">
                 <div className="joy-admin-card-item-head">
                   <div className="flex min-w-0 items-start gap-2.5">
+                    <Checkbox
+                      checked={selectedIds.includes(m.id)}
+                      onCheckedChange={(v) =>
+                        toggleSelected(m.id, v === true)
+                      }
+                      aria-label={`选择 ${m.name}`}
+                      className="mt-1"
+                    />
                     <BrandAvatar
                       src={modelIconSrc({
                         remoteId: m.remoteId,
@@ -594,12 +696,26 @@ export default function ModelsPage() {
                 </div>
               </article>
             ))}
+            </div>
           </div>
         ) : (
           <ListPageCard className="admin-table">
             <Table className="min-w-[1280px]">
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[40px]">
+                    <Checkbox
+                      checked={
+                        allPageSelected
+                          ? true
+                          : somePageSelected
+                            ? "indeterminate"
+                            : false
+                      }
+                      onCheckedChange={(v) => toggleSelectAllPage(v === true)}
+                      aria-label="全选本页"
+                    />
+                  </TableHead>
                   <TableHead className="min-w-[200px]">模型</TableHead>
                   <TableHead className="w-[72px] whitespace-nowrap">
                     类型
@@ -623,7 +739,16 @@ export default function ModelsPage() {
               </TableHeader>
               <TableBody>
                 {models.map((m) => (
-                  <TableRow key={m.id}>
+                  <TableRow key={m.id} data-state={selectedIds.includes(m.id) ? "selected" : undefined}>
+                    <TableCell className="w-[40px]">
+                      <Checkbox
+                        checked={selectedIds.includes(m.id)}
+                        onCheckedChange={(v) =>
+                          toggleSelected(m.id, v === true)
+                        }
+                        aria-label={`选择 ${m.name}`}
+                      />
+                    </TableCell>
                     <TableCell className="min-w-[200px] max-w-[280px]">
                       <div className="flex min-w-0 items-center gap-2.5">
                         <BrandAvatar

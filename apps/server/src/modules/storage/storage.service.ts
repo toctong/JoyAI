@@ -122,13 +122,29 @@ export class StorageService {
     };
   }
 
-  async putFromUrl(url: string, ext = "png"): Promise<StoragePutResult> {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Failed to download asset: ${res.status}`);
-    const arrayBuf = await res.arrayBuffer();
-    const buffer = Buffer.from(arrayBuf);
-    const contentType = res.headers.get("content-type") ?? undefined;
-    return this.putObject(buffer, { contentType, ext });
+  async putFromUrl(
+    url: string,
+    ext = "png",
+    opts?: { timeoutMs?: number },
+  ): Promise<StoragePutResult> {
+    const timeoutMs = opts?.timeoutMs ?? 180_000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      if (!res.ok) throw new Error(`Failed to download asset: ${res.status}`);
+      const arrayBuf = await res.arrayBuffer();
+      const buffer = Buffer.from(arrayBuf);
+      const contentType = res.headers.get("content-type") ?? undefined;
+      return this.putObject(buffer, { contentType, ext });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(`Download asset timed out after ${timeoutMs}ms`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   publicUrl(key: string) {

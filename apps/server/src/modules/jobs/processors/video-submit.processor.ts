@@ -46,6 +46,7 @@ export class VideoSubmitProcessor extends WorkerHost {
         prompt: string;
         duration?: number;
         ratio?: string;
+        resolution?: string;
         modelId?: string;
         referenceAssetIds?: string[];
         referenceUrls?: string[];
@@ -68,12 +69,13 @@ export class VideoSubmitProcessor extends WorkerHost {
         baseUrl: model.channel.baseUrl,
         ratio: input.ratio,
         duration: input.duration,
+        resolution: input.resolution,
         referenceUrls,
         metadata: channelMeta,
       });
 
       await this.jobsRepo.update(jobId, {
-        status: JobStatus.polling,
+        status: JobStatus.running,
         remoteTaskId,
         progress: 20,
       });
@@ -89,12 +91,12 @@ export class VideoSubmitProcessor extends WorkerHost {
           metadata: channelMeta,
           attempt: 0,
         },
-        { delay: 3000, removeOnComplete: 100, removeOnFail: 200 },
+        { delay: 5000, removeOnComplete: 100, removeOnFail: 200 },
       );
 
       this.realtime.emitJob(job.userId, "job:progress", {
         jobId,
-        status: "polling",
+        status: "running",
         progress: 20,
       });
     } catch (error) {

@@ -116,6 +116,14 @@
   text-align: left;
 }
 
+.joy-studio-job.is-video {
+  max-width: min(520px, 100%);
+}
+
+.joy-studio-job.is-video .joy-studio-prompt-block {
+  max-width: min(480px, 100%);
+}
+
 .joy-studio-actions {
   display: flex;
   flex-wrap: wrap;
@@ -188,13 +196,16 @@
 .joy-studio-meta {
   margin: 0 0 6px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.01em;
   color: var(--muted-foreground);
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .joy-studio-meta-sub {
   margin-top: 8px;
+  margin-bottom: 0;
 }
 
 .joy-studio-prompt-wrap {
@@ -270,8 +281,37 @@
   word-break: break-word;
 }
 
+.joy-studio-prompt-pop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.joy-studio-prompt-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.joy-studio-prompt-tool:hover {
+  color: var(--foreground);
+}
+
+.joy-studio-prompt-tool svg {
+  opacity: 0.9;
+}
+
 .joy-studio-prompt-pop-close {
-  align-self: flex-start;
   height: 28px;
   padding: 0 10px;
   border: 0;
@@ -308,8 +348,18 @@
   grid-template-columns: minmax(0, 280px);
 }
 
+.joy-studio-grid.is-single.is-video {
+  grid-template-columns: minmax(0, min(440px, 100%));
+  width: 100%;
+  max-width: min(440px, 100%);
+}
+
 .joy-studio-grid.is-multi {
   grid-template-columns: repeat(2, minmax(0, 200px));
+}
+
+.joy-studio-grid.is-multi.is-video {
+  grid-template-columns: repeat(2, minmax(0, min(280px, 46vw)));
 }
 
 .joy-studio-thumb {
@@ -322,12 +372,89 @@
   cursor: zoom-in;
 }
 
+.joy-studio-thumb-video {
+  cursor: default;
+  background: #0a0a0a;
+}
+
 .joy-studio-thumb > img,
 .joy-studio-thumb > video {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Plyr fills the aspect-ratio frame; progress uses ring, control hover = black translucent */
+.joy-studio-thumb-video .plyr {
+  --plyr-color-main: rgba(0, 0, 0, 0.45);
+  --plyr-video-control-color: #f4f4f5;
+  --plyr-video-control-color-hover: #ffffff;
+  --plyr-audio-control-color: #f4f4f5;
+  --plyr-audio-control-color-hover: #ffffff;
+  --plyr-range-fill-background: var(--ring);
+  --plyr-video-progress-buffered-background: rgba(255, 255, 255, 0.25);
+  --plyr-range-thumb-background: var(--ring);
+  --plyr-range-track-height: 4px;
+  --plyr-control-icon-size: 18px;
+  --plyr-control-spacing: 12px;
+
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #0a0a0a;
+}
+
+.joy-studio-thumb-video .plyr__video-wrapper {
+  height: 100% !important;
+  padding-bottom: 0 !important;
+  background: #0a0a0a;
+  transform: none !important;
+  border-radius: inherit;
+}
+
+.joy-studio-thumb-video .plyr video,
+.joy-studio-thumb-video .joy-studio-plyr-el {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  background: #0a0a0a;
+}
+
+.joy-studio-thumb-video .plyr--video .plyr__controls {
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+  padding-bottom: 8px;
+}
+
+.joy-studio-thumb-video .plyr__control--overlaid {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  box-shadow: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.joy-studio-thumb-video .plyr__control--overlaid:hover,
+.joy-studio-thumb-video .plyr__control--overlaid:focus {
+  background: rgba(0, 0, 0, 0.65);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  box-shadow: none;
+}
+
+.joy-studio-thumb-video .plyr--video .plyr__controls .plyr__control:hover,
+.joy-studio-thumb-video .plyr--video .plyr__controls .plyr__control:focus {
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+
+.joy-studio-thumb-video .plyr--video .plyr__controls .plyr__control[aria-expanded="true"] {
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
 }
 
 .joy-studio-thumb-frame {
@@ -344,6 +471,15 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.joy-studio-thumb-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: zoom-in;
 }
 
@@ -367,7 +503,6 @@
 }
 
 .joy-studio-thumb-frame:hover .joy-studio-thumb-hover {
-  pointer-events: auto;
   opacity: 1;
 }
 
@@ -383,6 +518,7 @@
 }
 
 .joy-studio-thumb-tool {
+  pointer-events: auto;
   display: inline-flex;
   height: 32px;
   width: 32px;
@@ -400,6 +536,32 @@
 .joy-studio-thumb-tool:hover {
   transform: translateY(-1px);
   background: var(--card);
+}
+
+.joy-studio-generating {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+.joy-studio-generating .joy-studio-grid {
+  width: 100%;
+  max-width: 100%;
+}
+
+.joy-studio-generating .joy-studio-grid.is-single {
+  max-width: 280px;
+}
+
+.joy-studio-generating .joy-studio-grid.is-single.is-video {
+  max-width: min(440px, 100%);
+  width: 100%;
+}
+
+.joy-studio-generating .joy-studio-grid.is-multi {
+  max-width: calc(200px * 2 + 10px);
 }
 
 .joy-studio-thumb-skeleton {
@@ -481,10 +643,19 @@
     grid-template-columns: minmax(0, 240px);
   }
 
+  .joy-studio-grid.is-single.is-video {
+    grid-template-columns: minmax(0, 100%);
+    max-width: 100%;
+  }
+
   .joy-studio-grid.is-multi {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
     max-width: 420px;
+  }
+
+  .joy-studio-grid.is-multi.is-video {
+    max-width: 100%;
   }
 
   .joy-studio-thumb,

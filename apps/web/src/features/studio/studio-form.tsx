@@ -7,11 +7,13 @@ import { useRouter } from "next/navigation";
 import { PhotoProvider, PhotoView } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import {
+  Copy,
   Download,
-  Pencil,
+  Expand,
   RefreshCw,
   Sparkles,
   Trash2,
+  WandSparkles,
 } from "lucide-react";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
@@ -21,6 +23,11 @@ import { formatDurationMs } from "@/shared/lib/format-duration";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
+import {
+  GeneratingStatusBar,
+  GeneratingThumb,
+} from "@/features/studio/generating-thumb";
+import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
 import "./studio-workspace.css";
 
 const CreationComposer = dynamic(
@@ -43,6 +50,8 @@ type JobInput = {
   n?: number;
   ratio?: string;
   size?: string;
+  resolution?: string;
+  duration?: number;
   modelId?: string;
 };
 
@@ -52,6 +61,7 @@ type Job = {
   status: string;
   progress?: number;
   createdAt: string;
+  startedAt?: string | null;
   finishedAt?: string | null;
   durationMs?: number | null;
   modelName?: string | null;
@@ -79,15 +89,24 @@ function formatJobTime(iso: string) {
   if (d.isSame(now, "day")) return d.format("今天 HH:mm");
   if (d.isSame(now.subtract(1, "day"), "day")) return d.format("昨天 HH:mm");
   if (d.isSame(now, "year")) return d.format("M月D日 HH:mm");
-  return d.format("YYYY年M月D日 HH:mm");
+  return d.format("YYYY/MM/DD HH:mm");
 }
 
 function gcd(a: number, b: number): number {
   return b === 0 ? a : gcd(b, a % b);
 }
 
+function formatRatioLabel(ratio?: string | null) {
+  if (!ratio) return null;
+  const key = ratio.trim().toLowerCase();
+  if (key === "auto") return "自动";
+  if (key === "adaptive" || key === "keep") return "自适应";
+  return ratio.trim();
+}
+
 function aspectLabel(input?: JobInput) {
-  if (input?.ratio) return input.ratio;
+  const fromRatio = formatRatioLabel(input?.ratio);
+  if (fromRatio) return fromRatio;
   const w = input?.width;
   const h = input?.height;
   if (!w || !h) return null;
@@ -96,33 +115,95 @@ function aspectLabel(input?: JobInput) {
 }
 
 function qualityLabel(input?: JobInput) {
+  const raw = input?.resolution?.trim() || input?.size?.trim();
+  if (raw) {
+    if (/^\d+\s*[x×]\s*\d+$/i.test(raw)) {
+      const m = raw.match(/^(\d+)\s*[x×]\s*(\d+)$/i);
+      if (m) {
+        const long = Math.max(Number(m[1]), Number(m[2]));
+        if (long >= 3500) return "4K";
+        if (long >= 2800) return "3K";
+        if (long >= 1400) return "2K";
+        if (long >= 900) return "1K";
+      }
+      return raw.replace(/\s+/g, "");
+    }
+    return raw.replace(/p$/i, "P").replace(/k$/i, "K");
+  }
   const max = Math.max(input?.width ?? 0, input?.height ?? 0);
+  if (max >= 3500) return "4K";
+  if (max >= 2800) return "3K";
   if (max >= 1400) return "2K";
   if (max >= 900) return "1K";
   return null;
 }
 
-/** Jimeng-style compact size line: `1:1 | 2K` */
-function jobSizeMeta(job: Job) {
-  const ratio = aspectLabel(job.input);
-  const quality = qualityLabel(job.input);
-  if (ratio && quality) return `${ratio} | ${quality}`;
-  return ratio || quality || null;
+/**
+ * 参考 Jimeng 风格：模型 | 清晰度 | 比例 | … | 时间
+ * 可按任务类型扩展更多字段。
+ */
+function jobStartMs(job: Job) {
+  const raw = job.startedAt || job.createdAt;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? ms : Date.now();
 }
 
-function jobSubMeta(job: Job, assetCount = 0) {
-  const duration =
-    job.durationMs != null ? formatDurationMs(job.durationMs) : null;
+/** Live elapsed while busy: tick from 0s upward (no ms flicker). */
+function formatLiveElapsed(ms: number) {
+  const sec = Math.max(0, Math.floor(ms / 1000));
+  if (sec < 60) return `${sec}s`;
+  const min = Math.floor(sec / 60);
+  const rem = sec % 60;
+  if (min < 60) return rem > 0 ? `${min}分${rem}秒` : `${min}分`;
+  const hour = Math.floor(min / 60);
+  const remMin = min % 60;
+  return remMin > 0 ? `${hour}小时${remMin}分` : `${hour}小时`;
+}
+
+function jobElapsedLabel(job: Job, now: number) {
+  if (isBusy(job.status)) {
+    return `用时 ${formatLiveElapsed(now - jobStartMs(job))}`;
+  }
+  if (job.durationMs == null || !Number.isFinite(job.durationMs)) return null;
+  const label = formatDurationMs(job.durationMs);
+  return label === "—" ? null : `用时 ${label}`;
+}
+
+function jobMetaLine(job: Job, assetCount = 0, now = Date.now()) {
+  const input = job.input;
+  const model =
+    job.modelName?.trim() ||
+    job.channelName?.trim() ||
+    (job.kind === "video" ? "视频生成" : "图片生成");
+  const resolution = qualityLabel(input);
+  const ratio = aspectLabel(input);
+  const count =
+    job.kind === "image" && (input?.n ?? assetCount) > 1
+      ? `${input?.n ?? assetCount}张`
+      : null;
+  const clipDuration =
+    job.kind === "video" && input?.duration
+      ? `${input.duration}s`
+      : null;
   const time = formatJobTime(jobTimeIso(job));
+  const elapsedLabel = jobElapsedLabel(job, now);
+
   const parts = [
+    model,
+    resolution,
+    ratio,
+    count,
+    clipDuration,
+    job.channelName &&
+    job.modelName &&
+    job.channelName.trim() !== job.modelName.trim()
+      ? job.channelName.trim()
+      : null,
     time,
-    job.channelName,
-    job.modelName,
-    job.kind === "image" && assetCount > 1 ? `${assetCount} 张` : null,
-    job.kind === "video" ? "视频" : null,
-    duration && duration !== "—" ? `用时 ${duration}` : null,
+    elapsedLabel,
   ].filter(Boolean);
-  return parts.join(" · ");
+
+  return parts.join(" | ");
 }
 
 function isBusy(status: string) {
@@ -140,10 +221,12 @@ function aspectCss(input?: JobInput): string {
   const w = input?.width;
   const h = input?.height;
   if (w && h && w > 0 && h > 0) return `${w} / ${h}`;
-  if (input?.ratio?.includes(":")) {
-    const [a, b] = input.ratio.split(":").map(Number);
+  const ratio = input?.ratio?.trim();
+  if (ratio?.includes(":")) {
+    const [a, b] = ratio.split(":").map(Number);
     if (a > 0 && b > 0) return `${a} / ${b}`;
   }
+  // auto / adaptive / missing → square placeholder
   return "1 / 1";
 }
 
@@ -194,7 +277,15 @@ async function downloadAsset(url: string) {
 }
 
 /** 默认 2 行省略；展开为浮层，不挤占下方文档流 */
-function StudioPrompt({ text }: { text: string }) {
+function StudioPrompt({
+  text,
+  onCopy,
+  onUse,
+}: {
+  text: string;
+  onCopy?: () => void;
+  onUse?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [overflow, setOverflow] = useState(false);
   const clampRef = useRef<HTMLParagraphElement>(null);
@@ -234,18 +325,26 @@ function StudioPrompt({ text }: { text: string }) {
     };
   }, [open]);
 
+  const canAct = Boolean(text.trim()) && text !== "未命名创作";
+
   return (
     <div ref={wrapRef} className="joy-studio-prompt-wrap">
       <p
         ref={clampRef}
         className={cn(
           "joy-studio-prompt is-clamp",
-          overflow && "is-overflow",
+          (overflow || canAct) && "is-overflow",
           open && "is-open-anchor",
         )}
-        title={overflow ? "点击展开全文" : undefined}
+        title={
+          overflow
+            ? "点击展开全文"
+            : canAct
+              ? "点击查看操作"
+              : undefined
+        }
         onClick={() => {
-          if (overflow) setOpen((v) => !v);
+          if (overflow || canAct) setOpen((v) => !v);
         }}
       >
         {text}
@@ -253,13 +352,38 @@ function StudioPrompt({ text }: { text: string }) {
       {open ? (
         <div className="joy-studio-prompt-pop" role="dialog" aria-label="完整提示词">
           <p className="joy-studio-prompt-pop-text">{text}</p>
-          <button
-            type="button"
-            className="joy-studio-prompt-pop-close"
-            onClick={() => setOpen(false)}
-          >
-            收起
-          </button>
+          <div className="joy-studio-prompt-pop-actions">
+            {canAct ? (
+              <>
+                <button
+                  type="button"
+                  className="joy-studio-prompt-tool"
+                  onClick={() => onCopy?.()}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  复制
+                </button>
+                <button
+                  type="button"
+                  className="joy-studio-prompt-tool"
+                  onClick={() => {
+                    onUse?.();
+                    setOpen(false);
+                  }}
+                >
+                  <WandSparkles className="h-3.5 w-3.5" />
+                  使用提示词
+                </button>
+              </>
+            ) : null}
+            <button
+              type="button"
+              className="joy-studio-prompt-pop-close"
+              onClick={() => setOpen(false)}
+            >
+              收起
+            </button>
+          </div>
         </div>
       ) : null}
     </div>
@@ -270,23 +394,17 @@ function JobActions({
   job,
   regeneratingId,
   deletingId,
-  onReedit,
   onRegenerate,
   onDelete,
 }: {
   job: Job;
   regeneratingId: string | null;
   deletingId: string | null;
-  onReedit: () => void;
   onRegenerate: () => void;
   onDelete: () => void;
 }) {
   return (
     <div className="joy-studio-actions">
-      <button type="button" className="joy-studio-action" onClick={onReedit}>
-        <Pencil className="h-3.5 w-3.5" />
-        重新编辑
-      </button>
       <button
         type="button"
         className="joy-studio-action"
@@ -317,6 +435,7 @@ function JobActions({
 function StudioInner() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [now, setNow] = useState(() => Date.now());
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [remixKey, setRemixKey] = useState(0);
@@ -399,17 +518,46 @@ function StudioInner() {
     void loadInitial();
     const socket = getJobsSocket();
     const refresh = () => void refreshLatest();
+    const onAssetUpdated = (payload: {
+      asset?: Asset;
+      jobId?: string | null;
+    }) => {
+      const next = payload.asset;
+      if (!next?.id || !next.url) return;
+      setJobs((prev) =>
+        prev.map((job) => {
+          if (!job.assets?.some((a) => a.id === next.id)) return job;
+          return {
+            ...job,
+            assets: job.assets.map((a) =>
+              a.id === next.id ? { ...a, url: next.url } : a,
+            ),
+          };
+        }),
+      );
+    };
     socket.on("job:completed", refresh);
     socket.on("job:failed", refresh);
     socket.on("job:progress", refresh);
+    socket.on("asset:updated", onAssetUpdated);
     return () => {
       socket.off("job:completed", refresh);
       socket.off("job:failed", refresh);
       socket.off("job:progress", refresh);
+      socket.off("asset:updated", onAssetUpdated);
     };
   }, [loadInitial, refreshLatest]);
 
   const hasJobs = jobs.length > 0;
+  const hasBusyJobs = jobs.some((j) => isBusy(j.status));
+
+  // 进行中任务：每秒从 0s 起跳累计用时
+  useEffect(() => {
+    if (!hasBusyJobs) return;
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [hasBusyJobs]);
 
   // 向上滚到顶部 → 加载更早
   useEffect(() => {
@@ -440,15 +588,34 @@ function StudioInner() {
     };
   }, [loadOlder, hasJobs]);
 
-  function reedit(job: Job) {
+  function usePrompt(job: Job) {
     const prompt = job.input?.prompt?.trim();
     if (!prompt) {
-      toast.error("没有可编辑的提示词");
+      toast.error("没有可用的提示词");
       return;
     }
     setRemixPrompt(prompt);
     setRemixKey((k) => k + 1);
     toast.message("已填入提示词，可继续修改后生成");
+    requestAnimationFrame(() => {
+      document
+        .querySelector(".joy-studio-dock")
+        ?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  }
+
+  async function copyPrompt(job: Job) {
+    const prompt = job.input?.prompt?.trim();
+    if (!prompt) {
+      toast.error("没有可复制的提示词");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(prompt);
+      toast.success("提示词已复制");
+    } catch {
+      toast.error("复制失败，请手动选择文本");
+    }
   }
 
   async function regenerate(job: Job) {
@@ -541,8 +708,7 @@ function StudioInner() {
             {feed.map((job) => {
               const assets = job.assets ?? [];
               const busy = isBusy(job.status);
-              const sizeMeta = jobSizeMeta(job);
-              const subMeta = jobSubMeta(job, assets.length);
+              const metaLine = jobMetaLine(job, assets.length, now);
               const skeletonCount = Math.min(
                 Math.max(job.input?.n ?? (job.kind === "image" ? 2 : 1), 1),
                 4,
@@ -551,16 +717,23 @@ function StudioInner() {
               const gridCount =
                 assets.length > 0 ? assets.length : skeletonCount;
 
+              const isVideoJob =
+                job.kind === "video" || assets.some((a) => isVideoAsset(a));
+
               return (
-                <article key={job.id} className="joy-studio-job">
+                <article
+                  key={job.id}
+                  className={cn("joy-studio-job", isVideoJob && "is-video")}
+                >
                   <div className="joy-studio-prompt-block">
-                    {sizeMeta ? (
-                      <p className="joy-studio-meta">{sizeMeta}</p>
-                    ) : null}
-                    <StudioPrompt text={job.input?.prompt || "未命名创作"} />
-                    {subMeta ? (
+                    <StudioPrompt
+                      text={job.input?.prompt || "未命名创作"}
+                      onCopy={() => void copyPrompt(job)}
+                      onUse={() => usePrompt(job)}
+                    />
+                    {metaLine ? (
                       <p className="joy-studio-meta joy-studio-meta-sub">
-                        {subMeta}
+                        {metaLine}
                       </p>
                     ) : null}
                     {job.error ? (
@@ -574,16 +747,17 @@ function StudioInner() {
                         "joy-studio-grid",
                         gridCount === 1 && "is-single",
                         gridCount >= 2 && "is-multi",
+                        isVideoJob && "is-video",
                       )}
                     >
                       {assets.map((asset) =>
                         isVideoAsset(asset) ? (
                           <div
                             key={asset.id}
-                            className="joy-studio-thumb"
+                            className="joy-studio-thumb joy-studio-thumb-video"
                             style={{ aspectRatio: ar }}
                           >
-                            <video src={asset.url} controls playsInline />
+                            <StudioPlyrPlayer src={asset.url} />
                           </div>
                         ) : (
                           <div
@@ -592,15 +766,40 @@ function StudioInner() {
                             style={{ aspectRatio: ar }}
                           >
                             <PhotoView src={asset.url}>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={asset.url} alt="" />
+                              <button
+                                type="button"
+                                className="joy-studio-thumb-preview"
+                                aria-label="预览图片"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={asset.url} alt="" />
+                              </button>
                             </PhotoView>
                             <div className="joy-studio-thumb-hover">
                               <div className="joy-studio-thumb-hover-top">
                                 <button
                                   type="button"
                                   className="joy-studio-thumb-tool"
+                                  aria-label="预览"
+                                  title="预览"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    (
+                                      e.currentTarget
+                                        .closest(".joy-studio-thumb-frame")
+                                        ?.querySelector(
+                                          ".joy-studio-thumb-preview",
+                                        ) as HTMLButtonElement | null
+                                    )?.click();
+                                  }}
+                                >
+                                  <Expand className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="joy-studio-thumb-tool"
                                   aria-label="下载"
+                                  title="下载"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     void downloadAsset(asset.url);
@@ -615,20 +814,23 @@ function StudioInner() {
                       )}
                     </div>
                   ) : busy ? (
-                    <div
-                      className={cn(
-                        "joy-studio-grid",
-                        gridCount === 1 && "is-single",
-                        gridCount >= 2 && "is-multi",
-                      )}
-                    >
-                      {Array.from({ length: skeletonCount }).map((_, i) => (
-                        <div
-                          key={`${job.id}-sk-${i}`}
-                          className="joy-studio-thumb-skeleton"
-                          style={{ aspectRatio: ar }}
-                        />
-                      ))}
+                    <div className="joy-studio-generating">
+                      <div
+                        className={cn(
+                          "joy-studio-grid",
+                          gridCount === 1 && "is-single",
+                          gridCount >= 2 && "is-multi",
+                          isVideoJob && "is-video",
+                        )}
+                      >
+                        {Array.from({ length: skeletonCount }).map((_, i) => (
+                          <GeneratingThumb
+                            key={`${job.id}-sk-${i}`}
+                            aspectRatio={ar}
+                          />
+                        ))}
+                      </div>
+                      <GeneratingStatusBar status={job.status} />
                     </div>
                   ) : null}
 
@@ -636,7 +838,6 @@ function StudioInner() {
                     job={job}
                     regeneratingId={regeneratingId}
                     deletingId={deletingId}
-                    onReedit={() => reedit(job)}
                     onRegenerate={() => void regenerate(job)}
                     onDelete={() => void removeJob(job)}
                   />

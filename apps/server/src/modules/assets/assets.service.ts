@@ -44,6 +44,35 @@ export class AssetsService {
     );
   }
 
+  findById(id: string) {
+    return this.assets.findOne({ where: { id } });
+  }
+
+  async updateMirrored(
+    id: string,
+    data: {
+      url: string;
+      md5?: string;
+      size?: number;
+      meta?: Record<string, unknown> | null;
+    },
+  ) {
+    const asset = await this.findById(id);
+    if (!asset) return null;
+    asset.url = data.url;
+    if (data.md5 !== undefined) asset.md5 = data.md5.trim().toLowerCase();
+    if (data.size !== undefined) asset.size = data.size;
+    if (data.meta !== undefined) asset.meta = data.meta;
+    return this.assets.save(asset);
+  }
+
+  async patchMeta(id: string, patch: Record<string, unknown>) {
+    const asset = await this.findById(id);
+    if (!asset) return null;
+    asset.meta = { ...(asset.meta ?? {}), ...patch };
+    return this.assets.save(asset);
+  }
+
   list(userId: string, take = 50) {
     return this.assets.find({
       where: { userId },

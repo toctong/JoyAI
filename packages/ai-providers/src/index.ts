@@ -13,6 +13,7 @@ import { DashscopeVideoProvider } from "./dashscope-video";
 export * from "./types";
 export * from "./error-codes";
 export * from "./http-error";
+export * from "./image-size";
 export * from "./volcengine";
 export * from "./openai-compatible";
 export * from "./dashscope-video";

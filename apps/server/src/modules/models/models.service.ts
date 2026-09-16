@@ -181,6 +181,14 @@ export class ModelsService {
     return model;
   }
 
+  async removeMany(ids: string[]) {
+    const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+    if (!unique.length) return { deleted: 0 };
+
+    const result = await this.models.delete({ id: In(unique) });
+    return { deleted: result.affected ?? 0 };
+  }
+
   /**
    * Upsert catalog presets for a channel. Updates pricing/capabilities/description;
    * keeps existing name/isDefault unless forceRename.

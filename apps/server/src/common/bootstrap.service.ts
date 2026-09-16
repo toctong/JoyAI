@@ -86,17 +86,18 @@ export class BootstrapService {
       metadata.dashscopeApiBase = preset.dashscopeApiBase;
     }
 
-    // Legacy env overrides for volcengine model ids
+    // Optional env override: only remap the default image/video model ids.
     const catalog = getCatalogForPlatform(platform).map((m) => {
-      if (platform === ProviderPlatform.VOLCENGINE && m.kind === "image") {
-        const id =
-          this.config.get<string>("ARK_IMAGE_MODEL") ?? m.remoteId;
-        return { ...m, remoteId: id };
+      if (platform !== ProviderPlatform.VOLCENGINE || !m.isDefault) {
+        return m;
       }
-      if (platform === ProviderPlatform.VOLCENGINE && m.kind === "video") {
-        const id =
-          this.config.get<string>("ARK_VIDEO_MODEL") ?? m.remoteId;
-        return { ...m, remoteId: id };
+      if (m.kind === "image") {
+        const id = this.config.get<string>("ARK_IMAGE_MODEL");
+        return id ? { ...m, remoteId: id } : m;
+      }
+      if (m.kind === "video") {
+        const id = this.config.get<string>("ARK_VIDEO_MODEL");
+        return id ? { ...m, remoteId: id } : m;
       }
       return m;
     });

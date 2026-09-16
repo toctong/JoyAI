@@ -1,9 +1,18 @@
 export type ImageGenerateInput = {
   prompt: string;
   negativePrompt?: string;
+  /** Exact size string (WxH or 2K). Takes precedence when set. */
   size?: string;
   width?: number;
   height?: number;
+  /** Aspect ratio from UI, e.g. 16:9 */
+  ratio?: string;
+  /** Resolution tier from UI, e.g. 2K / 1080p */
+  resolution?: string;
+  /** Catalog sizes (WxH) from the selected model */
+  catalogSizes?: string[];
+  /** Prefer keyword (2K) vs pixels (WxH) */
+  sizeMode?: "keyword" | "pixels" | "auto";
   n?: number;
   /** Seedream / compatible gateways: visible corner mark. Default false. */
   watermark?: boolean;
@@ -33,7 +42,7 @@ export type VideoSubmitInput = {
 };
 
 export type VideoPollResult =
-  | { status: "running" | "queued" }
+  | { status: "running" | "queued"; raw?: unknown }
   | { status: "succeeded"; videoUrl: string; raw?: unknown }
   | { status: "failed"; error: string; raw?: unknown };
 

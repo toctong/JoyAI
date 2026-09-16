@@ -269,9 +269,30 @@ export function CanvasBoard({
     };
     socket.on("job:completed", onCompleted);
     socket.on("job:failed", onFailed);
+    const onAssetUpdated = (payload: {
+      asset?: { id: string; url: string };
+      jobId?: string | null;
+    }) => {
+      const asset = payload.asset;
+      if (!asset?.id || !asset.url) return;
+      const state = useCanvasStore.getState();
+      for (const node of state.nodes) {
+        const byAsset = node.data.assetId === asset.id;
+        const byJob =
+          payload.jobId && node.data.jobId === payload.jobId;
+        if (!byAsset && !byJob) continue;
+        // Avoid mid-play hard cut on video nodes when possible — still update data.
+        updateNodeData(node.id, {
+          url: asset.url,
+          assetId: asset.id,
+        });
+      }
+    };
+    socket.on("asset:updated", onAssetUpdated);
     return () => {
       socket.off("job:completed", onCompleted);
       socket.off("job:failed", onFailed);
+      socket.off("asset:updated", onAssetUpdated);
     };
   }, [updateNodeData]);
 

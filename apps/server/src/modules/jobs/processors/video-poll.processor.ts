@@ -11,6 +11,7 @@ import { StorageService } from "../../storage/storage.service";
 import { AssetsService } from "../../assets/assets.service";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { CanvasService } from "../../canvas/canvas.service";
+import { enqueueAssetMirror } from "../enqueue-asset-mirror";
 
 type PollPayload = {
   jobId: string;
@@ -25,7 +26,7 @@ type PollPayload = {
 @Processor(QUEUE.VIDEO_POLL)
 export class VideoPollProcessor extends WorkerHost {
   private readonly logger = new Logger(VideoPollProcessor.name);
-  private readonly maxAttempts = 120;
+  private readonly maxAttempts = 180; // ~20-40min depending on backoff
 
   constructor(
     @InjectRepository(Job) private readonly jobsRepo: Repository<Job>,
@@ -34,6 +35,7 @@ export class VideoPollProcessor extends WorkerHost {
     private readonly realtime: RealtimeGateway,
     private readonly canvas: CanvasService,
     @InjectQueue(QUEUE.VIDEO_POLL) private readonly pollQueue: Queue,
+    @InjectQueue(QUEUE.ASSET_MIRROR) private readonly mirrorQueue: Queue,
   ) {
     super();
   }
@@ -43,76 +45,86 @@ export class VideoPollProcessor extends WorkerHost {
     const job = await this.jobsRepo.findOne({ where: { id: payload.jobId } });
     if (!job) return;
 
-    const provider = getVideoProvider(payload.platform);
-    const result = await provider.poll({
-      remoteTaskId: payload.remoteTaskId,
-      apiKey: payload.apiKey,
-      baseUrl: payload.baseUrl,
-      metadata: payload.metadata ?? null,
-    });
+    let result;
+    try {
+      const provider = getVideoProvider(payload.platform);
+      result = await provider.poll({
+        remoteTaskId: payload.remoteTaskId,
+        apiKey: payload.apiKey,
+        baseUrl: payload.baseUrl,
+        metadata: payload.metadata ?? null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Video poll ${payload.jobId} soft-fail attempt=${payload.attempt}: ${message}`,
+      );
+      result = { status: "running" as const };
+    }
 
     if (result.status === "succeeded") {
-      let url = result.videoUrl;
-      let md5: string | undefined;
-      let size: number | undefined;
-      let meta: Record<string, unknown> | undefined;
-
-      if (this.storage.isConfigured()) {
-        try {
-          const put = await this.storage.putFromUrl(url, "mp4");
-          url = put.url;
-          md5 = put.md5;
-          size = put.size;
-          meta = {
-            sha256: put.sha256,
-            storageKey: put.key,
-            tosDeduplicated: put.deduplicated,
-          };
-        } catch (e) {
-          this.logger.warn(`TOS mirror video failed: ${e}`);
-        }
-      }
-
-      const asset = await this.assets.create({
-        userId: job.userId,
-        jobId: job.id,
-        kind: "video",
-        url,
-        md5,
-        mimeType: "video/mp4",
-        size,
-        meta,
-      });
-
-      await this.jobsRepo.update(job.id, {
-        status: JobStatus.succeeded,
-        progress: 100,
-        finishedAt: new Date(),
-        result: {
-          assetIds: [asset.id],
-          urls: [asset.url],
-        },
-      });
-
-      const input = job.input as {
-        canvasProjectId?: string;
-        canvasNodeId?: string;
-      };
-      if (input.canvasProjectId && input.canvasNodeId) {
-        await this.canvas.patchNodeAsset(
-          job.userId,
-          input.canvasProjectId,
-          input.canvasNodeId,
-          { assetId: asset.id, url: asset.url, jobId: job.id },
+      const originUrl = result.videoUrl;
+      if (!originUrl) {
+        this.logger.warn(
+          `Video poll ${payload.jobId} succeeded without videoUrl; keep polling`,
         );
-      }
+        result = { status: "running" as const };
+      } else {
+        const mirror = this.storage.isConfigured();
+        const asset = await this.assets.create({
+          userId: job.userId,
+          jobId: job.id,
+          kind: "video",
+          url: originUrl,
+          mimeType: "video/mp4",
+          meta: {
+            originUrl,
+            storageStatus: mirror ? "pending" : "ready",
+          },
+        });
 
-      this.realtime.emitJob(job.userId, "job:completed", {
-        jobId: job.id,
-        status: "succeeded",
-        assets: [asset],
-      });
-      return;
+        await this.jobsRepo.update(job.id, {
+          status: JobStatus.succeeded,
+          progress: 100,
+          finishedAt: new Date(),
+          result: {
+            assetIds: [asset.id],
+            urls: [asset.url],
+          },
+        });
+
+        const input = job.input as {
+          canvasProjectId?: string;
+          canvasNodeId?: string;
+        };
+        if (input.canvasProjectId && input.canvasNodeId) {
+          await this.canvas.patchNodeAsset(
+            job.userId,
+            input.canvasProjectId,
+            input.canvasNodeId,
+            { assetId: asset.id, url: asset.url, jobId: job.id },
+          );
+        }
+
+        this.realtime.emitJob(job.userId, "job:completed", {
+          jobId: job.id,
+          status: "succeeded",
+          assets: [asset],
+        });
+
+        if (mirror) {
+          await enqueueAssetMirror(this.mirrorQueue, {
+            assetId: asset.id,
+            originUrl,
+            ext: "mp4",
+            userId: job.userId,
+            jobId: job.id,
+            canvasProjectId: input.canvasProjectId,
+            canvasNodeId: input.canvasNodeId,
+          });
+        }
+        return;
+      }
     }
 
     if (result.status === "failed") {
@@ -133,30 +145,42 @@ export class VideoPollProcessor extends WorkerHost {
     if (payload.attempt >= this.maxAttempts) {
       await this.jobsRepo.update(job.id, {
         status: JobStatus.failed,
-        error: "视频生成轮询超时",
+        error: "??????????????????????????????",
         progress: 100,
         finishedAt: new Date(),
       });
       this.realtime.emitJob(job.userId, "job:failed", {
         jobId: job.id,
         status: "failed",
-        error: "视频生成轮询超时",
+        error: "??????????????????????????????",
       });
       return;
     }
 
-    const progress = Math.min(90, 20 + payload.attempt);
+    const phaseStatus =
+      result.status === "queued" ? JobStatus.queued : JobStatus.running;
+    const progress =
+      result.status === "queued"
+        ? Math.min(35, 15 + Math.floor(payload.attempt / 2))
+        : Math.min(88, 35 + Math.floor(payload.attempt / 2));
+
+    if (payload.attempt > 0 && payload.attempt % 10 === 0) {
+      this.logger.log(
+        `Video poll ${payload.jobId} still ${result.status} attempt=${payload.attempt} remote=${payload.remoteTaskId}`,
+      );
+    }
+
     await this.jobsRepo.update(job.id, {
-      status: JobStatus.polling,
+      status: phaseStatus,
       progress,
     });
     this.realtime.emitJob(job.userId, "job:progress", {
       jobId: job.id,
-      status: "polling",
+      status: phaseStatus,
       progress,
     });
 
-    const delay = Math.min(15_000, 3000 + payload.attempt * 500);
+    const delay = Math.min(20_000, 4000 + payload.attempt * 400);
     await this.pollQueue.add(
       "poll",
       { ...payload, attempt: payload.attempt + 1 },

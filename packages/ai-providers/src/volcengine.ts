@@ -1,4 +1,7 @@
 import axios from "axios";
+import { ProviderPlatform } from "@joyai/shared";
+import { formatProviderError, formatProviderErrorBody } from "./http-error";
+import { resolveImageSize } from "./image-size";
 import type {
   ImageGenerateInput,
   ImageGenerateResult,
@@ -7,8 +10,6 @@ import type {
   VideoProvider,
   VideoSubmitInput,
 } from "./types";
-import { ProviderPlatform } from "@joyai/shared";
-import { formatProviderError, formatProviderErrorBody } from "./http-error";
 
 function authHeaders(apiKey: string) {
   return {
@@ -21,11 +22,16 @@ export class VolcengineImageProvider implements ImageProvider {
   readonly platform = ProviderPlatform.VOLCENGINE;
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
-    const size =
-      input.size ??
-      (input.width && input.height
-        ? `${input.width}x${input.height}`
-        : "2048x2048");
+    const size = resolveImageSize({
+      size: input.size,
+      width: input.width,
+      height: input.height,
+      ratio: input.ratio,
+      resolution: input.resolution,
+      catalogSizes: input.catalogSizes,
+      mode: input.sizeMode ?? "auto",
+      fallback: "2K",
+    });
 
     const body: Record<string, unknown> = {
       model: input.model,
@@ -70,6 +76,55 @@ export class VolcengineImageProvider implements ImageProvider {
   }
 }
 
+function pickHttpUrl(value: unknown): string | undefined {
+  if (typeof value === "string" && /^https?:\/\//i.test(value)) return value;
+  if (value && typeof value === "object") {
+    const o = value as Record<string, unknown>;
+    if (typeof o.url === "string" && /^https?:\/\//i.test(o.url)) return o.url;
+  }
+  return undefined;
+}
+
+/** Ark Seedance poll payload: content.video_url (object or nested shapes). */
+export function extractVolcengineVideoUrl(data: unknown): string | undefined {
+  const root = (data ?? {}) as Record<string, unknown>;
+  const direct =
+    pickHttpUrl(root.video_url) ??
+    pickHttpUrl(root.videoUrl) ??
+    pickHttpUrl(root.url);
+  if (direct) return direct;
+
+  const content = root.content;
+  if (content && typeof content === "object" && !Array.isArray(content)) {
+    const c = content as Record<string, unknown>;
+    const fromObj =
+      pickHttpUrl(c.video_url) ??
+      pickHttpUrl(c.videoUrl) ??
+      pickHttpUrl(c.url);
+    if (fromObj) return fromObj;
+  }
+  if (Array.isArray(content)) {
+    for (const item of content) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const nested =
+        pickHttpUrl(row.video_url) ??
+        pickHttpUrl(row.videoUrl) ??
+        pickHttpUrl(row.url) ??
+        pickHttpUrl(row.image_url);
+      if (nested) return nested;
+    }
+  }
+
+  for (const key of ["output", "result", "data"] as const) {
+    const nested = root[key];
+    if (!nested) continue;
+    const found = extractVolcengineVideoUrl(nested);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 export class VolcengineVideoProvider implements VideoProvider {
   readonly platform = ProviderPlatform.VOLCENGINE;
 
@@ -92,6 +147,7 @@ export class VolcengineVideoProvider implements VideoProvider {
 
     if (input.ratio) body.ratio = input.ratio;
     if (input.duration) body.duration = input.duration;
+    if (input.resolution) body.resolution = input.resolution;
 
     try {
       const { data } = await axios.post(
@@ -127,34 +183,56 @@ export class VolcengineVideoProvider implements VideoProvider {
       );
 
       const status = String(data?.status ?? "").toLowerCase();
-      if (status === "succeeded" || status === "success") {
-        const videoUrl =
-          data?.content?.video_url ??
-          data?.output?.video_url ??
-          data?.result?.video_url;
+      const videoUrl = extractVolcengineVideoUrl(data);
+
+      if (
+        status === "succeeded" ||
+        status === "success" ||
+        status === "completed" ||
+        status === "complete"
+      ) {
         if (!videoUrl) {
-          return { status: "failed", error: "未返回视频地址", raw: data };
+          // Upstream may mark success a tick before URL is attached — keep polling.
+          return { status: "running", raw: data };
         }
         return { status: "succeeded", videoUrl, raw: data };
       }
-      if (status === "failed" || status === "cancelled") {
+
+      // Some gateways omit status but already include the video URL.
+      if (videoUrl) {
+        return { status: "succeeded", videoUrl, raw: data };
+      }
+
+      if (
+        status === "failed" ||
+        status === "cancelled" ||
+        status === "canceled" ||
+        status === "expired"
+      ) {
         return {
           status: "failed",
           error: formatProviderErrorBody(data, undefined, {
             platform: ProviderPlatform.VOLCENGINE,
-            fallback: status,
+            fallback: status || "failed",
           }),
           raw: data,
         };
       }
-      return { status: status === "queued" ? "queued" : "running" };
+
+      if (status === "queued" || status === "pending") {
+        return { status: "queued", raw: data };
+      }
+      return { status: "running", raw: data };
     } catch (error) {
+      // Transient network / 5xx — keep polling instead of failing the job.
       return {
-        status: "failed",
-        error: formatProviderError(error, {
-          platform: ProviderPlatform.VOLCENGINE,
-          fallback: "视频轮询失败",
-        }),
+        status: "running",
+        raw: {
+          softError: formatProviderError(error, {
+            platform: ProviderPlatform.VOLCENGINE,
+            fallback: "视频轮询暂时失败，将重试",
+          }),
+        },
       };
     }
   }

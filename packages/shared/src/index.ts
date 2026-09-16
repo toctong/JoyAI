@@ -88,6 +88,10 @@ export const ImageJobInputSchema = z.object({
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   size: z.string().optional(),
+  /** UI layout: 16:9 / 1:1 / auto … */
+  ratio: z.string().optional(),
+  /** UI clarity tier: 1K / 2K / 4K … */
+  resolution: z.string().optional(),
   n: z.number().int().min(1).max(4).default(1),
   referenceAssetIds: z.array(z.string()).optional(),
   referenceUrls: z.array(z.string().url()).optional(),
@@ -103,6 +107,7 @@ export const VideoJobInputSchema = z.object({
   prompt: z.string().min(1).max(4000),
   duration: z.number().positive().optional(),
   ratio: z.string().optional(),
+  resolution: z.string().optional(),
   referenceAssetIds: z.array(z.string()).optional(),
   referenceUrls: z.array(z.string().url()).optional(),
   modelId: z.string().optional(),
@@ -121,6 +126,7 @@ export const QUEUE = {
   IMAGE: "image-generation",
   VIDEO_SUBMIT: "video-submit",
   VIDEO_POLL: "video-poll",
+  ASSET_MIRROR: "asset-mirror",
 } as const;
 
 export * from "./model-meta";

@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import { Crosshair, Play } from "lucide-react";
 import { api } from "@/shared/lib/api";
+import { getJobsSocket } from "@/shared/lib/socket";
 import { cn } from "@/shared/lib/utils";
 import "./assets-library.css";
 
@@ -103,6 +104,25 @@ export function AssetsLibrary() {
     })();
     return () => {
       alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const socket = getJobsSocket();
+    const onAssetUpdated = (payload: { asset?: Asset }) => {
+      const next = payload.asset;
+      if (!next?.id || !next.url) return;
+      setAssets((prev) => {
+        const idx = prev.findIndex((a) => a.id === next.id);
+        if (idx < 0) return prev;
+        const copy = [...prev];
+        copy[idx] = { ...copy[idx], ...next, url: next.url };
+        return copy;
+      });
+    };
+    socket.on("asset:updated", onAssetUpdated);
+    return () => {
+      socket.off("asset:updated", onAssetUpdated);
     };
   }, []);
 

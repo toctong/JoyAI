@@ -1,7 +1,7 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Processor, WorkerHost, InjectQueue } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Job as BullJob } from "bullmq";
+import { Job as BullJob, Queue } from "bullmq";
 import { Repository } from "typeorm";
 import { getImageProvider } from "@joyai/ai-providers";
 import { QUEUE } from "@joyai/shared";
@@ -13,6 +13,7 @@ import { StorageService } from "../../storage/storage.service";
 import { AssetsService } from "../../assets/assets.service";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { CanvasService } from "../../canvas/canvas.service";
+import { enqueueAssetMirror } from "../enqueue-asset-mirror";
 
 @Processor(QUEUE.IMAGE)
 export class ImageProcessor extends WorkerHost {
@@ -26,6 +27,7 @@ export class ImageProcessor extends WorkerHost {
     private readonly assets: AssetsService,
     private readonly realtime: RealtimeGateway,
     private readonly canvas: CanvasService,
+    @InjectQueue(QUEUE.ASSET_MIRROR) private readonly mirrorQueue: Queue,
   ) {
     super();
   }
@@ -53,6 +55,8 @@ export class ImageProcessor extends WorkerHost {
         size?: string;
         width?: number;
         height?: number;
+        ratio?: string;
+        resolution?: string;
         n?: number;
         modelId?: string;
         referenceAssetIds?: string[];
@@ -86,6 +90,28 @@ export class ImageProcessor extends WorkerHost {
             ? `[Inpaint / 局部重绘] ${input.prompt}`
             : input.prompt;
 
+      const caps = (model.capabilities ?? null) as {
+        sizes?: string[];
+        ratios?: string[];
+        resolutions?: string[];
+      } | null;
+      const catalogSizes = caps?.sizes?.filter((s) =>
+        /^\d+\s*[x×]\s*\d+$/i.test(s),
+      );
+      const hasSizes = Boolean(catalogSizes?.length);
+      const hasRatios = Boolean(caps?.ratios?.length);
+      const hasResolutions = Boolean(caps?.resolutions?.length);
+      const hasK = Boolean(
+        caps?.resolutions?.some((r) =>
+          /^\d+(\.\d+)?k$/i.test(String(r).trim()),
+        ),
+      );
+      let sizeMode: "keyword" | "pixels" | "auto" = "auto";
+      if (hasSizes) sizeMode = "pixels";
+      else if (hasK) sizeMode = "auto";
+      else if (hasRatios && hasResolutions) sizeMode = "pixels";
+      else if (hasResolutions && !hasRatios) sizeMode = "keyword";
+
       const provider = getImageProvider(model.channel.platform);
       const count = Math.max(1, Math.min(Number(input.n) || 1, 4));
       // Seedream 等模型常忽略 n / 只当组图上限；数量选择按「独立出图」并发请求，保证张数
@@ -97,6 +123,10 @@ export class ImageProcessor extends WorkerHost {
             size: input.size,
             width: input.width,
             height: input.height,
+            ratio: input.ratio,
+            resolution: input.resolution,
+            catalogSizes,
+            sizeMode,
             n: 1,
             watermark: false,
             referenceUrls,
@@ -111,7 +141,10 @@ export class ImageProcessor extends WorkerHost {
         raw: count === 1 ? batches[0]?.raw : batches.map((b) => b.raw),
       };
 
+      const mirror = this.storage.isConfigured();
       const createdAssets = [];
+      const pendingMirrors: Array<{ assetId: string; originUrl: string }> = [];
+
       for (const img of result.images) {
         let url = img.url;
         if (!url && img.b64) {
@@ -133,42 +166,29 @@ export class ImageProcessor extends WorkerHost {
               sha256: put.sha256,
               storageKey: put.key,
               tosDeduplicated: put.deduplicated,
+              storageStatus: "ready",
             },
           });
           createdAssets.push(asset);
           continue;
-        } else if (url && this.storage.isConfigured()) {
-          try {
-            const put = await this.storage.putFromUrl(url, "png");
-            url = put.url;
-            const asset = await this.assets.create({
-              userId: job.userId,
-              jobId,
-              kind: "image",
-              url,
-              md5: put.md5,
-              mimeType: "image/png",
-              size: put.size,
-              meta: {
-                sha256: put.sha256,
-                storageKey: put.key,
-                tosDeduplicated: put.deduplicated,
-              },
-            });
-            createdAssets.push(asset);
-            continue;
-          } catch (e) {
-            this.logger.warn(`TOS mirror failed, keep origin url: ${e}`);
-          }
         }
         if (!url) continue;
+
         const asset = await this.assets.create({
           userId: job.userId,
           jobId,
           kind: "image",
           url,
+          mimeType: "image/png",
+          meta: {
+            originUrl: url,
+            storageStatus: mirror ? "pending" : "ready",
+          },
         });
         createdAssets.push(asset);
+        if (mirror) {
+          pendingMirrors.push({ assetId: asset.id, originUrl: url });
+        }
       }
 
       await this.jobsRepo.update(jobId, {
@@ -199,6 +219,18 @@ export class ImageProcessor extends WorkerHost {
         status: "succeeded",
         assets: createdAssets,
       });
+
+      for (const item of pendingMirrors) {
+        await enqueueAssetMirror(this.mirrorQueue, {
+          assetId: item.assetId,
+          originUrl: item.originUrl,
+          ext: "png",
+          userId: job.userId,
+          jobId,
+          canvasProjectId: input.canvasProjectId,
+          canvasNodeId: input.canvasNodeId,
+        });
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(`Image job ${jobId} failed: ${message}`);
