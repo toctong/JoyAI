@@ -37,6 +37,10 @@ export type VideoSubmitInput = {
   resolution?: string;
   watermark?: boolean;
   referenceUrls?: string[];
+  /** omni = reference_image*; first_last = first/last frame roles or prompt fallback */
+  refMode?: "omni" | "first_last";
+  /** When true, first_last uses reference_image + prompt prefix instead of native roles */
+  firstLastViaPrompt?: boolean;
   /** Channel metadata (e.g. dashscopeApiBase) */
   metadata?: Record<string, unknown> | null;
 };

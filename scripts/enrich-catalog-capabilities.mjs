@@ -1,15 +1,21 @@
 /**
  * Enrich catalog capabilities from documented provider specs only.
- * Does NOT invent ratios/resolutions for undocumented models.
+ * Does NOT invent ratios/resolutions/sizes for undocumented models (Flux/Grok/MJ).
  *
- * Sources (APIMart / ToAPIs docs fetched 2026-03):
- * - gpt-image-1/1.5, gpt-image-2, nano-banana
- * - sora-2, kling-v3, seedance-2.0, wan2.7, veo3.1
+ * Documented sources (fetched 2026-03 / 2026-09):
+ * - ToAPIs Seedance 2/mini/fast: https://docs.toapis.com/docs/en/api-reference/videos/seedance-2/generation
+ * - APIMart Seedance 2.0: https://docs.apimart.ai/en/api-reference/videos/seedance-2.0/generation
+ * - APIMart Kling 3.0 Turbo: https://docs.apimart.ai/en/api-reference/videos/kling-3.0-turbo/generation
+ * - APIMart Seedream 5.0 Pro / Nano Banana / GPT Image
+ * - DashScope Wan 2.7 i2v: https://help.aliyun.com/en/model-studio/image-to-video-general-api-reference
+ * - DashScope Qwen Image: https://help.aliyun.com/en/model-studio/qwen-image-api
+ * - Volcengine / Ark Seedance & Seedream (Ark-shaped mirrors + vendor doc IDs)
  */
 import fs from "node:fs";
 import path from "node:path";
 
 const DIR = path.join("packages", "shared", "src", "catalog");
+const UPDATED_AT = "2026-09-16";
 
 const GPT_IMAGE_2_RATIOS_APIMART = [
   "auto",
@@ -66,15 +72,15 @@ const NANO_BANANA_RATIOS = [
 const SORA_RATIOS = ["16:9", "9:16"];
 const KLING_RATIOS = ["16:9", "9:16", "1:1"];
 const SEEDANCE2_RATIOS = [
-  "16:9",
-  "9:16",
-  "1:1",
-  "4:3",
-  "3:4",
   "21:9",
+  "16:9",
+  "4:3",
+  "1:1",
+  "3:4",
+  "9:16",
   "adaptive",
 ];
-const WAN27_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"];
+const WAN_VIDEO_RATIOS = ["16:9", "9:16", "1:1", "4:3", "3:4"];
 const VEO_RATIOS = ["16:9", "9:16"];
 const GROK_VIDEO_RATIOS = ["16:9", "9:16", "1:1"];
 const HAPPYHORSE_RATIOS = [
@@ -88,11 +94,43 @@ const HAPPYHORSE_RATIOS = [
   "9:21",
   "21:9",
 ];
-/** Imagen 4.0 docs: landscape/portrait only */
 const IMAGEN4_RATIOS = ["16:9", "9:16"];
 
-/** Seedream on Ark commonly exposes these (volcengine catalog already partial). */
-const SEEDREAM_ARK_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"];
+/** Seedream Ark / aggregator common ratios (+ auto on gateways). */
+const SEEDREAM_RATIOS = [
+  "1:1",
+  "4:3",
+  "3:4",
+  "16:9",
+  "9:16",
+  "3:2",
+  "2:3",
+  "2:1",
+  "1:2",
+  "21:9",
+];
+const SEEDREAM_RATIOS_GATEWAY = ["auto", ...SEEDREAM_RATIOS];
+
+/** DashScope Qwen Image plus / max / image — fixed WxH list (docs use `*`, catalog uses `x`). */
+const QWEN_FIXED_SIZES = [
+  "1664x928",
+  "1472x1104",
+  "1328x1328",
+  "1104x1472",
+  "928x1664",
+];
+const QWEN_FIXED_RATIOS = ["16:9", "4:3", "1:1", "3:4", "9:16"];
+const QWEN_FLEX_RATIOS = ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"];
+
+const SEEDANCE2_FEATURES = [
+  "t2v",
+  "i2v",
+  "r2v",
+  "omni-ref",
+  "first-last-frame",
+  "audio",
+  "ref-video",
+];
 
 function isRatioLike(s) {
   return /^(auto|adaptive|\d+:\d+)$/i.test(String(s).trim());
@@ -102,8 +140,30 @@ function isDurationLike(s) {
   return /^\d+(\.\d+)?s$/i.test(String(s).trim());
 }
 
+/** WxH like 1024x1024 or 1024*1024 */
+function isPixelSize(s) {
+  return /^\d+\s*[x*×]\s*\d+$/i.test(String(s).trim());
+}
+
+function normalizePixelSize(s) {
+  const m = String(s)
+    .trim()
+    .match(/^(\d+)\s*[x*×]\s*(\d+)$/i);
+  if (!m) return String(s).trim();
+  return `${m[1]}x${m[2]}`;
+}
+
 function uniq(arr) {
-  return [...new Set((arr ?? []).filter(Boolean))];
+  return [...new Set((arr ?? []).filter((x) => x != null && x !== ""))];
+}
+
+function withoutFeatures(features, drop) {
+  const dropSet = new Set(drop);
+  return (features ?? []).filter((f) => !dropSet.has(f));
+}
+
+function setFeatures(features, add, drop = []) {
+  return uniq([...withoutFeatures(features, drop), ...add]);
 }
 
 function patch(caps, patchObj) {
@@ -121,15 +181,52 @@ function patch(caps, patchObj) {
       next[k] = v;
     }
   }
-  // drop empty arrays
   for (const k of Object.keys(next)) {
     if (Array.isArray(next[k]) && !next[k].length) delete next[k];
   }
   return next;
 }
 
+function hygieneFromResolutions(caps, p) {
+  if (!Array.isArray(caps.resolutions)) return;
+  const ratiosInRes = caps.resolutions.filter(isRatioLike);
+  const dursInRes = caps.resolutions.filter(isDurationLike);
+  const pixelsInRes = caps.resolutions.filter(isPixelSize);
+  const realRes = caps.resolutions.filter(
+    (x) => !isRatioLike(x) && !isDurationLike(x) && !isPixelSize(x),
+  );
+  if (ratiosInRes.length || dursInRes.length || pixelsInRes.length) {
+    p.resolutions = realRes;
+    if (!caps.ratios?.length && ratiosInRes.length) {
+      p.ratios = ratiosInRes;
+    }
+    if (pixelsInRes.length) {
+      p.sizes = uniq([
+        ...(caps.sizes ?? []),
+        ...(p.sizes ?? []),
+        ...pixelsInRes.map(normalizePixelSize),
+      ]);
+    }
+  }
+}
+
+function isSeedance2(id) {
+  return (
+    /^seedance-2([.-]|$)/i.test(id) ||
+    /^seedance-2\./i.test(id) ||
+    /^doubao-seedance-2/i.test(id)
+  );
+}
+
+function isSeedance2MiniOrFast(id) {
+  return /mini|fast/i.test(id);
+}
+
+function isSeedance25(id) {
+  return /seedance-2[.-]?5|seedance-2_5|2-5-260628/i.test(id);
+}
+
 /**
- * Return capability patch for a model, or null if no documented changes.
  * @param {string} platform
  * @param {"llm"|"image"|"video"} kind
  * @param {object} item
@@ -140,81 +237,66 @@ function documentedPatch(platform, kind, item) {
   /** @type {Record<string, unknown>} */
   const p = {};
 
-  // --- global hygiene: move mis-filed ratios / durations out of resolutions ---
-  if (Array.isArray(caps.resolutions)) {
-    const ratiosInRes = caps.resolutions.filter(isRatioLike);
-    const dursInRes = caps.resolutions.filter(isDurationLike);
-    const realRes = caps.resolutions.filter(
-      (x) => !isRatioLike(x) && !isDurationLike(x),
-    );
-    if (ratiosInRes.length || dursInRes.length) {
-      p.resolutions = realRes;
-      if (!caps.ratios?.length && ratiosInRes.length) {
-        p.ratios = ratiosInRes;
-      }
-    }
-  }
+  hygieneFromResolutions(caps, p);
 
   if (kind === "llm") {
-    // LLM: no ratios/resolutions/sizes. Only keep input/output/features as-is.
     return Object.keys(p).length ? p : null;
   }
 
   // ========== IMAGE ==========
   if (kind === "image") {
-    // GPT Image 1 / 1.5 (APIMart docs: 1:1 / 3:2 / 2:3 + inpaint)
-    if (/^gpt-image-1(\.5)?(-official)?$/i.test(id) || id === "gpt-image-1.5") {
+    if (
+      /^gpt-image-1(\.5)?(-official)?$/i.test(id) ||
+      id === "gpt-image-1.5"
+    ) {
       Object.assign(p, {
         ratios: GPT_IMAGE_1_RATIOS,
         sizes: GPT_IMAGE_1_SIZES,
         maxRefImages: 15,
-        features: uniq([...(caps.features ?? []), "t2i", "i2i", "inpaint"]),
+        features: setFeatures(caps.features, ["t2i", "i2i", "inpaint"]),
         async: true,
       });
-      if (!caps.resolutions?.length) p.resolutions = ["1K", "2K"];
       return p;
     }
 
-    // GPT Image 2 family
     if (/^gpt-image-2/i.test(id)) {
       const isToapis = platform === "toapis";
       const isOfficial = /official/i.test(id);
       Object.assign(p, {
-        ratios: isToapis ? GPT_IMAGE_2_RATIOS_TOAPIS : GPT_IMAGE_2_RATIOS_APIMART,
+        ratios: isToapis
+          ? GPT_IMAGE_2_RATIOS_TOAPIS
+          : GPT_IMAGE_2_RATIOS_APIMART,
         resolutions: ["1K", "2K", "4K"],
         maxRefImages: isToapis ? 6 : /official|2\.5/i.test(id) ? 16 : 15,
-        features: isOfficial
-          ? ["t2i", "i2i", "inpaint"]
-          : ["t2i", "i2i"],
+        features: isOfficial ? ["t2i", "i2i", "inpaint"] : ["t2i", "i2i"],
         async: true,
       });
       return p;
     }
 
-    // Nano Banana / Gemini flash image
     if (
       /nano[_-]?banana/i.test(id) ||
       /gemini-2\.5-flash-image/i.test(id) ||
       /gemini-3(\.1)?-(flash|pro)-image/i.test(id)
     ) {
+      const isLiteOrBase =
+        /lite$/i.test(id) ||
+        id === "nano-banana" ||
+        /gemini-2\.5-flash-image/i.test(id);
       Object.assign(p, {
         ratios: NANO_BANANA_RATIOS,
-        maxRefImages: caps.maxRefImages ?? 14,
-        features: uniq(
-          (caps.features ?? ["t2i", "i2i"]).filter((f) => f !== "inpaint"),
+        maxRefImages: 14,
+        resolutions: isLiteOrBase ? ["1K"] : ["1K", "2K", "4K"],
+        features: setFeatures(
+          caps.features ?? ["t2i", "i2i"],
+          ["t2i", "i2i"],
+          ["inpaint"],
         ),
         async: true,
       });
-      // lite / base banana: docs say 1K only
-      if (/lite$/i.test(id) || id === "nano-banana" || /gemini-2\.5-flash-image/i.test(id)) {
-        p.resolutions = ["1K"];
-      } else if (!caps.resolutions?.length) {
-        p.resolutions = ["1K", "2K", "4K"];
-      }
       return p;
     }
 
-    // Imagen 4.0 — only 16:9 / 9:16, text-only, no i2i
     if (/imagen-4/i.test(id)) {
       return {
         ratios: IMAGEN4_RATIOS,
@@ -222,58 +304,94 @@ function documentedPatch(platform, kind, item) {
         input: ["text"],
         maxRefImages: null,
         async: true,
-        // clear mis-filed resolutions that were ratios
         resolutions: [],
       };
     }
 
-    // Seedream (gateway short ids)
     if (/^seedream-/i.test(id) || /^doubao-seedream-/i.test(id)) {
+      const gateway = platform !== "volcengine";
       Object.assign(p, {
-        ratios: SEEDREAM_ARK_RATIOS,
-        async: platform === "volcengine" ? (caps.async ?? false) : true,
+        ratios: gateway ? SEEDREAM_RATIOS_GATEWAY : SEEDREAM_RATIOS,
+        async: gateway ? true : (caps.async ?? false),
+        features: setFeatures(caps.features, ["t2i", "i2i"]),
       });
-      if (/5\.0-pro|5-0-pro/i.test(id) && !caps.resolutions?.length) {
+      if (/5[.-]?0-pro|5-0-pro/i.test(id)) {
         p.resolutions = ["1K", "1.5K", "2K"];
-      }
-      if (/5\.0-lite|5-0($|-)/i.test(id) && !/pro/i.test(id) && !caps.resolutions?.length) {
+        p.maxRefImages = 10;
+      } else if (
+        /5[.-]?0-lite|5-0-lite|seedream-5\.0-lite|doubao-seedream-5-0-lite/i.test(
+          id,
+        ) ||
+        (/5[.-]?0/i.test(id) && !/pro/i.test(id))
+      ) {
         p.resolutions = ["2K", "3K"];
+        p.maxRefImages = platform === "volcengine" ? 14 : 10;
+      } else if (/4[.-]?5/i.test(id)) {
+        p.resolutions = ["2K", "4K"];
+        p.maxRefImages = platform === "volcengine" ? 14 : 10;
+      } else if (/4[.-]?0/i.test(id)) {
+        p.resolutions = ["1K", "2K", "4K"];
+        p.maxRefImages = platform === "volcengine" ? 14 : 10;
+      } else if (!caps.resolutions?.length && !p.resolutions) {
+        p.resolutions = ["2K"];
+        p.maxRefImages = 10;
       }
       return p;
     }
 
-    // Qwen image
+    // Qwen Image — plus/max/legacy fixed WxH; 2.0/3.0 flex ratio+K
     if (/^qwen-image/i.test(id)) {
-      Object.assign(p, {
-        ratios: ["1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3"],
-        resolutions: caps.resolutions?.length ? caps.resolutions : ["1K", "2K"],
-        async: true,
-      });
+      const isFixedList =
+        /^qwen-image(-plus|-max)?$/i.test(id) ||
+        id === "qwen-image-plus" ||
+        id === "qwen-image-max";
+      if (isFixedList) {
+        Object.assign(p, {
+          sizes: QWEN_FIXED_SIZES,
+          ratios: QWEN_FIXED_RATIOS,
+          resolutions: [],
+          maxRefImages: caps.maxRefImages ?? 3,
+          features: setFeatures(caps.features, ["t2i", "i2i"]),
+          async: true,
+        });
+      } else {
+        Object.assign(p, {
+          ratios: QWEN_FLEX_RATIOS,
+          resolutions: ["1K", "2K"],
+          maxRefImages: caps.maxRefImages ?? 3,
+          features: setFeatures(caps.features, ["t2i", "i2i"]),
+          async: true,
+        });
+      }
       return p;
     }
 
-    // Wan image
+    // Wan image + wanx — move WxH out of resolutions via hygiene; set ratios
     if (/^wan2\.[57]-image/i.test(id) || /^wanx2\.1/i.test(id)) {
       Object.assign(p, {
-        ratios: WAN27_RATIOS,
+        ratios: WAN_VIDEO_RATIOS,
         async: true,
+        features: setFeatures(caps.features, ["t2i", "i2i"]),
       });
+      // wanx2.1-t2i-plus: after hygiene, ensure sizes if pixels were in res
+      if (/wanx2\.1-t2i-plus/i.test(id)) {
+        const fromRes = (caps.resolutions ?? [])
+          .filter(isPixelSize)
+          .map(normalizePixelSize);
+        if (fromRes.length || p.sizes) {
+          p.sizes = uniq([...(caps.sizes ?? []), ...(p.sizes ?? []), ...fromRes]);
+          p.resolutions = [];
+        }
+      }
       return p;
     }
 
-    // Flux / z-image / grok imagine / midjourney — no reliable ratio table found;
-    // only fix features hygiene if needed. Leave ratios empty.
-    if (/^flux-2/i.test(id) || /^z-image/i.test(id)) {
-      // t2i only models shouldn't claim i2i without docs
-      return Object.keys(p).length ? p : null;
-    }
-
+    // Flux / grok / midjourney — leave empty (no doc tables)
     return Object.keys(p).length ? p : null;
   }
 
   // ========== VIDEO ==========
   if (kind === "video") {
-    // Sora 2
     if (/^sora-2/i.test(id)) {
       const isPro = /pro/i.test(id);
       Object.assign(p, {
@@ -287,132 +405,169 @@ function documentedPatch(platform, kind, item) {
       return p;
     }
 
-    // Veo 3 / 3.1
     if (/^veo-?3/i.test(id) || /^Veo3/i.test(id)) {
       Object.assign(p, {
         ratios: VEO_RATIOS,
         resolutions: ["720p", "1080p", "4k"],
         maxDurationSec: 8,
-        maxRefImages: /lite/i.test(id) ? 0 : /official|quality/i.test(id) ? 2 : 3,
-        features: uniq(
-          (caps.features ?? ["t2v", "i2v"]).filter((f) => true),
-        ),
         async: true,
       });
       if (/lite/i.test(id)) {
         p.features = ["t2v"];
         p.maxRefImages = null;
         p.input = ["text"];
+      } else {
+        p.maxRefImages = /official|quality/i.test(id) ? 2 : 3;
+        p.features = setFeatures(caps.features, ["t2v", "i2v"]);
       }
       return p;
     }
 
-    // Kling
     if (/^kling/i.test(id)) {
       Object.assign(p, {
         ratios: KLING_RATIOS,
         async: true,
       });
-      if (/v3$/i.test(id) || /v3-omni/i.test(id)) {
-        p.maxDurationSec = 15;
-        p.maxRefImages = /omni/i.test(id) ? 4 : 2;
-        p.resolutions = /omni|v3$/i.test(id)
-          ? ["720P", "1080P", "4K"]
-          : caps.resolutions;
-        p.features = uniq([
-          ...(caps.features ?? []),
-          "t2v",
-          "i2v",
-          "audio",
-        ]);
+      if (/turbo/i.test(id)) {
+        // APIMart: first-frame only — no first-last-frame
+        Object.assign(p, {
+          maxDurationSec: 15,
+          maxRefImages: 1,
+          resolutions: ["720P", "1080P"],
+          features: setFeatures(
+            caps.features,
+            ["t2v", "i2v"],
+            ["first-last-frame", "omni-ref", "r2v"],
+          ),
+        });
+        return p;
+      }
+      if (/v3-omni/i.test(id)) {
+        Object.assign(p, {
+          maxDurationSec: 15,
+          maxRefImages: 4,
+          resolutions: ["720P", "1080P", "4K"],
+          features: setFeatures(caps.features, [
+            "t2v",
+            "i2v",
+            "audio",
+            "omni-ref",
+          ]),
+        });
+        return p;
+      }
+      if (/v3$/i.test(id) || /kling-v3$/i.test(id)) {
+        Object.assign(p, {
+          maxDurationSec: 15,
+          maxRefImages: 2,
+          resolutions: ["720P", "1080P", "4K"],
+          features: setFeatures(caps.features, [
+            "t2v",
+            "i2v",
+            "audio",
+            "first-last-frame",
+          ]),
+        });
+        return p;
       }
       if (/v2-6|v2\.6/i.test(id)) {
-        p.maxDurationSec = 10;
-        p.maxRefImages = 2;
-        p.resolutions = ["720P", "1080P"];
-      }
-      if (/turbo/i.test(id)) {
-        p.maxDurationSec = 15;
-        p.maxRefImages = 1;
-        p.resolutions = ["720P", "1080P"];
-        p.features = ["t2v", "i2v"];
+        Object.assign(p, {
+          maxDurationSec: 10,
+          maxRefImages: 2,
+          resolutions: ["720P", "1080P"],
+          features: setFeatures(caps.features, ["t2v", "i2v"]),
+        });
+        return p;
       }
       return p;
     }
 
-    // Seedance 2.x (gateway)
-    if (/^seedance-2/i.test(id) || /^seedance-2\./i.test(id)) {
-      const isMiniOrFast = /mini|fast/i.test(id);
+    // Seedance 2.x (gateway short ids + volcengine doubao-seedance-2*)
+    if (isSeedance2(id)) {
+      const miniOrFast = isSeedance2MiniOrFast(id);
+      const is25 = isSeedance25(id);
       Object.assign(p, {
         ratios: SEEDANCE2_RATIOS,
-        resolutions: isMiniOrFast
+        resolutions: miniOrFast
           ? ["480p", "720p"]
-          : ["480p", "720p", "1080p", "4k"],
-        maxDurationSec: 15,
-        maxRefImages: caps.maxRefImages ?? 9,
+          : is25
+            ? ["480p", "720p", "1080p"]
+            : ["480p", "720p", "1080p", "4k"],
+        maxDurationSec: is25 ? 30 : 15,
+        maxRefImages: 9,
         maxRefVideos: 3,
         maxRefAudios: 3,
-        features: uniq([
-          ...(caps.features ?? []),
-          "t2v",
-          "i2v",
-          "audio",
-          "ref-video",
-        ]),
+        features: SEEDANCE2_FEATURES,
         async: true,
       });
       return p;
     }
 
-    // Seedance 1.x / doubao-seedance
-    if (/seedance-1/i.test(id) || /^doubao-seedance-/i.test(id)) {
+    // Seedance 1.x
+    if (/seedance-1/i.test(id) || /^doubao-seedance-1/i.test(id)) {
       Object.assign(p, {
-        ratios: caps.ratios?.length
-          ? caps.ratios
-          : ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
+        ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
         async: true,
+        features: setFeatures(caps.features, ["t2v", "i2v", "first-last-frame"]),
       });
       return p;
     }
 
-    // Wan video
+    // Wan video — 2.6 has NO first-last; 2.7 i2v/videoedit DOES
     if (/^wan2\.7/i.test(id) || /^wan2\.6/i.test(id) || /^wan3\.0/i.test(id)) {
       Object.assign(p, {
-        ratios: WAN27_RATIOS,
+        ratios: WAN_VIDEO_RATIOS,
         async: true,
       });
-      if (/^wan2\.7$/i.test(id) || /^wan2\.7-/i.test(id)) {
+      if (/^wan2\.7/i.test(id)) {
         p.resolutions = ["720P", "1080P"];
         p.maxDurationSec = 15;
-        p.maxRefImages = 2;
+        p.maxRefImages = /t2v/i.test(id) ? 0 : 2;
+        if (/t2v/i.test(id)) p.maxRefImages = null;
+        else p.maxRefImages = 2;
         p.maxRefVideos = 1;
         p.maxRefAudios = 1;
-        p.features = uniq([
-          ...(caps.features ?? []),
-          "t2v",
-          "i2v",
-          "audio",
-          "extend",
-        ]);
-      }
-      if (/^wan2\.6/i.test(id)) {
-        p.resolutions = ["720p", "1080p"];
+        const base = ["t2v", "i2v", "audio", "extend"];
+        if (/i2v|videoedit/i.test(id)) {
+          p.features = setFeatures(caps.features, [
+            ...base,
+            "first-last-frame",
+          ]);
+        } else if (/r2v/i.test(id)) {
+          p.features = setFeatures(
+            caps.features,
+            [...base, "r2v", "omni-ref"],
+            ["first-last-frame"],
+          );
+        } else {
+          p.features = setFeatures(caps.features, base, [
+            "first-last-frame",
+          ]);
+        }
+      } else if (/^wan2\.6/i.test(id)) {
+        p.resolutions = ["720P", "1080P"];
         p.maxDurationSec = 15;
-        p.maxRefImages = 2;
-      }
-      if (/^wan3\.0/i.test(id)) {
+        p.maxRefImages = /t2v/i.test(id) ? null : 1;
+        p.features = setFeatures(
+          caps.features,
+          /t2v/i.test(id) ? ["t2v"] : ["t2v", "i2v"],
+          ["first-last-frame", "omni-ref", "r2v"],
+        );
+      } else if (/^wan3\.0/i.test(id)) {
         p.resolutions = ["480P", "720P", "1080P"];
         p.maxDurationSec = 30;
+        p.features = setFeatures(caps.features, ["t2v", "i2v"]);
       }
       return p;
     }
 
-    // HappyHorse
     if (/happyhorse/i.test(id)) {
       Object.assign(p, {
         ratios: HAPPYHORSE_RATIOS,
         resolutions: caps.resolutions?.length
-          ? caps.resolutions
+          ? caps.resolutions.filter(
+              (x) => !isRatioLike(x) && !isPixelSize(x),
+            )
           : ["720P", "1080P"],
         maxDurationSec: caps.maxDurationSec ?? 15,
         async: true,
@@ -420,7 +575,6 @@ function documentedPatch(platform, kind, item) {
       return p;
     }
 
-    // Grok video
     if (/grok-(imagine-)?video/i.test(id) || /^grok-video/i.test(id)) {
       Object.assign(p, {
         ratios: GROK_VIDEO_RATIOS,
@@ -429,7 +583,6 @@ function documentedPatch(platform, kind, item) {
       return p;
     }
 
-    // MiniMax Hailuo
     if (/MiniMax|Hailuo|^MiniMax/i.test(id)) {
       Object.assign(p, {
         ratios: ["16:9", "9:16", "1:1"],
@@ -438,7 +591,6 @@ function documentedPatch(platform, kind, item) {
       return p;
     }
 
-    // Vidu
     if (/^vidu/i.test(id)) {
       Object.assign(p, {
         ratios: ["16:9", "9:16", "1:1"],
@@ -447,7 +599,6 @@ function documentedPatch(platform, kind, item) {
       return p;
     }
 
-    // Gemini omni video
     if (/gemini[_-]?omni/i.test(id)) {
       Object.assign(p, {
         ratios: ["16:9", "9:16", "1:1"],
@@ -456,7 +607,6 @@ function documentedPatch(platform, kind, item) {
       return p;
     }
 
-    // Pixverse / SkyReels / flux-3-video — conservative common ratios only if already has res
     if (/pixverse|skyreels|flux-3-video/i.test(id)) {
       Object.assign(p, {
         ratios: ["16:9", "9:16", "1:1"],
@@ -475,7 +625,6 @@ function applyPatch(item, patchObj) {
   if (!patchObj) return { changed: false, item };
   const caps = { ...(item.capabilities ?? {}) };
   const next = patch(caps, patchObj);
-  // handle explicit null deletes
   for (const [k, v] of Object.entries(patchObj)) {
     if (v === null) delete next[k];
     if (Array.isArray(v) && v.length === 0) delete next[k];
@@ -489,7 +638,12 @@ function applyPatch(item, patchObj) {
   };
 }
 
-const files = ["apimart.json", "toapis.json", "volcengine.json", "dashscope.json"];
+const files = [
+  "apimart.json",
+  "toapis.json",
+  "volcengine.json",
+  "dashscope.json",
+];
 const summary = [];
 
 for (const file of files) {
@@ -516,14 +670,91 @@ for (const file of files) {
     doc[kind] = list;
   }
 
-  doc.updatedAt = "2026-03-26";
+  doc.updatedAt = UPDATED_AT;
   fs.writeFileSync(fp, `${JSON.stringify(doc, null, 2)}\n`);
   summary.push({ file, changed, skipped });
 }
 
 console.log(JSON.stringify(summary, null, 2));
 
-// verify gaps remaining
+// Acceptance spot-checks
+function findModel(doc, kind, remoteId) {
+  return (doc[kind] ?? []).find((m) => m.remoteId === remoteId);
+}
+
+function assert(cond, msg) {
+  if (!cond) console.error("FAIL:", msg);
+  else console.log("OK:", msg);
+}
+
+{
+  const toapis = JSON.parse(
+    fs.readFileSync(path.join(DIR, "toapis.json"), "utf8"),
+  );
+  const s2 = findModel(toapis, "video", "seedance-2");
+  const s2m = findModel(toapis, "video", "seedance-2-mini");
+  assert(s2?.capabilities?.maxRefImages === 9, "toapis seedance-2 maxRefImages=9");
+  assert(
+    s2?.capabilities?.features?.includes("omni-ref") &&
+      s2?.capabilities?.features?.includes("first-last-frame"),
+    "toapis seedance-2 omni+first-last",
+  );
+  assert(
+    s2m?.capabilities?.resolutions?.every((r) =>
+      ["480p", "720p"].includes(r),
+    ) && !s2m?.capabilities?.resolutions?.includes("1080p"),
+    "toapis seedance-2-mini no 1080p",
+  );
+
+  const dash = JSON.parse(
+    fs.readFileSync(path.join(DIR, "dashscope.json"), "utf8"),
+  );
+  const w26 = findModel(dash, "video", "wan2.6-i2v-flash");
+  const w27 = findModel(dash, "video", "wan2.7-i2v");
+  const qplus = findModel(dash, "image", "qwen-image-plus");
+  assert(
+    !w26?.capabilities?.features?.includes("first-last-frame"),
+    "dashscope wan2.6-i2v-flash NO first-last",
+  );
+  assert(
+    w27?.capabilities?.features?.includes("first-last-frame"),
+    "dashscope wan2.7-i2v HAS first-last",
+  );
+  assert(
+    qplus?.capabilities?.sizes?.includes("1664x928"),
+    "dashscope qwen-image-plus has sizes",
+  );
+
+  const apimart = JSON.parse(
+    fs.readFileSync(path.join(DIR, "apimart.json"), "utf8"),
+  );
+  const turbo = findModel(apimart, "video", "kling-3.0-turbo");
+  const kv3 = findModel(apimart, "video", "kling-v3");
+  const flux = findModel(apimart, "image", "flux-2");
+  assert(
+    !turbo?.capabilities?.features?.includes("first-last-frame"),
+    "apimart kling-3.0-turbo NO first-last",
+  );
+  assert(
+    kv3?.capabilities?.features?.includes("first-last-frame"),
+    "apimart kling-v3 HAS first-last",
+  );
+  assert(
+    !(flux?.capabilities?.ratios?.length),
+    "apimart flux-2 still no ratios",
+  );
+
+  const volc = JSON.parse(
+    fs.readFileSync(path.join(DIR, "volcengine.json"), "utf8"),
+  );
+  const mini = findModel(volc, "video", "doubao-seedance-2-0-mini-260615");
+  assert(
+    mini?.capabilities?.maxRefImages === 9 &&
+      mini?.capabilities?.maxRefVideos === 3,
+    "volcengine seedance mini refs 9/3",
+  );
+}
+
 for (const file of files) {
   const doc = JSON.parse(fs.readFileSync(path.join(DIR, file), "utf8"));
   for (const kind of ["image", "video"]) {

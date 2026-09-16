@@ -58,6 +58,12 @@ export const ModelCapabilitiesSchema = z.object({
   /** 精确像素尺寸，如 1024x1024 */
   sizes: z.array(z.string()).optional(),
   async: z.boolean().optional(),
+  /**
+   * Capability tags (examples):
+   * - t2v / i2v / r2v / audio / reference-video
+   * - omni-ref — multimodal reference (alias of r2v for UI)
+   * - first-last-frame — native first_frame / last_frame roles
+   */
   features: z.array(z.string()).optional(),
 });
 export type ModelCapabilities = z.infer<typeof ModelCapabilitiesSchema>;

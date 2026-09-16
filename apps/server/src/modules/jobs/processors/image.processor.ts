@@ -95,14 +95,19 @@ export class ImageProcessor extends WorkerHost {
         ratios?: string[];
         resolutions?: string[];
       } | null;
-      const catalogSizes = caps?.sizes?.filter((s) =>
-        /^\d+\s*[x×]\s*\d+$/i.test(s),
-      );
-      const hasSizes = Boolean(catalogSizes?.length);
+      const pixelRe = /^\d+\s*[x×*]\s*\d+$/i;
+      const catalogSizes = [
+        ...(caps?.sizes ?? []),
+        ...(caps?.resolutions ?? []).filter((s) => pixelRe.test(s)),
+      ].filter((s) => pixelRe.test(s));
+      const hasSizes = catalogSizes.length > 0;
       const hasRatios = Boolean(caps?.ratios?.length);
-      const hasResolutions = Boolean(caps?.resolutions?.length);
+      const realResolutions = (caps?.resolutions ?? []).filter(
+        (r) => !pixelRe.test(String(r)),
+      );
+      const hasResolutions = realResolutions.length > 0;
       const hasK = Boolean(
-        caps?.resolutions?.some((r) =>
+        realResolutions.some((r) =>
           /^\d+(\.\d+)?k$/i.test(String(r).trim()),
         ),
       );

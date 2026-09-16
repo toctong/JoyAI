@@ -47,12 +47,22 @@ export class DashscopeVideoProvider implements VideoProvider {
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {
     const apiBase = resolveDashscopeApiBase(input.baseUrl, input.metadata);
-    const isI2v = /i2v/i.test(input.model) || (input.referenceUrls?.length ?? 0) > 0;
+    const refs = input.referenceUrls ?? [];
+    const isI2v = /i2v/i.test(input.model) || refs.length > 0;
+    const isR2v = /r2v/i.test(input.model);
+
+    let prompt = input.prompt;
+    if (input.refMode === "first_last" && refs.length > 0) {
+      prompt =
+        refs.length >= 2
+          ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${input.prompt}`
+          : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${input.prompt}`;
+    }
 
     const body: Record<string, unknown> = {
       model: input.model,
       input: {
-        prompt: input.prompt,
+        prompt,
       } as Record<string, unknown>,
       parameters: {} as Record<string, unknown>,
     };
@@ -63,13 +73,28 @@ export class DashscopeVideoProvider implements VideoProvider {
     if (input.resolution) parameters.resolution = input.resolution;
     if (input.watermark != null) parameters.watermark = input.watermark;
 
-    if (isI2v && input.referenceUrls?.length) {
-      (body.input as Record<string, unknown>).media = [
-        {
-          type: "first_frame",
-          url: input.referenceUrls[0],
-        },
-      ];
+    if (refs.length && (isI2v || isR2v || input.refMode)) {
+      const media: Array<Record<string, unknown>> = [];
+      if (
+        input.refMode === "first_last" &&
+        !input.firstLastViaPrompt &&
+        refs.length > 0
+      ) {
+        media.push({ type: "first_frame", url: refs[0] });
+        if (refs[1]) media.push({ type: "last_frame", url: refs[1] });
+      } else if (input.refMode === "first_last" && refs.length > 0) {
+        // Prompt fallback path still attach as first/last when DashScope accepts it
+        media.push({ type: "first_frame", url: refs[0] });
+        if (refs[1]) media.push({ type: "last_frame", url: refs[1] });
+      } else {
+        media.push(
+          ...refs.map((url) => ({
+            type: isR2v ? "reference_image" : "first_frame",
+            url,
+          })),
+        );
+      }
+      (body.input as Record<string, unknown>).media = media;
     }
 
     try {

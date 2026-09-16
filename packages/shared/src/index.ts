@@ -110,6 +110,8 @@ export const VideoJobInputSchema = z.object({
   resolution: z.string().optional(),
   referenceAssetIds: z.array(z.string()).optional(),
   referenceUrls: z.array(z.string().url()).optional(),
+  /** omni = multimodal refs; first_last = first/last frame (native or prompt fallback) */
+  refMode: z.enum(["omni", "first_last"]).optional(),
   modelId: z.string().optional(),
   canvasProjectId: z.string().optional(),
   canvasNodeId: z.string().optional(),

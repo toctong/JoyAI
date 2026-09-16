@@ -8,8 +8,7 @@
 }
 
 .joy-projects-inner {
-  margin: 0 auto;
-  max-width: 1440px;
+  width: 100%;
 }
 
 .joy-projects-header {

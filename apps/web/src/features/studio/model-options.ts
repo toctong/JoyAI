@@ -161,7 +161,8 @@ export function resolveResolutionOption(raw: string): ResolutionOption {
 function sizeOptionsFromCaps(caps?: ModelCapabilities | null): SizeOption[] {
   const out: SizeOption[] = [];
   const seen = new Set<string>();
-  for (const raw of caps?.sizes ?? []) {
+  // Prefer `sizes`; also salvage WxH mis-filed under `resolutions`.
+  for (const raw of [...(caps?.sizes ?? []), ...(caps?.resolutions ?? [])]) {
     const parsed = parseSize(raw);
     if (!parsed) continue;
     const id = `${parsed.width}x${parsed.height}`;
@@ -175,6 +176,10 @@ function sizeOptionsFromCaps(caps?: ModelCapabilities | null): SizeOption[] {
     });
   }
   return out;
+}
+
+function isPixelResolutionToken(raw: string): boolean {
+  return parseSize(raw) != null;
 }
 
 function isKTierResolution(id: string): boolean {
@@ -247,8 +252,11 @@ export function layoutControlsFromCapabilities(
   const sizes = sizeOptionsFromCaps(caps);
   const rawRatioIds =
     caps?.ratios?.map(normalizeRatioId).filter(Boolean) ?? [];
+  // Drop WxH tokens from resolution chips (they belong in sizes).
   const resolutionIds =
-    caps?.resolutions?.map((r) => r.trim()).filter(Boolean) ?? [];
+    caps?.resolutions
+      ?.map((r) => r.trim())
+      .filter((r) => Boolean(r) && !isPixelResolutionToken(r)) ?? [];
   const hasKResolutions = resolutionIds.some(isKTierResolution);
   const ratioIds = ensureFlexibleRatioOption(rawRatioIds, kind, {
     hasSizes: sizes.length > 0,
@@ -352,4 +360,76 @@ export function formatQualityLabel(
     return up.includes("K") ? up : resolution.label;
   }
   return resolution.label;
+}
+
+export type VideoRefModeId = "omni" | "first_last";
+
+export type VideoRefModeOption = {
+  id: VideoRefModeId;
+  label: string;
+  /** Native first_frame/last_frame roles (else prompt fallback via omni refs). */
+  nativeFirstLast: boolean;
+};
+
+function featureSet(caps?: ModelCapabilities | null): Set<string> {
+  return new Set((caps?.features ?? []).map((f) => f.trim().toLowerCase()));
+}
+
+export function hasOmniRefCapability(caps?: ModelCapabilities | null): boolean {
+  const f = featureSet(caps);
+  return f.has("omni-ref") || f.has("r2v");
+}
+
+export function hasNativeFirstLastCapability(
+  caps?: ModelCapabilities | null,
+): boolean {
+  return featureSet(caps).has("first-last-frame");
+}
+
+/** Modes shown in the video composer chip — driven by catalog features. */
+export function refModesFromCapabilities(
+  caps?: ModelCapabilities | null,
+): VideoRefModeOption[] {
+  const omni = hasOmniRefCapability(caps);
+  const nativeFL = hasNativeFirstLastCapability(caps);
+  const modes: VideoRefModeOption[] = [];
+  if (omni) {
+    modes.push({ id: "omni", label: "全能参考", nativeFirstLast: false });
+  }
+  if (nativeFL || omni) {
+    modes.push({
+      id: "first_last",
+      label: "首尾帧参考",
+      nativeFirstLast: nativeFL,
+    });
+  }
+  return modes;
+}
+
+/** Whether the composer should show the reference upload slot. */
+export function showReferenceUpload(
+  caps?: ModelCapabilities | null,
+  kind: "image" | "video" = "image",
+): boolean {
+  if (!caps) return true;
+  if (typeof caps.maxRefImages === "number") {
+    if (caps.maxRefImages > 0) return true;
+  } else {
+    const input = caps.input ?? [];
+    if (input.includes("image")) return true;
+  }
+  if (kind === "video") {
+    if (typeof caps.maxRefVideos === "number" && caps.maxRefVideos > 0) {
+      return true;
+    }
+    if ((caps.input ?? []).includes("video")) return true;
+    if (hasOmniRefCapability(caps) || hasNativeFirstLastCapability(caps)) {
+      return true;
+    }
+    if (featureSet(caps).has("i2v")) return true;
+  }
+  if (typeof caps.maxRefImages === "number" && caps.maxRefImages <= 0) {
+    return false;
+  }
+  return false;
 }

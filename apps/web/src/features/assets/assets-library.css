@@ -6,8 +6,7 @@
 }
 
 .joy-assets-inner {
-  margin: 0 auto;
-  max-width: 1440px;
+  width: 100%;
 }
 
 .joy-assets-tabs {
@@ -109,6 +108,10 @@
 
 .joy-assets-card {
   position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 18px;

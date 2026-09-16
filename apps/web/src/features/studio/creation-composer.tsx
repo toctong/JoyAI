@@ -42,17 +42,15 @@ import {
   durationsFromCapabilities,
   formatQualityLabel,
   layoutControlsFromCapabilities,
+  refModesFromCapabilities,
   resolveResolutionOption,
+  showReferenceUpload,
+  type AspectOption,
+  type VideoRefModeId,
 } from "./model-options";
 import "./creation-composer.css";
 
-const REF_MODES = [
-  { id: "omni", label: "全能参考" },
-  { id: "first", label: "首帧参考" },
-  { id: "subject", label: "主体参考" },
-] as const;
-
-type RefMode = (typeof REF_MODES)[number]["id"];
+type RefMode = VideoRefModeId;
 
 type PublicModel = {
   id: string;
@@ -138,7 +136,14 @@ function patchPrefs(patch: {
 }
 
 function isRefMode(v: string | undefined): v is RefMode {
-  return REF_MODES.some((m) => m.id === v);
+  return v === "omni" || v === "first_last";
+}
+
+/** Migrate legacy prefs ids → current VideoRefModeId. */
+function normalizeRefModePref(v: string | undefined): RefMode | undefined {
+  if (isRefMode(v)) return v;
+  if (v === "first" || v === "subject") return v === "first" ? "first_last" : "omni";
+  return undefined;
 }
 
 function pickAspect(
@@ -260,6 +265,14 @@ export function CreationComposer({
     [caps],
   );
   const maxRefImages = caps?.maxRefImages;
+  const refModes = useMemo(
+    () => (kind === "video" ? refModesFromCapabilities(caps) : []),
+    [caps, kind],
+  );
+  const canUploadRef = useMemo(
+    () => showReferenceUpload(caps, kind),
+    [caps, kind],
+  );
 
   const selectedAspect =
     aspectOptions.find((a) => a.id === aspect) ?? aspectOptions[0];
@@ -274,7 +287,9 @@ export function CreationComposer({
     ? modelBrandMeta(selectedModel)
     : { icon: null as string | null, channel: null as string | null };
   const refModeLabel =
-    REF_MODES.find((m) => m.id === refMode)?.label ?? "全能参考";
+    refModes.find((m) => m.id === refMode)?.label ??
+    refModes[0]?.label ??
+    "全能参考";
   const qualityLabel = selectedResolution
     ? formatQualityLabel(selectedResolution, kind)
     : kind === "image"
@@ -318,6 +333,19 @@ export function CreationComposer({
     if (kind !== "video" || !durationOptions.length) return;
     setDuration((prev) => pickDuration(durationOptions, prev));
   }, [durationOptions, kind]);
+
+  useEffect(() => {
+    if (kind !== "video") return;
+    if (!refModes.length) return;
+    setRefMode((prev) =>
+      refModes.some((m) => m.id === prev) ? prev : refModes[0]!.id,
+    );
+  }, [kind, refModes]);
+
+  useEffect(() => {
+    if (canUploadRef) return;
+    setRefs([]);
+  }, [canUploadRef]);
 
   const mentionItems = useMemo(
     () =>
@@ -376,7 +404,13 @@ export function CreationComposer({
     );
     if (next === "video") {
       setDuration(pickDuration(nextDurations, kp.duration));
-      setRefMode(isRefMode(kp.refMode) ? kp.refMode : "omni");
+      const nextModes = refModesFromCapabilities(nextCaps);
+      const preferred = normalizeRefModePref(kp.refMode);
+      setRefMode(
+        preferred && nextModes.some((m) => m.id === preferred)
+          ? preferred
+          : (nextModes[0]?.id ?? "omni"),
+      );
     }
     if (kp.modelId) setModelId(kp.modelId);
   }
@@ -481,17 +515,34 @@ export function CreationComposer({
 
   const onDrop = useCallback(
     async (files: File[]) => {
+      if (!canUploadRef) {
+        toast.error("当前模型不支持参考图");
+        return;
+      }
       try {
-        const limit = maxRefImages;
+        const limit =
+          typeof maxRefImages === "number" && maxRefImages > 0
+            ? maxRefImages
+            : refMode === "first_last"
+              ? 2
+              : undefined;
         let accepted = files;
         if (typeof limit === "number" && limit > 0) {
           const room = Math.max(0, limit - refs.length);
           if (room <= 0) {
-            toast.error(`当前模型最多 ${limit} 张参考图`);
+            toast.error(
+              refMode === "first_last"
+                ? "首尾帧参考最多 2 张图（首帧 + 尾帧）"
+                : `当前模型最多 ${limit} 张参考图`,
+            );
             return;
           }
           if (files.length > room) {
-            toast.message(`当前模型最多 ${limit} 张参考图，已截取前 ${room} 张`);
+            toast.message(
+              refMode === "first_last"
+                ? `首尾帧参考最多 2 张图，已截取前 ${room} 张`
+                : `当前模型最多 ${limit} 张参考图，已截取前 ${room} 张`,
+            );
             accepted = files.slice(0, room);
           }
         }
@@ -504,7 +555,7 @@ export function CreationComposer({
         toast.error(e instanceof Error ? e.message : "上传失败");
       }
     },
-    [maxRefImages, refs.length],
+    [canUploadRef, maxRefImages, refMode, refs.length],
   );
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
@@ -512,7 +563,13 @@ export function CreationComposer({
     accept: { "image/*": [] },
     multiple: true,
     noClick: true,
+    disabled: !canUploadRef,
   });
+
+  useEffect(() => {
+    if (refMode !== "first_last") return;
+    setRefs((prev) => (prev.length > 2 ? prev.slice(0, 2) : prev));
+  }, [refMode]);
 
   function insertAtMention() {
     const editor = editorRef.current;
@@ -575,6 +632,11 @@ export function CreationComposer({
           body: { kind: "image", input },
         });
       } else {
+        if (refModes.length > 0 && refMode === "first_last" && refs.length < 1) {
+          toast.error("首尾帧参考请至少上传 1 张图（建议首帧 + 尾帧共 2 张）");
+          setSubmitting(false);
+          return;
+        }
         const input: Record<string, unknown> = {
           prompt: promptText,
           duration,
@@ -582,6 +644,9 @@ export function CreationComposer({
           referenceAssetIds,
           referenceUrls: [...payload.imageUrls, ...payload.videoUrls],
         };
+        if (refModes.length > 0) {
+          input.refMode = refMode;
+        }
         if (layout.showRatio && selectedAspect) {
           input.ratio = selectedAspect.id;
         }
@@ -630,28 +695,30 @@ export function CreationComposer({
         <input {...getInputProps()} />
         <ComposerRipple idle={rippleIdle} />
         <div className="joy-composer-body">
-          <button
-            type="button"
-            className={cn(
-              "joy-composer-upload",
-              refs[0] && "has-preview",
-            )}
-            onClick={open}
-            aria-label="上传参考内容"
-          >
-            {refs[0] ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={refs[0].url} alt="" />
-            ) : (
-              <>
-                <Plus className="h-4 w-4" strokeWidth={1.75} />
-                <span className="joy-composer-upload-label">参考内容</span>
-              </>
-            )}
-          </button>
+          {canUploadRef ? (
+            <button
+              type="button"
+              className={cn(
+                "joy-composer-upload",
+                refs[0] && "has-preview",
+              )}
+              onClick={open}
+              aria-label="上传参考内容"
+            >
+              {refs[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={refs[0].url} alt="" />
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" strokeWidth={1.75} />
+                  <span className="joy-composer-upload-label">参考内容</span>
+                </>
+              )}
+            </button>
+          ) : null}
 
           <div className="joy-composer-main">
-            {refs.length > 0 ? (
+            {canUploadRef && refs.length > 0 ? (
               <div className="joy-composer-refs">
                 {refs.map((ref) => (
                   <div key={ref.id} className="joy-composer-ref">
@@ -778,7 +845,7 @@ export function CreationComposer({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {kind === "video" ? (
+            {kind === "video" && refModes.length > 0 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className="joy-chip">
@@ -788,7 +855,7 @@ export function CreationComposer({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start">
-                  {REF_MODES.map((m) => (
+                  {refModes.map((m) => (
                     <DropdownMenuItem
                       key={m.id}
                       onClick={() => setRefMode(m.id)}

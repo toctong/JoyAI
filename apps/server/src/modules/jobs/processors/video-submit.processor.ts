@@ -50,6 +50,7 @@ export class VideoSubmitProcessor extends WorkerHost {
         modelId?: string;
         referenceAssetIds?: string[];
         referenceUrls?: string[];
+        refMode?: "omni" | "first_last";
       };
 
       const model = await this.channels.resolveForKind("video", input.modelId);
@@ -58,6 +59,18 @@ export class VideoSubmitProcessor extends WorkerHost {
         input.referenceAssetIds,
         input.referenceUrls,
       );
+
+      const features = Array.isArray(
+        (model.capabilities as { features?: unknown } | null)?.features,
+      )
+        ? (
+            (model.capabilities as { features: string[] }).features ?? []
+          ).map((f) => String(f).toLowerCase())
+        : [];
+      const nativeFirstLast = features.includes("first-last-frame");
+      const refMode = input.refMode;
+      const firstLastViaPrompt =
+        refMode === "first_last" && !nativeFirstLast;
 
       const provider = getVideoProvider(model.channel.platform);
       const channelMeta =
@@ -71,6 +84,8 @@ export class VideoSubmitProcessor extends WorkerHost {
         duration: input.duration,
         resolution: input.resolution,
         referenceUrls,
+        refMode,
+        firstLastViaPrompt,
         metadata: channelMeta,
       });
 

@@ -2,30 +2,21 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import { Crosshair, Play } from "lucide-react";
 import { api } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { cn } from "@/shared/lib/utils";
+import {
+  AssetsDetailDialog,
+  type AssetsPreviewItem,
+} from "./assets-detail-dialog";
 import "./assets-library.css";
 
 dayjs.locale("zh-cn");
 
-type Asset = {
-  id: string;
-  kind: string;
-  url: string;
-  createdAt: string;
-  mimeType?: string | null;
-  job?: {
-    id: string;
-    canvasProjectId?: string | null;
-    canvasNodeId?: string | null;
-  } | null;
-};
+type Asset = AssetsPreviewItem;
 
 type Tab = "image" | "video";
 
@@ -90,7 +81,7 @@ export function AssetsLibrary() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [tab, setTab] = useState<Tab>("image");
   const [loading, setLoading] = useState(true);
-  const [previewVideo, setPreviewVideo] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Asset | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -119,6 +110,9 @@ export function AssetsLibrary() {
         copy[idx] = { ...copy[idx], ...next, url: next.url };
         return copy;
       });
+      setPreview((cur) =>
+        cur?.id === next.id ? { ...cur, ...next, url: next.url } : cur,
+      );
     };
     socket.on("asset:updated", onAssetUpdated);
     return () => {
@@ -132,6 +126,10 @@ export function AssetsLibrary() {
   );
 
   const groups = useMemo(() => groupAssets(filtered), [filtered]);
+
+  const previewCreatedLabel = preview
+    ? dayjs(preview.createdAt).format("YYYY年M月D日 HH:mm")
+    : "";
 
   return (
     <div className="joy-assets">
@@ -166,57 +164,47 @@ export function AssetsLibrary() {
               去创作页生成第一条内容吧
             </p>
           </div>
-        ) : tab === "image" ? (
-          <PhotoProvider>
-            {groups.map((group) => (
-              <section key={group.key} className="joy-assets-group">
-                <h2 className="joy-assets-group-title">{group.label}</h2>
-                <div className="joy-assets-grid">
-                  {group.items.map((asset) => (
-                    <div key={asset.id} className="joy-assets-item">
-                      <PhotoView src={asset.url}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={asset.url}
-                          alt=""
-                          loading="lazy"
-                          className="joy-assets-card"
-                        />
-                      </PhotoView>
-                      <LocateLink asset={asset} />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </PhotoProvider>
         ) : (
           groups.map((group) => (
             <section key={group.key} className="joy-assets-group">
               <h2 className="joy-assets-group-title">{group.label}</h2>
               <div className="joy-assets-grid">
-                {group.items.map((asset) => (
-                  <div key={asset.id} className="joy-assets-item">
-                    <button
-                      type="button"
-                      className="joy-assets-card"
-                      onClick={() => setPreviewVideo(asset.url)}
-                    >
-                      <video
-                        src={asset.url}
-                        muted
-                        preload="metadata"
-                        playsInline
-                      />
-                      <span className="joy-assets-play">
-                        <span className="joy-assets-play-dot">
-                          <Play fill="currentColor" />
+                {group.items.map((asset) =>
+                  tab === "image" ? (
+                    <div key={asset.id} className="joy-assets-item">
+                      <button
+                        type="button"
+                        className="joy-assets-card"
+                        onClick={() => setPreview(asset)}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={asset.url} alt="" loading="lazy" />
+                      </button>
+                      <LocateLink asset={asset} />
+                    </div>
+                  ) : (
+                    <div key={asset.id} className="joy-assets-item">
+                      <button
+                        type="button"
+                        className="joy-assets-card"
+                        onClick={() => setPreview(asset)}
+                      >
+                        <video
+                          src={asset.url}
+                          muted
+                          preload="metadata"
+                          playsInline
+                        />
+                        <span className="joy-assets-play">
+                          <span className="joy-assets-play-dot">
+                            <Play fill="currentColor" />
+                          </span>
                         </span>
-                      </span>
-                    </button>
-                    <LocateLink asset={asset} />
-                  </div>
-                ))}
+                      </button>
+                      <LocateLink asset={asset} />
+                    </div>
+                  ),
+                )}
               </div>
             </section>
           ))
@@ -227,22 +215,15 @@ export function AssetsLibrary() {
         ) : null}
       </div>
 
-      {previewVideo ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setPreviewVideo(null)}
-          role="dialog"
-          aria-modal
-        >
-          <video
-            src={previewVideo}
-            controls
-            autoPlay
-            className="max-h-[85vh] max-w-[min(960px,100%)] rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      ) : null}
+      <AssetsDetailDialog
+        asset={preview}
+        open={Boolean(preview)}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null);
+        }}
+        createdLabel={previewCreatedLabel}
+        locateHref={preview ? locateHref(preview) : null}
+      />
     </div>
   );
 }

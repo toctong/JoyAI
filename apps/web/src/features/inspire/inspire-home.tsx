@@ -28,7 +28,7 @@ export function InspireHome() {
   const router = useRouter();
 
   return (
-    <div className="joy-home">
+    <div className="joy-home h-full">
       <div className="joy-home-hero">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={JOYAI_BRAND.heroBg} alt="" className="joy-home-hero-bg" />

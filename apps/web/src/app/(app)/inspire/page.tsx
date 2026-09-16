@@ -7,7 +7,7 @@ export default function InspirePage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
+        <div className="flex h-full items-center justify-center text-muted-foreground">
           加载中…
         </div>
       }

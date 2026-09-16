@@ -18,8 +18,7 @@
 }
 
 .joy-plugins-inner {
-  margin: 0 auto;
-  max-width: 1100px;
+  width: 100%;
 }
 
 .joy-plugins-header {
@@ -128,8 +127,7 @@
 }
 
 .joy-plugin-detail-inner {
-  margin: 0 auto;
-  max-width: 960px;
+  width: 100%;
 }
 
 .joy-plugin-back {

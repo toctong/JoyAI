@@ -333,10 +333,20 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
   constructor(readonly platform: string) {}
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {
+    const refs = input.referenceUrls ?? [];
+    let prompt = input.prompt;
+    if (input.refMode === "first_last" && refs.length > 0) {
+      // Gateways rarely expose Ark-style roles; always use prompt guidance.
+      prompt =
+        refs.length >= 2
+          ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${input.prompt}`
+          : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${input.prompt}`;
+    }
+
     const base = normalizeBase(input.baseUrl);
     const body: Record<string, unknown> = {
       model: input.model,
-      prompt: input.prompt,
+      prompt,
     };
     if (input.duration) body.duration = input.duration;
     if (input.resolution) body.resolution = input.resolution;
@@ -345,10 +355,10 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
       body.aspect_ratio = input.ratio;
       body.size = input.ratio;
     }
-    if (input.referenceUrls?.length) {
-      body.image = input.referenceUrls[0];
-      body.images = input.referenceUrls;
-      body.input_reference = input.referenceUrls[0];
+    if (refs.length) {
+      body.image = refs[0];
+      body.images = refs;
+      body.input_reference = refs[0];
     }
 
     const paths = [

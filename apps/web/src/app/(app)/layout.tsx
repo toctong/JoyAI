@@ -59,7 +59,7 @@ export default function AppShellLayout({
       >
         <AppSidebar />
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-          {isCanvasEditor || isAdmin ? (
+          {isCanvasEditor || isAdmin || isInspireHome ? (
             children
           ) : (
             <ScrollArea className="h-full" type="hover">

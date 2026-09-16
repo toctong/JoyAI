@@ -169,14 +169,15 @@
           "2K"
         ],
         "ratios": [
-          "auto",
           "1:1",
-          "16:9",
-          "9:16",
           "4:3",
           "3:4",
+          "16:9",
+          "9:16",
           "3:2",
           "2:3",
+          "2:1",
+          "1:2",
           "21:9"
         ]
       }
@@ -203,19 +204,19 @@
         "async": false,
         "resolutions": [
           "2K",
-          "3K",
-          "4K"
+          "3K"
         ],
         "ratios": [
           "1:1",
-          "16:9",
-          "9:16",
           "4:3",
           "3:4",
+          "16:9",
+          "9:16",
           "3:2",
           "2:3",
-          "21:9",
-          "auto"
+          "2:1",
+          "1:2",
+          "21:9"
         ]
       }
     },
@@ -243,14 +244,15 @@
           "4K"
         ],
         "ratios": [
-          "auto",
           "1:1",
-          "16:9",
-          "9:16",
           "4:3",
           "3:4",
+          "16:9",
+          "9:16",
           "3:2",
           "2:3",
+          "2:1",
+          "1:2",
           "21:9"
         ]
       }
@@ -276,19 +278,19 @@
         ],
         "async": false,
         "resolutions": [
-          "1K",
           "2K",
-          "4K"
+          "3K"
         ],
         "ratios": [
-          "auto",
           "1:1",
-          "16:9",
-          "9:16",
           "4:3",
           "3:4",
+          "16:9",
+          "9:16",
           "3:2",
           "2:3",
+          "2:1",
+          "1:2",
           "21:9"
         ]
       }
@@ -309,15 +311,17 @@
           "video"
         ],
         "maxRefImages": 9,
-        "maxRefVideos": 1,
-        "maxRefAudios": 1,
+        "maxRefVideos": 3,
+        "maxRefAudios": 3,
         "async": true,
         "features": [
           "t2v",
           "i2v",
           "r2v",
+          "omni-ref",
+          "first-last-frame",
           "audio",
-          "reference-video"
+          "ref-video"
         ],
         "maxDurationSec": 30,
         "resolutions": [
@@ -326,12 +330,12 @@
           "1080p"
         ],
         "ratios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4",
           "21:9",
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16",
           "adaptive"
         ]
       }
@@ -349,15 +353,17 @@
           "video"
         ],
         "maxRefImages": 9,
-        "maxRefVideos": 1,
-        "maxRefAudios": 1,
+        "maxRefVideos": 3,
+        "maxRefAudios": 3,
         "async": true,
         "features": [
           "t2v",
           "i2v",
           "r2v",
+          "omni-ref",
+          "first-last-frame",
           "audio",
-          "reference-video"
+          "ref-video"
         ],
         "maxDurationSec": 15,
         "resolutions": [
@@ -367,12 +373,12 @@
           "4k"
         ],
         "ratios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4",
           "21:9",
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16",
           "adaptive"
         ]
       }
@@ -389,16 +395,18 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 4,
-        "maxRefVideos": 1,
-        "maxRefAudios": 1,
+        "maxRefImages": 9,
+        "maxRefVideos": 3,
+        "maxRefAudios": 3,
         "async": true,
         "features": [
           "t2v",
           "i2v",
           "r2v",
+          "omni-ref",
+          "first-last-frame",
           "audio",
-          "reference-video"
+          "ref-video"
         ],
         "maxDurationSec": 15,
         "resolutions": [
@@ -406,12 +414,12 @@
           "720p"
         ],
         "ratios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4",
           "21:9",
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16",
           "adaptive"
         ]
       }
@@ -428,16 +436,18 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 4,
-        "maxRefVideos": 1,
-        "maxRefAudios": 1,
+        "maxRefImages": 9,
+        "maxRefVideos": 3,
+        "maxRefAudios": 3,
         "async": true,
         "features": [
           "t2v",
           "i2v",
           "r2v",
+          "omni-ref",
+          "first-last-frame",
           "audio",
-          "reference-video"
+          "ref-video"
         ],
         "maxDurationSec": 15,
         "resolutions": [
@@ -445,12 +455,12 @@
           "720p"
         ],
         "ratios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4",
           "21:9",
+          "16:9",
+          "4:3",
+          "1:1",
+          "3:4",
+          "9:16",
           "adaptive"
         ]
       }

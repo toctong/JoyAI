@@ -85,6 +85,13 @@ function pickHttpUrl(value: unknown): string | undefined {
   return undefined;
 }
 
+function classifyRefUrl(url: string): "image" | "video" | "audio" {
+  const path = url.split("?")[0]?.toLowerCase() ?? "";
+  if (/\.(mp4|webm|mov|m4v)$/i.test(path)) return "video";
+  if (/\.(mp3|wav|aac|m4a|ogg|flac)$/i.test(path)) return "audio";
+  return "image";
+}
+
 /** Ark Seedance poll payload: content.video_url (object or nested shapes). */
 export function extractVolcengineVideoUrl(data: unknown): string | undefined {
   const root = (data ?? {}) as Record<string, unknown>;
@@ -129,15 +136,58 @@ export class VolcengineVideoProvider implements VideoProvider {
   readonly platform = ProviderPlatform.VOLCENGINE;
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {
+    const refs = input.referenceUrls ?? [];
+    const mode = input.refMode ?? (refs.length ? "omni" : undefined);
+    const viaPrompt = Boolean(input.firstLastViaPrompt);
+
+    let prompt = input.prompt;
+    if (mode === "first_last" && viaPrompt && refs.length > 0) {
+      prompt =
+        refs.length >= 2
+          ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${input.prompt}`
+          : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${input.prompt}`;
+    }
+
     const content: Array<Record<string, unknown>> = [
-      { type: "text", text: input.prompt },
+      { type: "text", text: prompt },
     ];
 
-    for (const url of input.referenceUrls ?? []) {
+    if (mode === "first_last" && !viaPrompt && refs.length > 0) {
       content.push({
         type: "image_url",
-        image_url: { url },
+        role: "first_frame",
+        image_url: { url: refs[0] },
       });
+      if (refs[1]) {
+        content.push({
+          type: "image_url",
+          role: "last_frame",
+          image_url: { url: refs[1] },
+        });
+      }
+    } else {
+      for (const url of refs) {
+        const kind = classifyRefUrl(url);
+        if (kind === "video") {
+          content.push({
+            type: "video_url",
+            role: "reference_video",
+            video_url: { url },
+          });
+        } else if (kind === "audio") {
+          content.push({
+            type: "audio_url",
+            role: "reference_audio",
+            audio_url: { url },
+          });
+        } else {
+          content.push({
+            type: "image_url",
+            role: "reference_image",
+            image_url: { url },
+          });
+        }
+      }
     }
 
     const body: Record<string, unknown> = {

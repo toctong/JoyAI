@@ -1,13 +1,21 @@
 .joy-home {
+  display: grid;
+  height: 100%;
   min-height: 100%;
+  place-items: center;
+  overflow: visible;
   background: #09090b;
   color: #f4f4f5;
 }
 
 .joy-home-hero {
   position: relative;
-  overflow: hidden;
-  padding: 28px 24px 48px;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 32px;
 }
 
 .joy-home-hero-bg {
@@ -24,18 +32,22 @@
 .joy-home-hero-inner {
   position: relative;
   z-index: 1;
-  margin: 0 auto;
-  max-width: 820px;
   display: flex;
+  width: min(920px, 100%);
+  margin: 0 auto;
   flex-direction: column;
   align-items: center;
+  transform: translateY(-50px);
 }
 
 .joy-home-mascot {
+  position: relative;
+  z-index: 2;
   width: 112px;
   height: auto;
   margin-top: 8px;
-  filter: drop-shadow(0 12px 28px rgba(120, 160, 255, 0.25));
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.35))
+    drop-shadow(0 0 18px rgba(255, 255, 255, 0.28));
   animation: joy-mascot-float 4.5s ease-in-out infinite;
 }
 
@@ -50,7 +62,7 @@
 }
 
 .joy-home-title {
-  margin: 14px 0 22px;
+  margin: 14px 0 28px;
   text-align: center;
   font-size: clamp(26px, 3.2vw, 34px);
   font-weight: 650;
@@ -68,10 +80,13 @@
 
 .joy-home-composer {
   width: 100%;
-  max-width: 760px;
 }
 
 @media (max-width: 640px) {
+  .joy-home-hero {
+    padding: 24px 16px;
+  }
+
   .joy-home-mascot {
     width: 88px;
   }
