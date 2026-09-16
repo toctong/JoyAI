@@ -1,18 +1,10 @@
 {
   "platform": "volcengine",
-  "updatedAt": "2026-09-14",
+  "updatedAt": "2026-03-26",
   "llm": [
     {
       "name": "Doubao Seed Evolving",
       "remoteId": "doubao-seed-evolving",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 6,
-        "outputPer1M": 30,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -33,14 +25,6 @@
     {
       "name": "Doubao Seed 2.1 Pro",
       "remoteId": "doubao-seed-2-1-pro-260628",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 6,
-        "outputPer1M": 30,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -61,14 +45,6 @@
     {
       "name": "Doubao Seed 2.1 Turbo",
       "remoteId": "doubao-seed-2-1-turbo-260628",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 3,
-        "outputPer1M": 15,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -88,14 +64,6 @@
     {
       "name": "Doubao Seed 2.0 Lite",
       "remoteId": "doubao-seed-2-0-lite",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1.2,
-        "outputPer1M": 4.8,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -113,14 +81,6 @@
     {
       "name": "Doubao Seed 2.0 Mini",
       "remoteId": "doubao-seed-2-0-mini",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 0.6,
-        "outputPer1M": 2.4,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -136,14 +96,6 @@
     {
       "name": "Doubao Seed 1.6",
       "remoteId": "doubao-seed-1-6-250615",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 0.8,
-        "outputPer1M": 2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -162,14 +114,6 @@
     {
       "name": "Doubao 1.5 Pro",
       "remoteId": "doubao-1-5-pro-32k-250115",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 0.8,
-        "outputPer1M": 2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -185,14 +129,6 @@
     {
       "name": "Doubao 1.5 Vision Pro",
       "remoteId": "doubao-1-5-vision-pro-32k-250115",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 3,
-        "outputPer1M": 9,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -210,14 +146,6 @@
     {
       "name": "DeepSeek V4 Pro (方舟)",
       "remoteId": "deepseek-v4-pro",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 12,
-        "outputPer1M": 24,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -235,14 +163,6 @@
     {
       "name": "DeepSeek V4 Flash (方舟)",
       "remoteId": "deepseek-v4-flash",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1,
-        "outputPer1M": 2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -258,14 +178,6 @@
     {
       "name": "GLM-5.2 (方舟)",
       "remoteId": "glm-5.2",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 4,
-        "outputPer1M": 18,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -284,25 +196,6 @@
     {
       "name": "Seedream 5.0 Pro",
       "remoteId": "doubao-seedream-5-0-pro-260628",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perImage": 0.3,
-        "tiers": [
-          {
-            "label": "≤236万像素 / 1K",
-            "resolution": "1K",
-            "perImage": 0.3
-          },
-          {
-            "label": ">236万像素 / 2K",
-            "resolution": "2K",
-            "perImage": 0.6
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准；参考图首张免费、额外约 ¥0.02/张",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -323,6 +216,15 @@
           "1K",
           "1.5K",
           "2K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       },
       "description": "方舟旗舰生图，支持交互编辑 / 多参考图",
@@ -331,20 +233,6 @@
     {
       "name": "Seedream 5.0 Lite",
       "remoteId": "doubao-seedream-5-0-lite-260628",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perImage": 0.22,
-        "tiers": [
-          {
-            "label": "标准",
-            "resolution": "2K",
-            "perImage": 0.22
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -362,6 +250,15 @@
         "resolutions": [
           "2K",
           "3K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       },
       "description": "Seedream 5.0 轻量版"
@@ -369,20 +266,6 @@
     {
       "name": "Seedream 4.5",
       "remoteId": "doubao-seedream-4-5-251128",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perImage": 0.25,
-        "tiers": [
-          {
-            "label": "2K",
-            "resolution": "2K",
-            "perImage": 0.25
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -399,31 +282,21 @@
         "async": false,
         "resolutions": [
           "2K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       }
     },
     {
       "name": "Seedream 4.0",
       "remoteId": "doubao-seedream-4-0-250828",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perImage": 0.2,
-        "tiers": [
-          {
-            "label": "2K",
-            "resolution": "2K",
-            "perImage": 0.2
-          },
-          {
-            "label": "高清",
-            "resolution": "HD",
-            "perImage": 0.25
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -443,21 +316,22 @@
         "resolutions": [
           "1024x1024",
           "2048x2048",
-          "2K",
-          "HD"
+          "2K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       }
     },
     {
       "name": "Seedream 3.0",
       "remoteId": "doubao-seedream-3-0-t2i-250415",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.15,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -472,6 +346,15 @@
         "resolutions": [
           "1024x1024",
           "2048x2048"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       }
     }
@@ -480,14 +363,6 @@
     {
       "name": "Seedance 2.5",
       "remoteId": "doubao-seedance-2-5-260628",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 70,
-        "outputPer1M": 70,
-        "note": "官方公开参考价，以控制台为准；按视频 token。无视频输入约 ¥70/M，含视频输入约 ¥42/M",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -529,14 +404,6 @@
     {
       "name": "Seedance 2.0",
       "remoteId": "doubao-seedance-2-0-260128",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 46,
-        "outputPer1M": 46,
-        "note": "官方公开参考价，以控制台为准；720p 无视频输入 ¥46/M、含输入 ¥28/M；1080p 约 ¥51/¥31",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -577,14 +444,6 @@
     {
       "name": "Seedance 2.0 Fast",
       "remoteId": "doubao-seedance-2-0-fast-260128",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 37,
-        "outputPer1M": 37,
-        "note": "官方公开参考价，以控制台为准；无视频输入约 ¥37/M，含视频输入约 ¥22/M",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -606,21 +465,21 @@
           "720p"
         ],
         "maxRefVideos": 0,
-        "maxRefAudios": 1
+        "maxRefAudios": 1,
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "21:9"
+        ]
       },
       "description": "Seedance 2.0 快速档"
     },
     {
       "name": "Seedance 2.0 Mini",
       "remoteId": "doubao-seedance-2-0-mini-260615",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 23,
-        "outputPer1M": 23,
-        "note": "官方公开参考价，以控制台为准；无视频输入 ¥23/M、含输入 ¥14/M；刊例亦可按约 ¥0.5/秒（720p）",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -641,31 +500,20 @@
           "720p"
         ],
         "maxRefVideos": 0,
-        "maxRefAudios": 0
+        "maxRefAudios": 0,
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "21:9"
+        ]
       }
     },
     {
       "name": "Seedance 1.5 Pro",
       "remoteId": "doubao-seedance-1-5-pro-251015",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.75,
-        "tiers": [
-          {
-            "label": "720p",
-            "resolution": "720p",
-            "perSecond": 0.75
-          },
-          {
-            "label": "1080p",
-            "resolution": "1080p",
-            "perSecond": 1.1
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -685,36 +533,20 @@
         "resolutions": [
           "720p",
           "1080p"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "21:9"
         ]
       }
     },
     {
       "name": "Seedance 1.0 Pro",
       "remoteId": "doubao-seedance-1-0-pro-250528",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.6,
-        "tiers": [
-          {
-            "label": "480p",
-            "resolution": "480p",
-            "perSecond": 0.4
-          },
-          {
-            "label": "720p",
-            "resolution": "720p",
-            "perSecond": 0.6
-          },
-          {
-            "label": "1080p",
-            "resolution": "1080p",
-            "perSecond": 0.9
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -745,25 +577,6 @@
     {
       "name": "Seedance 1.0 Lite",
       "remoteId": "doubao-seedance-1-0-lite-t2v-250428",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.35,
-        "tiers": [
-          {
-            "label": "480p",
-            "resolution": "480p",
-            "perSecond": 0.25
-          },
-          {
-            "label": "720p",
-            "resolution": "720p",
-            "perSecond": 0.35
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"

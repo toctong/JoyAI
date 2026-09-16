@@ -20,7 +20,8 @@ export type CatalogModelJson = {
   name: string;
   remoteId: string;
   description?: string;
-  pricing: ModelPricing;
+  /** @deprecated Catalogs no longer include prices; kept for older JSON. */
+  pricing?: ModelPricing;
   capabilities: ModelCapabilities;
   isDefault?: boolean;
 };
@@ -28,12 +29,13 @@ export type CatalogModelJson = {
 const KIND_BLOCKS = ["llm", "image", "video"] as const;
 
 function syncResolutions(
-  pricing: ModelPricing,
+  pricing: ModelPricing | undefined,
   capabilities: ModelCapabilities,
 ): ModelCapabilities {
-  const tierResolutions = (pricing.tiers ?? [])
+  const tierResolutions = (pricing?.tiers ?? [])
     .map((t) => t.resolution ?? t.label)
     .filter((x): x is string => Boolean(x));
+  if (!tierResolutions.length) return capabilities;
   const resolutions = [
     ...new Set([...(capabilities.resolutions ?? []), ...tierResolutions]),
   ];

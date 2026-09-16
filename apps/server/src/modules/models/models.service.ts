@@ -209,7 +209,10 @@ export class ModelsService {
       if (existing) {
         if (opts?.forceRename) existing.name = item.name;
         existing.description = item.description ?? existing.description;
-        existing.pricing = (item.pricing as Record<string, unknown>) ?? null;
+        existing.pricing =
+          item.pricing != null
+            ? (item.pricing as Record<string, unknown>)
+            : null;
         existing.capabilities =
           (item.capabilities as Record<string, unknown>) ?? null;
         existing.kind = item.kind as JobKind;
@@ -223,7 +226,10 @@ export class ModelsService {
             kind: item.kind as JobKind,
             remoteId: item.remoteId,
             description: item.description ?? null,
-            pricing: (item.pricing as Record<string, unknown>) ?? null,
+            pricing:
+              item.pricing != null
+                ? (item.pricing as Record<string, unknown>)
+                : null,
             capabilities:
               (item.capabilities as Record<string, unknown>) ?? null,
             enabled: true,

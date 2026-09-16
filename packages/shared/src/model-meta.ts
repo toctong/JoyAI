@@ -83,7 +83,7 @@ export const CHANNEL_PRESETS: Record<
     label: "APIMart",
     defaultName: "APIMart 中转",
     baseUrl: "https://apib.ai/v1",
-    docsUrl: "https://docs.apib.ai/cn",
+    docsUrl: "https://docs.apimart.ai",
   },
   [ProviderPlatform.TOAPIS]: {
     label: "ToAPIs",

@@ -7,7 +7,8 @@ export type CatalogModel = {
   kind: "image" | "video" | "llm";
   remoteId: string;
   description?: string;
-  pricing: ModelPricing;
+  /** Optional; catalogs no longer ship reference prices. */
+  pricing?: ModelPricing;
   capabilities: ModelCapabilities;
   isDefault?: boolean;
 };

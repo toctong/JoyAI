@@ -20,6 +20,120 @@ function normalizeBase(baseUrl: string) {
   return baseUrl.replace(/\/$/, "");
 }
 
+const SUCCESS_STATUSES = new Set([
+  "succeeded",
+  "success",
+  "completed",
+  "done",
+]);
+const FAILED_STATUSES = new Set(["failed", "error", "cancelled", "canceled"]);
+const QUEUED_STATUSES = new Set([
+  "queued",
+  "pending",
+  "submitted",
+  "created",
+]);
+const RUNNING_STATUSES = new Set([
+  "running",
+  "processing",
+  "in_progress",
+  "in-progress",
+]);
+
+/** Unwrap APIMart `{ code, data }` envelope when present. */
+function unwrapPayload(data: unknown): Record<string, unknown> {
+  if (!data || typeof data !== "object") return {};
+  const root = data as Record<string, unknown>;
+  const inner = root.data;
+  if (
+    inner &&
+    typeof inner === "object" &&
+    !Array.isArray(inner) &&
+    ("status" in (inner as object) ||
+      "task_status" in (inner as object) ||
+      "result" in (inner as object) ||
+      "id" in (inner as object) ||
+      "task_id" in (inner as object))
+  ) {
+    return inner as Record<string, unknown>;
+  }
+  return root;
+}
+
+function readStatus(data: unknown): string {
+  const root = (data ?? {}) as Record<string, unknown>;
+  const payload = unwrapPayload(data);
+  return String(
+    payload.status ??
+      payload.task_status ??
+      root.status ??
+      root.task_status ??
+      "",
+  ).toLowerCase();
+}
+
+function pickTaskId(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const o = value as Record<string, unknown>;
+  const id = o.task_id ?? o.id ?? o.taskId;
+  return id != null && String(id).length ? String(id) : undefined;
+}
+
+/** Extract async task id from OpenAI / ToAPIs / APIMart submit responses. */
+function extractTaskId(data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const root = data as Record<string, unknown>;
+
+  const direct = pickTaskId(root);
+  if (direct) return direct;
+
+  if (Array.isArray(root.data)) {
+    for (const item of root.data) {
+      const id = pickTaskId(item);
+      if (id) return id;
+    }
+  }
+
+  if (root.data && typeof root.data === "object" && !Array.isArray(root.data)) {
+    const id = pickTaskId(root.data);
+    if (id) return id;
+  }
+
+  return undefined;
+}
+
+function firstUrl(value: unknown): string | undefined {
+  if (typeof value === "string" && value.length) return value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const u = firstUrl(item);
+      if (u) return u;
+    }
+  }
+  return undefined;
+}
+
+function mapMediaItem(
+  item: unknown,
+): { url?: string; b64?: string } | null {
+  if (typeof item === "string") return { url: item };
+  if (!item || typeof item !== "object") return null;
+  const o = item as Record<string, unknown>;
+  const url =
+    firstUrl(o.url) ??
+    firstUrl(o.image_url) ??
+    firstUrl(o.video_url) ??
+    firstUrl(o.uri);
+  const b64 =
+    typeof o.b64_json === "string"
+      ? o.b64_json
+      : typeof o.b64 === "string"
+        ? o.b64
+        : undefined;
+  if (!url && !b64) return null;
+  return { url, b64 };
+}
+
 /**
  * OpenAI-compatible gateway used by APIMart / ToAPIs (and similar relays).
  */
@@ -59,23 +173,22 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
       validateStatus: () => true,
     });
 
-    // Sync OpenAI shape
-    if (Array.isArray(data?.data)) {
-      const images = data.data.map(
-        (item: { url?: string; b64_json?: string }) => ({
-          url: item.url,
-          b64: item.b64_json,
-        }),
-      );
-      if (images.length) return { images, raw: data };
+    // Sync OpenAI shape — only when items actually carry media
+    const syncImages = extractImages(data);
+    const syncStatus = readStatus(data);
+    if (
+      syncImages.length &&
+      (!syncStatus || SUCCESS_STATUSES.has(syncStatus)) &&
+      !extractTaskId(data)
+    ) {
+      return { images: syncImages, raw: data };
     }
 
     // Async task shape — poll until done
-    const taskId =
-      data?.task_id ?? data?.id ?? data?.data?.task_id ?? data?.data?.id;
+    const taskId = extractTaskId(data);
     if (taskId) {
       return this.pollImageTask({
-        taskId: String(taskId),
+        taskId,
         apiKey: input.apiKey,
         baseUrl: base,
         rawSubmit: data,
@@ -97,12 +210,13 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
   }): Promise<ImageGenerateResult> {
     const endpoints = [
       `${params.baseUrl}/tasks/${params.taskId}`,
-      `${params.baseUrl}/images/tasks/${params.taskId}`,
       `${params.baseUrl}/images/generations/${params.taskId}`,
+      `${params.baseUrl}/images/tasks/${params.taskId}`,
     ];
 
     for (let attempt = 0; attempt < 60; attempt++) {
       await sleep(2000);
+      let lastError: unknown;
       for (const url of endpoints) {
         try {
           const { data, status } = await axios.get(url, {
@@ -112,13 +226,8 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
           });
           if (status >= 400) continue;
 
-          const st = String(
-            data?.status ?? data?.task_status ?? data?.data?.status ?? "",
-          ).toLowerCase();
-          if (
-            ["failed", "error", "cancelled"].includes(st) ||
-            data?.error
-          ) {
+          const st = readStatus(data);
+          if (FAILED_STATUSES.has(st) || (data as { error?: unknown })?.error) {
             throw new Error(
               formatProviderErrorBody(data, status, {
                 platform: this.platform,
@@ -126,50 +235,86 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
               }),
             );
           }
+
           const images = extractImages(data);
-          if (
-            images.length &&
-            (["succeeded", "success", "completed", "done"].includes(st) ||
-              !st)
-          ) {
+          if (images.length && (SUCCESS_STATUSES.has(st) || !st)) {
             return { images, raw: data };
+          }
+          if (SUCCESS_STATUSES.has(st) && !images.length) {
+            throw new Error("任务已完成但未返回图片 URL");
           }
           if (images.length && attempt > 2) {
             return { images, raw: data };
           }
         } catch (e) {
-          if (attempt === 59) throw e;
+          lastError = e;
+          if (
+            e instanceof Error &&
+            (e.message.includes("图片任务失败") ||
+              e.message.includes("未返回图片"))
+          ) {
+            throw e;
+          }
         }
       }
+      if (attempt === 59 && lastError) throw lastError;
     }
     throw new Error("Image task polling timed out");
   }
 }
 
-function extractImages(
-  data: Record<string, unknown>,
+/**
+ * Supports:
+ * - OpenAI sync: `{ data: [{ url }] }`
+ * - ToAPIs: `{ status, result: { data: [{ url }] } }`
+ * - APIMart: `{ code, data: { result: { images: [{ url: [string] }] } } }`
+ */
+export function extractImages(
+  data: Record<string, unknown> | unknown,
 ): Array<{ url?: string; b64?: string }> {
-  const bag =
-    (data?.data as Record<string, unknown>) ??
-    (data?.output as Record<string, unknown>) ??
-    data;
-  const list =
-    (bag as { data?: unknown[] })?.data ??
-    (bag as { images?: unknown[] })?.images ??
-    (bag as { result?: unknown[] })?.result;
-  if (Array.isArray(list)) {
-    return list
-      .map((item) => {
-        if (typeof item === "string") return { url: item };
-        const o = item as { url?: string; b64_json?: string; image_url?: string };
-        return { url: o.url ?? o.image_url, b64: o.b64_json };
-      })
-      .filter((i) => i.url || i.b64);
+  const root = (data ?? {}) as Record<string, unknown>;
+  const payload = unwrapPayload(data);
+  const result = (payload.result ?? root.result) as
+    | Record<string, unknown>
+    | undefined;
+
+  const candidates: unknown[] = [];
+
+  const pushList = (list: unknown) => {
+    if (Array.isArray(list)) candidates.push(...list);
+  };
+
+  // APIMart: result.images[].url[]
+  pushList(result?.images);
+  // ToAPIs: result.data[].url
+  pushList(result?.data);
+  pushList(result?.videos);
+
+  // OpenAI / nested bags
+  pushList(payload.data);
+  pushList(payload.images);
+  pushList(root.data);
+  pushList((root.output as { data?: unknown[] } | undefined)?.data);
+
+  const out: Array<{ url?: string; b64?: string }> = [];
+  const seen = new Set<string>();
+  for (const item of candidates) {
+    const mapped = mapMediaItem(item);
+    if (!mapped) continue;
+    const key = mapped.url ?? mapped.b64 ?? "";
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    out.push(mapped);
   }
+
+  if (out.length) return out;
+
   const single =
-    (bag as { url?: string; image_url?: string })?.url ??
-    (bag as { image_url?: string })?.image_url;
-  if (typeof single === "string") return [{ url: single }];
+    firstUrl(payload.url) ??
+    firstUrl(payload.image_url) ??
+    firstUrl(root.url) ??
+    firstUrl((result as { url?: unknown } | undefined)?.url);
+  if (single) return [{ url: single }];
   return [];
 }
 
@@ -195,9 +340,9 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
     }
 
     const paths = [
+      `${base}/videos/generations`,
       `${base}/videos`,
       `${base}/video/generations`,
-      `${base}/videos/generations`,
     ];
 
     let lastError = "Video submit failed";
@@ -215,12 +360,8 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
           });
           continue;
         }
-        const remoteTaskId =
-          data?.id ??
-          data?.task_id ??
-          data?.data?.id ??
-          data?.data?.task_id;
-        if (remoteTaskId) return { remoteTaskId: String(remoteTaskId) };
+        const remoteTaskId = extractTaskId(data);
+        if (remoteTaskId) return { remoteTaskId };
         lastError = "Missing video task id";
       } catch (e) {
         lastError = e instanceof Error ? e.message : String(e);
@@ -236,8 +377,9 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
   }): Promise<VideoPollResult> {
     const base = normalizeBase(params.baseUrl);
     const urls = [
-      `${base}/videos/${params.remoteTaskId}`,
+      `${base}/videos/generations/${params.remoteTaskId}`,
       `${base}/tasks/${params.remoteTaskId}`,
+      `${base}/videos/${params.remoteTaskId}`,
       `${base}/video/generations/${params.remoteTaskId}`,
     ];
 
@@ -250,11 +392,9 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
         });
         if (status >= 400) continue;
 
-        const st = String(
-          data?.status ?? data?.task_status ?? data?.data?.status ?? "",
-        ).toLowerCase();
+        const st = readStatus(data);
 
-        if (["failed", "error", "cancelled"].includes(st)) {
+        if (FAILED_STATUSES.has(st)) {
           return {
             status: "failed",
             error: formatProviderErrorBody(data, status, {
@@ -266,16 +406,25 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
         }
 
         const videoUrl = extractVideoUrl(data);
-        if (
-          videoUrl &&
-          (["succeeded", "success", "completed", "done"].includes(st) || !st)
-        ) {
+        if (SUCCESS_STATUSES.has(st)) {
+          if (videoUrl) {
+            return { status: "succeeded", videoUrl, raw: data };
+          }
+          return {
+            status: "failed",
+            error: "任务已完成但未返回视频 URL",
+            raw: data,
+          };
+        }
+        if (videoUrl && !st) {
           return { status: "succeeded", videoUrl, raw: data };
         }
-        if (st === "queued" || st === "pending") {
+        if (QUEUED_STATUSES.has(st)) {
           return { status: "queued" };
         }
-        if (st) return { status: "running" };
+        if (RUNNING_STATUSES.has(st) || st) {
+          return { status: "running" };
+        }
       } catch {
         /* try next */
       }
@@ -284,18 +433,39 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
   }
 }
 
-function extractVideoUrl(data: Record<string, unknown>): string | undefined {
-  const bag =
-    (data?.data as Record<string, unknown>) ??
-    (data?.output as Record<string, unknown>) ??
-    data;
+/**
+ * Supports:
+ * - ToAPIs: `result.data[0].url`
+ * - APIMart: `result.videos[0].url` (string or string[])
+ * - OpenAI-ish: top-level / nested `url` / `video_url`
+ */
+export function extractVideoUrl(data: unknown): string | undefined {
+  const root = (data ?? {}) as Record<string, unknown>;
+  const payload = unwrapPayload(data);
+  const result = (payload.result ?? root.result) as
+    | Record<string, unknown>
+    | undefined;
+
+  const fromList = (list: unknown): string | undefined => {
+    if (!Array.isArray(list)) return undefined;
+    for (const item of list) {
+      const mapped = mapMediaItem(item);
+      if (mapped?.url) return mapped.url;
+    }
+    return undefined;
+  };
+
   return (
-    (bag as { video_url?: string })?.video_url ??
-    (bag as { url?: string })?.url ??
-    (data?.content as { video_url?: string })?.video_url ??
-    (Array.isArray((bag as { data?: { url?: string }[] })?.data)
-      ? (bag as { data: { url?: string }[] }).data[0]?.url
-      : undefined)
+    fromList(result?.videos) ??
+    fromList(result?.data) ??
+    fromList(result?.images) ??
+    firstUrl(result?.url) ??
+    firstUrl(result?.video_url) ??
+    firstUrl(payload.video_url) ??
+    firstUrl(payload.url) ??
+    firstUrl((payload.content as { video_url?: unknown } | undefined)?.video_url) ??
+    fromList(payload.data) ??
+    firstUrl(root.url)
   );
 }
 

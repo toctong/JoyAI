@@ -1,18 +1,10 @@
 {
   "platform": "dashscope",
-  "updatedAt": "2026-09-14",
+  "updatedAt": "2026-03-26",
   "llm": [
     {
       "name": "Qwen3.8 Max",
       "remoteId": "qwen3.8-max",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 12,
-        "outputPer1M": 36,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -36,14 +28,6 @@
     {
       "name": "Qwen3.8 Flash",
       "remoteId": "qwen3.8-flash",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1.5,
-        "outputPer1M": 6,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -62,14 +46,6 @@
     {
       "name": "Qwen3.7 Plus",
       "remoteId": "qwen3.7-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 2,
-        "outputPer1M": 8,
-        "note": "官方公开参考价，以控制台为准；>256K 输入约 ¥6/¥24",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -90,14 +66,6 @@
     {
       "name": "Qwen3.7 Max",
       "remoteId": "qwen3.7-max",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 6,
-        "outputPer1M": 24,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -115,14 +83,6 @@
     {
       "name": "Qwen3.6 Plus",
       "remoteId": "qwen3.6-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 2,
-        "outputPer1M": 12,
-        "note": "官方公开参考价，以控制台为准；>256K 输入约 ¥8/¥48",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -141,14 +101,6 @@
     {
       "name": "Qwen3.6 Flash",
       "remoteId": "qwen3.6-flash",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1.2,
-        "outputPer1M": 7.2,
-        "note": "官方公开参考价，以控制台为准；>256K 输入约 ¥4.8/¥28.8",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -167,14 +119,6 @@
     {
       "name": "Qwen3 Max",
       "remoteId": "qwen3-max",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 2.5,
-        "outputPer1M": 10,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -191,14 +135,6 @@
     {
       "name": "Qwen3 Plus",
       "remoteId": "qwen3-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1.2,
-        "outputPer1M": 4.8,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -215,14 +151,6 @@
     {
       "name": "Qwen Plus",
       "remoteId": "qwen-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 0.8,
-        "outputPer1M": 2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -238,14 +166,6 @@
     {
       "name": "Qwen Turbo",
       "remoteId": "qwen-turbo",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 0.3,
-        "outputPer1M": 0.6,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -261,14 +181,6 @@
     {
       "name": "Qwen Max",
       "remoteId": "qwen-max",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 2.4,
-        "outputPer1M": 9.6,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -285,14 +197,6 @@
     {
       "name": "Qwen Long",
       "remoteId": "qwen-long",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 0.5,
-        "outputPer1M": 2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -309,14 +213,6 @@
     {
       "name": "Qwen Flash",
       "remoteId": "qwen-flash",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 0.15,
-        "outputPer1M": 1.5,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -332,14 +228,6 @@
     {
       "name": "Qwen VL Max",
       "remoteId": "qwen-vl-max",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 3,
-        "outputPer1M": 9,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -358,14 +246,6 @@
     {
       "name": "Qwen VL Plus",
       "remoteId": "qwen-vl-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1.5,
-        "outputPer1M": 4.5,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -384,14 +264,6 @@
     {
       "name": "Qwen2.5 VL 72B",
       "remoteId": "qwen2.5-vl-72b-instruct",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 4,
-        "outputPer1M": 12,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -409,14 +281,6 @@
     {
       "name": "Qwen Omni Turbo",
       "remoteId": "qwen-omni-turbo",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 0.5,
-        "outputPer1M": 2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -437,14 +301,6 @@
     {
       "name": "Qwen3.5 Omni Plus",
       "remoteId": "qwen3.5-omni-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1.5,
-        "outputPer1M": 6,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -466,14 +322,6 @@
     {
       "name": "Qwen3 Coder Plus",
       "remoteId": "qwen3-coder-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 2,
-        "outputPer1M": 8,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -491,14 +339,6 @@
     {
       "name": "QwQ Plus",
       "remoteId": "qwq-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1.6,
-        "outputPer1M": 4,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -515,14 +355,6 @@
     {
       "name": "DeepSeek V4 Pro (百炼)",
       "remoteId": "deepseek-v4-pro",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 12,
-        "outputPer1M": 24,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -539,14 +371,6 @@
     {
       "name": "DeepSeek V4 Flash (百炼)",
       "remoteId": "deepseek-v4-flash",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 1,
-        "outputPer1M": 2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -562,14 +386,6 @@
     {
       "name": "DeepSeek V3.2 (百炼)",
       "remoteId": "deepseek-v3.2",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 2,
-        "outputPer1M": 8,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -586,14 +402,6 @@
     {
       "name": "DeepSeek R1 (百炼)",
       "remoteId": "deepseek-r1",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 4,
-        "outputPer1M": 16,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -610,14 +418,6 @@
     {
       "name": "DeepSeek V3 (百炼)",
       "remoteId": "deepseek-v3",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 2,
-        "outputPer1M": 8,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -633,14 +433,6 @@
     {
       "name": "Kimi K2.6 (百炼)",
       "remoteId": "kimi-k2.6",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 6.5,
-        "outputPer1M": 27,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -659,14 +451,6 @@
     {
       "name": "Kimi K2.5 (百炼)",
       "remoteId": "kimi-k2.5",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 4,
-        "outputPer1M": 21,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -685,14 +469,6 @@
     {
       "name": "GLM-5.2 (百炼)",
       "remoteId": "glm-5.2",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 4,
-        "outputPer1M": 18,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -709,14 +485,6 @@
     {
       "name": "GLM-5.1 (百炼)",
       "remoteId": "glm-5.1",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "token",
-        "inputPer1M": 6,
-        "outputPer1M": 24,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -735,25 +503,6 @@
     {
       "name": "Qwen Image 3.0 Pro",
       "remoteId": "qwen-image-3.0-pro",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perImage": 0.5,
-        "tiers": [
-          {
-            "label": "1K 生成",
-            "resolution": "1K",
-            "perImage": 0.25
-          },
-          {
-            "label": "2K 生成",
-            "resolution": "2K",
-            "perImage": 0.5
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -772,6 +521,15 @@
         "resolutions": [
           "1K",
           "2K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       },
       "description": "参考图另计输入约 ¥0.02/张",
@@ -780,25 +538,6 @@
     {
       "name": "Qwen Image 3.0",
       "remoteId": "qwen-image-3.0",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perImage": 0.25,
-        "tiers": [
-          {
-            "label": "1K",
-            "resolution": "1K",
-            "perImage": 0.2
-          },
-          {
-            "label": "2K",
-            "resolution": "2K",
-            "perImage": 0.25
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -816,19 +555,21 @@
         "resolutions": [
           "1K",
           "2K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       }
     },
     {
       "name": "Qwen Image 2.0 Pro",
       "remoteId": "qwen-image-2.0-pro",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.5,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -846,19 +587,21 @@
         "resolutions": [
           "1K",
           "2K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       }
     },
     {
       "name": "Qwen Image 2.0",
       "remoteId": "qwen-image-2.0",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -876,31 +619,21 @@
         "resolutions": [
           "1K",
           "2K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       }
     },
     {
       "name": "Qwen Image Plus",
       "remoteId": "qwen-image-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perImage": 0.2,
-        "tiers": [
-          {
-            "label": "1K",
-            "resolution": "1K",
-            "perImage": 0.16
-          },
-          {
-            "label": "2K",
-            "resolution": "2K",
-            "perImage": 0.2
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -918,19 +651,21 @@
         "resolutions": [
           "1K",
           "2K"
+        ],
+        "ratios": [
+          "1:1",
+          "16:9",
+          "9:16",
+          "4:3",
+          "3:4",
+          "3:2",
+          "2:3"
         ]
       }
     },
     {
       "name": "Wan 2.7 Image Pro",
       "remoteId": "wan2.7-image-pro",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.5,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -952,19 +687,19 @@
           "1K",
           "2K",
           "4K"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
         ]
       }
     },
     {
       "name": "Wan 2.7 Image",
       "remoteId": "wan2.7-image",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -983,19 +718,19 @@
         "resolutions": [
           "1K",
           "2K"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
         ]
       }
     },
     {
       "name": "Wanx 2.1 T2I Plus",
       "remoteId": "wanx2.1-t2i-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1011,19 +746,19 @@
           "1024x1024",
           "1280x720",
           "720x1280"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
         ]
       }
     },
     {
       "name": "Wanx 2.1 T2I Turbo",
       "remoteId": "wanx2.1-t2i-turbo",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.14,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1034,19 +769,19 @@
         "features": [
           "t2i"
         ],
-        "async": true
+        "async": true,
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ]
       }
     },
     {
       "name": "Wanx 2.1 I2I Plus",
       "remoteId": "wanx2.1-imageedit",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1060,19 +795,19 @@
           "i2i",
           "edit"
         ],
-        "async": true
+        "async": true,
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ]
       }
     },
     {
       "name": "Wan 2.5 T2I Preview",
       "remoteId": "wan2.5-t2i-preview",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_image",
-        "perImage": 0.2,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1095,30 +830,6 @@
     {
       "name": "HappyHorse 1.1 文生视频",
       "remoteId": "happyhorse-1.1-t2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.9,
-        "tiers": [
-          {
-            "label": "480P",
-            "resolution": "480P",
-            "perSecond": 0.45
-          },
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.9
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1.2
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1155,30 +866,6 @@
     {
       "name": "HappyHorse 1.1 图生视频",
       "remoteId": "happyhorse-1.1-i2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.9,
-        "tiers": [
-          {
-            "label": "480P",
-            "resolution": "480P",
-            "perSecond": 0.45
-          },
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.9
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1.2
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1198,36 +885,23 @@
           "480P",
           "720P",
           "1080P"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "4:5",
+          "5:4",
+          "9:21",
+          "21:9"
         ]
       }
     },
     {
       "name": "HappyHorse 1.1 参考生视频",
       "remoteId": "happyhorse-1.1-r2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.9,
-        "tiers": [
-          {
-            "label": "480P",
-            "resolution": "480P",
-            "perSecond": 0.45
-          },
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.9
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1.2
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1249,32 +923,24 @@
           "1080P"
         ],
         "maxRefVideos": 0,
-        "maxRefAudios": 0
+        "maxRefAudios": 0,
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "4:5",
+          "5:4",
+          "9:21",
+          "21:9"
+        ]
       },
       "description": "最多 9 张参考图"
     },
     {
       "name": "HappyHorse 1.0 文生视频",
       "remoteId": "happyhorse-1.0-t2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.9,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.9
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1.2
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1292,31 +958,23 @@
           "480P",
           "720P",
           "1080P"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "4:5",
+          "5:4",
+          "9:21",
+          "21:9"
         ]
       }
     },
     {
       "name": "HappyHorse 1.0 图生视频",
       "remoteId": "happyhorse-1.0-i2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.9,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.9
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1.2
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1336,31 +994,23 @@
           "480P",
           "720P",
           "1080P"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "4:5",
+          "5:4",
+          "9:21",
+          "21:9"
         ]
       }
     },
     {
       "name": "HappyHorse 1.0 参考生视频",
       "remoteId": "happyhorse-1.0-r2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.9,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.9
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1.2
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1379,26 +1029,23 @@
         "resolutions": [
           "720P",
           "1080P"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "4:5",
+          "5:4",
+          "9:21",
+          "21:9"
         ]
       }
     },
     {
       "name": "HappyHorse 1.0 视频编辑",
       "remoteId": "happyhorse-1.0-video-edit",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.9,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.9
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1416,31 +1063,23 @@
         "maxDurationSec": 15,
         "resolutions": [
           "720P"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4",
+          "4:5",
+          "5:4",
+          "9:21",
+          "21:9"
         ]
       }
     },
     {
       "name": "Wan 2.7 文生视频",
       "remoteId": "wan2.7-t2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.6,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.6
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1451,37 +1090,30 @@
         "async": true,
         "features": [
           "t2v",
-          "audio"
+          "audio",
+          "i2v",
+          "extend"
         ],
         "maxDurationSec": 15,
         "resolutions": [
           "720P",
           "1080P"
-        ]
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "maxRefImages": 2,
+        "maxRefVideos": 1,
+        "maxRefAudios": 1
       }
     },
     {
       "name": "Wan 2.7 图生视频",
       "remoteId": "wan2.7-i2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.6,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.6
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1490,41 +1122,33 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 1,
+        "maxRefImages": 2,
         "async": true,
         "features": [
           "i2v",
-          "audio"
+          "audio",
+          "t2v",
+          "extend"
         ],
         "maxDurationSec": 15,
         "resolutions": [
           "720P",
           "1080P"
-        ]
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "maxRefVideos": 1,
+        "maxRefAudios": 1
       }
     },
     {
       "name": "Wan 2.7 参考生视频",
       "remoteId": "wan2.7-r2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.6,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.6
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1533,36 +1157,34 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 4,
+        "maxRefImages": 2,
         "async": true,
         "features": [
           "r2v",
-          "audio"
+          "audio",
+          "t2v",
+          "i2v",
+          "extend"
         ],
         "maxDurationSec": 15,
         "resolutions": [
           "720P",
           "1080P"
-        ]
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "maxRefVideos": 1,
+        "maxRefAudios": 1
       }
     },
     {
       "name": "Wan 2.7 视频编辑",
       "remoteId": "wan2.7-videoedit",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.6,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.6
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1571,40 +1193,34 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 1,
+        "maxRefImages": 2,
         "async": true,
         "features": [
           "video-edit",
-          "audio"
+          "audio",
+          "t2v",
+          "i2v",
+          "extend"
         ],
         "maxDurationSec": 15,
         "resolutions": [
-          "720P"
-        ]
+          "720P",
+          "1080P"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "maxRefVideos": 1,
+        "maxRefAudios": 1
       }
     },
     {
       "name": "Wan 2.6 文生视频",
       "remoteId": "wan2.6-t2v",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.6,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.6
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1619,43 +1235,22 @@
         ],
         "maxDurationSec": 15,
         "resolutions": [
-          "720P",
-          "1080P"
-        ]
+          "720p",
+          "1080p"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "maxRefImages": 2
       }
     },
     {
       "name": "Wan 2.6 图生视频 Flash",
       "remoteId": "wan2.6-i2v-flash",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.3,
-        "tiers": [
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.3
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 0.5
-          },
-          {
-            "label": "720P 无声",
-            "resolution": "720P",
-            "perSecond": 0.15
-          },
-          {
-            "label": "1080P 无声",
-            "resolution": "1080P",
-            "perSecond": 0.25
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
@@ -1664,7 +1259,7 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 1,
+        "maxRefImages": 2,
         "async": true,
         "features": [
           "i2v",
@@ -1672,38 +1267,21 @@
         ],
         "maxDurationSec": 15,
         "resolutions": [
-          "720P",
-          "1080P"
+          "720p",
+          "1080p"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
         ]
       }
     },
     {
       "name": "Wan 2.5 文生视频 Preview",
       "remoteId": "wan2.5-t2v-preview",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.6,
-        "tiers": [
-          {
-            "label": "480P",
-            "resolution": "480P",
-            "perSecond": 0.3
-          },
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.6
-          },
-          {
-            "label": "1080P",
-            "resolution": "1080P",
-            "perSecond": 1
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1727,25 +1305,6 @@
     {
       "name": "Wan 2.2 T2V Plus",
       "remoteId": "wan2.2-t2v-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "tiered",
-        "perSecond": 0.5,
-        "tiers": [
-          {
-            "label": "480P",
-            "resolution": "480P",
-            "perSecond": 0.24
-          },
-          {
-            "label": "720P",
-            "resolution": "720P",
-            "perSecond": 0.5
-          }
-        ],
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text"
@@ -1767,13 +1326,6 @@
     {
       "name": "Wan 2.1 I2V Plus",
       "remoteId": "wanx2.1-i2v-plus",
-      "pricing": {
-        "currency": "CNY",
-        "billing": "per_second",
-        "perSecond": 0.7,
-        "note": "官方公开参考价，以控制台为准",
-        "updatedAt": "2026-09-14"
-      },
       "capabilities": {
         "input": [
           "text",
