@@ -132,6 +132,49 @@ const SEEDANCE2_FEATURES = [
   "ref-video",
 ];
 
+/** Seedance 2.x multimodal ref media limits (Ark / gateway docs). */
+const REF_MEDIA_SEEDANCE2 = {
+  input: ["text", "image", "video", "audio"],
+  minRefVideoDurationSec: 2,
+  maxRefVideoDurationSec: 15,
+  maxRefAudioDurationSec: 15,
+  minRefImageSidePx: 300,
+  maxRefImageSidePx: 6000,
+  minRefImageAspect: 0.4,
+  maxRefImageAspect: 2.5,
+  maxRefImageBytes: 31457280,
+  maxRefVideoBytes: 52428800,
+  maxRefAudioBytes: 15728640,
+};
+
+/** Seedream i2i reference image limits (Ark docs). */
+const REF_IMAGE_SEEDREAM = {
+  minRefImageSidePx: 15,
+  maxRefImagePixels: 36000000,
+  minRefImageAspect: 0.0625,
+  maxRefImageAspect: 16,
+  maxRefImageBytes: 10485760,
+};
+
+/** Seedance 1.x / first-last style image refs (same pixel envelope as 2.x images). */
+const REF_IMAGE_SEEDANCE1 = {
+  minRefImageSidePx: 300,
+  maxRefImageSidePx: 6000,
+  minRefImageAspect: 0.4,
+  maxRefImageAspect: 2.5,
+  maxRefImageBytes: 31457280,
+};
+
+/** DashScope Wan image / i2v / r2v common ref image envelope. */
+const REF_MEDIA_WAN = {
+  minRefImageSidePx: 360,
+  maxRefImageSidePx: 2000,
+  maxRefImageBytes: 10485760,
+  maxRefVideoDurationSec: 15,
+  maxRefVideoBytes: 52428800,
+  maxRefAudioBytes: 15728640,
+};
+
 function isRatioLike(s) {
   return /^(auto|adaptive|\d+:\d+)$/i.test(String(s).trim());
 }
@@ -314,6 +357,7 @@ function documentedPatch(platform, kind, item) {
         ratios: gateway ? SEEDREAM_RATIOS_GATEWAY : SEEDREAM_RATIOS,
         async: gateway ? true : (caps.async ?? false),
         features: setFeatures(caps.features, ["t2i", "i2i"]),
+        ...REF_IMAGE_SEEDREAM,
       });
       if (/5[.-]?0-pro|5-0-pro/i.test(id)) {
         p.resolutions = ["1K", "1.5K", "2K"];
@@ -372,6 +416,10 @@ function documentedPatch(platform, kind, item) {
         ratios: WAN_VIDEO_RATIOS,
         async: true,
         features: setFeatures(caps.features, ["t2i", "i2i"]),
+        ...REF_MEDIA_WAN,
+        maxRefVideoDurationSec: null,
+        maxRefVideoBytes: null,
+        maxRefAudioBytes: null,
       });
       // wanx2.1-t2i-plus: after hygiene, ensure sizes if pixels were in res
       if (/wanx2\.1-t2i-plus/i.test(id)) {
@@ -487,6 +535,7 @@ function documentedPatch(platform, kind, item) {
       const miniOrFast = isSeedance2MiniOrFast(id);
       const is25 = isSeedance25(id);
       Object.assign(p, {
+        ...REF_MEDIA_SEEDANCE2,
         ratios: SEEDANCE2_RATIOS,
         resolutions: miniOrFast
           ? ["480p", "720p"]
@@ -506,6 +555,7 @@ function documentedPatch(platform, kind, item) {
     // Seedance 1.x
     if (/seedance-1/i.test(id) || /^doubao-seedance-1/i.test(id)) {
       Object.assign(p, {
+        ...REF_IMAGE_SEEDANCE1,
         ratios: ["16:9", "9:16", "1:1", "4:3", "3:4", "21:9"],
         async: true,
         features: setFeatures(caps.features, ["t2v", "i2v", "first-last-frame"]),
@@ -518,6 +568,7 @@ function documentedPatch(platform, kind, item) {
       Object.assign(p, {
         ratios: WAN_VIDEO_RATIOS,
         async: true,
+        ...REF_MEDIA_WAN,
       });
       if (/^wan2\.7/i.test(id)) {
         p.resolutions = ["720P", "1080P"];
@@ -548,6 +599,11 @@ function documentedPatch(platform, kind, item) {
         p.resolutions = ["720P", "1080P"];
         p.maxDurationSec = 15;
         p.maxRefImages = /t2v/i.test(id) ? null : 1;
+        p.maxRefVideos = null;
+        p.maxRefAudios = null;
+        p.maxRefVideoDurationSec = null;
+        p.maxRefVideoBytes = null;
+        p.maxRefAudioBytes = null;
         p.features = setFeatures(
           caps.features,
           /t2v/i.test(id) ? ["t2v"] : ["t2v", "i2v"],
@@ -695,6 +751,12 @@ function assert(cond, msg) {
   const s2m = findModel(toapis, "video", "seedance-2-mini");
   assert(s2?.capabilities?.maxRefImages === 9, "toapis seedance-2 maxRefImages=9");
   assert(
+    s2?.capabilities?.minRefImageSidePx === 300 &&
+      s2?.capabilities?.maxRefImageBytes === 31457280 &&
+      s2?.capabilities?.maxRefVideoDurationSec === 15,
+    "toapis seedance-2 ref size/duration",
+  );
+  assert(
     s2?.capabilities?.features?.includes("omni-ref") &&
       s2?.capabilities?.features?.includes("first-last-frame"),
     "toapis seedance-2 omni+first-last",
@@ -752,6 +814,29 @@ function assert(cond, msg) {
     mini?.capabilities?.maxRefImages === 9 &&
       mini?.capabilities?.maxRefVideos === 3,
     "volcengine seedance mini refs 9/3",
+  );
+  assert(
+    mini?.capabilities?.minRefImageSidePx === 300 &&
+      mini?.capabilities?.maxRefAudioBytes === 15728640,
+    "volcengine seedance mini ref media limits",
+  );
+
+  const apimartSeedream = findModel(apimart, "image", "seedream-5.0-pro");
+  assert(
+    apimartSeedream?.capabilities?.maxRefImagePixels === 36000000 &&
+      apimartSeedream?.capabilities?.minRefImageSidePx === 15,
+    "apimart seedream-5.0-pro ref image size",
+  );
+
+  const wanR2v = findModel(
+    JSON.parse(fs.readFileSync(path.join(DIR, "dashscope.json"), "utf8")),
+    "video",
+    "wan2.7-r2v",
+  );
+  assert(
+    wanR2v?.capabilities?.minRefImageSidePx === 360 &&
+      wanR2v?.capabilities?.maxRefVideos === 1,
+    "dashscope wan2.7-r2v ref limits",
   );
 }
 

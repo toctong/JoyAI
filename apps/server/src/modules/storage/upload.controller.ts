@@ -86,7 +86,11 @@ export class UploadController {
 
     const asset = await this.assets.create({
       userId: user.id,
-      kind: file.mimetype?.startsWith("video/") ? "video" : "image",
+      kind: file.mimetype?.startsWith("video/")
+        ? "video"
+        : file.mimetype?.startsWith("audio/")
+          ? "audio"
+          : "image",
       url: put.url,
       md5: put.md5,
       mimeType: file.mimetype,

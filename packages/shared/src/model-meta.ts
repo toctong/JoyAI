@@ -50,6 +50,28 @@ export const ModelCapabilitiesSchema = z.object({
   maxRefVideos: z.number().int().optional(),
   /** 参考音频上限 */
   maxRefAudios: z.number().int().optional(),
+  /** 单个参考视频最短时长（秒） */
+  minRefVideoDurationSec: z.number().optional(),
+  /** 参考视频总时长上限（秒） */
+  maxRefVideoDurationSec: z.number().optional(),
+  /** 参考音频总时长上限（秒） */
+  maxRefAudioDurationSec: z.number().optional(),
+  /** 参考图最短边（px） */
+  minRefImageSidePx: z.number().int().optional(),
+  /** 参考图最长边（px） */
+  maxRefImageSidePx: z.number().int().optional(),
+  /** 参考图总像素上限（宽×高），如 Seedream 6000×6000 */
+  maxRefImagePixels: z.number().int().optional(),
+  /** 参考图最小宽高比（宽/高） */
+  minRefImageAspect: z.number().optional(),
+  /** 参考图最大宽高比（宽/高） */
+  maxRefImageAspect: z.number().optional(),
+  /** 单张参考图体积上限（字节） */
+  maxRefImageBytes: z.number().int().optional(),
+  /** 单个参考视频体积上限（字节） */
+  maxRefVideoBytes: z.number().int().optional(),
+  /** 单个参考音频体积上限（字节） */
+  maxRefAudioBytes: z.number().int().optional(),
   maxDurationSec: z.number().optional(),
   /** 输出分辨率档位，如 480p / 720p / 2K */
   resolutions: z.array(z.string()).optional(),

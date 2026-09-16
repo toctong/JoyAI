@@ -83,13 +83,27 @@ export function formatCapabilityDetails(
 
   const refs: string[] = [];
   if (caps.maxRefImages != null && caps.maxRefImages > 0) {
-    refs.push(`图×${caps.maxRefImages}`);
+    const sizeHint =
+      caps.minRefImageSidePx != null || caps.maxRefImageSidePx != null
+        ? `（边长 ${caps.minRefImageSidePx ?? "?"}–${caps.maxRefImageSidePx ?? "?"}px）`
+        : caps.maxRefImagePixels != null
+          ? `（≤${Math.round(Math.sqrt(caps.maxRefImagePixels))}²px）`
+          : "";
+    refs.push(`图×${caps.maxRefImages}${sizeHint}`);
   }
   if (caps.maxRefVideos != null && caps.maxRefVideos > 0) {
-    refs.push(`视×${caps.maxRefVideos}`);
+    const range =
+      caps.minRefVideoDurationSec != null || caps.maxRefVideoDurationSec != null
+        ? `（${caps.minRefVideoDurationSec ?? 0}–${caps.maxRefVideoDurationSec ?? "?"}s）`
+        : "";
+    refs.push(`视×${caps.maxRefVideos}${range}`);
   }
   if (caps.maxRefAudios != null && caps.maxRefAudios > 0) {
-    refs.push(`音×${caps.maxRefAudios}`);
+    const range =
+      caps.maxRefAudioDurationSec != null
+        ? `（≤${caps.maxRefAudioDurationSec}s）`
+        : "";
+    refs.push(`音×${caps.maxRefAudios}${range}`);
   }
   if (refs.length) lines.push(`参考 ${refs.join(" · ")}`);
 

@@ -4,6 +4,7 @@ export type PromptGeneratePayload = {
   prompt: string;
   imageUrls: string[];
   videoUrls: string[];
+  audioUrls: string[];
   assetIds: string[];
 };
 
@@ -39,6 +40,7 @@ export function serializeForGenerate(
 ): PromptGeneratePayload {
   const imageUrls: string[] = [];
   const videoUrls: string[] = [];
+  const audioUrls: string[] = [];
   const assetIds: string[] = [];
 
   const walk = (node: JSONContent): string => {
@@ -55,6 +57,10 @@ export function serializeForGenerate(
         if (url && kind === "video") {
           if (!videoUrls.includes(url)) videoUrls.push(url);
           return `@视频${videoUrls.indexOf(url) + 1}`;
+        }
+        if (url && kind === "audio") {
+          if (!audioUrls.includes(url)) audioUrls.push(url);
+          return `@音频${audioUrls.indexOf(url) + 1}`;
         }
         if (url) {
           if (!imageUrls.includes(url)) imageUrls.push(url);
@@ -79,6 +85,7 @@ export function serializeForGenerate(
       .trimEnd(),
     imageUrls,
     videoUrls,
+    audioUrls,
     assetIds,
   };
 }

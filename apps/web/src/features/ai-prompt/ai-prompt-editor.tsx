@@ -28,7 +28,7 @@ export type MentionCandidate = {
   id: string;
   label: string;
   url: string;
-  mediaKind: "image" | "video" | "text";
+  mediaKind: "image" | "video" | "audio" | "text";
   expandText?: string;
 };
 
@@ -355,12 +355,26 @@ export function AiPromptEditor({
                     alt=""
                     className="joy-prompt-menu-thumb"
                   />
+                ) : item.mediaKind === "video" && item.url ? (
+                  <video
+                    src={item.url}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="joy-prompt-menu-thumb"
+                  />
                 ) : (
                   <div className="joy-prompt-menu-thumb" />
                 )}
                 <div>
                   <strong>{item.label}</strong>
-                  <span>{item.mediaKind === "video" ? "视频" : "图片"}</span>
+                  <span>
+                    {item.mediaKind === "video"
+                      ? "视频"
+                      : item.mediaKind === "audio"
+                        ? "音频"
+                        : "图片"}
+                  </span>
                 </div>
               </button>
             ))

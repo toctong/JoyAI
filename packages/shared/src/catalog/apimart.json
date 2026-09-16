@@ -790,7 +790,12 @@
           "1K",
           "2K",
           "4K"
-        ]
+        ],
+        "minRefImageSidePx": 15,
+        "maxRefImagePixels": 36000000,
+        "minRefImageAspect": 0.0625,
+        "maxRefImageAspect": 16,
+        "maxRefImageBytes": 10485760
       }
     },
     {
@@ -826,7 +831,12 @@
         "resolutions": [
           "2K",
           "4K"
-        ]
+        ],
+        "minRefImageSidePx": 15,
+        "maxRefImagePixels": 36000000,
+        "minRefImageAspect": 0.0625,
+        "maxRefImageAspect": 16,
+        "maxRefImageBytes": 10485760
       }
     },
     {
@@ -862,7 +872,12 @@
           "2:1",
           "1:2",
           "21:9"
-        ]
+        ],
+        "minRefImageSidePx": 15,
+        "maxRefImagePixels": 36000000,
+        "minRefImageAspect": 0.0625,
+        "maxRefImageAspect": 16,
+        "maxRefImageBytes": 10485760
       }
     },
     {
@@ -900,7 +915,12 @@
           "2:1",
           "1:2",
           "21:9"
-        ]
+        ],
+        "minRefImageSidePx": 15,
+        "maxRefImagePixels": 36000000,
+        "minRefImageAspect": 0.0625,
+        "maxRefImageAspect": 16,
+        "maxRefImageBytes": 10485760
       }
     },
     {
@@ -1143,7 +1163,10 @@
           "1:1",
           "4:3",
           "3:4"
-        ]
+        ],
+        "minRefImageSidePx": 360,
+        "maxRefImageSidePx": 2000,
+        "maxRefImageBytes": 10485760
       }
     },
     {
@@ -1174,7 +1197,10 @@
           "1:1",
           "4:3",
           "3:4"
-        ]
+        ],
+        "minRefImageSidePx": 360,
+        "maxRefImageSidePx": 2000,
+        "maxRefImageBytes": 10485760
       }
     },
     {
@@ -1352,7 +1378,12 @@
           "4:3",
           "3:4",
           "21:9"
-        ]
+        ],
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 6000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 31457280
       }
     },
     {
@@ -1386,7 +1417,12 @@
           "4:3",
           "3:4",
           "21:9"
-        ]
+        ],
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 6000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 31457280
       }
     },
     {
@@ -1395,7 +1431,9 @@
       "capabilities": {
         "input": [
           "text",
-          "image"
+          "image",
+          "video",
+          "audio"
         ],
         "output": [
           "video"
@@ -1428,7 +1466,17 @@
           "adaptive"
         ],
         "maxRefVideos": 3,
-        "maxRefAudios": 3
+        "maxRefAudios": 3,
+        "minRefVideoDurationSec": 2,
+        "maxRefVideoDurationSec": 15,
+        "maxRefAudioDurationSec": 15,
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 6000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 31457280,
+        "maxRefVideoBytes": 52428800,
+        "maxRefAudioBytes": 15728640
       }
     },
     {
@@ -1437,7 +1485,9 @@
       "capabilities": {
         "input": [
           "text",
-          "image"
+          "image",
+          "video",
+          "audio"
         ],
         "output": [
           "video"
@@ -1469,7 +1519,17 @@
           "adaptive"
         ],
         "maxRefVideos": 3,
-        "maxRefAudios": 3
+        "maxRefAudios": 3,
+        "minRefVideoDurationSec": 2,
+        "maxRefVideoDurationSec": 15,
+        "maxRefAudioDurationSec": 15,
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 6000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 31457280,
+        "maxRefVideoBytes": 52428800,
+        "maxRefAudioBytes": 15728640
       }
     },
     {
@@ -1721,7 +1781,10 @@
           "1:1",
           "4:3",
           "3:4"
-        ]
+        ],
+        "minRefImageSidePx": 360,
+        "maxRefImageSidePx": 2000,
+        "maxRefImageBytes": 10485760
       }
     },
     {
@@ -1758,7 +1821,13 @@
           "3:4"
         ],
         "maxRefVideos": 1,
-        "maxRefAudios": 1
+        "maxRefAudios": 1,
+        "minRefImageSidePx": 360,
+        "maxRefImageSidePx": 2000,
+        "maxRefImageBytes": 10485760,
+        "maxRefVideoDurationSec": 15,
+        "maxRefVideoBytes": 52428800,
+        "maxRefAudioBytes": 15728640
       }
     },
     {
@@ -1794,7 +1863,13 @@
           "1:1",
           "4:3",
           "3:4"
-        ]
+        ],
+        "minRefImageSidePx": 360,
+        "maxRefImageSidePx": 2000,
+        "maxRefImageBytes": 10485760,
+        "maxRefVideoDurationSec": 15,
+        "maxRefVideoBytes": 52428800,
+        "maxRefAudioBytes": 15728640
       }
     },
     {

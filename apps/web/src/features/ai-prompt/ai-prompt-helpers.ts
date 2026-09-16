@@ -9,7 +9,7 @@ export function getGeneratePayload(
   editor: Editor | null,
 ): PromptGeneratePayload {
   if (!editor) {
-    return { prompt: "", imageUrls: [], videoUrls: [], assetIds: [] };
+    return { prompt: "", imageUrls: [], videoUrls: [], audioUrls: [], assetIds: [] };
   }
   return serializeForGenerate(editor.getJSON());
 }

@@ -15,6 +15,7 @@ import {
   Plus,
   RectangleHorizontal,
   Sparkles,
+  Music,
   X,
 } from "lucide-react";
 import { ImageGenIcon, VideoGenIcon } from "./gen-kind-icons";
@@ -44,7 +45,15 @@ import {
   refModesFromCapabilities,
   resolveResolutionOption,
   showReferenceUpload,
+  classifyRefFile,
+  probeMediaDurationSec,
+  probeImageSize,
+  refDropAccept,
+  refSlotLimitsFromCapabilities,
+  validateRefFileBytes,
+  validateRefImageConstraints,
   type AspectOption,
+  type RefMediaKind,
   type VideoRefModeId,
 } from "./model-options";
 import "./creation-composer.css";
@@ -63,7 +72,28 @@ type PublicModel = {
   };
 };
 
-type UploadedRef = { id: string; url: string };
+type PendingRef = {
+  /** Client-only id for preview / @mention until upload. */
+  localId: string;
+  /** blob: preview URL */
+  url: string;
+  file: File;
+  mediaKind: RefMediaKind;
+  /** Seconds for video/audio; undefined for images. */
+  durationSec?: number;
+};
+
+function refLabel(kind: RefMediaKind, index1: number) {
+  if (kind === "video") return `视频${index1}`;
+  if (kind === "audio") return `音频${index1}`;
+  return `图片${index1}`;
+}
+
+function refMentionLabel(kind: RefMediaKind, index1: number) {
+  if (kind === "video") return `@视频${index1}`;
+  if (kind === "audio") return `@音频${index1}`;
+  return `@图${index1}`;
+}
 
 type Props = {
   variant?: "hero" | "dock";
@@ -219,7 +249,9 @@ export function CreationComposer({
   promptSeed,
 }: Props) {
   const search = useSearchParams();
-  const [refs, setRefs] = useState<UploadedRef[]>([]);
+  const [refs, setRefs] = useState<PendingRef[]>([]);
+  const refsRef = useRef(refs);
+  refsRef.current = refs;
   const [prompt, setPrompt] = useState(initialPrompt);
   const [kind, setKind] = useState<"image" | "video">(() =>
     initialComposerKind(search.get("type")),
@@ -243,7 +275,10 @@ export function CreationComposer({
   const [composerHovered, setComposerHovered] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const seeded = useRef(false);
+  const [refsExpanded, setRefsExpanded] = useState(false);
   const [prefsHydrated, setPrefsHydrated] = useState(false);
+  /** After file picker, keep stacked until pointer leaves the ref area. */
+  const suppressExpandRef = useRef(false);
 
   const kindModels = useMemo(
     () => models.filter((m) => m.kind === kind),
@@ -263,10 +298,17 @@ export function CreationComposer({
     () => durationsFromCapabilities(caps),
     [caps],
   );
-  const maxRefImages = caps?.maxRefImages;
   const refModes = useMemo(
     () => (kind === "video" ? refModesFromCapabilities(caps) : []),
     [caps, kind],
+  );
+  const refLimits = useMemo(
+    () =>
+      refSlotLimitsFromCapabilities(caps, {
+        kind,
+        refMode: kind === "video" ? refMode : undefined,
+      }),
+    [caps, kind, refMode],
   );
   const canUploadRef = useMemo(
     () => showReferenceUpload(caps, kind),
@@ -297,7 +339,7 @@ export function CreationComposer({
   const layoutChipLabel = layout.showRatio
     ? (selectedAspect?.label ?? aspect)
     : layout.showSizePicker
-      ? (selectedSize?.label ?? pixelSize || "尺寸")
+      ? (selectedSize?.label ?? (pixelSize || "尺寸"))
       : qualityLabel;
 
   // Clamp params when model / catalog options change
@@ -343,23 +385,46 @@ export function CreationComposer({
 
   useEffect(() => {
     if (canUploadRef) return;
-    setRefs([]);
+    setRefs((prev) => {
+      for (const r of prev) URL.revokeObjectURL(r.url);
+      return [];
+    });
   }, [canUploadRef]);
 
-  const mentionItems = useMemo(
-    () =>
-      refs.map((r, i) => ({
-        id: r.id,
-        label: `@图${i + 1}`,
+  useEffect(() => {
+    if (kind === "video") return;
+    setRefs((prev) => {
+      const keep = prev.filter((r) => r.mediaKind === "image");
+      if (keep.length === prev.length) return prev;
+      for (const r of prev) {
+        if (r.mediaKind !== "image") URL.revokeObjectURL(r.url);
+      }
+      return keep;
+    });
+  }, [kind]);
+
+  useEffect(() => {
+    return () => {
+      for (const r of refsRef.current) URL.revokeObjectURL(r.url);
+    };
+  }, []);
+
+  const mentionItems = useMemo(() => {
+    const counters = { image: 0, video: 0, audio: 0 };
+    return refs.map((r) => {
+      counters[r.mediaKind] += 1;
+      return {
+        id: r.localId,
+        label: refMentionLabel(r.mediaKind, counters[r.mediaKind]),
         url: r.url,
-        mediaKind: "image" as const,
-      })),
-    [refs],
-  );
+        mediaKind: r.mediaKind,
+      };
+    });
+  }, [refs]);
 
   const placeholder =
     kind === "video"
-      ? "上传文字、图片或 @ 素材，创造你想生成的视频"
+      ? "上传文字、图片/视频/音频或 @ 素材，创造你想生成的视频"
       : "上传文字、图片或 @ 不同图片，创造你想生成的图片";
 
   function applyKindPrefs(next: "image" | "video", kp: KindPrefs = {}) {
@@ -515,60 +580,179 @@ export function CreationComposer({
   const onDrop = useCallback(
     async (files: File[]) => {
       if (!canUploadRef) {
-        toast.error("当前模型不支持参考图");
+        toast.error("当前模型不支持参考素材");
         return;
       }
-      try {
-        const limit =
-          typeof maxRefImages === "number" && maxRefImages > 0
-            ? maxRefImages
-            : refMode === "first_last"
-              ? 2
-              : undefined;
-        let accepted = files;
-        if (typeof limit === "number" && limit > 0) {
-          const room = Math.max(0, limit - refs.length);
-          if (room <= 0) {
+      const limits = refSlotLimitsFromCapabilities(caps, {
+        kind,
+        refMode: kind === "video" ? refMode : undefined,
+      });
+      let imageCount = refs.filter((r) => r.mediaKind === "image").length;
+      let videoCount = refs.filter((r) => r.mediaKind === "video").length;
+      let audioCount = refs.filter((r) => r.mediaKind === "audio").length;
+      let videoDurSum = refs
+        .filter((r) => r.mediaKind === "video")
+        .reduce((s, r) => s + (r.durationSec ?? 0), 0);
+      let audioDurSum = refs
+        .filter((r) => r.mediaKind === "audio")
+        .reduce((s, r) => s + (r.durationSec ?? 0), 0);
+
+      const accepted: PendingRef[] = [];
+      for (const file of files) {
+        const mediaKind = classifyRefFile(file);
+        if (!mediaKind) {
+          toast.error(`不支持的文件类型：${file.name}`);
+          continue;
+        }
+        if (mediaKind === "image") {
+          if (limits.images != null && imageCount >= limits.images) {
             toast.error(
               refMode === "first_last"
                 ? "首尾帧参考最多 2 张图（首帧 + 尾帧）"
-                : `当前模型最多 ${limit} 张参考图`,
+                : `当前模型最多 ${limits.images} 张参考图`,
             );
-            return;
+            continue;
           }
-          if (files.length > room) {
-            toast.message(
-              refMode === "first_last"
-                ? `首尾帧参考最多 2 张图，已截取前 ${room} 张`
-                : `当前模型最多 ${limit} 张参考图，已截取前 ${room} 张`,
-            );
-            accepted = files.slice(0, room);
+          let dims: { width: number; height: number };
+          try {
+            dims = await probeImageSize(file);
+          } catch {
+            toast.error(`无法读取「${file.name}」尺寸`);
+            continue;
+          }
+          const dimErr = validateRefImageConstraints(file, dims, limits);
+          if (dimErr) {
+            toast.error(dimErr);
+            continue;
+          }
+        } else if (mediaKind === "video") {
+          if (limits.videos != null && limits.videos <= 0) {
+            toast.error("当前模式不支持参考视频");
+            continue;
+          }
+          if (limits.videos != null && videoCount >= limits.videos) {
+            toast.error(`当前模型最多 ${limits.videos} 个参考视频`);
+            continue;
+          }
+          const byteErr = validateRefFileBytes(file, "video", limits);
+          if (byteErr) {
+            toast.error(byteErr);
+            continue;
+          }
+        } else {
+          if (limits.audios != null && limits.audios <= 0) {
+            toast.error("当前模式不支持参考音频");
+            continue;
+          }
+          if (limits.audios != null && audioCount >= limits.audios) {
+            toast.error(`当前模型最多 ${limits.audios} 个参考音频`);
+            continue;
+          }
+          const byteErr = validateRefFileBytes(file, "audio", limits);
+          if (byteErr) {
+            toast.error(byteErr);
+            continue;
           }
         }
-        for (const file of accepted) {
-          const asset = await apiUpload<UploadedRef>("/upload", file);
-          setRefs((prev) => [...prev, { id: asset.id, url: asset.url }]);
+
+        let durationSec: number | undefined;
+        if (mediaKind === "video" || mediaKind === "audio") {
+          try {
+            durationSec = await probeMediaDurationSec(file);
+          } catch {
+            toast.error(`无法读取「${file.name}」时长`);
+            continue;
+          }
+          if (mediaKind === "video") {
+            if (
+              limits.minVideoSec != null &&
+              durationSec < limits.minVideoSec
+            ) {
+              toast.error(
+                `参考视频至少 ${limits.minVideoSec} 秒（${file.name} 约 ${durationSec.toFixed(1)}s）`,
+              );
+              continue;
+            }
+            if (
+              limits.maxVideoSec != null &&
+              videoDurSum + durationSec > limits.maxVideoSec + 0.05
+            ) {
+              toast.error(
+                `参考视频总时长不能超过 ${limits.maxVideoSec} 秒（已用 ${videoDurSum.toFixed(1)}s）`,
+              );
+              continue;
+            }
+          } else if (
+            limits.maxAudioSec != null &&
+            audioDurSum + durationSec > limits.maxAudioSec + 0.05
+          ) {
+            toast.error(
+              `参考音频总时长不能超过 ${limits.maxAudioSec} 秒（已用 ${audioDurSum.toFixed(1)}s）`,
+            );
+            continue;
+          }
         }
-        toast.success("参考图已上传");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "上传失败");
+
+        accepted.push({
+          localId: crypto.randomUUID(),
+          url: URL.createObjectURL(file),
+          file,
+          mediaKind,
+          durationSec,
+        });
+        if (mediaKind === "image") imageCount += 1;
+        else if (mediaKind === "video") {
+          videoCount += 1;
+          videoDurSum += durationSec ?? 0;
+        } else {
+          audioCount += 1;
+          audioDurSum += durationSec ?? 0;
+        }
       }
+
+      if (accepted.length === 0) return;
+      setRefs((prev) => [...prev, ...accepted]);
+      // File dialog keeps pointer over the stack — don't auto-expand.
+      suppressExpandRef.current = true;
+      setRefsExpanded(false);
     },
-    [canUploadRef, maxRefImages, refMode, refs.length],
+    [canUploadRef, caps, kind, refMode, refs],
   );
 
+  const dropAccept = useMemo(() => refDropAccept(refLimits), [refLimits]);
+
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    onDrop: (files) => void onDrop(files),
-    accept: { "image/*": [] },
+    onDrop: (files) => {
+      void onDrop(files);
+    },
+    accept: dropAccept,
     multiple: true,
     noClick: true,
-    disabled: !canUploadRef,
+    disabled: !canUploadRef || !dropAccept,
   });
 
   useEffect(() => {
     if (refMode !== "first_last") return;
-    setRefs((prev) => (prev.length > 2 ? prev.slice(0, 2) : prev));
+    setRefs((prev) => {
+      const images = prev.filter((r) => r.mediaKind === "image");
+      const drop = prev.filter((r) => r.mediaKind !== "image");
+      if (images.length <= 2 && drop.length === 0) return prev;
+      for (const r of [...drop, ...images.slice(2)]) {
+        URL.revokeObjectURL(r.url);
+      }
+      return images.slice(0, 2);
+    });
   }, [refMode]);
+
+  function removeRef(localId: string) {
+    setRefs((prev) => {
+      const target = prev.find((r) => r.localId === localId);
+      if (target) URL.revokeObjectURL(target.url);
+      const next = prev.filter((r) => r.localId !== localId);
+      if (next.length === 0) setRefsExpanded(false);
+      return next;
+    });
+  }
 
   function insertAtMention() {
     const editor = editorRef.current;
@@ -596,11 +780,44 @@ export function CreationComposer({
       toast.error("请输入提示词");
       return;
     }
+    if (refModes.length > 0 && refMode === "first_last" && refs.length < 1) {
+      toast.error("首尾帧参考请至少添加 1 张图（建议首帧 + 尾帧共 2 张）");
+      return;
+    }
     setSubmitting(true);
     try {
-      const referenceAssetIds = Array.from(
-        new Set([...refs.map((r) => r.id), ...payload.assetIds]),
+      // Upload pending refs only on send
+      const uploaded: { localId: string; id: string; url: string }[] = [];
+      for (const ref of refs) {
+        const asset = await apiUpload<{ id: string; url: string }>(
+          "/upload",
+          ref.file,
+        );
+        uploaded.push({ localId: ref.localId, id: asset.id, url: asset.url });
+      }
+      const localToAsset = new Map(
+        uploaded.map((u) => [u.localId, u] as const),
       );
+      const referenceAssetIds = Array.from(
+        new Set([
+          ...uploaded.map((u) => u.id),
+          ...payload.assetIds.map((id) => localToAsset.get(id)?.id ?? id),
+        ]),
+      );
+      const isRemoteUrl = (u: string) => /^https?:\/\//i.test(u);
+      const referenceUrls = [
+        ...payload.imageUrls,
+        ...(kind === "video" ? payload.videoUrls : []),
+        ...(kind === "video" ? payload.audioUrls : []),
+      ]
+        .map((u) => {
+          if (isRemoteUrl(u)) return u;
+          // blob preview from @mention → resolve via localId match on refs
+          const hit = refs.find((r) => r.url === u);
+          return hit ? localToAsset.get(hit.localId)?.url : undefined;
+        })
+        .filter((u): u is string => Boolean(u && isRemoteUrl(u)));
+
       const resolutionOpt = layout.showResolution
         ? (selectedResolution ??
           layout.resolutions[0] ??
@@ -613,7 +830,7 @@ export function CreationComposer({
           n,
           modelId: modelId || undefined,
           referenceAssetIds,
-          referenceUrls: payload.imageUrls,
+          referenceUrls,
         };
         if (layout.showRatio && selectedAspect) {
           input.ratio = selectedAspect.id;
@@ -631,17 +848,12 @@ export function CreationComposer({
           body: { kind: "image", input },
         });
       } else {
-        if (refModes.length > 0 && refMode === "first_last" && refs.length < 1) {
-          toast.error("首尾帧参考请至少上传 1 张图（建议首帧 + 尾帧共 2 张）");
-          setSubmitting(false);
-          return;
-        }
         const input: Record<string, unknown> = {
           prompt: promptText,
           duration,
           modelId: modelId || undefined,
           referenceAssetIds,
-          referenceUrls: [...payload.imageUrls, ...payload.videoUrls],
+          referenceUrls,
         };
         if (refModes.length > 0) {
           input.refMode = refMode;
@@ -666,6 +878,15 @@ export function CreationComposer({
     }
   }
 
+  const imageRefCount = refs.filter((r) => r.mediaKind === "image").length;
+  const videoRefCount = refs.filter((r) => r.mediaKind === "video").length;
+  const audioRefCount = refs.filter((r) => r.mediaKind === "audio").length;
+  const slotOpen = (limit: number | null, used: number) =>
+    limit === null ? true : limit > 0 && used < limit;
+  const canAddMoreRef =
+    slotOpen(refLimits.images, imageRefCount) ||
+    slotOpen(refLimits.videos, videoRefCount) ||
+    slotOpen(refLimits.audios, audioRefCount);
   const cost = kind === "image" ? n : Math.max(1, Math.round(duration / 2));
   const skillChips = SLASH_COMMANDS.filter((c) => c.insert || c.kind).slice(
     0,
@@ -695,46 +916,132 @@ export function CreationComposer({
         <ComposerRipple idle={rippleIdle} />
         <div className="joy-composer-body">
           {canUploadRef ? (
-            <button
-              type="button"
+            <div
               className={cn(
-                "joy-composer-upload",
-                refs[0] && "has-preview",
+                "joy-composer-ref-stack",
+                refsExpanded && "is-open",
+                refs.length === 0 && "is-empty",
               )}
-              onClick={open}
-              aria-label="上传参考内容"
+              data-count={refs.length}
+              aria-label="参考内容"
+              onMouseEnter={() => {
+                if (suppressExpandRef.current) return;
+                if (refs.length > 0) setRefsExpanded(true);
+              }}
+              onMouseLeave={() => {
+                suppressExpandRef.current = false;
+                setRefsExpanded(false);
+              }}
+              onBlurCapture={(e) => {
+                if (
+                  !e.currentTarget.contains(e.relatedTarget as Node | null)
+                ) {
+                  setRefsExpanded(false);
+                }
+              }}
             >
-              {refs[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={refs[0].url} alt="" />
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" strokeWidth={1.75} />
-                  <span className="joy-composer-upload-label">参考内容</span>
-                </>
-              )}
-            </button>
+              <div className="joy-composer-ref-fan">
+                <div
+                  className={cn(
+                    "joy-composer-ref-fan-layer",
+                    refsExpanded && "is-open",
+                  )}
+                  style={
+                    {
+                      ["--ref-n"]: String(refs.length),
+                      ["--ref-slots"]: String(
+                        refs.length + (canAddMoreRef ? 1 : 0),
+                      ),
+                    } as Record<string, string>
+                  }
+                >
+                  {canAddMoreRef ? (
+                    <button
+                      type="button"
+                      className={cn(
+                        "joy-composer-upload",
+                        refs.length === 0
+                          ? "is-empty"
+                          : refsExpanded
+                            ? "is-card"
+                            : "is-fab",
+                      )}
+                      onClick={open}
+                      aria-label={
+                        refs.length === 0
+                          ? kind === "video"
+                            ? "添加参考图/视频/音频"
+                            : "添加参考内容"
+                          : "继续添加参考素材"
+                      }
+                    >
+                      <Plus className="h-4 w-4" strokeWidth={1.75} />
+                      {refs.length === 0 || refsExpanded ? (
+                        <span className="joy-composer-upload-label">
+                          参考内容
+                        </span>
+                      ) : null}
+                    </button>
+                  ) : null}
+                  {refs.map((ref, i) => {
+                    const typeIndex =
+                      refs
+                        .slice(0, i + 1)
+                        .filter((r) => r.mediaKind === ref.mediaKind).length;
+                    const label = refLabel(ref.mediaKind, typeIndex);
+                    return (
+                      <div
+                        key={ref.localId}
+                        className={cn(
+                          "joy-composer-ref-card",
+                          `is-${ref.mediaKind}`,
+                          i % 2 === 0 ? "is-tilt-a" : "is-tilt-b",
+                        )}
+                        style={
+                          {
+                            ["--ref-i"]: String(i),
+                            ["--ref-x"]: String(canAddMoreRef ? i + 1 : i),
+                          } as Record<string, string>
+                        }
+                      >
+                        {ref.mediaKind === "image" ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={ref.url} alt="" />
+                        ) : ref.mediaKind === "video" ? (
+                          <video
+                            src={ref.url}
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                        ) : (
+                          <span className="joy-composer-ref-audio">
+                            <Music className="h-5 w-5" strokeWidth={1.5} />
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          className="joy-composer-ref-remove"
+                          aria-label={`移除${label}`}
+                          onClick={() => removeRef(ref.localId)}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                        <span className="joy-composer-ref-index">
+                          {label}
+                          {ref.durationSec != null
+                            ? ` · ${Math.round(ref.durationSec)}s`
+                            : ""}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ) : null}
 
           <div className="joy-composer-main">
-            {canUploadRef && refs.length > 0 ? (
-              <div className="joy-composer-refs">
-                {refs.map((ref) => (
-                  <div key={ref.id} className="joy-composer-ref">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={ref.url} alt="" />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRefs((prev) => prev.filter((r) => r.id !== ref.id))
-                      }
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : null}
             <div
               onFocusCapture={() => setEditorFocused(true)}
               onBlurCapture={(e) => {
@@ -875,46 +1182,53 @@ export function CreationComposer({
             ) : null}
 
             <DropdownMenu open={paramsOpen} onOpenChange={setParamsOpen}>
-              <div className="joy-chip-params-group">
-                {layout.showRatio || layout.showSizePicker ? (
-                  <DropdownMenuTrigger asChild>
-                    <button type="button" className="joy-chip">
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="joy-chip-params-pill"
+                  aria-label="生成参数"
+                >
+                  {layout.showRatio || layout.showSizePicker ? (
+                    <span className="joy-chip-params-seg">
                       <RectangleHorizontal className="h-3.5 w-3.5 opacity-70" />
-                      <span>{layoutChipLabel}</span>
-                    </button>
-                  </DropdownMenuTrigger>
-                ) : null}
-                {layout.showResolution ? (
-                  <button
-                    type="button"
-                    className="joy-chip"
-                    onClick={() => setParamsOpen(true)}
-                  >
-                    <span className="joy-chip-params-quality">
-                      {kind === "image" ? `高清${qualityLabel}` : qualityLabel}
-                      <Sparkles className="joy-chip-sparkle h-3 w-3" />
+                      {layoutChipLabel}
                     </span>
-                  </button>
-                ) : layout.showRatio || layout.showSizePicker ? null : (
-                  <DropdownMenuTrigger asChild>
-                    <button type="button" className="joy-chip">
-                      <span className="joy-chip-params-quality">
-                        参数
-                        <Sparkles className="joy-chip-sparkle h-3 w-3" />
+                  ) : null}
+                  {layout.showResolution ? (
+                    <>
+                      {layout.showRatio || layout.showSizePicker ? (
+                        <span className="joy-chip-params-sep" aria-hidden />
+                      ) : null}
+                      <span className="joy-chip-params-seg">{qualityLabel}</span>
+                    </>
+                  ) : null}
+                  {kind === "video" ? (
+                    <>
+                      {layout.showRatio ||
+                      layout.showSizePicker ||
+                      layout.showResolution ? (
+                        <span className="joy-chip-params-sep" aria-hidden />
+                      ) : null}
+                      <span className="joy-chip-params-seg">
+                        <Clock className="h-3.5 w-3.5 opacity-70" />
+                        {duration}秒
                       </span>
-                    </button>
-                  </DropdownMenuTrigger>
-                )}
-                {kind === "image" ? (
-                  <button
-                    type="button"
-                    className="joy-chip"
-                    onClick={() => setParamsOpen(true)}
-                  >
-                    <span>{n}张</span>
-                  </button>
-                ) : null}
-              </div>
+                    </>
+                  ) : null}
+                  <>
+                    {layout.showRatio ||
+                    layout.showSizePicker ||
+                    layout.showResolution ||
+                    kind === "video" ? (
+                      <span className="joy-chip-params-sep" aria-hidden />
+                    ) : null}
+                    <span className="joy-chip-params-seg">
+                      {n}
+                      {kind === "image" ? "张" : "条"}
+                    </span>
+                  </>
+                </button>
+              </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="p-3">
                 <div className="joy-composer-params-panel">
                   {layout.showRatio ? (
@@ -982,25 +1296,6 @@ export function CreationComposer({
                       </div>
                     </div>
                   ) : null}
-                  <div className="joy-composer-params-row">
-                    <span className="joy-composer-params-label">数量</span>
-                    <div className="joy-composer-params-options">
-                      {[1, 2, 3, 4].map((count) => (
-                        <button
-                          key={count}
-                          type="button"
-                          className={cn(
-                            "joy-composer-params-option",
-                            n === count && "is-on",
-                          )}
-                          onClick={() => setN(count)}
-                        >
-                          {count}
-                          {kind === "image" ? "张" : ""}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                   {kind === "video" ? (
                     <div className="joy-composer-params-row">
                       <span className="joy-composer-params-label">时长</span>
@@ -1021,27 +1316,28 @@ export function CreationComposer({
                       </div>
                     </div>
                   ) : null}
+                  <div className="joy-composer-params-row">
+                    <span className="joy-composer-params-label">数量</span>
+                    <div className="joy-composer-params-options">
+                      {[1, 2, 3, 4].map((count) => (
+                        <button
+                          key={count}
+                          type="button"
+                          className={cn(
+                            "joy-composer-params-option",
+                            n === count && "is-on",
+                          )}
+                          onClick={() => setN(count)}
+                        >
+                          {count}
+                          {kind === "image" ? "张" : "条"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            {kind === "video" ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="joy-chip">
-                    <Clock className="h-3.5 w-3.5 opacity-80" />
-                    {duration}s
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {durationOptions.map((d) => (
-                    <DropdownMenuItem key={d} onClick={() => setDuration(d)}>
-                      {d} 秒
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
 
             <button
               type="button"

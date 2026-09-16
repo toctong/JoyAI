@@ -7,7 +7,7 @@ export type MentionTagAttrs = {
   mentionId: string;
   expandText: string;
   url: string;
-  mediaKind: "" | "image" | "video" | "text";
+  mediaKind: "" | "image" | "video" | "audio" | "text";
 };
 
 declare module "@tiptap/core" {

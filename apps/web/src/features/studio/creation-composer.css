@@ -93,117 +93,265 @@
   align-items: flex-start;
 }
 
-/* Jimeng-style tilted reference card */
-.joy-composer-upload {
+/* Jimeng collapsed deck → expanded portrait row (out of flow) */
+.joy-composer-ref-stack {
+  position: relative;
   flex-shrink: 0;
+  z-index: 6;
+  min-height: 76px;
+  padding: 8px 4px 4px;
+}
+
+.joy-composer-ref-fan {
+  position: relative;
+  width: 56px;
+  height: 72px;
+}
+
+.joy-composer-ref-stack.is-empty .joy-composer-ref-fan {
   width: 52px;
   height: 68px;
-  margin-top: 4px;
-  margin-left: 2px;
-  border-radius: 12px;
-  border: 1px dashed color-mix(in oklab, var(--foreground) 22%, transparent);
-  background: color-mix(in oklab, var(--background) 28%, transparent);
+}
+
+.joy-composer-ref-fan-layer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 5;
+  width: 56px;
+  height: 72px;
+}
+
+.joy-composer-ref-stack.is-empty .joy-composer-ref-fan-layer {
+  position: relative;
+  width: 52px;
+  height: 68px;
+}
+
+/* Expanded: portrait tiles L→R over prompt */
+.joy-composer-ref-fan-layer.is-open {
+  z-index: 40;
+  width: calc(52px + (var(--ref-slots, 1) - 1) * 60px);
+  height: 72px;
+  padding-right: 8px;
+}
+
+.joy-composer-ref-card {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 52px;
+  height: 68px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  box-shadow: none;
+  transform-origin: 50% 80%;
+  transition:
+    left 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    bottom 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Collapsed deck */
+.joy-composer-ref-fan-layer:not(.is-open) .joy-composer-ref-card {
+  left: calc(var(--ref-i, 0) * 3px);
+  bottom: calc(var(--ref-i, 0) * 2px);
+  z-index: calc(var(--ref-i, 0) + 1);
+}
+
+.joy-composer-ref-fan-layer:not(.is-open) .joy-composer-ref-card.is-tilt-a {
+  transform: rotate(-7deg);
+}
+
+.joy-composer-ref-fan-layer:not(.is-open) .joy-composer-ref-card.is-tilt-b {
+  transform: rotate(6deg);
+}
+
+.joy-composer-ref-stack[data-count="1"]
+  .joy-composer-ref-fan-layer:not(.is-open)
+  .joy-composer-ref-card {
+  left: 0;
+  bottom: 0;
+  transform: rotate(-6deg);
+}
+
+/* Expanded: upright portraits, add is first (--ref-x) */
+.joy-composer-ref-fan-layer.is-open .joy-composer-ref-card {
+  left: calc(var(--ref-x, 0) * 60px);
+  bottom: 0;
+  z-index: calc(var(--ref-x, 0) + 1);
+  width: 52px;
+  height: 68px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+.joy-composer-ref-card img,
+.joy-composer-ref-card video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.joy-composer-ref-audio {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.joy-composer-ref-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.joy-composer-ref-fan-layer.is-open .joy-composer-ref-card:hover .joy-composer-ref-remove {
+  opacity: 1;
+}
+
+/* Bottom caption: 图片1 / 图片2 … */
+.joy-composer-ref-index {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 2px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.4) 75%,
+    transparent 100%
+  );
+  color: #fff;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.joy-composer-ref-fan-layer.is-open .joy-composer-ref-index {
+  opacity: 1;
+}
+
+.joy-composer-upload {
+  margin: 0;
+  padding: 0;
+  border: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  color: var(--muted-foreground);
-  overflow: hidden;
+  gap: 3px;
+  color: color-mix(in oklab, var(--foreground) 45%, transparent);
   cursor: pointer;
-  transform: rotate(-8deg);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.12) inset;
   transition:
-    border-color 0.15s,
-    color 0.15s,
-    background 0.15s,
-    transform 0.2s ease,
+    left 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    width 0.22s ease,
+    height 0.22s ease,
+    border-radius 0.22s ease,
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.22s ease,
     box-shadow 0.2s ease;
 }
 
-.dark .joy-composer-upload {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.62);
-  box-shadow: 0 1px 0 rgb(255 255 255 / 0.1) inset;
-}
-
-.joy-composer-upload:hover {
-  border-color: color-mix(in oklab, var(--foreground) 40%, var(--border));
-  color: var(--foreground);
-  background: color-mix(in oklab, var(--muted) 55%, transparent);
-  transform: rotate(-8deg) translateY(-1px);
-}
-
-.dark .joy-composer-upload:hover {
-  border-color: rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.joy-composer-upload.has-preview {
-  border-style: solid;
-  padding: 0;
-}
-
-.joy-composer-upload img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
 .joy-composer-upload-label {
-  max-width: 100%;
-  padding: 0 4px;
+  max-width: 44px;
+  padding: 0 2px;
   font-size: 10px;
   line-height: 1.15;
   text-align: center;
   letter-spacing: -0.02em;
-  white-space: nowrap;
+  white-space: normal;
+}
+
+/* Empty + expanded add: solid portrait, no border/shadow */
+.joy-composer-upload.is-empty,
+.joy-composer-upload.is-card {
+  position: relative;
+  width: 52px;
+  height: 68px;
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  box-shadow: none;
+  transform: none;
+}
+
+.joy-composer-upload.is-empty:hover,
+.joy-composer-upload.is-card:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 14%, transparent);
+}
+
+.joy-composer-ref-fan-layer.is-open .joy-composer-upload.is-card {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+/* Collapsed: circular fab on deck */
+.joy-composer-upload.is-fab {
+  position: absolute;
+  right: -6px;
+  bottom: -2px;
+  z-index: 30;
+  width: 28px;
+  height: 28px;
+  gap: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--background) 88%, var(--foreground));
+  color: var(--foreground);
+  box-shadow: none;
+  transform: none;
+}
+
+.joy-composer-upload.is-fab:hover {
+  background: color-mix(in oklab, var(--background) 78%, var(--foreground));
+}
+
+.joy-composer-upload.is-fab svg {
+  width: 14px;
+  height: 14px;
 }
 
 .joy-composer-main {
   min-width: 0;
   flex: 1;
   padding-top: 2px;
-}
-
-.joy-composer-refs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.joy-composer-ref {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.joy-composer-ref img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.joy-composer-ref button {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 16px;
-  height: 16px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.65);
-  color: #fff;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  padding: 0;
 }
 
 .joy-composer .joy-ai-prompt .ProseMirror {
@@ -354,29 +502,62 @@
   color: #6ea1ff;
 }
 
-.joy-chip-params {
-  gap: 6px;
-  padding: 0 10px;
+/* Integrated params: 比例 | 清晰度 | 时长 | 数量 */
+.joy-chip-params-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  box-shadow: none;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.joy-chip-params-pill:hover,
+.joy-chip-params-pill:focus-visible,
+.joy-chip-params-pill[data-state="open"] {
+  background: var(--muted);
   color: var(--foreground);
 }
 
-.joy-chip-params-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.dark .joy-chip-params-pill:hover,
+.dark .joy-chip-params-pill:focus-visible,
+.dark .joy-chip-params-pill[data-state="open"] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
-.joy-chip-params-quality {
+.joy-chip-params-seg {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
+  height: 100%;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
-.joy-chip-dot {
-  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
-  font-weight: 700;
-  line-height: 1;
-  user-select: none;
+.joy-chip-params-seg svg {
+  flex-shrink: 0;
+}
+
+.joy-chip-params-sep {
+  width: 1px;
+  height: 12px;
+  flex-shrink: 0;
+  background: color-mix(in oklab, var(--foreground) 16%, transparent);
+}
+
+.dark .joy-chip-params-sep {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .joy-chip-icon {

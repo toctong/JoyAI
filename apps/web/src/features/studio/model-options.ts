@@ -422,7 +422,11 @@ export function showReferenceUpload(
     if (typeof caps.maxRefVideos === "number" && caps.maxRefVideos > 0) {
       return true;
     }
+    if (typeof caps.maxRefAudios === "number" && caps.maxRefAudios > 0) {
+      return true;
+    }
     if ((caps.input ?? []).includes("video")) return true;
+    if ((caps.input ?? []).includes("audio")) return true;
     if (hasOmniRefCapability(caps) || hasNativeFirstLastCapability(caps)) {
       return true;
     }
@@ -432,4 +436,310 @@ export function showReferenceUpload(
     return false;
   }
   return false;
+}
+
+export type RefMediaKind = "image" | "video" | "audio";
+
+export type RefSlotLimits = {
+  images: number | null;
+  videos: number | null;
+  audios: number | null;
+  minVideoSec: number | null;
+  maxVideoSec: number | null;
+  maxAudioSec: number | null;
+  minImageSidePx: number | null;
+  maxImageSidePx: number | null;
+  maxImagePixels: number | null;
+  minImageAspect: number | null;
+  maxImageAspect: number | null;
+  maxImageBytes: number | null;
+  maxVideoBytes: number | null;
+  maxAudioBytes: number | null;
+};
+
+const emptyMediaLimits = {
+  minVideoSec: null as number | null,
+  maxVideoSec: null as number | null,
+  maxAudioSec: null as number | null,
+  minImageSidePx: null as number | null,
+  maxImageSidePx: null as number | null,
+  maxImagePixels: null as number | null,
+  minImageAspect: null as number | null,
+  maxImageAspect: null as number | null,
+  maxImageBytes: null as number | null,
+  maxVideoBytes: null as number | null,
+  maxAudioBytes: null as number | null,
+};
+
+function mediaLimitsFromCaps(
+  caps: ModelCapabilities | null | undefined,
+  opts: { allowImage: boolean; allowVideo: boolean; allowAudio: boolean },
+): Omit<
+  RefSlotLimits,
+  "images" | "videos" | "audios"
+> {
+  return {
+    minVideoSec: opts.allowVideo
+      ? (caps?.minRefVideoDurationSec ?? 2)
+      : null,
+    maxVideoSec: opts.allowVideo
+      ? (caps?.maxRefVideoDurationSec ?? 15)
+      : null,
+    maxAudioSec: opts.allowAudio
+      ? (caps?.maxRefAudioDurationSec ?? 15)
+      : null,
+    minImageSidePx: opts.allowImage
+      ? (caps?.minRefImageSidePx ?? null)
+      : null,
+    maxImageSidePx: opts.allowImage
+      ? (caps?.maxRefImageSidePx ?? null)
+      : null,
+    maxImagePixels: opts.allowImage
+      ? (caps?.maxRefImagePixels ?? null)
+      : null,
+    minImageAspect: opts.allowImage
+      ? (caps?.minRefImageAspect ?? null)
+      : null,
+    maxImageAspect: opts.allowImage
+      ? (caps?.maxRefImageAspect ?? null)
+      : null,
+    maxImageBytes: opts.allowImage
+      ? (caps?.maxRefImageBytes ?? null)
+      : null,
+    maxVideoBytes: opts.allowVideo
+      ? (caps?.maxRefVideoBytes ?? null)
+      : null,
+    maxAudioBytes: opts.allowAudio
+      ? (caps?.maxRefAudioBytes ?? null)
+      : null,
+  };
+}
+
+/** Per-modality ref limits from catalog (first_last → images only, max 2). */
+export function refSlotLimitsFromCapabilities(
+  caps?: ModelCapabilities | null,
+  opts?: { kind?: "image" | "video"; refMode?: string },
+): RefSlotLimits {
+  const kind = opts?.kind ?? "image";
+  const firstLast = kind === "video" && opts?.refMode === "first_last";
+  if (firstLast) {
+    return {
+      images: 2,
+      videos: 0,
+      audios: 0,
+      ...mediaLimitsFromCaps(caps, {
+        allowImage: true,
+        allowVideo: false,
+        allowAudio: false,
+      }),
+    };
+  }
+  if (!caps) {
+    return {
+      images: null,
+      videos: kind === "video" ? null : 0,
+      audios: kind === "video" ? null : 0,
+      ...emptyMediaLimits,
+      ...(kind === "video"
+        ? { minVideoSec: 2, maxVideoSec: 15, maxAudioSec: 15 }
+        : {}),
+    };
+  }
+
+  let images: number | null = 0;
+  if (typeof caps.maxRefImages === "number") {
+    images = Math.max(0, caps.maxRefImages);
+  } else if ((caps.input ?? []).includes("image")) {
+    images = null;
+  }
+
+  let videos: number | null = 0;
+  let audios: number | null = 0;
+  if (kind === "video") {
+    if (typeof caps.maxRefVideos === "number") {
+      videos = Math.max(0, caps.maxRefVideos);
+    } else if (
+      (caps.input ?? []).includes("video") ||
+      featureSet(caps).has("ref-video") ||
+      hasOmniRefCapability(caps)
+    ) {
+      videos = null;
+    }
+    if (typeof caps.maxRefAudios === "number") {
+      audios = Math.max(0, caps.maxRefAudios);
+    } else if (
+      (caps.input ?? []).includes("audio") ||
+      featureSet(caps).has("audio") ||
+      hasOmniRefCapability(caps)
+    ) {
+      audios = null;
+    }
+  }
+
+  const allowImage = images == null || images > 0;
+  const allowVideo = videos == null || videos > 0;
+  const allowAudio = audios == null || audios > 0;
+  return {
+    images,
+    videos,
+    audios,
+    ...mediaLimitsFromCaps(caps, { allowImage, allowVideo, allowAudio }),
+  };
+}
+
+export function classifyRefFile(file: File): RefMediaKind | null {
+  const t = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  if (t.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|tiff?)$/i.test(name)) {
+    return "image";
+  }
+  if (
+    t.startsWith("video/") ||
+    /\.(mp4|webm|mov|m4v)$/i.test(name)
+  ) {
+    return "video";
+  }
+  if (
+    t.startsWith("audio/") ||
+    /\.(mp3|wav|aac|m4a|ogg|flac)$/i.test(name)
+  ) {
+    return "audio";
+  }
+  return null;
+}
+
+/** Dropzone accept map driven by remaining capability. */
+export function refDropAccept(
+  limits: RefSlotLimits,
+): Record<string, string[]> | undefined {
+  const accept: Record<string, string[]> = {};
+  if (limits.images == null || limits.images > 0) {
+    accept["image/*"] = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"];
+  }
+  if (limits.videos == null || limits.videos > 0) {
+    accept["video/*"] = [".mp4", ".mov", ".webm", ".m4v"];
+  }
+  if (limits.audios == null || limits.audios > 0) {
+    accept["audio/*"] = [".mp3", ".wav", ".aac", ".m4a", ".ogg", ".flac"];
+  }
+  return Object.keys(accept).length ? accept : undefined;
+}
+
+export function probeMediaDurationSec(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const kind = classifyRefFile(file);
+    const el = document.createElement(
+      kind === "audio" ? "audio" : "video",
+    ) as HTMLMediaElement;
+    el.preload = "metadata";
+    const cleanup = () => {
+      el.removeAttribute("src");
+      el.load();
+      URL.revokeObjectURL(url);
+    };
+    el.onloadedmetadata = () => {
+      const d = el.duration;
+      cleanup();
+      if (!Number.isFinite(d) || d <= 0) {
+        reject(new Error("无法读取媒体时长"));
+        return;
+      }
+      resolve(d);
+    };
+    el.onerror = () => {
+      cleanup();
+      reject(new Error("无法读取媒体文件"));
+    };
+    el.src = url;
+  });
+}
+
+export function probeImageSize(
+  file: File,
+): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const width = img.naturalWidth;
+      const height = img.naturalHeight;
+      URL.revokeObjectURL(url);
+      if (!width || !height) {
+        reject(new Error("无法读取图片尺寸"));
+        return;
+      }
+      resolve({ width, height });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("无法读取图片文件"));
+    };
+    img.src = url;
+  });
+}
+
+function formatBytes(n: number): string {
+  if (n >= 1024 * 1024) {
+    const mb = n / (1024 * 1024);
+    return `${Number.isInteger(mb) ? mb : mb.toFixed(1)}MB`;
+  }
+  if (n >= 1024) return `${Math.round(n / 1024)}KB`;
+  return `${n}B`;
+}
+
+/** Validate image dimensions / bytes against catalog limits. */
+export function validateRefImageConstraints(
+  file: File,
+  size: { width: number; height: number },
+  limits: RefSlotLimits,
+): string | null {
+  if (limits.maxImageBytes != null && file.size > limits.maxImageBytes) {
+    return `参考图不能超过 ${formatBytes(limits.maxImageBytes)}（${file.name} 约 ${formatBytes(file.size)}）`;
+  }
+  const { width, height } = size;
+  const minSide = Math.min(width, height);
+  const maxSide = Math.max(width, height);
+  if (limits.minImageSidePx != null && minSide < limits.minImageSidePx) {
+    return `参考图最短边需 ≥ ${limits.minImageSidePx}px（当前 ${width}×${height}）`;
+  }
+  if (limits.maxImageSidePx != null && maxSide > limits.maxImageSidePx) {
+    return `参考图最长边需 ≤ ${limits.maxImageSidePx}px（当前 ${width}×${height}）`;
+  }
+  if (
+    limits.maxImagePixels != null &&
+    width * height > limits.maxImagePixels
+  ) {
+    return `参考图总像素需 ≤ ${limits.maxImagePixels.toLocaleString()}（当前 ${width}×${height}）`;
+  }
+  const aspect = width / height;
+  if (limits.minImageAspect != null && aspect < limits.minImageAspect - 1e-6) {
+    return `参考图宽高比需 ≥ ${limits.minImageAspect}（当前 ${aspect.toFixed(2)}）`;
+  }
+  if (limits.maxImageAspect != null && aspect > limits.maxImageAspect + 1e-6) {
+    return `参考图宽高比需 ≤ ${limits.maxImageAspect}（当前 ${aspect.toFixed(2)}）`;
+  }
+  return null;
+}
+
+export function validateRefFileBytes(
+  file: File,
+  mediaKind: RefMediaKind,
+  limits: RefSlotLimits,
+): string | null {
+  if (
+    mediaKind === "video" &&
+    limits.maxVideoBytes != null &&
+    file.size > limits.maxVideoBytes
+  ) {
+    return `参考视频不能超过 ${formatBytes(limits.maxVideoBytes)}（${file.name} 约 ${formatBytes(file.size)}）`;
+  }
+  if (
+    mediaKind === "audio" &&
+    limits.maxAudioBytes != null &&
+    file.size > limits.maxAudioBytes
+  ) {
+    return `参考音频不能超过 ${formatBytes(limits.maxAudioBytes)}（${file.name} 约 ${formatBytes(file.size)}）`;
+  }
+  return null;
 }

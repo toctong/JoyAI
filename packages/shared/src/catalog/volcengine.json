@@ -156,6 +156,11 @@
           "image"
         ],
         "maxRefImages": 10,
+        "minRefImageSidePx": 15,
+        "maxRefImagePixels": 36000000,
+        "minRefImageAspect": 0.0625,
+        "maxRefImageAspect": 16,
+        "maxRefImageBytes": 10485760,
         "features": [
           "t2i",
           "i2i",
@@ -195,6 +200,11 @@
           "image"
         ],
         "maxRefImages": 14,
+        "minRefImageSidePx": 15,
+        "maxRefImagePixels": 36000000,
+        "minRefImageAspect": 0.0625,
+        "maxRefImageAspect": 16,
+        "maxRefImageBytes": 10485760,
         "features": [
           "t2i",
           "i2i",
@@ -233,6 +243,11 @@
           "image"
         ],
         "maxRefImages": 14,
+        "minRefImageSidePx": 15,
+        "maxRefImagePixels": 36000000,
+        "minRefImageAspect": 0.0625,
+        "maxRefImageAspect": 16,
+        "maxRefImageBytes": 10485760,
         "features": [
           "t2i",
           "i2i",
@@ -271,6 +286,11 @@
           "image"
         ],
         "maxRefImages": 14,
+        "minRefImageSidePx": 15,
+        "maxRefImagePixels": 36000000,
+        "minRefImageAspect": 0.0625,
+        "maxRefImageAspect": 16,
+        "maxRefImageBytes": 10485760,
         "features": [
           "t2i",
           "i2i",
@@ -305,7 +325,9 @@
       "capabilities": {
         "input": [
           "text",
-          "image"
+          "image",
+          "video",
+          "audio"
         ],
         "output": [
           "video"
@@ -313,6 +335,16 @@
         "maxRefImages": 9,
         "maxRefVideos": 3,
         "maxRefAudios": 3,
+        "minRefVideoDurationSec": 2,
+        "maxRefVideoDurationSec": 15,
+        "maxRefAudioDurationSec": 15,
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 6000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 31457280,
+        "maxRefVideoBytes": 52428800,
+        "maxRefAudioBytes": 15728640,
         "async": true,
         "features": [
           "t2v",
@@ -347,7 +379,9 @@
       "capabilities": {
         "input": [
           "text",
-          "image"
+          "image",
+          "video",
+          "audio"
         ],
         "output": [
           "video"
@@ -355,6 +389,16 @@
         "maxRefImages": 9,
         "maxRefVideos": 3,
         "maxRefAudios": 3,
+        "minRefVideoDurationSec": 2,
+        "maxRefVideoDurationSec": 15,
+        "maxRefAudioDurationSec": 15,
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 6000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 31457280,
+        "maxRefVideoBytes": 52428800,
+        "maxRefAudioBytes": 15728640,
         "async": true,
         "features": [
           "t2v",
@@ -390,7 +434,9 @@
       "capabilities": {
         "input": [
           "text",
-          "image"
+          "image",
+          "video",
+          "audio"
         ],
         "output": [
           "video"
@@ -398,6 +444,16 @@
         "maxRefImages": 9,
         "maxRefVideos": 3,
         "maxRefAudios": 3,
+        "minRefVideoDurationSec": 2,
+        "maxRefVideoDurationSec": 15,
+        "maxRefAudioDurationSec": 15,
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 6000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 31457280,
+        "maxRefVideoBytes": 52428800,
+        "maxRefAudioBytes": 15728640,
         "async": true,
         "features": [
           "t2v",
@@ -431,7 +487,9 @@
       "capabilities": {
         "input": [
           "text",
-          "image"
+          "image",
+          "video",
+          "audio"
         ],
         "output": [
           "video"
@@ -439,6 +497,16 @@
         "maxRefImages": 9,
         "maxRefVideos": 3,
         "maxRefAudios": 3,
+        "minRefVideoDurationSec": 2,
+        "maxRefVideoDurationSec": 15,
+        "maxRefAudioDurationSec": 15,
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 6000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 31457280,
+        "maxRefVideoBytes": 52428800,
+        "maxRefAudioBytes": 15728640,
         "async": true,
         "features": [
           "t2v",
