@@ -30,6 +30,9 @@ import { BootstrapService } from "./common/bootstrap.service";
       useFactory: (config: ConfigService) => ({
         connection: {
           url: config.get<string>("REDIS_URL") ?? "redis://localhost:6379",
+          // Producer fail-fast; Workers still override maxRetriesPerRequest internally.
+          enableOfflineQueue: false,
+          connectTimeout: 2_000,
         },
       }),
     }),

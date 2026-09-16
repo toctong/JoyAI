@@ -10,7 +10,7 @@ import type { ExploreFeedItem } from "./types";
 import "./explore-masonry.css";
 
 const BREAKPOINT_COLS = {
-  default: 4,
+  default: 5,
   1280: 4,
   1024: 3,
   640: 2,

@@ -42,6 +42,10 @@ export class JobsService {
     const { kind, input } = parsed.data;
 
     const model = await this.channels.resolveForKind(kind, input.modelId);
+    const queue = kind === "image" ? this.imageQueue : this.videoSubmitQueue;
+
+    // Probe Redis before writing the job row — avoid orphan "执行中" records.
+    await this.assertQueueAvailable(queue);
 
     const job = await this.jobs.save(
       this.jobs.create({
@@ -76,21 +80,36 @@ export class JobsService {
           { removeOnComplete: 100, removeOnFail: 200 },
         );
       }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "队列入队失败";
-      await this.jobs.update(job.id, {
-        status: JobStatus.failed,
-        error: `队列不可用：${message}`,
-        finishedAt: new Date(),
-        progress: 100,
-      });
+    } catch {
+      await this.jobs.delete(job.id);
       throw new ServiceUnavailableException(
         "任务队列不可用，请确认 Redis 已启动（docker compose up -d）",
       );
     }
 
     return this.withDuration(job);
+  }
+
+  /** Fail within ~1.5s if Redis is unreachable. */
+  private async assertQueueAvailable(queue: Queue, timeoutMs = 1_500) {
+    try {
+      await Promise.race([
+        queue.waitUntilReady().then(async () => {
+          const client = await queue.client;
+          const pong = await client.ping();
+          if (pong !== "PONG" && pong !== "pong") {
+            throw new Error("Redis ping failed");
+          }
+        }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Redis 连接超时")), timeoutMs);
+        }),
+      ]);
+    } catch {
+      throw new ServiceUnavailableException(
+        "任务队列不可用，请确认 Redis 已启动（docker compose up -d）",
+      );
+    }
   }
 
   /**

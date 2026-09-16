@@ -1,5 +1,5 @@
 .joy-explore-skel-feed {
-  column-count: 4;
+  column-count: 5;
   column-gap: 12px;
 }
 
@@ -12,17 +12,20 @@
 }
 
 /* 瀑布流错峰，避免整齐闪动 */
-.joy-explore-skel-card:nth-child(4n + 1) {
+.joy-explore-skel-card:nth-child(5n + 1) {
   animation-delay: 0s, 0s;
 }
-.joy-explore-skel-card:nth-child(4n + 2) {
-  animation-delay: 0.15s, 0.2s;
+.joy-explore-skel-card:nth-child(5n + 2) {
+  animation-delay: 0.12s, 0.16s;
 }
-.joy-explore-skel-card:nth-child(4n + 3) {
-  animation-delay: 0.3s, 0.4s;
+.joy-explore-skel-card:nth-child(5n + 3) {
+  animation-delay: 0.24s, 0.32s;
 }
-.joy-explore-skel-card:nth-child(4n + 4) {
-  animation-delay: 0.45s, 0.1s;
+.joy-explore-skel-card:nth-child(5n + 4) {
+  animation-delay: 0.36s, 0.08s;
+}
+.joy-explore-skel-card:nth-child(5n + 5) {
+  animation-delay: 0.48s, 0.24s;
 }
 
 .joy-explore-dialog-skel {

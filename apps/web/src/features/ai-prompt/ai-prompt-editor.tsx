@@ -194,6 +194,9 @@ export function AiPromptEditor({
     editorProps: {
       attributes: {
         class: "joy-ai-prompt-editor",
+        spellcheck: "false",
+        autocorrect: "off",
+        autocapitalize: "off",
       },
     },
     onUpdate: ({ editor: ed }) => {
@@ -215,7 +218,12 @@ export function AiPromptEditor({
     if (!editor) return;
     editor.setOptions({
       editorProps: {
-        attributes: { class: "joy-ai-prompt-editor" },
+        attributes: {
+          class: "joy-ai-prompt-editor",
+          spellcheck: "false",
+          autocorrect: "off",
+          autocapitalize: "off",
+        },
         handleKeyDown: (_view, event) => {
           const current = menuRef.current;
           if (!current) return false;
