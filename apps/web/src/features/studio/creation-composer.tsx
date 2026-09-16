@@ -10,15 +10,14 @@ import {
   Box,
   ChevronDown,
   Clock,
-  ImageIcon,
   Loader2,
   Orbit,
   Plus,
   RectangleHorizontal,
   Sparkles,
-  Video,
   X,
 } from "lucide-react";
+import { ImageGenIcon, VideoGenIcon } from "./gen-kind-icons";
 import { toast } from "@/shared/lib/toast";
 import { api, apiUpload } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
@@ -762,19 +761,27 @@ export function CreationComposer({
               <DropdownMenuTrigger asChild>
                 <button type="button" className="joy-chip joy-chip-kind">
                   {kind === "image" ? (
-                    <ImageIcon className="h-3.5 w-3.5" />
+                    <ImageGenIcon className="h-4 w-4 text-[16px]" />
                   ) : (
-                    <Video className="h-3.5 w-3.5" />
+                    <VideoGenIcon className="h-4 w-4 text-[16px]" />
                   )}
                   {kind === "image" ? "图片生成" : "视频生成"}
-                  <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                <DropdownMenuItem onClick={() => applyKind("image")}>
+              <DropdownMenuContent align="start" className="min-w-[148px]">
+                <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() => applyKind("image")}
+                >
+                  <ImageGenIcon className="h-4 w-4 text-[16px]" />
                   图片生成
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => applyKind("video")}>
+                <DropdownMenuItem
+                  className="gap-2"
+                  onClick={() => applyKind("video")}
+                >
+                  <VideoGenIcon className="h-4 w-4 text-[16px]" />
                   视频生成
                 </DropdownMenuItem>
               </DropdownMenuContent>

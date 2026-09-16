@@ -96,13 +96,13 @@
 /* Jimeng-style tilted reference card */
 .joy-composer-upload {
   flex-shrink: 0;
-  width: 56px;
-  height: 74px;
+  width: 52px;
+  height: 68px;
   margin-top: 4px;
   margin-left: 2px;
-  border-radius: 10px;
-  border: 1px dashed color-mix(in oklab, var(--foreground) 18%, transparent);
-  background: color-mix(in oklab, var(--muted) 78%, transparent);
+  border-radius: 12px;
+  border: 1px dashed color-mix(in oklab, var(--foreground) 22%, transparent);
+  background: color-mix(in oklab, var(--background) 28%, transparent);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -112,9 +112,7 @@
   overflow: hidden;
   cursor: pointer;
   transform: rotate(-8deg);
-  box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.04) inset,
-    0 8px 18px -10px rgb(0 0 0 / 0.45);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.12) inset;
   transition:
     border-color 0.15s,
     color 0.15s,
@@ -124,25 +122,23 @@
 }
 
 .dark .joy-composer-upload {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(20, 20, 24, 0.92);
-  color: rgba(255, 255, 255, 0.45);
-  box-shadow:
-    0 1px 0 rgb(255 255 255 / 0.06) inset,
-    0 10px 22px -12px rgb(0 0 0 / 0.75);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.1) inset;
 }
 
 .joy-composer-upload:hover {
-  border-color: color-mix(in oklab, var(--foreground) 32%, var(--border));
+  border-color: color-mix(in oklab, var(--foreground) 40%, var(--border));
   color: var(--foreground);
-  background: var(--muted);
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
   transform: rotate(-8deg) translateY(-1px);
 }
 
 .dark .joy-composer-upload:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(36, 36, 42, 0.95);
-  color: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .joy-composer-upload.has-preview {
@@ -252,38 +248,36 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  outline: none;
+  box-shadow: none;
   transition:
     background 0.15s,
     color 0.15s;
 }
 
-.joy-chip:hover {
+.joy-chip:hover,
+.joy-chip:focus-visible,
+.joy-chip[data-state="open"] {
   background: var(--muted);
   color: var(--foreground);
 }
 
+.dark .joy-chip:hover,
+.dark .joy-chip:focus-visible,
+.dark .joy-chip[data-state="open"] {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 .joy-chip-kind {
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 10px;
-  background: color-mix(in oklab, var(--secondary) 88%, var(--foreground) 4%);
-  color: #4f8cff;
+  gap: 6px;
+  padding: 0 10px 0 9px;
+  color: var(--foreground);
   font-weight: 600;
 }
 
-.joy-chip-kind:hover {
-  background: color-mix(in oklab, #4f8cff 14%, var(--secondary));
-  color: #4f8cff;
-}
-
-.dark .joy-chip-kind {
-  background: #262626;
-  color: #6ea1ff;
-}
-
-.dark .joy-chip-kind:hover {
-  background: #2e2e2e;
-  color: #6ea1ff;
+.joy-chip-kind svg {
+  flex-shrink: 0;
 }
 
 .joy-chip-model {
@@ -364,10 +358,6 @@
   gap: 6px;
   padding: 0 10px;
   color: var(--foreground);
-}
-
-.joy-chip-params:hover {
-  background: var(--muted);
 }
 
 .joy-chip-params-group {
