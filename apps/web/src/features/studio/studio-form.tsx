@@ -175,14 +175,19 @@ function jobElapsedLabel(job: Job, now: number) {
  * 参考 Jimeng 风格：模型 | 清晰度 | 比例 | … | 时间
  * 可按任务类型扩展更多字段。
  */
-function jobMetaLine(job: Job, assetCount = 0, now = Date.now()) {
+function jobMetaParts(job: Job, assetCount = 0, now = Date.now()): string[] {
   const input = job.input;
   const model =
     job.modelName?.trim() ||
     job.channelName?.trim() ||
     (job.kind === "video" ? "视频生成" : "图片生成");
   const resolution = qualityLabel(input);
-  const ratio = aspectLabel(input);
+  // HappyHorse 图生等：比例跟首帧，meta 不展示易误导的 ratio
+  const followSourceAspect =
+    Boolean(input?.referenceUrls?.length) &&
+    (job.modelName?.includes("图生") ||
+      job.modelName?.toLowerCase().includes("i2v"));
+  const ratio = followSourceAspect ? null : aspectLabel(input);
   const count =
     job.kind === "image" && (input?.n ?? assetCount) > 1
       ? `${input?.n ?? assetCount}张`
@@ -194,7 +199,7 @@ function jobMetaLine(job: Job, assetCount = 0, now = Date.now()) {
   const time = formatJobTime(jobTimeIso(job));
   const elapsedLabel = jobElapsedLabel(job, now);
 
-  const parts = [
+  return [
     model,
     resolution,
     ratio,
@@ -207,9 +212,7 @@ function jobMetaLine(job: Job, assetCount = 0, now = Date.now()) {
       : null,
     time,
     elapsedLabel,
-  ].filter(Boolean);
-
-  return parts.join(" | ");
+  ].filter((p): p is string => Boolean(p));
 }
 
 function isBusy(status: string) {
@@ -234,16 +237,6 @@ function aspectCss(input?: JobInput): string {
   }
   // auto / adaptive / missing → square placeholder (video may refine from metadata)
   return "1 / 1";
-}
-
-function isFlexibleAspect(input?: JobInput): boolean {
-  if (input?.width && input?.height && input.width > 0 && input.height > 0) {
-    return false;
-  }
-  const ratio = input?.ratio?.trim().toLowerCase() ?? "";
-  if (!ratio) return true;
-  if (ratio === "auto" || ratio === "adaptive" || ratio === "keep") return true;
-  return !ratio.includes(":");
 }
 
 function refMediaKind(url: string): "image" | "video" | "audio" | "other" {
@@ -855,13 +848,12 @@ function StudioInner() {
             {feed.map((job) => {
               const assets = job.assets ?? [];
               const busy = isBusy(job.status);
-              const metaLine = jobMetaLine(job, assets.length, now);
+              const metaParts = jobMetaParts(job, assets.length, now);
               const skeletonCount = Math.min(
                 Math.max(job.input?.n ?? (job.kind === "image" ? 2 : 1), 1),
                 4,
               );
               const ar = aspectCss(job.input);
-              const flexibleAr = isFlexibleAspect(job.input);
               const refUrls = jobReferenceUrls(job.input);
               const gridCount =
                 assets.length > 0 ? assets.length : skeletonCount;
@@ -888,9 +880,19 @@ function StudioInner() {
                           onCopy={() => void copyPrompt(job)}
                           onUse={() => applyPrompt(job)}
                         />
-                        {metaLine ? (
+                        {metaParts.length > 0 ? (
                           <p className="joy-studio-meta joy-studio-meta-sub">
-                            {metaLine}
+                            {metaParts.map((part, i) => (
+                              <span key={`${job.id}-meta-${i}`}>
+                                {i > 0 ? (
+                                  <span className="joy-studio-meta-sep" aria-hidden>
+                                    {" "}
+                                    |{" "}
+                                  </span>
+                                ) : null}
+                                <span className="joy-studio-meta-part">{part}</span>
+                              </span>
+                            ))}
                           </p>
                         ) : null}
                         {job.error ? (
@@ -915,7 +917,9 @@ function StudioInner() {
                             key={asset.id}
                             src={asset.url}
                             fallbackAspect={ar}
-                            flexible={flexibleAr}
+                            // Always adopt decoded video size — i2v follows first frame,
+                            // so UI-selected ratio may not match actual output.
+                            flexible
                           />
                         ) : (
                           <div

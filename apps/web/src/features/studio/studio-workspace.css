@@ -134,7 +134,17 @@
   letter-spacing: 0.01em;
   color: var(--muted-foreground);
   line-height: 1.5;
-  word-break: break-word;
+  /* Wrap between segments only — never split “1分40秒” mid-token */
+  word-break: keep-all;
+  overflow-wrap: normal;
+}
+
+.joy-studio-meta-part {
+  white-space: nowrap;
+}
+
+.joy-studio-meta-sep {
+  white-space: nowrap;
 }
 
 .joy-studio-meta-sub {

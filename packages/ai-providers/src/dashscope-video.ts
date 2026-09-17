@@ -47,6 +47,48 @@ function resolveDashscopeVideoRatio(raw?: string): string {
   return "16:9";
 }
 
+function dedupeUrls(urls: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of urls) {
+    const url = String(raw || "").trim();
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    out.push(url);
+  }
+  return out;
+}
+
+/**
+ * HappyHorse / Wan media rules:
+ * - i2v: at most one `first_frame` (API rejects multiples)
+ * - r2v: `reference_image` list
+ * - first_last: one first_frame + optional last_frame
+ */
+function buildDashscopeMedia(opts: {
+  refs: string[];
+  isR2v: boolean;
+  refMode?: string;
+}): Array<Record<string, unknown>> {
+  const { refs, isR2v, refMode } = opts;
+  if (!refs.length) return [];
+
+  if (refMode === "first_last") {
+    const media: Array<Record<string, unknown>> = [
+      { type: "first_frame", url: refs[0] },
+    ];
+    if (refs[1]) media.push({ type: "last_frame", url: refs[1] });
+    return media;
+  }
+
+  if (isR2v) {
+    return refs.map((url) => ({ type: "reference_image", url }));
+  }
+
+  // i2v / default: only the first image as first_frame
+  return [{ type: "first_frame", url: refs[0] }];
+}
+
 /** Derive DashScope native API root from compatible-mode baseUrl or metadata. */
 export function resolveDashscopeApiBase(
   baseUrl: string,
@@ -79,9 +121,9 @@ export class DashscopeVideoProvider implements VideoProvider {
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {
     const apiBase = resolveDashscopeApiBase(input.baseUrl, input.metadata);
-    const refs = input.referenceUrls ?? [];
-    const isI2v = /i2v/i.test(input.model) || refs.length > 0;
+    const refs = dedupeUrls(input.referenceUrls ?? []);
     const isR2v = /r2v/i.test(input.model);
+    const isI2v = /i2v/i.test(input.model) || (!isR2v && refs.length > 0);
 
     let prompt = input.prompt;
     if (input.refMode === "first_last" && refs.length > 0) {
@@ -101,32 +143,19 @@ export class DashscopeVideoProvider implements VideoProvider {
 
     const parameters = body.parameters as Record<string, unknown>;
     if (input.duration) parameters.duration = Math.round(input.duration);
-    parameters.ratio = resolveDashscopeVideoRatio(input.ratio);
+    // HappyHorse / Wan 图生视频：比例跟随首帧，官方不支持 parameters.ratio
+    if (!isI2v && !/video-edit/i.test(input.model)) {
+      parameters.ratio = resolveDashscopeVideoRatio(input.ratio);
+    }
     if (input.resolution) parameters.resolution = input.resolution;
     if (input.watermark != null) parameters.watermark = input.watermark;
 
     if (refs.length && (isI2v || isR2v || input.refMode)) {
-      const media: Array<Record<string, unknown>> = [];
-      if (
-        input.refMode === "first_last" &&
-        !input.firstLastViaPrompt &&
-        refs.length > 0
-      ) {
-        media.push({ type: "first_frame", url: refs[0] });
-        if (refs[1]) media.push({ type: "last_frame", url: refs[1] });
-      } else if (input.refMode === "first_last" && refs.length > 0) {
-        // Prompt fallback path still attach as first/last when DashScope accepts it
-        media.push({ type: "first_frame", url: refs[0] });
-        if (refs[1]) media.push({ type: "last_frame", url: refs[1] });
-      } else {
-        media.push(
-          ...refs.map((url) => ({
-            type: isR2v ? "reference_image" : "first_frame",
-            url,
-          })),
-        );
-      }
-      (body.input as Record<string, unknown>).media = media;
+      (body.input as Record<string, unknown>).media = buildDashscopeMedia({
+        refs,
+        isR2v,
+        refMode: input.refMode,
+      });
     }
 
     try {
