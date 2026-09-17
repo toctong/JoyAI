@@ -1325,6 +1325,7 @@
     {
       "name": "Kling 3.0 Turbo",
       "remoteId": "kling-3.0-turbo",
+      "description": "文生/图生视频；有参考图时比例跟随首帧，aspect_ratio 仅文生生效",
       "capabilities": {
         "input": [
           "text",
@@ -1337,7 +1338,8 @@
         "async": true,
         "features": [
           "t2v",
-          "i2v"
+          "i2v",
+          "i2v-follows-source-aspect"
         ],
         "maxDurationSec": 15,
         "resolutions": [

@@ -187,11 +187,17 @@ function jobMetaParts(job: Job, assetCount = 0, now = Date.now()): string[] {
     job.channelName?.trim() ||
     (job.kind === "video" ? "视频生成" : "图片生成");
   const resolution = qualityLabel(input);
-  // HappyHorse 图生等：比例跟首帧，meta 不展示易误导的 ratio
+  // 图生跟首帧：meta 不展示易误导的 ratio（HappyHorse / Kling Turbo 等）
+  const hasRefs =
+    Boolean(input?.referenceUrls?.length) ||
+    Boolean(input?.referenceAssetIds?.length);
+  const name = (job.modelName ?? "").toLowerCase();
   const followSourceAspect =
-    Boolean(input?.referenceUrls?.length) &&
+    hasRefs &&
     (job.modelName?.includes("图生") ||
-      job.modelName?.toLowerCase().includes("i2v"));
+      name.includes("i2v") ||
+      name.includes("kling 3.0 turbo") ||
+      name.includes("kling-3.0-turbo"));
   const ratio = followSourceAspect ? null : aspectLabel(input);
   const count =
     job.kind === "image" && (input?.n ?? assetCount) > 1

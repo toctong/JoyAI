@@ -705,6 +705,7 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
     prompt: input.prompt,
   };
   if (input.duration != null) body.duration = input.duration;
+  // Safe to send even for Kling Turbo i2v (upstream ignores; follows first frame).
   if (input.ratio) body.aspect_ratio = input.ratio;
 
   const id = model.toLowerCase();
@@ -796,7 +797,7 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
     return body;
   }
 
-  // Gemini Omni / Veo / default ToAPIs video
+  // Gemini Omni / Veo / Kling / default ToAPIs video
   if (resolution) body.resolution = resolution;
   if (refs.length > 0) {
     // Legacy Omni Flash: image_urls 仅允许 0 / 1 / 3 张，禁止 2 张
@@ -810,7 +811,12 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
         "Gemini Omni Flash 参考图只支持 1 张或 3 张，不支持 2 张",
       );
     }
-    body.image_urls = refs.slice(0, 10);
+    // Kling Turbo docs use reference_images as first_frame; keep image_urls for others.
+    if (/kling-3\.0-turbo|kling-v3-turbo/i.test(id)) {
+      body.reference_images = refs.slice(0, 1);
+    } else {
+      body.image_urls = refs.slice(0, 10);
+    }
   }
   return body;
 }

@@ -47,6 +47,7 @@ import { DurationSlider } from "./duration-slider";
 import {
   durationsFromCapabilities,
   formatQualityLabel,
+  i2vFollowsSourceAspect,
   layoutControlsFromCapabilities,
   refModesFromCapabilities,
   resolveResolutionOption,
@@ -367,6 +368,14 @@ export function CreationComposer({
     () => layoutControlsFromCapabilities(caps, kind),
     [caps, kind],
   );
+  const ratioLockedToRef =
+    kind === "video" &&
+    refs.some((r) => r.mediaKind === "image") &&
+    (i2vFollowsSourceAspect(caps) ||
+      /kling-3\.0-turbo|kling-v3-turbo/i.test(
+        selectedModel?.remoteId ?? "",
+      ));
+  const showRatio = layout.showRatio && !ratioLockedToRef;
   const aspectOptions = layout.aspects;
   const resolutionOptions = layout.resolutions;
   const sizeOptions = layout.sizes;
@@ -412,17 +421,19 @@ export function CreationComposer({
     : kind === "image"
       ? "2K"
       : "720P";
-  const layoutChipLabel = layout.showRatio
+  const layoutChipLabel = showRatio
     ? (selectedAspect?.label ?? aspect)
     : layout.showSizePicker
       ? (selectedSize?.label ?? (pixelSize || "尺寸"))
-      : qualityLabel;
+      : ratioLockedToRef
+        ? "跟首帧"
+        : qualityLabel;
 
   // Clamp params when model / catalog options change
   useEffect(() => {
-    if (!layout.showRatio || !aspectOptions.length) return;
+    if (!showRatio || !aspectOptions.length) return;
     setAspect((prev) => pickAspect(aspectOptions, prev, kind));
-  }, [layout.showRatio, aspectOptions, kind]);
+  }, [showRatio, aspectOptions, kind]);
 
   useEffect(() => {
     if (!layout.showResolution || !resolutionOptions.length) return;
@@ -614,7 +625,7 @@ export function CreationComposer({
     if (!prefsHydrated) return;
     const slice: KindPrefs = {
       modelId: modelId || undefined,
-      aspect: layout.showRatio ? aspect : undefined,
+      aspect: showRatio ? aspect : undefined,
       pixelSize: layout.showSizePicker ? pixelSize : undefined,
       n,
       ...(kind === "image"
@@ -641,6 +652,7 @@ export function CreationComposer({
     duration,
     refMode,
     layout.showRatio,
+    showRatio,
     layout.showSizePicker,
     layout.showResolution,
   ]);
@@ -1005,7 +1017,7 @@ export function CreationComposer({
         if (refModes.length > 0) {
           input.refMode = refMode;
         }
-        if (layout.showRatio && selectedAspect) {
+        if (showRatio && selectedAspect) {
           input.ratio = selectedAspect.id;
         }
         if (resolutionOpt) {
@@ -1370,15 +1382,17 @@ export function CreationComposer({
                   className="joy-chip-params-pill"
                   aria-label="生成参数"
                 >
-                  {layout.showRatio || layout.showSizePicker ? (
+                  {showRatio || layout.showSizePicker || ratioLockedToRef ? (
                     <span className="joy-chip-params-seg">
                       <RectangleHorizontal className="h-3.5 w-3.5 opacity-70" />
-                      {layoutChipLabel}
+                      {ratioLockedToRef ? "跟首帧" : layoutChipLabel}
                     </span>
                   ) : null}
                   {layout.showResolution ? (
                     <>
-                      {layout.showRatio || layout.showSizePicker ? (
+                      {showRatio ||
+                      layout.showSizePicker ||
+                      ratioLockedToRef ? (
                         <span className="joy-chip-params-sep" aria-hidden />
                       ) : null}
                       <span className="joy-chip-params-seg">{qualityLabel}</span>
@@ -1386,9 +1400,10 @@ export function CreationComposer({
                   ) : null}
                   {kind === "video" ? (
                     <>
-                      {layout.showRatio ||
+                      {showRatio ||
                       layout.showSizePicker ||
-                      layout.showResolution ? (
+                      layout.showResolution ||
+                      ratioLockedToRef ? (
                         <span className="joy-chip-params-sep" aria-hidden />
                       ) : null}
                       <span className="joy-chip-params-seg">
@@ -1398,9 +1413,10 @@ export function CreationComposer({
                     </>
                   ) : null}
                   <>
-                    {layout.showRatio ||
+                    {showRatio ||
                     layout.showSizePicker ||
                     layout.showResolution ||
+                    ratioLockedToRef ||
                     kind === "video" ? (
                       <span className="joy-chip-params-sep" aria-hidden />
                     ) : null}
@@ -1416,7 +1432,7 @@ export function CreationComposer({
                 className="p-3 max-w-[min(340px,calc(100vw-48px))]"
               >
                 <div className="joy-composer-params-panel">
-                  {layout.showRatio ? (
+                  {showRatio ? (
                     <div className="joy-composer-params-row">
                       <span className="joy-composer-params-label">比例</span>
                       <div className="joy-composer-params-options">
@@ -1434,6 +1450,13 @@ export function CreationComposer({
                           </button>
                         ))}
                       </div>
+                    </div>
+                  ) : ratioLockedToRef ? (
+                    <div className="joy-composer-params-row">
+                      <span className="joy-composer-params-label">比例</span>
+                      <span className="joy-composer-params-hint text-muted-foreground text-xs">
+                        有参考图时跟随首帧比例
+                      </span>
                     </div>
                   ) : null}
                   {layout.showSizePicker ? (

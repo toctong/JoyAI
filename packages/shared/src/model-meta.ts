@@ -93,6 +93,7 @@ export const ModelCapabilitiesSchema = z.object({
    * - t2v / i2v / r2v / audio / reference-video
    * - omni-ref — multimodal reference (alias of r2v for UI)
    * - first-last-frame — native first_frame / last_frame roles
+   * - i2v-follows-source-aspect — with refs, output ratio follows first frame (aspect_ratio ignored)
    */
   features: z.array(z.string()).optional(),
   /**

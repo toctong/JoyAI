@@ -394,6 +394,13 @@ export function hasNativeFirstLastCapability(
   return featureSet(caps).has("first-last-frame");
 }
 
+/** With refs, output aspect follows first frame — UI ratio is ignored by provider. */
+export function i2vFollowsSourceAspect(
+  caps?: ModelCapabilities | null,
+): boolean {
+  return featureSet(caps).has("i2v-follows-source-aspect");
+}
+
 /** Modes shown in the video composer chip — driven by catalog features. */
 export function refModesFromCapabilities(
   caps?: ModelCapabilities | null,
