@@ -20,13 +20,15 @@ async function bootstrap() {
   );
 
   const config = app.get(ConfigService);
+  const isProd = config.get<string>("NODE_ENV") === "production";
   const origins = (config.get<string>("CORS_ORIGINS") ?? "http://localhost:3000")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 
   app.enableCors({
-    origin: origins,
+    // Dev: reflect any Origin (LAN IP access from teammates). Prod: allowlist only.
+    origin: isProd ? origins : true,
     credentials: true,
     // Nest+Fastify 默认只有 GET,HEAD,POST；管理端更新/删除需要 PATCH/PUT/DELETE
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

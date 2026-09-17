@@ -760,6 +760,13 @@
 .joy-studio-generating .joy-studio-grid.is-single.is-video {
   max-width: min(360px, 100%);
   width: fit-content;
+  grid-template-columns: max-content;
+}
+
+.joy-studio-generating .joy-studio-grid.is-single.is-video .joy-gen-thumb {
+  /* Explicit width comes from frameStyleForAspect; avoid % collapse in max-content */
+  width: auto;
+  max-width: min(360px, 100%);
 }
 
 .joy-studio-generating .joy-studio-grid.is-multi {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -474,6 +474,28 @@ function StudioJobRefs({ urls }: { urls: string[] }) {
   );
 }
 
+/** Landscape wider; portrait height-capped but keep ≥200px wide for chrome. */
+function frameStyleForAspect(aspect: string): CSSProperties {
+  const maxW = 360;
+  const maxH = 380;
+  const minW = 200;
+  const parts = aspect.split("/").map((s) => Number(s.trim()));
+  const aw = parts[0];
+  const ah = parts[1];
+  if (!(aw > 0 && ah > 0)) {
+    return { aspectRatio: aspect, width: Math.min(maxW, 280) };
+  }
+  const heightAtMaxW = (maxW * ah) / aw;
+  if (heightAtMaxW <= maxH) {
+    return { aspectRatio: `${aw} / ${ah}`, width: maxW };
+  }
+  const widthAtMaxH = (maxH * aw) / ah;
+  return {
+    aspectRatio: `${aw} / ${ah}`,
+    width: Math.min(maxW, Math.max(minW, widthAtMaxH)),
+  };
+}
+
 /** Video frame that can adopt intrinsic aspect for adaptive/auto jobs. */
 function StudioVideoThumb({
   src,
@@ -490,27 +512,10 @@ function StudioVideoThumb({
     setAspect(fallbackAspect);
   }, [fallbackAspect, src]);
 
-  const frameStyle = useMemo(() => {
-    // Landscape wider; portrait height-capped but keep ≥200px wide for chrome
-    const maxW = 360;
-    const maxH = 380;
-    const minW = 200;
-    const parts = aspect.split("/").map((s) => Number(s.trim()));
-    const aw = parts[0];
-    const ah = parts[1];
-    if (!(aw > 0 && ah > 0)) {
-      return { aspectRatio: aspect, width: Math.min(maxW, 280) };
-    }
-    const heightAtMaxW = (maxW * ah) / aw;
-    if (heightAtMaxW <= maxH) {
-      return { aspectRatio: `${aw} / ${ah}`, width: maxW };
-    }
-    const widthAtMaxH = (maxH * aw) / ah;
-    return {
-      aspectRatio: `${aw} / ${ah}`,
-      width: Math.min(maxW, Math.max(minW, widthAtMaxH)),
-    };
-  }, [aspect]);
+  const frameStyle = useMemo(
+    () => frameStyleForAspect(aspect),
+    [aspect],
+  );
 
   return (
     <div
@@ -980,6 +985,11 @@ function StudioInner() {
                           <GeneratingThumb
                             key={`${job.id}-sk-${i}`}
                             aspectRatio={ar}
+                            style={
+                              isVideoJob
+                                ? frameStyleForAspect(ar)
+                                : { aspectRatio: ar, width: "100%" }
+                            }
                           />
                         ))}
                       </div>

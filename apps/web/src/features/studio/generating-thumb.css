@@ -3,11 +3,12 @@
   display: block;
   width: 100%;
   min-width: 0;
-  min-height: 120px;
+  min-height: 160px;
   overflow: hidden;
   border-radius: 14px;
   background: #12151c;
   isolation: isolate;
+  box-sizing: border-box;
 }
 
 .joy-gen-thumb-stage {

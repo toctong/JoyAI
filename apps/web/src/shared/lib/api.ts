@@ -5,8 +5,34 @@ import axios, {
 } from "axios";
 import { useAuthStore } from "./auth-store";
 
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
+/**
+ * Build-time default (often localhost). When the page is opened via LAN IP
+ * (e.g. http://192.168.x.x:3000) but API still points at localhost, the
+ * colleague's browser would hit *their* machine — rewrite host to match the page.
+ */
+export function resolveApiBase(configured?: string): string {
+  const raw =
+    (configured ?? process.env.NEXT_PUBLIC_API_URL)?.trim() ||
+    "http://localhost:3001/api";
+  if (typeof window === "undefined") return raw.replace(/\/$/, "");
+  try {
+    const u = new URL(raw);
+    const pageHost = window.location.hostname;
+    if (
+      pageHost &&
+      pageHost !== "localhost" &&
+      pageHost !== "127.0.0.1" &&
+      (u.hostname === "localhost" || u.hostname === "127.0.0.1")
+    ) {
+      u.hostname = pageHost;
+    }
+    return u.toString().replace(/\/$/, "");
+  } catch {
+    return raw.replace(/\/$/, "");
+  }
+}
+
+export const API_BASE = resolveApiBase();
 
 export class ApiError extends Error {
   status: number;
@@ -30,6 +56,8 @@ export const http = axios.create({
 });
 
 http.interceptors.request.use((config) => {
+  // Re-resolve per request so client bundles that SSR'd with localhost still work on LAN.
+  config.baseURL = resolveApiBase();
   const headers = AxiosHeaders.from(config.headers);
   const explicit = (config as JoyaiRequestConfig).token;
   const token =

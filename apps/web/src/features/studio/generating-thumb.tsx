@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/shared/lib/utils";
 import "./generating-thumb.css";
@@ -7,6 +8,7 @@ import "./generating-thumb.css";
 type Props = {
   aspectRatio?: string;
   className?: string;
+  style?: CSSProperties;
 };
 
 function statusCopy(status?: string, kind?: "image" | "video") {
@@ -24,11 +26,12 @@ function statusCopy(status?: string, kind?: "image" | "video") {
 export function GeneratingThumb({
   aspectRatio = "1 / 1",
   className,
+  style,
 }: Props) {
   return (
     <div
       className={cn("joy-gen-thumb", className)}
-      style={{ aspectRatio }}
+      style={{ aspectRatio, ...style }}
       aria-busy
       aria-label="造梦中"
     >
