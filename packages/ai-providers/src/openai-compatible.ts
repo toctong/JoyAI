@@ -761,6 +761,8 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
     }
     if (res) body.resolution = res;
     body.prompt = rewriteSeedancePromptMentions(String(body.prompt ?? ""));
+    // Docs default true; set explicitly so outputs have sync audio.
+    body.generate_audio = true;
 
     const firstLast = input.refMode === "first_last";
     if (firstLast) {
@@ -788,6 +790,9 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
           .slice(0, 3)
           .map((url) => ({ url, role: "reference_audio" }));
       }
+    }
+    if (typeof body.duration === "number" && body.duration > 0) {
+      body.duration = Math.min(15, Math.max(4, Math.round(body.duration)));
     }
     return body;
   }

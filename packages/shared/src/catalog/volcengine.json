@@ -1,7 +1,7 @@
 {
   "platform": "volcengine",
   "updatedAt": "2026-09-16",
-  "note": "adapterId defaults: image→ark-images, video→ark-video. Override per model via adapterId or capabilities.adapterId.",
+  "note": "火山豆包视频仅保留 Seedance 2.5 / 2.0 / 2.0 Mini / 2.0 Fast。NotFound 多为方舟未开通该模型，不是 remoteId 写错。",
   "llm": [
     {
       "name": "Doubao Seed 2.1 Pro",
@@ -339,7 +339,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -393,7 +393,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -448,7 +448,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -501,7 +501,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -534,6 +534,5 @@
         ]
       }
     }
-  ],
-  "note": "火山豆包视频仅保留 Seedance 2.5 / 2.0 / 2.0 Mini / 2.0 Fast。NotFound 多为方舟未开通该模型，不是 remoteId 写错。"
+  ]
 }

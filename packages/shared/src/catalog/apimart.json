@@ -1,7 +1,7 @@
 {
   "platform": "apimart",
   "updatedAt": "2026-09-16",
-  "note": "adapterId defaults: image→openai-images, video→openai-videos. Override per model via adapterId. image dialect via capabilities.protocol.imageProfile (inferred if omitted).",
+  "note": "官方文档对齐的模型种子；大陆 Base URL 使用 https://apib.ai/v1（国际域名为 api.apimart.ai）。实际可用模型以账户 /v1/models 为准。",
   "llm": [
     {
       "name": "GPT-5.5",
@@ -1222,7 +1222,7 @@
           "4:3",
           "3:4"
         ],
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 8000,
         "maxRefImageBytes": 20971520,
         "minRefImageAspect": 0.125,
@@ -1258,7 +1258,7 @@
           "4:3",
           "3:4"
         ],
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 8000,
         "maxRefImageBytes": 20971520,
         "minRefImageAspect": 0.125,
@@ -1441,7 +1441,7 @@
           "3:4",
           "21:9"
         ],
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -1480,7 +1480,7 @@
           "3:4",
           "21:9"
         ],
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -1532,7 +1532,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -1585,7 +1585,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -1848,7 +1848,7 @@
           "4:3",
           "3:4"
         ],
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 8000,
         "maxRefImageBytes": 20971520,
         "minRefImageAspect": 0.125,
@@ -1893,7 +1893,7 @@
         ],
         "maxRefVideos": 1,
         "maxRefAudios": 1,
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 8000,
         "maxRefImageBytes": 20971520,
         "maxRefVideoDurationSec": 15,
@@ -1940,7 +1940,7 @@
           "4:3",
           "3:4"
         ],
-        "minRefImageSidePx": 240,
+        "minRefImageSidePx": 300,
         "maxRefImageSidePx": 8000,
         "maxRefImageBytes": 20971520,
         "maxRefVideoDurationSec": 15,
@@ -2217,6 +2217,5 @@
         ]
       }
     }
-  ],
-  "note": "官方文档对齐的模型种子；大陆 Base URL 使用 https://apib.ai/v1（国际域名为 api.apimart.ai）。实际可用模型以账户 /v1/models 为准。"
+  ]
 }

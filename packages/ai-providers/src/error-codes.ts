@@ -440,6 +440,14 @@ function translateEnglishMessage(message: string): string | undefined {
     return "上游拉取任务失败（渠道不可用、被拦截，或参考素材格式/参数不被该渠道接受）";
   }
   if (
+    m.includes("width to be at least") ||
+    m.includes("height to be at least") ||
+    m.includes("expected the width") ||
+    (m.includes("received a") && m.includes("px image"))
+  ) {
+    return "参考图尺寸过小（Seedance / 多数上游要求最短边或宽度 ≥ 300px）";
+  }
+  if (
     m.includes("image pixel is invalid") ||
     m.includes("image pixels is invalid") ||
     m.includes("invalid image pixel")
