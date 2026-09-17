@@ -46,7 +46,7 @@ export class JobTimeoutSweeper implements OnModuleInit, OnModuleDestroy {
     private readonly realtime: RealtimeGateway,
     config: ConfigService,
   ) {
-    this.imageBusyMs = envMs(config, "JOB_IMAGE_TIMEOUT_MS", 10 * 60_000);
+    this.imageBusyMs = envMs(config, "JOB_IMAGE_TIMEOUT_MS", 15 * 60_000);
     this.videoBusyMs = envMs(config, "JOB_VIDEO_TIMEOUT_MS", 50 * 60_000);
     this.queuedMs = envMs(config, "JOB_QUEUED_TIMEOUT_MS", 20 * 60_000);
     this.intervalMs = envMs(config, "JOB_TIMEOUT_SWEEP_MS", 60_000);

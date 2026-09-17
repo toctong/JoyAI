@@ -178,7 +178,8 @@ async function pollDashscopeTask(params: {
   taskId: string;
 }): Promise<ImageGenerateResult> {
   const url = `${params.apiBase}/tasks/${params.taskId}`;
-  for (let attempt = 0; attempt < 90; attempt++) {
+  // ~8 min @ 2s
+  for (let attempt = 0; attempt < 240; attempt++) {
     await sleep(2000);
     const { data, status } = await axios.get(url, {
       headers: authHeaders(params.apiKey),

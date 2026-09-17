@@ -562,7 +562,8 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
         ? { language: "zh" }
         : undefined;
 
-    for (let attempt = 0; attempt < 60; attempt++) {
+    // ~8 min @ 2s (slow async gateways / peak queues)
+    for (let attempt = 0; attempt < 240; attempt++) {
       await sleep(2000);
       let lastError: unknown;
       for (const url of endpoints) {
@@ -606,7 +607,7 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
           lastError = e;
         }
       }
-      if (attempt === 59 && lastError) throw lastError;
+      if (attempt === 239 && lastError) throw lastError;
     }
     throw new Error("图片任务轮询超时，请稍后重试");
   }
