@@ -43,6 +43,7 @@ import {
 import { SLASH_COMMANDS } from "@/features/ai-prompt/slash-items";
 import { cn } from "@/shared/lib/utils";
 import { ComposerRipple } from "./composer-ripple";
+import { DurationSlider } from "./duration-slider";
 import {
   durationsFromCapabilities,
   formatQualityLabel,
@@ -1457,24 +1458,25 @@ export function CreationComposer({
                       </div>
                     </div>
                   ) : null}
-                  {kind === "video" ? (
+                  {kind === "video" && durationOptions.length > 0 ? (
                     <div className="joy-composer-params-row">
-                      <span className="joy-composer-params-label">时长</span>
-                      <div className="joy-composer-params-options">
-                        {durationOptions.map((sec) => (
-                          <button
-                            key={sec}
-                            type="button"
-                            className={cn(
-                              "joy-composer-params-option",
-                              duration === sec && "is-on",
-                            )}
-                            onClick={() => setDuration(sec)}
-                          >
-                            {sec}s
-                          </button>
-                        ))}
+                      <div className="joy-composer-params-label-row">
+                        <span className="joy-composer-params-label">时长</span>
+                        <span className="joy-composer-params-value">
+                          {duration}s
+                        </span>
                       </div>
+                      {durationOptions.length === 1 ? (
+                        <div className="joy-composer-params-slider-fixed">
+                          {durationOptions[0]}s
+                        </div>
+                      ) : (
+                        <DurationSlider
+                          options={durationOptions}
+                          value={duration}
+                          onChange={setDuration}
+                        />
+                      )}
                     </div>
                   ) : null}
                   <div className="joy-composer-params-row">
