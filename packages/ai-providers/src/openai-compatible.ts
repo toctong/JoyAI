@@ -872,7 +872,9 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
       });
     }
 
-    // audio=true is mutually exclusive with video_list
+    // Prefer native audio. Keep ref video under metadata (not top-level
+    // video_list) so audio=true is not rejected by the audio↔video_list mutex.
+    // Do not keep the reference clip's original soundtrack.
     if (videos.length > 0) {
       metadata.video_list = [
         {
@@ -881,9 +883,9 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
           keep_original_sound: "no",
         },
       ];
-      delete body.audio;
       delete body.video_list;
     }
+    body.audio = true;
 
     if (Object.keys(metadata).length > 0) {
       body.metadata = metadata;
