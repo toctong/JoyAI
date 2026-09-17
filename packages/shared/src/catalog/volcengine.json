@@ -1,6 +1,7 @@
 {
   "platform": "volcengine",
   "updatedAt": "2026-09-16",
+  "note": "adapterId defaults: image→ark-images, video→ark-video. Override per model via adapterId or capabilities.adapterId.",
   "llm": [
     {
       "name": "Doubao Seed 2.1 Pro",

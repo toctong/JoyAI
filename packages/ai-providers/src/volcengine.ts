@@ -19,6 +19,7 @@ function authHeaders(apiKey: string) {
 }
 
 export class VolcengineImageProvider implements ImageProvider {
+  readonly adapterId = "ark-images";
   readonly platform = ProviderPlatform.VOLCENGINE;
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
@@ -133,6 +134,7 @@ export function extractVolcengineVideoUrl(data: unknown): string | undefined {
 }
 
 export class VolcengineVideoProvider implements VideoProvider {
+  readonly adapterId = "ark-video";
   readonly platform = ProviderPlatform.VOLCENGINE;
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {

@@ -29,6 +29,8 @@ export const MODEL_CATALOG: Record<ProviderPlatformId, CatalogModel[]> = {
   [ProviderPlatform.DASHSCOPE]: flattenChannelCatalog(
     CHANNEL_CATALOG_JSON.dashscope!,
   ),
+  /** Custom OpenAI gateways have no built-in catalog — add models manually. */
+  [ProviderPlatform.OPENAI_COMPATIBLE]: [],
 };
 
 export function getCatalogForPlatform(platform: string): CatalogModel[] {

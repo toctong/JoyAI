@@ -5,6 +5,8 @@ export const ProviderPlatform = {
   APIMART: "apimart",
   TOAPIS: "toapis",
   DASHSCOPE: "dashscope",
+  /** Generic OpenAI-compatible gateway — models added manually with openai-* adapters. */
+  OPENAI_COMPATIBLE: "openai-compatible",
 } as const;
 export type ProviderPlatformId =
   (typeof ProviderPlatform)[keyof typeof ProviderPlatform];
@@ -89,6 +91,22 @@ export const ModelCapabilitiesSchema = z.object({
    * - first-last-frame — native first_frame / last_frame roles
    */
   features: z.array(z.string()).optional(),
+  /**
+   * Protocol adapter id (openai-images / ark-video / …).
+   * When omitted, runtime falls back to platform + kind defaults.
+   */
+  adapterId: z.string().optional(),
+  /**
+   * Request dialect / aliases for the selected adapter.
+   * When omitted, openai-images infers from platform + remoteId.
+   */
+  protocol: z
+    .object({
+      imageProfile: z.string().optional(),
+      modelAlias: z.string().optional(),
+      imagePath: z.enum(["generations", "edits"]).optional(),
+    })
+    .optional(),
 });
 export type ModelCapabilities = z.infer<typeof ModelCapabilitiesSchema>;
 
@@ -127,5 +145,11 @@ export const CHANNEL_PRESETS: Record<
     baseUrl: "https://llm-oxwm46w4kzmd5vir.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
     dashscopeApiBase: "https://dashscope.aliyuncs.com/api/v1",
     docsUrl: "https://dashscope.aliyuncs.com/",
+  },
+  [ProviderPlatform.OPENAI_COMPATIBLE]: {
+    label: "OpenAI 兼容",
+    defaultName: "自定义 OpenAI 渠道",
+    baseUrl: "https://api.openai.com/v1",
+    docsUrl: "https://platform.openai.com/docs/api-reference",
   },
 };

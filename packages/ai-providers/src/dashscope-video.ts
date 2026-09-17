@@ -43,6 +43,7 @@ export function resolveDashscopeApiBase(
  * Native async API — not OpenAI chat completions.
  */
 export class DashscopeVideoProvider implements VideoProvider {
+  readonly adapterId = "dashscope-video";
   readonly platform = ProviderPlatform.DASHSCOPE;
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {

@@ -5,6 +5,7 @@ const CHANNEL_ICON: Record<string, string> = {
   dashscope: "/brand/channels/dashscope.svg",
   apimart: "/brand/channels/apimart.svg",
   toapis: "/brand/channels/toapis.png",
+  "openai-compatible": "/brand/models/openai.svg",
 };
 
 /** Family key → public path (files that exist under public/brand/models). */

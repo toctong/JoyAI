@@ -227,6 +227,7 @@ async function pollDashscopeTask(params: {
  * - Wanx imageedit → image2image/image-synthesis (async)
  */
 export class DashscopeImageProvider implements ImageProvider {
+  readonly adapterId = "dashscope-images";
   readonly platform = ProviderPlatform.DASHSCOPE;
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
@@ -238,6 +239,7 @@ export class DashscopeImageProvider implements ImageProvider {
     if (isWanxAsyncT2i(input.model)) {
       return this.generateAsyncT2i(apiBase, input);
     }
+    // `input.async` is reserved for catalog hinting; Qwen multimodal stays sync.
     return this.generateMultimodal(apiBase, input);
   }
 

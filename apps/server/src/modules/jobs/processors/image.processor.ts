@@ -3,7 +3,7 @@ import { Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Job as BullJob, Queue } from "bullmq";
 import { Repository } from "typeorm";
-import { getImageProvider } from "@joyai/ai-providers";
+import { resolveImageProvider } from "@joyai/ai-providers";
 import { QUEUE } from "@joyai/shared";
 import { Job } from "../../../database/entities/job.entity";
 import { JobStatus } from "../../../database/enums";
@@ -101,6 +101,13 @@ export class ImageProcessor extends WorkerHost {
         sizes?: string[];
         ratios?: string[];
         resolutions?: string[];
+        async?: boolean;
+        adapterId?: string;
+        protocol?: {
+          imageProfile?: string;
+          modelAlias?: string;
+          imagePath?: "generations" | "edits";
+        };
       } | null;
       const pixelRe = /^\d+\s*[x×*]\s*\d+$/i;
       const catalogSizes = [
@@ -124,7 +131,10 @@ export class ImageProcessor extends WorkerHost {
       else if (hasRatios && hasResolutions) sizeMode = "pixels";
       else if (hasResolutions && !hasRatios) sizeMode = "keyword";
 
-      const provider = getImageProvider(model.channel.platform);
+      const provider = resolveImageProvider({
+        platform: model.channel.platform,
+        capabilities: caps,
+      });
       const count = Math.max(1, Math.min(Number(input.n) || 1, 4));
       // Seedream 等模型常忽略 n / 只当组图上限；数量选择按「独立出图」并发请求，保证张数
       const batches = await Promise.all(
@@ -142,6 +152,8 @@ export class ImageProcessor extends WorkerHost {
             n: 1,
             watermark: false,
             referenceUrls,
+            async: caps?.async,
+            protocol: caps?.protocol ?? null,
             model: model.remoteId,
             apiKey: model.channel.apiKey,
             baseUrl: model.channel.baseUrl,

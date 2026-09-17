@@ -1,5 +1,10 @@
 import axios from "axios";
-import { ProviderPlatform } from "@joyai/shared";
+import {
+  ProviderPlatform,
+  resolveImageProtocol,
+  type ImageProtocolProfile,
+  type ModelProtocol,
+} from "@joyai/shared";
 import type {
   ImageGenerateInput,
   ImageGenerateResult,
@@ -89,18 +94,22 @@ function isToApisImageEditModel(model: string): boolean {
 
 /**
  * Build ToAPIs image body: ratio-as-size + optional resolution + image_urls.
- * - GPT-Image: top-level `resolution` (lowercase)
- * - Qwen / Seedream / Flux: top-level + `metadata.resolution` when provided
- * - Grok Imagine / Grok Image: no resolution / no forced metadata (docs: model,prompt,size,n)
- * - `*-edit` models: `/images/edits` shape — prompt + image_urls (+ n); no size/resolution
+ * Prefer `profile` from capabilities.protocol; regex is fallback only.
  */
 function buildToApisImageBody(
   input: ImageGenerateInput,
+  profile?: ImageProtocolProfile,
 ): Record<string, unknown> {
-  const isEdit = isToApisImageEditModel(input.model);
+  const isEdit =
+    profile === "toapis-edit" ||
+    (!profile && isToApisImageEditModel(input.model));
   const resolution = normalizeKTier(input.resolution);
-  const isGptImage = /^gpt-image/i.test(input.model);
-  const bare = isToApisBareImageModel(input.model);
+  const isGptImage =
+    profile === "toapis-gpt-image" ||
+    (!profile && /^gpt-image/i.test(input.model));
+  const bare =
+    profile === "toapis-bare" ||
+    (!profile && isToApisBareImageModel(input.model));
 
   if (isEdit) {
     const body: Record<string, unknown> = {
@@ -324,14 +333,25 @@ function resolveApiMartModelId(model: string): string {
 
 function buildApiMartImageBody(
   input: ImageGenerateInput,
+  profile?: ImageProtocolProfile,
 ): Record<string, unknown> {
+  // Prefer catalog/protocol alias; keep hardcoded map as safety net.
   const model = resolveApiMartModelId(input.model);
   const resolution = normalizeKTier(input.resolution);
-  const isGptImage = /^gpt-image/i.test(model);
-  const isGptImage1Family = /^gpt-image-1(\.5)?(-official)?$/i.test(model);
-  const isFluxKontext = /^flux-kontext/i.test(model);
+  const isGptImage =
+    profile === "apimart-gpt-image" ||
+    profile === "apimart-gpt-image-1" ||
+    (!profile && /^gpt-image/i.test(model));
+  const isGptImage1Family =
+    profile === "apimart-gpt-image-1" ||
+    (!profile && /^gpt-image-1(\.5)?(-official)?$/i.test(model));
+  const isFluxKontext =
+    profile === "apimart-flux-kontext" ||
+    (!profile && /^flux-kontext/i.test(model));
   // Official xAI async models reject `size`; use aspect_ratio + resolution.
-  const isGrokImagineXai = /^grok-imagine-image/i.test(model);
+  const isGrokImagineXai =
+    profile === "apimart-grok-imagine" ||
+    (!profile && /^grok-imagine-image/i.test(model));
 
   if (isGrokImagineXai) {
     const ratio = input.ratio?.trim();
@@ -379,26 +399,98 @@ function buildApiMartImageBody(
   return body;
 }
 
+function isToApisProfile(profile: ImageProtocolProfile | undefined): boolean {
+  return (
+    profile === "toapis-default" ||
+    profile === "toapis-gpt-image" ||
+    profile === "toapis-bare" ||
+    profile === "toapis-edit"
+  );
+}
+
+function isApiMartProfile(profile: ImageProtocolProfile | undefined): boolean {
+  return (
+    profile === "apimart-default" ||
+    profile === "apimart-gpt-image" ||
+    profile === "apimart-gpt-image-1" ||
+    profile === "apimart-flux-kontext" ||
+    profile === "apimart-grok-imagine"
+  );
+}
+
+/** Resolve dialect from input.protocol or infer from platform + model. */
+function resolveInputImageProtocol(
+  platform: string,
+  input: ImageGenerateInput,
+): ModelProtocol {
+  const fromInput = input.protocol
+    ? ({
+        imageProfile: input.protocol.imageProfile as
+          | ImageProtocolProfile
+          | undefined,
+        modelAlias: input.protocol.modelAlias,
+        imagePath: input.protocol.imagePath,
+      } satisfies ModelProtocol)
+    : null;
+  return resolveImageProtocol(platform, input.model, fromInput);
+}
+
+function buildImageBodyByProfile(
+  platform: string,
+  input: ImageGenerateInput,
+  protocol: ModelProtocol,
+): Record<string, unknown> {
+  const profile = protocol.imageProfile as ImageProtocolProfile | undefined;
+  const effective: ImageGenerateInput = protocol.modelAlias
+    ? { ...input, model: protocol.modelAlias }
+    : input;
+
+  if (isToApisProfile(profile)) {
+    return buildToApisImageBody(effective, profile);
+  }
+  if (isApiMartProfile(profile)) {
+    return buildApiMartImageBody(effective, profile);
+  }
+
+  // Legacy platform fallback when profile missing / openai-default
+  if (platform === ProviderPlatform.TOAPIS) {
+    return buildToApisImageBody(effective, profile);
+  }
+  if (platform === ProviderPlatform.APIMART) {
+    return buildApiMartImageBody(effective, profile);
+  }
+  return buildOpenAICompatImageBody(effective);
+}
+
+function resolveImagePath(
+  platform: string,
+  model: string,
+  protocol: ModelProtocol,
+): "generations" | "edits" {
+  if (protocol.imagePath === "edits" || protocol.imagePath === "generations") {
+    return protocol.imagePath;
+  }
+  if (protocol.imageProfile === "toapis-edit") return "edits";
+  if (platform === ProviderPlatform.TOAPIS && isToApisImageEditModel(model)) {
+    return "edits";
+  }
+  return "generations";
+}
+
 /**
  * OpenAI-compatible gateway used by APIMart / ToAPIs (and similar relays).
  */
 export class OpenAICompatibleImageProvider implements ImageProvider {
+  readonly adapterId = "openai-images";
   constructor(readonly platform: string) {}
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
-    const body =
-      this.platform === ProviderPlatform.TOAPIS
-        ? buildToApisImageBody(input)
-        : this.platform === ProviderPlatform.APIMART
-          ? buildApiMartImageBody(input)
-          : buildOpenAICompatImageBody(input);
+    const protocol = resolveInputImageProtocol(this.platform, input);
+    const body = buildImageBodyByProfile(this.platform, input, protocol);
+    const imagePath = resolveImagePath(this.platform, input.model, protocol);
 
     const base = normalizeBase(input.baseUrl);
-    const path =
-      this.platform === ProviderPlatform.TOAPIS &&
-      isToApisImageEditModel(input.model)
-        ? `${base}/images/edits`
-        : `${base}/images/generations`;
+    const path = `${base}/images/${imagePath}`;
     const { data } = await axios.post(path, body, {
       headers: authHeaders(input.apiKey),
       timeout: 180_000,
@@ -408,16 +500,27 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
     // Sync OpenAI shape — only when items actually carry media
     const syncImages = extractImages(data);
     const syncStatus = readStatus(data);
+    const taskId = extractTaskId(data);
+
+    // Catalog `async: true` → prefer task poll when a task id is present
+    if (input.async && taskId) {
+      return this.pollImageTask({
+        taskId,
+        apiKey: input.apiKey,
+        baseUrl: base,
+        rawSubmit: data,
+      });
+    }
+
     if (
       syncImages.length &&
       (!syncStatus || SUCCESS_STATUSES.has(syncStatus)) &&
-      !extractTaskId(data)
+      !taskId
     ) {
       return { images: syncImages, raw: data };
     }
 
     // Async task shape — poll until done
-    const taskId = extractTaskId(data);
     if (taskId) {
       return this.pollImageTask({
         taskId,
@@ -425,6 +528,15 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
         baseUrl: base,
         rawSubmit: data,
       });
+    }
+
+    if (input.async) {
+      throw new Error(
+        formatProviderErrorBody(data, undefined, {
+          platform: this.platform,
+          fallback: "异步图片任务未返回 task id",
+        }),
+      );
     }
 
     const errMsg = formatProviderErrorBody(data, undefined, {
@@ -556,6 +668,7 @@ export function extractImages(
 }
 
 export class OpenAICompatibleVideoProvider implements VideoProvider {
+  readonly adapterId = "openai-videos";
   constructor(readonly platform: string) {}
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {

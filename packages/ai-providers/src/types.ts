@@ -17,6 +17,17 @@ export type ImageGenerateInput = {
   /** Seedream / compatible gateways: visible corner mark. Default false. */
   watermark?: boolean;
   referenceUrls?: string[];
+  /**
+   * From catalog `capabilities.async`.
+   * When true, prefer async task submit+poll over sync response.
+   */
+  async?: boolean;
+  /** From catalog `capabilities.protocol` — openai-images dialect etc. */
+  protocol?: {
+    imageProfile?: string;
+    modelAlias?: string;
+    imagePath?: "generations" | "edits";
+  } | null;
   model: string;
   apiKey: string;
   baseUrl: string;
@@ -53,11 +64,16 @@ export type VideoPollResult =
   | { status: "failed"; error: string; raw?: unknown };
 
 export interface ImageProvider {
+  /** Protocol adapter id (openai-images / ark-images / …) */
+  readonly adapterId: string;
+  /** @deprecated Prefer adapterId; kept for logs / legacy */
   readonly platform: string;
   generate(input: ImageGenerateInput): Promise<ImageGenerateResult>;
 }
 
 export interface VideoProvider {
+  readonly adapterId: string;
+  /** @deprecated Prefer adapterId; kept for logs / legacy */
   readonly platform: string;
   submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }>;
   poll(params: {

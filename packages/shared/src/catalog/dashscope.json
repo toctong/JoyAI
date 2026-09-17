@@ -1,6 +1,7 @@
 {
   "platform": "dashscope",
   "updatedAt": "2026-09-16",
+  "note": "adapterId defaults: image→dashscope-images, video→dashscope-video. Override per model via adapterId.",
   "llm": [
     {
       "name": "Qwen3.8 Max",

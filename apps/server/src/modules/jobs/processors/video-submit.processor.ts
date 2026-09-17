@@ -3,7 +3,7 @@ import { Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Job as BullJob, Queue } from "bullmq";
 import { Repository } from "typeorm";
-import { getVideoProvider } from "@joyai/ai-providers";
+import { resolveVideoProvider } from "@joyai/ai-providers";
 import { QUEUE } from "@joyai/shared";
 import { Job } from "../../../database/entities/job.entity";
 import { JobStatus } from "../../../database/enums";
@@ -72,7 +72,10 @@ export class VideoSubmitProcessor extends WorkerHost {
       const firstLastViaPrompt =
         refMode === "first_last" && !nativeFirstLast;
 
-      const provider = getVideoProvider(model.channel.platform);
+      const provider = resolveVideoProvider({
+        platform: model.channel.platform,
+        capabilities: model.capabilities as { adapterId?: unknown } | null,
+      });
       const channelMeta =
         (model.channel.metadata as Record<string, unknown> | null) ?? null;
       const { remoteTaskId } = await provider.submit({
@@ -101,6 +104,7 @@ export class VideoSubmitProcessor extends WorkerHost {
           jobId,
           remoteTaskId,
           platform: model.channel.platform,
+          adapterId: provider.adapterId,
           apiKey: model.channel.apiKey,
           baseUrl: model.channel.baseUrl,
           metadata: channelMeta,

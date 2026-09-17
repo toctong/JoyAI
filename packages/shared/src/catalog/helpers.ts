@@ -10,6 +10,8 @@ export type CatalogModel = {
   /** Optional; catalogs no longer ship reference prices. */
   pricing?: ModelPricing;
   capabilities: ModelCapabilities;
+  /** Protocol adapter; defaults from platform+kind when omitted. */
+  adapterId?: string;
   isDefault?: boolean;
 };
 

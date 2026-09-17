@@ -4,6 +4,7 @@ import { In, Repository } from "typeorm";
 import {
   CHANNEL_PRESETS,
   getCatalogForPlatform,
+  resolveAdapterId,
   type ModelCapabilities,
   type ModelPricing,
   type ProviderPlatformId,
@@ -71,16 +72,32 @@ export class ModelsService {
 
     const [rows, total] = await qb.getManyAndCount();
 
-    const items = rows.map((m) => ({
-      ...m,
-      channel: m.channel
-        ? {
-            id: m.channel.id,
-            name: m.channel.name,
-            platform: m.channel.platform,
-          }
-        : null,
-    }));
+    const items = rows.map((m) => {
+      const caps = (m.capabilities ?? null) as ModelCapabilities | null;
+      let adapterId: string | null = null;
+      try {
+        if (m.kind === "image" || m.kind === "video") {
+          adapterId = resolveAdapterId({
+            platform: m.channel?.platform ?? "",
+            kind: m.kind,
+            capabilities: caps,
+          });
+        }
+      } catch {
+        adapterId = null;
+      }
+      return {
+        ...m,
+        adapterId,
+        channel: m.channel
+          ? {
+              id: m.channel.id,
+              name: m.channel.name,
+              platform: m.channel.platform,
+            }
+          : null,
+      };
+    });
 
     return {
       items,
@@ -101,19 +118,35 @@ export class ModelsService {
       order: { kind: "ASC", name: "ASC" },
     });
 
-    return rows.map((m) => ({
-      id: m.id,
-      name: m.name,
-      kind: m.kind,
-      description: m.description,
-      pricing: m.pricing,
-      capabilities: m.capabilities,
-      remoteId: m.remoteId,
-      channel: {
-        platform: m.channel.platform,
-        name: m.channel.name,
-      },
-    }));
+    return rows.map((m) => {
+      const caps = (m.capabilities ?? null) as ModelCapabilities | null;
+      let adapterId: string | null = null;
+      try {
+        if (m.kind === "image" || m.kind === "video") {
+          adapterId = resolveAdapterId({
+            platform: m.channel.platform,
+            kind: m.kind,
+            capabilities: caps,
+          });
+        }
+      } catch {
+        adapterId = null;
+      }
+      return {
+        id: m.id,
+        name: m.name,
+        kind: m.kind,
+        description: m.description,
+        pricing: m.pricing,
+        capabilities: caps,
+        adapterId,
+        remoteId: m.remoteId,
+        channel: {
+          platform: m.channel.platform,
+          name: m.channel.name,
+        },
+      };
+    });
   }
 
   create(data: {

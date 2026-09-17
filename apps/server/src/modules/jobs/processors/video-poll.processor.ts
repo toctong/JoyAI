@@ -3,7 +3,7 @@ import { Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Job as BullJob, Queue } from "bullmq";
 import { Repository } from "typeorm";
-import { getVideoProvider } from "@joyai/ai-providers";
+import { resolveVideoProvider } from "@joyai/ai-providers";
 import { QUEUE } from "@joyai/shared";
 import { Job } from "../../../database/entities/job.entity";
 import { JobStatus } from "../../../database/enums";
@@ -17,6 +17,8 @@ type PollPayload = {
   jobId: string;
   remoteTaskId: string;
   platform: string;
+  /** Protocol adapter id; falls back to platform default when missing. */
+  adapterId?: string;
   apiKey: string;
   baseUrl: string;
   metadata?: Record<string, unknown> | null;
@@ -47,7 +49,10 @@ export class VideoPollProcessor extends WorkerHost {
 
     let result;
     try {
-      const provider = getVideoProvider(payload.platform);
+      const provider = resolveVideoProvider({
+        platform: payload.platform,
+        adapterId: payload.adapterId,
+      });
       result = await provider.poll({
         remoteTaskId: payload.remoteTaskId,
         apiKey: payload.apiKey,

@@ -1,6 +1,7 @@
 {
   "platform": "toapis",
   "updatedAt": "2026-09-16",
+  "note": "adapterId defaults: image→openai-images, video→openai-videos. Override per model via adapterId. image dialect via capabilities.protocol.imageProfile (inferred if omitted).",
   "llm": [
     {
       "name": "GPT-5.5",
@@ -466,6 +467,9 @@
           "i2i"
         ],
         "async": true,
+        "protocol": {
+          "imageProfile": "toapis-gpt-image"
+        },
         "resolutions": [
           "1K",
           "2K",

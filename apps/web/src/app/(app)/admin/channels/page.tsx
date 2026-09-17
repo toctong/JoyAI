@@ -6,6 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Download,
+  ExternalLink,
   Loader2,
   Pencil,
   Plus,
@@ -14,7 +15,11 @@ import {
 } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
-import { CHANNEL_PRESETS, type ProviderPlatformId } from "@joyai/shared";
+import {
+  CHANNEL_PRESETS,
+  getCatalogForPlatform,
+  type ProviderPlatformId,
+} from "@joyai/shared";
 import { api } from "@/shared/lib/api";
 import { buildAdminQuery } from "@/shared/lib/admin-query";
 import { useAdminViewMode } from "@/shared/lib/use-admin-view-mode";
@@ -181,6 +186,11 @@ export default function ChannelsPage() {
     form.setValue("platform", platform);
     form.setValue("baseUrl", preset.baseUrl);
     if (!editing) form.setValue("name", preset.defaultName);
+    // Custom OpenAI has no built-in catalog
+    form.setValue(
+      "importCatalog",
+      getCatalogForPlatform(platform).length > 0,
+    );
   }
 
   function openCreate() {
@@ -283,7 +293,11 @@ export default function ChannelsPage() {
           return;
         }
         const res = await api<{
-          catalog?: { created: number; updated: number };
+          catalog?: {
+            created: number;
+            updated: number;
+            disabled?: number;
+          };
         }>("/admin/channels", {
           method: "POST",
           body: {
@@ -372,6 +386,17 @@ export default function ChannelsPage() {
     return CHANNEL_PRESETS[platform as ProviderPlatformId]?.label ?? platform;
   }
 
+  function platformHasCatalog(platform: string) {
+    return getCatalogForPlatform(platform).length > 0;
+  }
+
+  const watchedPlatform = form.watch("platform");
+  const selectedPreset =
+    CHANNEL_PRESETS[watchedPlatform as ProviderPlatformId] ?? null;
+  const canImportCatalog = platformHasCatalog(
+    editing?.platform ?? watchedPlatform,
+  );
+
   function connectivityHint(ch: Channel) {
     const hint = testHints[ch.id];
     if (!hint) {
@@ -415,8 +440,14 @@ export default function ChannelsPage() {
           variant="ghost"
           size="icon"
           className="size-8 shrink-0"
-          title="导入主流模型"
-          disabled={importingId === ch.id}
+          title={
+            platformHasCatalog(ch.platform)
+              ? "导入主流模型"
+              : "该平台无内置模型目录，请手动添加模型"
+          }
+          disabled={
+            importingId === ch.id || !platformHasCatalog(ch.platform)
+          }
           onClick={() => void importCatalog(ch)}
         >
           {importingId === ch.id ? (
@@ -667,71 +698,135 @@ export default function ChannelsPage() {
       </ListPageFooter>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
+          <DialogHeader className="shrink-0 border-b border-border/70 px-6 py-4">
             <DialogTitle>{editing ? "编辑渠道" : "新建渠道"}</DialogTitle>
           </DialogHeader>
-          <form className="grid gap-4" onSubmit={form.handleSubmit(onSubmit)}>
-            <div className="space-y-2">
-              <Label>名称</Label>
-              <Input className="h-9 rounded-xl" {...form.register("name")} />
-            </div>
-            {!editing ? (
+          <form
+            className="flex min-h-0 flex-1 flex-col"
+            onSubmit={form.handleSubmit(onSubmit)}
+          >
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
               <div className="space-y-2">
-                <Label>平台</Label>
-                <Select
-                  value={form.watch("platform")}
-                  onValueChange={applyPlatform}
-                >
-                  <SelectTrigger className="h-9 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PLATFORM_OPTIONS.map(([id, preset]) => (
-                      <SelectItem key={id} value={id}>
-                        <BrandLabel
-                          src={channelIconSrc(id)}
-                          label={preset.label}
-                        />
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label>名称</Label>
+                <Input className="h-9 rounded-xl" {...form.register("name")} />
               </div>
-            ) : null}
-            <div className="space-y-2">
-              <Label>
-                API Key
-                {editing ? (
-                  <span className="ml-1 font-normal text-muted-foreground">
-                    （留空则不修改）
-                  </span>
-                ) : null}
-              </Label>
-              <Input
-                className="h-9 rounded-xl"
-                type="password"
-                autoComplete="off"
-                {...form.register("apiKey")}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Base URL</Label>
-              <Input
-                className="h-9 rounded-xl font-mono text-xs"
-                {...form.register("baseUrl")}
-              />
-            </div>
-            {!editing ? (
-              <label className="flex items-center gap-2 text-sm">
-                <Switch
-                  checked={!!form.watch("importCatalog")}
-                  onCheckedChange={(v) => form.setValue("importCatalog", v)}
+
+              {editing ? (
+                <div className="space-y-2">
+                  <Label>平台</Label>
+                  <div className="flex h-9 items-center gap-2 rounded-xl border border-border/80 bg-muted/40 px-3">
+                    <BrandAvatar
+                      src={channelIconSrc(editing.platform)}
+                      label={platformLabel(editing.platform)}
+                      size={18}
+                      rounded="md"
+                    />
+                    <span className="text-sm">
+                      {platformLabel(editing.platform)}
+                    </span>
+                    <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+                      {editing.platform}
+                    </span>
+                  </div>
+                  <p className="text-[12px] text-muted-foreground">
+                    平台类型创建后不可更改；换协议请新建渠道。
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>平台</Label>
+                  <Select
+                    value={form.watch("platform")}
+                    onValueChange={applyPlatform}
+                  >
+                    <SelectTrigger className="h-9 rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PLATFORM_OPTIONS.map(([id, preset]) => (
+                        <SelectItem key={id} value={id}>
+                          <BrandLabel
+                            src={channelIconSrc(id)}
+                            label={preset.label}
+                          />
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedPreset?.docsUrl ? (
+                    <a
+                      href={selectedPreset.docsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[12px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    >
+                      <ExternalLink className="size-3" />
+                      查看平台文档
+                    </a>
+                  ) : null}
+                  {watchedPlatform === "openai-compatible" ? (
+                    <p className="rounded-lg bg-muted/50 px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">
+                      适用于任意 OpenAI 兼容网关。创建后请到「模型」页手动登记，
+                      图片用 <code className="font-mono">openai-images</code>
+                      、视频用{" "}
+                      <code className="font-mono">openai-videos</code>
+                      （该平台会自动默认）。
+                    </p>
+                  ) : null}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>
+                  API Key
+                  {editing ? (
+                    <span className="ml-1 font-normal text-muted-foreground">
+                      （留空则不修改）
+                    </span>
+                  ) : null}
+                </Label>
+                <Input
+                  className="h-9 rounded-xl"
+                  type="password"
+                  autoComplete="off"
+                  {...form.register("apiKey")}
                 />
-                创建后导入主流模型目录
-              </label>
-            ) : null}
-            <DialogFooter className="gap-2 sm:justify-between">
+              </div>
+              <div className="space-y-2">
+                <Label>Base URL</Label>
+                <Input
+                  className="h-9 rounded-xl font-mono text-xs"
+                  placeholder="https://…/v1"
+                  {...form.register("baseUrl")}
+                />
+                <p className="text-[12px] text-muted-foreground">
+                  需指向兼容 OpenAI 风格路径的根地址（如{" "}
+                  <code className="font-mono">…/v1</code>
+                  ），勿带具体模型路径。
+                </p>
+              </div>
+              {!editing ? (
+                <div className="space-y-2 rounded-xl border border-border/80 p-3.5">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Switch
+                      checked={!!form.watch("importCatalog") && canImportCatalog}
+                      disabled={!canImportCatalog}
+                      onCheckedChange={(v) =>
+                        form.setValue("importCatalog", v)
+                      }
+                    />
+                    创建后导入主流模型目录
+                  </label>
+                  <p className="text-[12px] leading-relaxed text-muted-foreground">
+                    {canImportCatalog
+                      ? "将按平台内置目录批量创建/更新模型。"
+                      : "当前平台无内置目录，请创建渠道后手动添加模型。"}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <DialogFooter className="shrink-0 gap-2 border-t border-border/70 px-6 py-4 sm:justify-between">
               <Button
                 type="button"
                 variant="secondary"

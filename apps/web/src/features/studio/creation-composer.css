@@ -440,9 +440,40 @@
 }
 
 .joy-composer-model-menu {
-  max-height: min(360px, 50vh);
+  max-height: min(420px, 60vh);
   overflow: auto;
   padding: 6px;
+}
+
+.joy-composer-model-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 6px;
+}
+
+.joy-composer-model-search-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+
+.joy-composer-model-group {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 4px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground) !important;
+}
+
+.joy-composer-model-group-count {
+  font-weight: 500;
+  opacity: 0.75;
 }
 
 .joy-composer-model-item {
@@ -462,9 +493,8 @@
   display: flex;
   min-width: 0;
   flex: 1;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .joy-composer-model-item-name {
@@ -474,6 +504,15 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--foreground);
+}
+
+.joy-composer-model-item-id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  color: var(--muted-foreground);
 }
 
 .joy-composer-model-item-vendor {

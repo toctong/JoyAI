@@ -132,5 +132,7 @@ export const QUEUE = {
 } as const;
 
 export * from "./model-meta";
+export * from "./adapters";
+export * from "./protocol";
 export * from "./model-catalog";
 export * from "./pricing-format";

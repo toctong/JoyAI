@@ -1,6 +1,7 @@
 {
   "platform": "apimart",
   "updatedAt": "2026-09-16",
+  "note": "adapterId defaults: image→openai-images, video→openai-videos. Override per model via adapterId. image dialect via capabilities.protocol.imageProfile (inferred if omitted).",
   "llm": [
     {
       "name": "GPT-5.5",
@@ -370,6 +371,9 @@
           "inpaint"
         ],
         "async": true,
+        "protocol": {
+          "imageProfile": "apimart-gpt-image-1"
+        },
         "ratios": [
           "1:1",
           "3:2",
@@ -922,6 +926,9 @@
           "i2i"
         ],
         "async": true,
+        "protocol": {
+          "imageProfile": "apimart-flux-kontext"
+        },
         "ratios": [
           "1:1",
           "4:3",
@@ -1130,6 +1137,9 @@
           "i2i"
         ],
         "async": true,
+        "protocol": {
+          "imageProfile": "apimart-grok-imagine"
+        },
         "resolutions": [
           "1K",
           "2K"

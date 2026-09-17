@@ -14,6 +14,7 @@ import {
   Orbit,
   Plus,
   RectangleHorizontal,
+  Search,
   Sparkles,
   Music,
   X,
@@ -24,10 +25,13 @@ import { api, apiUpload } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { BrandAvatar } from "@/components/admin/brand-avatar";
 import type { ModelCapabilities } from "@joyai/shared";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -269,6 +273,8 @@ export function CreationComposer({
   const [refMode, setRefMode] = useState<RefMode>("omni");
   const [models, setModels] = useState<PublicModel[]>([]);
   const [modelId, setModelId] = useState("");
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [modelQuery, setModelQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [editorFocused, setEditorFocused] = useState(false);
@@ -284,6 +290,43 @@ export function CreationComposer({
     () => models.filter((m) => m.kind === kind),
     [models, kind],
   );
+
+  const filteredKindModels = useMemo(() => {
+    const q = modelQuery.trim().toLowerCase();
+    if (!q) return kindModels;
+    return kindModels.filter((m) => {
+      const hay = [
+        m.name,
+        m.remoteId ?? "",
+        m.channel?.name ?? "",
+        m.channel?.platform ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [kindModels, modelQuery]);
+
+  const modelGroups = useMemo(() => {
+    const map = new Map<
+      string,
+      { key: string; label: string; items: PublicModel[] }
+    >();
+    for (const m of filteredKindModels) {
+      const label = m.channel?.name?.trim() || "未分组渠道";
+      const key = m.channel?.name?.trim() || m.channel?.platform || "unknown";
+      let group = map.get(key);
+      if (!group) {
+        group = { key, label, items: [] };
+        map.set(key, group);
+      }
+      group.items.push(m);
+    }
+    return [...map.values()].sort((a, b) =>
+      a.label.localeCompare(b.label, "zh"),
+    );
+  }, [filteredKindModels]);
+
   const selectedModel = kindModels.find((m) => m.id === modelId);
   const caps = selectedModel?.capabilities ?? null;
 
@@ -1113,7 +1156,13 @@ export function CreationComposer({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <DropdownMenu>
+            <DropdownMenu
+              open={modelMenuOpen}
+              onOpenChange={(open) => {
+                setModelMenuOpen(open);
+                if (!open) setModelQuery("");
+              }}
+            >
               <DropdownMenuTrigger asChild>
                 <button type="button" className="joy-chip joy-chip-model">
                   {selectedModel ? (
@@ -1138,42 +1187,71 @@ export function CreationComposer({
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="joy-composer-model-menu min-w-[260px]"
+                className="joy-composer-model-menu min-w-[300px]"
+                onCloseAutoFocus={(e) => e.preventDefault()}
               >
+                <div
+                  className="joy-composer-model-search"
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <Search className="joy-composer-model-search-icon" />
+                  <Input
+                    value={modelQuery}
+                    onChange={(e) => setModelQuery(e.target.value)}
+                    placeholder="搜索模型 / 渠道…"
+                    className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+                    autoFocus
+                  />
+                </div>
+                <DropdownMenuSeparator />
                 {kindModels.length === 0 ? (
                   <DropdownMenuItem disabled>暂无可用模型</DropdownMenuItem>
+                ) : filteredKindModels.length === 0 ? (
+                  <DropdownMenuItem disabled>无匹配模型</DropdownMenuItem>
                 ) : (
-                  kindModels.map((m) => {
-                    const { icon, channel } = modelBrandMeta(m);
-                    const selected = m.id === modelId;
-                    return (
-                      <DropdownMenuItem
-                        key={m.id}
-                        className={cn(
-                          "joy-composer-model-item",
-                          selected && "is-selected",
-                        )}
-                        onClick={() => setModelId(m.id)}
-                      >
-                        <BrandAvatar
-                          src={icon}
-                          label={m.name}
-                          size={22}
-                          rounded="md"
-                        />
-                        <span className="joy-composer-model-item-text">
-                          <span className="joy-composer-model-item-name">
-                            {m.name}
-                            {channel ? (
-                              <span className="joy-composer-model-item-vendor">
-                                （{channel}）
-                              </span>
-                            ) : null}
-                          </span>
+                  modelGroups.map((group, gi) => (
+                    <div key={group.key}>
+                      {gi > 0 ? <DropdownMenuSeparator /> : null}
+                      <DropdownMenuLabel className="joy-composer-model-group">
+                        {group.label}
+                        <span className="joy-composer-model-group-count">
+                          {group.items.length}
                         </span>
-                      </DropdownMenuItem>
-                    );
-                  })
+                      </DropdownMenuLabel>
+                      {group.items.map((m) => {
+                        const { icon } = modelBrandMeta(m);
+                        const selected = m.id === modelId;
+                        return (
+                          <DropdownMenuItem
+                            key={m.id}
+                            className={cn(
+                              "joy-composer-model-item",
+                              selected && "is-selected",
+                            )}
+                            onClick={() => setModelId(m.id)}
+                          >
+                            <BrandAvatar
+                              src={icon}
+                              label={m.name}
+                              size={22}
+                              rounded="md"
+                            />
+                            <span className="joy-composer-model-item-text">
+                              <span className="joy-composer-model-item-name">
+                                {m.name}
+                              </span>
+                              {m.remoteId ? (
+                                <span className="joy-composer-model-item-id">
+                                  {m.remoteId}
+                                </span>
+                              ) : null}
+                            </span>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </div>
+                  ))
                 )}
               </DropdownMenuContent>
             </DropdownMenu>

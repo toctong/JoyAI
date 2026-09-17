@@ -1,5 +1,7 @@
 import type { CatalogModel } from "./helpers";
 import type { ModelCapabilities, ModelPricing } from "../model-meta";
+import { defaultAdapterId } from "../adapters";
+import { inferImageProtocol } from "../protocol";
 import volcengine from "./volcengine.json";
 import dashscope from "./dashscope.json";
 import apimart from "./apimart.json";
@@ -23,6 +25,8 @@ export type CatalogModelJson = {
   /** @deprecated Catalogs no longer include prices; kept for older JSON. */
   pricing?: ModelPricing;
   capabilities: ModelCapabilities;
+  /** Override protocol adapter; else derived from catalog platform + kind. */
+  adapterId?: string;
   isDefault?: boolean;
 };
 
@@ -44,20 +48,63 @@ function syncResolutions(
     : capabilities;
 }
 
-/** Flatten `{ llm, image, video }` → CatalogModel[] with kind injected. */
+function enrichCapabilities(
+  platform: string,
+  kind: (typeof KIND_BLOCKS)[number],
+  remoteId: string,
+  capabilities: ModelCapabilities,
+  adapterId?: string,
+): ModelCapabilities {
+  let caps = { ...capabilities };
+  if (adapterId) caps = { ...caps, adapterId };
+
+  // Stamp inferred image protocol when catalog left it empty (still overridable).
+  if (kind === "image" && !caps.protocol?.imageProfile) {
+    const inferred = inferImageProtocol(platform, remoteId);
+    caps = {
+      ...caps,
+      protocol: {
+        ...inferred,
+        ...caps.protocol,
+        imageProfile: caps.protocol?.imageProfile ?? inferred.imageProfile,
+        modelAlias: caps.protocol?.modelAlias ?? inferred.modelAlias,
+        imagePath: caps.protocol?.imagePath ?? inferred.imagePath,
+      },
+    };
+  }
+
+  return caps;
+}
+
+/** Flatten `{ llm, image, video }` → CatalogModel[] with kind + adapterId. */
 export function flattenChannelCatalog(
   doc: ChannelCatalogJson,
 ): CatalogModel[] {
   const out: CatalogModel[] = [];
+  const platform = String(doc.platform || "").trim();
   for (const kind of KIND_BLOCKS) {
     for (const item of doc[kind] ?? []) {
+      const baseCaps = syncResolutions(item.pricing, item.capabilities);
+      const adapterId =
+        item.adapterId?.trim() ||
+        baseCaps.adapterId?.trim() ||
+        defaultAdapterId(platform, kind) ||
+        undefined;
+      const capabilities = enrichCapabilities(
+        platform,
+        kind,
+        item.remoteId,
+        baseCaps,
+        adapterId,
+      );
       out.push({
         kind,
         name: item.name,
         remoteId: item.remoteId,
         description: item.description,
         pricing: item.pricing,
-        capabilities: syncResolutions(item.pricing, item.capabilities),
+        capabilities,
+        adapterId,
         isDefault: item.isDefault,
       });
     }
