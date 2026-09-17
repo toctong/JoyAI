@@ -439,6 +439,13 @@ function translateEnglishMessage(message: string): string | undefined {
   if (m.includes("fail_to_fetch_task")) {
     return "上游拉取任务失败（渠道不可用、被拦截，或参考素材格式/参数不被该渠道接受）";
   }
+  if (
+    m.includes("image pixel is invalid") ||
+    m.includes("image pixels is invalid") ||
+    m.includes("invalid image pixel")
+  ) {
+    return "参考图像素无效（Kling 需 JPEG/PNG，边长 300–8000px，宽高比约 1:2.5–2.5:1，勿用 WebP）";
+  }
   if (m.includes("generation failed") || m.includes("task processing failed")) {
     return "上游生成失败";
   }

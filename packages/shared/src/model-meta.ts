@@ -72,6 +72,8 @@ export const ModelCapabilitiesSchema = z.object({
   maxRefImageAspect: z.number().optional(),
   /** 单张参考图体积上限（字节） */
   maxRefImageBytes: z.number().int().optional(),
+  /** 允许的参考图扩展名（如 .jpg/.png）；缺省不限制 */
+  refImageExts: z.array(z.string()).optional(),
   /** 单个参考视频体积上限（字节） */
   maxRefVideoBytes: z.number().int().optional(),
   /** 单个参考音频体积上限（字节） */

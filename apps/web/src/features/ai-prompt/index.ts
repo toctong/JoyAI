@@ -7,6 +7,7 @@ export {
 } from "./ai-prompt-helpers";
 export {
   mentionExpandText,
+  normalizeOmniWireMentions,
   serializeForGenerate,
   serializeToPlainText,
   splitPromptForDisplay,

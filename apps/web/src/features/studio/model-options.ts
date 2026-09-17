@@ -469,9 +469,20 @@ export type RefSlotLimits = {
   minImageAspect: number | null;
   maxImageAspect: number | null;
   maxImageBytes: number | null;
+  /** Lowercase extensions with leading dot, e.g. [".jpg",".png"] */
+  imageExts: string[] | null;
   maxVideoBytes: number | null;
   maxAudioBytes: number | null;
 };
+
+const DEFAULT_IMAGE_EXTS = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".gif",
+  ".bmp",
+] as const;
 
 const emptyMediaLimits = {
   minVideoSec: null as number | null,
@@ -484,9 +495,23 @@ const emptyMediaLimits = {
   minImageAspect: null as number | null,
   maxImageAspect: null as number | null,
   maxImageBytes: null as number | null,
+  imageExts: null as string[] | null,
   maxVideoBytes: null as number | null,
   maxAudioBytes: null as number | null,
 };
+
+function normalizeImageExts(exts: string[] | undefined): string[] | null {
+  if (!exts?.length) return null;
+  const out = [
+    ...new Set(
+      exts
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+        .map((e) => (e.startsWith(".") ? e : `.${e}`)),
+    ),
+  ];
+  return out.length ? out : null;
+}
 
 function mediaLimitsFromCaps(
   caps: ModelCapabilities | null | undefined,
@@ -525,6 +550,9 @@ function mediaLimitsFromCaps(
       : null,
     maxImageBytes: opts.allowImage
       ? (caps?.maxRefImageBytes ?? null)
+      : null,
+    imageExts: opts.allowImage
+      ? normalizeImageExts(caps?.refImageExts)
       : null,
     maxVideoBytes: opts.allowVideo
       ? (caps?.maxRefVideoBytes ?? null)
@@ -636,7 +664,28 @@ export function refDropAccept(
 ): Record<string, string[]> | undefined {
   const accept: Record<string, string[]> = {};
   if (limits.images == null || limits.images > 0) {
-    accept["image/*"] = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"];
+    const exts = limits.imageExts?.length
+      ? limits.imageExts
+      : [...DEFAULT_IMAGE_EXTS];
+    // Prefer concrete MIME keys when formats are restricted (blocks WebP picker).
+    if (limits.imageExts?.length) {
+      const mimeByExt: Record<string, string> = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+      };
+      for (const ext of exts) {
+        const mime = mimeByExt[ext];
+        if (!mime) continue;
+        const list = accept[mime] ?? (accept[mime] = []);
+        if (!list.includes(ext)) list.push(ext);
+      }
+    } else {
+      accept["image/*"] = exts;
+    }
   }
   if (limits.videos == null || limits.videos > 0) {
     accept["video/*"] = [".mp4", ".mov", ".webm", ".m4v"];
@@ -650,11 +699,22 @@ export function refDropAccept(
 /** Short chip / aria label for what the current model actually accepts. */
 export function refUploadHint(limits: RefSlotLimits): string {
   const parts: string[] = [];
-  if (limits.images == null || limits.images > 0) parts.push("图");
+  if (limits.images == null || limits.images > 0) {
+    if (limits.imageExts?.length) {
+      const labels = limits.imageExts
+        .map((e) => e.replace(/^\./, "").toUpperCase())
+        .filter((v, i, a) => a.indexOf(v) === i);
+      parts.push(labels.length ? `图(${labels.join("/")})` : "图");
+    } else {
+      parts.push("图");
+    }
+  }
   if (limits.videos == null || limits.videos > 0) parts.push("视频");
   if (limits.audios == null || limits.audios > 0) parts.push("音频");
   if (parts.length === 0) return "参考内容";
-  if (parts.length === 1 && parts[0] === "图") return "参考图";
+  if (parts.length === 1 && parts[0]?.startsWith("图")) {
+    return parts[0] === "图" ? "参考图" : `参考${parts[0]}`;
+  }
   return `参考${parts.join("/")}`;
 }
 
@@ -721,12 +781,37 @@ function formatBytes(n: number): string {
   return `${n}B`;
 }
 
+function fileExtLower(name: string): string {
+  const m = name.toLowerCase().match(/(\.[a-z0-9]+)$/);
+  return m?.[1] ?? "";
+}
+
 /** Validate image dimensions / bytes against catalog limits. */
 export function validateRefImageConstraints(
   file: File,
   size: { width: number; height: number },
   limits: RefSlotLimits,
 ): string | null {
+  if (limits.imageExts?.length) {
+    const ext = fileExtLower(file.name);
+    const mime = file.type.toLowerCase();
+    const okExt = ext ? limits.imageExts.includes(ext) : false;
+    const okMime =
+      (mime === "image/jpeg" &&
+        (limits.imageExts.includes(".jpg") ||
+          limits.imageExts.includes(".jpeg"))) ||
+      (mime === "image/png" && limits.imageExts.includes(".png")) ||
+      (mime === "image/webp" && limits.imageExts.includes(".webp")) ||
+      (mime === "image/gif" && limits.imageExts.includes(".gif")) ||
+      (mime === "image/bmp" && limits.imageExts.includes(".bmp"));
+    if (!okExt && !okMime) {
+      const allowed = limits.imageExts
+        .map((e) => e.replace(/^\./, "").toUpperCase())
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .join("/");
+      return `参考图仅支持 ${allowed}（不支持 WebP 等格式）`;
+    }
+  }
   if (limits.maxImageBytes != null && file.size > limits.maxImageBytes) {
     return `参考图不能超过 ${formatBytes(limits.maxImageBytes)}（${file.name} 约 ${formatBytes(file.size)}）`;
   }

@@ -1240,6 +1240,7 @@
     {
       "name": "Seedance 2.5",
       "remoteId": "seedance-2-5",
+      "description": "多模态参考/编辑/延长；图≤30 视频≤10 音频≤10；时长 4–30s",
       "capabilities": {
         "input": [
           "text",
@@ -1250,7 +1251,9 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 9,
+        "maxRefImages": 30,
+        "maxRefVideos": 10,
+        "maxRefAudios": 10,
         "async": true,
         "features": [
           "t2v",
@@ -1261,6 +1264,7 @@
           "audio",
           "ref-video"
         ],
+        "minDurationSec": 4,
         "maxDurationSec": 30,
         "resolutions": [
           "480p",
@@ -1276,8 +1280,6 @@
           "9:16",
           "adaptive"
         ],
-        "maxRefVideos": 3,
-        "maxRefAudios": 3,
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
@@ -1293,6 +1295,7 @@
     {
       "name": "Kling V3",
       "remoteId": "kling-v3",
+      "description": "mode=std/pro；参考图用 reference_images，首尾帧用 image_with_roles",
       "capabilities": {
         "input": [
           "text",
@@ -1309,11 +1312,11 @@
           "first-last-frame",
           "audio"
         ],
+        "minDurationSec": 3,
         "maxDurationSec": 15,
         "resolutions": [
           "720P",
-          "1080P",
-          "4K"
+          "1080P"
         ],
         "ratios": [
           "16:9",
@@ -1325,7 +1328,7 @@
     {
       "name": "Kling V3 Omni",
       "remoteId": "kling-v3-omni",
-      "description": "Omni 多模态：metadata.image_list + video_list；prompt 用 <<<image_N>>> / <<<video_N>>>",
+      "description": "Omni 多模态；参考图须 JPEG/PNG、宽高 300–8000px；提示词用 @图片N / @视频N",
       "capabilities": {
         "input": [
           "text",
@@ -1347,16 +1350,26 @@
           "first-last-frame",
           "audio"
         ],
+        "minDurationSec": 3,
         "maxDurationSec": 15,
         "resolutions": [
           "720P",
-          "1080P",
-          "4K"
+          "1080P"
         ],
         "ratios": [
           "16:9",
           "9:16",
           "1:1"
+        ],
+        "minRefImageSidePx": 300,
+        "maxRefImageSidePx": 8000,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 10485760,
+        "refImageExts": [
+          ".jpg",
+          ".jpeg",
+          ".png"
         ]
       }
     },
@@ -1394,6 +1407,7 @@
     {
       "name": "MiniMax Hailuo 2.3",
       "remoteId": "MiniMax-Hailuo-2.3",
+      "description": "文/图生；时长仅 6/10s；1080P 仅 6s；短边 >300px",
       "capabilities": {
         "input": [
           "text",
@@ -1408,16 +1422,53 @@
           "t2v",
           "i2v"
         ],
+        "minDurationSec": 6,
         "maxDurationSec": 10,
-        "resolutions": [
-          "768p",
-          "1080p"
+        "durationOptions": [
+          6,
+          10
         ],
-        "ratios": [
-          "16:9",
-          "9:16",
-          "1:1"
-        ]
+        "resolutions": [
+          "768P",
+          "1080P"
+        ],
+        "minRefImageSidePx": 301,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 20971520
+      }
+    },
+    {
+      "name": "MiniMax Hailuo 2.3 Fast",
+      "remoteId": "MiniMax-Hailuo-2.3-Fast",
+      "description": "仅图生视频（必传首帧）；时长 6/10s",
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 1,
+        "async": true,
+        "features": [
+          "i2v"
+        ],
+        "minDurationSec": 6,
+        "maxDurationSec": 10,
+        "durationOptions": [
+          6,
+          10
+        ],
+        "resolutions": [
+          "768P",
+          "1080P"
+        ],
+        "minRefImageSidePx": 301,
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 20971520
       }
     },
     {
@@ -1569,41 +1620,37 @@
     {
       "name": "HappyHorse 1.1",
       "remoteId": "happyhorse-1.1",
+      "description": "action 区分文生/首帧/参考图/视频编辑；图生画幅跟首帧",
       "capabilities": {
         "input": [
           "text",
-          "image"
+          "image",
+          "video"
         ],
         "output": [
           "video"
         ],
         "maxRefImages": 9,
+        "maxRefVideos": 1,
         "async": true,
         "features": [
           "t2v",
-          "i2v"
+          "i2v",
+          "r2v",
+          "omni-ref",
+          "first-last-frame",
+          "ref-video",
+          "i2v-follows-source-aspect"
         ],
-        "maxDurationSec": 15,
-        "resolutions": [
-          "720P",
-          "1080P"
-        ],
-        "ratios": [
-          "16:9",
-          "9:16",
-          "1:1",
-          "4:3",
-          "3:4",
-          "4:5",
-          "5:4",
-          "9:21",
-          "21:9"
-        ]
+        "minRefImageAspect": 0.4,
+        "maxRefImageAspect": 2.5,
+        "maxRefImageBytes": 10485760
       }
     },
     {
-      "name": "Vidu Q2 Pro",
-      "remoteId": "viduq2-pro",
+      "name": "Vidu Q3 Pro",
+      "remoteId": "viduq3-pro",
+      "description": "高质量；文/图/首尾帧；时长 1–16s；默认有声",
       "capabilities": {
         "input": [
           "text",
@@ -1617,8 +1664,10 @@
         "features": [
           "t2v",
           "i2v",
-          "first-last-frame"
+          "first-last-frame",
+          "audio"
         ],
+        "minDurationSec": 1,
         "maxDurationSec": 16,
         "resolutions": [
           "540p",
@@ -1630,6 +1679,121 @@
           "9:16",
           "1:1"
         ]
+      }
+    },
+    {
+      "name": "Vidu Q3 Turbo",
+      "remoteId": "viduq3-turbo",
+      "description": "快速档；文/图/首尾帧；时长 1–16s",
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 2,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "first-last-frame",
+          "audio"
+        ],
+        "minDurationSec": 1,
+        "maxDurationSec": 16,
+        "resolutions": [
+          "540p",
+          "720p",
+          "1080p"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ]
+      }
+    },
+    {
+      "name": "Vidu Q3",
+      "remoteId": "viduq3",
+      "description": "多参考图/Subjects；必填参考图最多 7 张；时长 3–16s",
+      "capabilities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 7,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "r2v",
+          "omni-ref",
+          "audio"
+        ],
+        "minDurationSec": 3,
+        "maxDurationSec": 16,
+        "resolutions": [
+          "540p",
+          "720p",
+          "1080p"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ]
+      }
+    },
+    {
+      "name": "Wan 3.0",
+      "remoteId": "wan3.0-video",
+      "description": "全能：文生/首尾帧/图+视频+音频参考（首尾帧与参考互斥）",
+      "capabilities": {
+        "input": [
+          "text",
+          "image",
+          "video",
+          "audio"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 10,
+        "maxRefVideos": 5,
+        "maxRefAudios": 5,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "r2v",
+          "omni-ref",
+          "first-last-frame",
+          "audio",
+          "ref-video"
+        ],
+        "minDurationSec": 2,
+        "maxDurationSec": 30,
+        "resolutions": [
+          "480p",
+          "720p",
+          "1080p"
+        ],
+        "ratios": [
+          "adaptive",
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "maxRefVideoDurationSec": 15,
+        "maxRefAudioDurationSec": 15
       }
     },
     {

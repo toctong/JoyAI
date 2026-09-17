@@ -19,9 +19,23 @@ export type MentionResolveItem = {
 /**
  * Wire / display: `@图片1` `@视频1` `@音频1`（兼容 `@图1` / 旧 `{{Image 1}}`）。
  * 与后文数字相邻时会插入空格，避免 `@图片3`+`3个人` 被吃成 `@图片33`。
+ * Kling Omni 上游用的 `<<<video_1>>>` 仅在 provider 层转换，编辑器侧一律归一成 `@…`。
  */
 const AT_PREFIX_RE = /@(图片|视频|音频|图)/y;
 const BRACE_RE = /\{\{(Image|Video|Audio)\s+(\d+)\}\}/y;
+const OMNI_WIRE_RE = /<<<(image|video|element)_(\d+)>>>/gi;
+
+/** Normalize Kling Omni wire tokens → JoyAI @ mentions (for editor / history). */
+export function normalizeOmniWireMentions(text: string): string {
+  return String(text ?? "").replace(
+    OMNI_WIRE_RE,
+    (_m, kind: string, n: string) => {
+      const k = kind.toLowerCase();
+      if (k === "video") return `@视频${n}`;
+      return `@图片${n}`;
+    },
+  );
+}
 
 export function mentionExpandText(
   mediaKind: "image" | "video" | "audio" | "text",
@@ -41,7 +55,7 @@ export function mentionLabel(
 
 /** Detect whether wire text still contains raw mention tokens. */
 export function hasMentionWireToken(text: string): boolean {
-  return /@(?:图片|视频|音频|图)\d|\{\{(?:Image|Video|Audio)\s+\d+\}\}/i.test(
+  return /@(?:图片|视频|音频|图)\d|\{\{(?:Image|Video|Audio)\s+\d+\}\}|<<<(?:image|video|element)_\d+>>>/i.test(
     String(text ?? ""),
   );
 }
@@ -367,7 +381,7 @@ export function plainTextToDoc(
   text: string,
   mentionItems?: MentionResolveItem[],
 ): JSONContent {
-  const lines = String(text ?? "")
+  const lines = normalizeOmniWireMentions(String(text ?? ""))
     .replace(/\r\n/g, "\n")
     .split("\n");
   if (!lines.length || (lines.length === 1 && !lines[0])) {
@@ -402,7 +416,7 @@ export function splitPromptForDisplay(
   text: string,
   referenceUrls: string[] = [],
 ): PromptDisplayPart[] {
-  const src = String(text ?? "");
+  const src = normalizeOmniWireMentions(String(text ?? ""));
   if (!src) return [];
 
   const imageUrls = referenceUrls.filter(

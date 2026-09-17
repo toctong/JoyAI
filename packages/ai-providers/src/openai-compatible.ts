@@ -710,27 +710,57 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
 
   const id = model.toLowerCase();
 
-  // Seedance 2 family (ToAPIs): multimodal refs use *_with_roles, not image_urls.
+  // Seedance 2.5 — larger caps; do not share seedance-2 branch.
+  // @see https://docs.toapis.com/docs/cn/api-reference/videos/seedance-2-5/generation
+  if (/^seedance-2-5\b/i.test(id)) {
+    const partitioned = partitionToapisRefs(input);
+    if (resolution) body.resolution = resolution;
+    body.prompt = rewriteSeedancePromptMentions(String(body.prompt ?? ""));
+
+    const firstLast = input.refMode === "first_last";
+    if (firstLast) {
+      body.aspect_ratio = "adaptive";
+      const roles: Array<{ url: string; role: string }> = [];
+      if (partitioned.images[0]) {
+        roles.push({ url: partitioned.images[0], role: "first_frame" });
+      }
+      if (partitioned.images[1]) {
+        roles.push({ url: partitioned.images[1], role: "last_frame" });
+      }
+      if (roles.length) body.image_with_roles = roles;
+    } else {
+      if (partitioned.images.length) {
+        body.image_with_roles = partitioned.images
+          .slice(0, 30)
+          .map((url) => ({ url, role: "reference_image" }));
+      }
+      if (partitioned.videos.length) {
+        body.video_with_roles = partitioned.videos
+          .slice(0, 10)
+          .map((url) => ({ url, role: "reference_video" }));
+      }
+      if (partitioned.audios.length) {
+        body.audio_with_roles = partitioned.audios
+          .slice(0, 10)
+          .map((url) => ({ url, role: "reference_audio" }));
+      }
+    }
+    if (typeof body.duration === "number" && body.duration > 0) {
+      body.duration = Math.min(30, Math.max(4, Math.round(body.duration)));
+    }
+    return body;
+  }
+
+  // Seedance 2 / mini / fast (not 2.5)
   // @see https://docs.toapis.com/docs/cn/api-reference/videos/seedance-2/generation
-  if (/^seedance-2\b/i.test(id)) {
+  if (/^seedance-2(-mini|-fast)?$/i.test(id)) {
     const partitioned = partitionToapisRefs(input);
     let res = resolution;
     if (res && /mini|fast/i.test(id) && /^(1080p|4k)$/i.test(res)) {
       res = "720p";
     }
     if (res) body.resolution = res;
-
-    // Docs: prompt refers to 图片1 / 视频1 / 音频1 (no leading @)
-    body.prompt = String(body.prompt ?? "")
-      .replace(/@(图片|视频|音频|图)(\d+)/g, (_m, k: string, n: string) =>
-        k === "图" ? `图片${n}` : `${k}${n}`,
-      )
-      .replace(/\{\{(Image|Video|Audio)\s+(\d+)\}\}/gi, (_m, kind: string, n: string) => {
-        const k = kind.toLowerCase();
-        if (k === "video") return `视频${n}`;
-        if (k === "audio") return `音频${n}`;
-        return `图片${n}`;
-      });
+    body.prompt = rewriteSeedancePromptMentions(String(body.prompt ?? ""));
 
     const firstLast = input.refMode === "first_last";
     if (firstLast) {
@@ -762,17 +792,60 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
     return body;
   }
 
+  // Kling V3 (not Omni): mode + reference_images / image_with_roles
+  // @see https://docs.toapis.com/docs/cn/api-reference/videos/kling-v3/generation
+  if (/^kling-v3$/i.test(id)) {
+    const partitioned = partitionToapisRefs(input);
+    const images = partitioned.images;
+    const r = (resolution ?? "").toLowerCase();
+    body.mode =
+      r.includes("1080") || r.includes("4k") || r.includes("pro")
+        ? "pro"
+        : "std";
+    delete body.resolution;
+    if (typeof body.duration === "number") {
+      body.duration = Math.min(15, Math.max(3, Math.round(body.duration)));
+    }
+    if (input.refMode === "first_last" && images.length > 0) {
+      const roles: Array<{ url: string; role: string }> = [
+        { url: images[0]!, role: "first_frame" },
+      ];
+      if (images[1]) roles.push({ url: images[1], role: "last_frame" });
+      body.image_with_roles = roles;
+    } else if (images.length > 0) {
+      body.reference_images = images.slice(0, 2);
+    }
+    return body;
+  }
+
   // Kling V3 Omni: metadata.image_list + video_list; prompt <<<image_N>>> / <<<video_N>>>
   // @see https://docs.toapis.com/docs/cn/api-reference/videos/kling-v3-omni/generation
+  // Upstream image rules (Kling): JPEG/JPG/PNG only, side 300–8000px, no alpha/WebP.
   if (/kling-v3-omni/i.test(id)) {
     const partitioned = partitionToapisRefs(input);
     const r = (resolution ?? "").toLowerCase();
     body.mode = r.includes("1080") || r.includes("4k") ? "pro" : "std";
-    // Official dialect uses mode, not resolution
     delete body.resolution;
 
     const images = partitioned.images.slice(0, 4);
     const videos = partitioned.videos.slice(0, 1);
+
+    for (const imageUrl of images) {
+      assertKlingOmniImageUrl(imageUrl);
+    }
+
+    if (typeof body.duration === "number") {
+      body.duration = Math.min(15, Math.max(3, Math.round(body.duration)));
+    }
+
+    // With a reference video, character/subject images belong in element_list
+    // only for Kling asset-library elements. Arbitrary uploads use image_list
+    // + video_list (<<<image_N>>> / <<<video_N>>>); element_list caused
+    // "Element id not found: 0" with plain image URLs.
+    //
+    // ToAPIs docs show video_list at top-level, but this gateway rejects that
+    // and accepts metadata.video_list in practice — keep it under metadata.
+    const metadata: Record<string, unknown> = {};
 
     if (input.refMode === "first_last" && images.length > 0) {
       const imageList: Array<Record<string, string>> = [
@@ -781,28 +854,40 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
       if (images[1]) {
         imageList.push({ image_url: images[1], type: "end_frame" });
       }
-      body.metadata = { image_list: imageList };
+      metadata.image_list = imageList;
+      body.prompt = rewriteKlingOmniPlaceholders(String(body.prompt ?? ""), {
+        images: images.length,
+        videos: 0,
+      });
     } else if (images.length > 0) {
-      body.metadata = {
-        image_list: images.map((image_url) => ({ image_url })),
-      };
+      metadata.image_list = images.map((image_url) => ({ image_url }));
+      body.prompt = rewriteKlingOmniPlaceholders(String(body.prompt ?? ""), {
+        images: images.length,
+        videos: videos.length,
+      });
+    } else {
+      body.prompt = rewriteKlingOmniPlaceholders(String(body.prompt ?? ""), {
+        images: 0,
+        videos: videos.length,
+      });
     }
 
     // audio=true is mutually exclusive with video_list
     if (videos.length > 0) {
-      body.video_list = [
+      metadata.video_list = [
         {
           video_url: videos[0],
           refer_type: "base",
           keep_original_sound: "no",
         },
       ];
+      delete body.audio;
+      delete body.video_list;
     }
 
-    body.prompt = rewriteKlingOmniPlaceholders(String(body.prompt ?? ""), {
-      images: images.length,
-      videos: videos.length,
-    });
+    if (Object.keys(metadata).length > 0) {
+      body.metadata = metadata;
+    }
     return body;
   }
 
@@ -893,7 +978,128 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
     return body;
   }
 
-  // Gemini Omni / Veo / Kling / default ToAPIs video
+  // MiniMax Hailuo 2.3 / Fast — image_urls first frame; duration 6|10; 1080P→6s only
+  // @see https://docs.toapis.com/docs/cn/api-reference/videos/minimax-hailuo-2.3/generation
+  if (/minimax-hailuo-2\.3/i.test(id)) {
+    const r = (resolution ?? "768P").toLowerCase();
+    body.resolution = r.includes("1080") ? "1080P" : "768P";
+
+    let duration =
+      typeof input.duration === "number" && Number.isFinite(input.duration)
+        ? Math.round(input.duration)
+        : 6;
+    if (duration !== 6 && duration !== 10) {
+      duration = Math.abs(duration - 6) <= Math.abs(duration - 10) ? 6 : 10;
+    }
+    if (body.resolution === "1080P") duration = 6;
+    body.duration = duration;
+
+    const images = partitionToapisRefs(input).images;
+    if (/fast/i.test(id) && images.length === 0) {
+      throw new Error(
+        "MiniMax-Hailuo-2.3-Fast 仅支持图生视频，请上传 1 张首帧图",
+      );
+    }
+    if (images.length > 0) body.image_urls = [images[0]!];
+    delete body.aspect_ratio;
+    return body;
+  }
+
+  // HappyHorse 1.1 — action + image_urls / reference_images / url
+  // @see https://docs.toapis.com/docs/cn/api-reference/videos/happyhorse/generation
+  if (/happyhorse-1\.1/i.test(id)) {
+    const partitioned = partitionToapisRefs(input);
+    if (resolution) {
+      body.resolution = /1080/i.test(resolution) ? "1080P" : "720P";
+    }
+    if (typeof body.duration === "number") {
+      body.duration = Math.min(15, Math.max(3, Math.round(body.duration)));
+    }
+
+    if (partitioned.videos.length > 0) {
+      body.action = "video-edit";
+      body.url = partitioned.videos[0];
+      if (partitioned.images.length) {
+        body.reference_images = partitioned.images.slice(0, 5);
+      }
+      delete body.aspect_ratio;
+    } else if (input.refMode === "first_last" && partitioned.images.length > 0) {
+      body.action = "image-to-video";
+      body.image_urls = [partitioned.images[0]!];
+      delete body.aspect_ratio;
+    } else if (input.refMode === "omni" && partitioned.images.length > 0) {
+      body.action = "reference-to-video";
+      body.reference_images = partitioned.images.slice(0, 9);
+    } else if (partitioned.images.length > 0) {
+      body.action = "image-to-video";
+      body.image_urls = [partitioned.images[0]!];
+      delete body.aspect_ratio;
+    } else {
+      body.action = "text-to-video";
+    }
+    return body;
+  }
+
+  // Wan 3.0 All-in-One — wan3.0-video
+  // @see https://docs.toapis.com/docs/cn/api-reference/videos/wan3.0/generation
+  if (/^wan3\.0-video$/i.test(id) || /^wan3\.0$/i.test(id)) {
+    body.model = "wan3.0-video";
+    const partitioned = partitionToapisRefs(input);
+    if (input.ratio) {
+      body.ratio = input.ratio;
+      delete body.aspect_ratio;
+    }
+    if (resolution) body.resolution = resolution;
+    if (typeof body.duration === "number") {
+      body.duration = Math.min(30, Math.max(2, Math.round(body.duration)));
+    }
+    body.audio = true;
+
+    const firstLast = input.refMode === "first_last";
+    if (firstLast && partitioned.images.length > 0) {
+      const roles: Array<{ url: string; role: string }> = [
+        { url: partitioned.images[0]!, role: "first_frame" },
+      ];
+      if (partitioned.images[1]) {
+        roles.push({ url: partitioned.images[1], role: "last_frame" });
+      }
+      body.image_with_roles = roles;
+      if (!body.ratio) body.ratio = "adaptive";
+    } else {
+      if (partitioned.images.length) {
+        body.reference_images = partitioned.images.slice(0, 10);
+      }
+      if (partitioned.videos.length) {
+        body.video_list = partitioned.videos
+          .slice(0, 5)
+          .map((video_url) => ({ video_url }));
+      }
+      if (partitioned.audios.length) {
+        body.audio_with_roles = partitioned.audios
+          .slice(0, 5)
+          .map((url) => ({ url, role: "reference_audio" }));
+      }
+    }
+    body.prompt = rewriteSeedancePromptMentions(String(body.prompt ?? ""));
+    return body;
+  }
+
+  // Vidu Q3 — image_urls (+ optional audio)
+  // @see https://docs.toapis.com/docs/cn/api-reference/videos/viduq3/generation
+  if (/^viduq3/i.test(id)) {
+    const images = partitionToapisRefs(input).images;
+    if (resolution) body.resolution = resolution.toLowerCase();
+    const maxImgs = /^viduq3$/i.test(id) ? 7 : 2;
+    if (images.length) body.image_urls = images.slice(0, maxImgs);
+    if (body.audio == null) body.audio = true;
+    if (typeof body.duration === "number") {
+      const min = /^viduq3$/i.test(id) ? 3 : 1;
+      body.duration = Math.min(16, Math.max(min, Math.round(body.duration)));
+    }
+    return body;
+  }
+
+  // Gemini Omni / Veo / Kling Turbo / default ToAPIs video
   if (resolution) body.resolution = resolution;
   if (refs.length > 0) {
     // Legacy Omni Flash: image_urls 仅允许 0 / 1 / 3 张，禁止 2 张
@@ -944,12 +1150,46 @@ function partitionToapisRefs(input: VideoSubmitInput): {
   return { images, videos, audios };
 }
 
-/** Map JoyAI @图片N / @视频N → Kling Omni <<<image_N>>> / <<<video_N>>>. */
+/** Docs: prompt refers to 图片1 / 视频1 / 音频1 (no leading @). */
+function rewriteSeedancePromptMentions(prompt: string): string {
+  return prompt
+    .replace(/@(图片|视频|音频|图)(\d+)/g, (_m, k: string, n: string) =>
+      k === "图" ? `图片${n}` : `${k}${n}`,
+    )
+    .replace(
+      /\{\{(Image|Video|Audio)\s+(\d+)\}\}/gi,
+      (_m, kind: string, n: string) => {
+        const k = kind.toLowerCase();
+        if (k === "video") return `视频${n}`;
+        if (k === "audio") return `音频${n}`;
+        return `图片${n}`;
+      },
+    );
+}
+
+/**
+ * Map JoyAI `@图片N` / `@视频N` → Kling Omni wire placeholders.
+ * UI / job storage always keep `@…`; `<<<…>>>` is only for the upstream body.
+ */
 function rewriteKlingOmniPlaceholders(
   prompt: string,
   counts: { images: number; videos: number },
 ): string {
-  let out = prompt
+  // Normalize any leaked Omni wire tokens back to JoyAI @ mentions first
+  let out = String(prompt ?? "")
+    .replace(/<<<image_(\d+)>>>/gi, (_m, n: string) => `@图片${n}`)
+    .replace(/<<<element_(\d+)>>>/gi, (_m, n: string) => `@图片${n}`)
+    .replace(/<<<video_(\d+)>>>/gi, (_m, n: string) => `@视频${n}`);
+
+  // Ensure refs are mentioned in @ form when the model requires them
+  if (counts.videos > 0 && !/@视频\d+/.test(out)) {
+    out = `${out} @视频1`.trim();
+  }
+  if (counts.images > 0 && !/@(?:图片|图)\d+/.test(out)) {
+    out = `${out} @图片1`.trim();
+  }
+
+  out = out
     .replace(/@(图片|图)(\d+)/g, (_m, _k: string, n: string) => {
       const i = Number(n);
       return i >= 1 && i <= counts.images ? `<<<image_${i}>>>` : _m;
@@ -967,13 +1207,16 @@ function rewriteKlingOmniPlaceholders(
       return i >= 1 && i <= counts.videos ? `<<<video_${i}>>>` : _m;
     });
 
-  if (counts.videos > 0 && !/<<<video_\d+>>>/.test(out)) {
-    out = `${out} <<<video_1>>>`.trim();
+  return out.replace(/>>><<</g, ">>> <<<");
+}
+
+function assertKlingOmniImageUrl(url: string) {
+  const path = url.split("?")[0]?.toLowerCase() ?? "";
+  if (/\.(webp|gif|bmp|tiff?|heic|avif)$/i.test(path)) {
+    throw new Error(
+      "Kling V3 Omni 参考图仅支持 JPEG/JPG/PNG（不支持 WebP 等格式），请换一张图再试",
+    );
   }
-  if (counts.images > 0 && !/<<<image_\d+>>>/.test(out)) {
-    out = `${out} <<<image_1>>>`.trim();
-  }
-  return out;
 }
 
 function buildGenericOpenAIVideoBody(

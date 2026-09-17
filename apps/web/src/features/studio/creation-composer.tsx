@@ -38,6 +38,7 @@ import {
   AiPromptEditor,
   getGeneratePayload,
   mentionExpandText,
+  normalizeOmniWireMentions,
   setEditorPlainText,
 } from "@/features/ai-prompt";
 import { SLASH_COMMANDS } from "@/features/ai-prompt/slash-items";
@@ -908,7 +909,9 @@ export function CreationComposer({
 
   async function submit() {
     const payload = getGeneratePayload(editorRef.current);
-    const promptText = payload.prompt.trim() || prompt.trim();
+    const promptText = normalizeOmniWireMentions(
+      payload.prompt.trim() || prompt.trim(),
+    );
     if (!promptText) {
       toast.error("请输入提示词");
       return;

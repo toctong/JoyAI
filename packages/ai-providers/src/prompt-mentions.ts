@@ -43,7 +43,12 @@ export function rewritePromptMentionsForApi(
   prompt: string,
   opts?: { maxImages?: number; maxVideos?: number; maxAudios?: number },
 ): string {
-  let out = String(prompt ?? "").replace(/\u200B/g, "");
+  let out = String(prompt ?? "")
+    .replace(/\u200B/g, "")
+    // Kling Omni wire → JoyAI @ (providers convert again if needed)
+    .replace(/<<<image_(\d+)>>>/gi, (_m, n: string) => `@图片${n}`)
+    .replace(/<<<element_(\d+)>>>/gi, (_m, n: string) => `@图片${n}`)
+    .replace(/<<<video_(\d+)>>>/gi, (_m, n: string) => `@视频${n}`);
   if (!out) return out;
 
   out = out.replace(WIRE_RE, (_full, kind: string, index: string) => {
