@@ -698,24 +698,16 @@ export function refDropAccept(
 
 /** Short chip / aria label for what the current model actually accepts. */
 export function refUploadHint(limits: RefSlotLimits): string {
-  const parts: string[] = [];
-  if (limits.images == null || limits.images > 0) {
-    if (limits.imageExts?.length) {
-      const labels = limits.imageExts
-        .map((e) => e.replace(/^\./, "").toUpperCase())
-        .filter((v, i, a) => a.indexOf(v) === i);
-      parts.push(labels.length ? `图(${labels.join("/")})` : "图");
-    } else {
-      parts.push("图");
-    }
-  }
-  if (limits.videos == null || limits.videos > 0) parts.push("视频");
-  if (limits.audios == null || limits.audios > 0) parts.push("音频");
-  if (parts.length === 0) return "参考内容";
-  if (parts.length === 1 && parts[0]?.startsWith("图")) {
-    return parts[0] === "图" ? "参考图" : `参考${parts[0]}`;
-  }
-  return `参考${parts.join("/")}`;
+  const allowImage = limits.images == null || limits.images > 0;
+  const allowVideo = limits.videos == null || limits.videos > 0;
+  const allowAudio = limits.audios == null || limits.audios > 0;
+  const n =
+    Number(allowImage) + Number(allowVideo) + Number(allowAudio);
+  if (n === 0) return "参考";
+  if (n >= 2) return "参考";
+  if (allowVideo) return "视频";
+  if (allowAudio) return "音频";
+  return "参考图";
 }
 
 export function probeMediaDurationSec(file: File): Promise<number> {
