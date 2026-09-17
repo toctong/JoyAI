@@ -16,6 +16,7 @@ export * from "./error-codes";
 export * from "./http-error";
 export * from "./image-size";
 export * from "./param-map";
+export * from "./prompt-mentions";
 export * from "./volcengine";
 export * from "./openai-compatible";
 export * from "./dashscope-video";

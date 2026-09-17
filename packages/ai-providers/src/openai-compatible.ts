@@ -15,6 +15,7 @@ import type {
 } from "./types";
 import { formatProviderErrorBody } from "./http-error";
 import { resolveImageSize } from "./image-size";
+import { rewritePromptMentionsForApi } from "./prompt-mentions";
 
 function authHeaders(apiKey: string) {
   return {
@@ -485,14 +486,16 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
   constructor(readonly platform: string) {}
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
-    const protocol = resolveInputImageProtocol(this.platform, input);
-    const body = buildImageBodyByProfile(this.platform, input, protocol);
-    const imagePath = resolveImagePath(this.platform, input.model, protocol);
+    const prompt = rewritePromptMentionsForApi(input.prompt);
+    const next = prompt === input.prompt ? input : { ...input, prompt };
+    const protocol = resolveInputImageProtocol(this.platform, next);
+    const body = buildImageBodyByProfile(this.platform, next, protocol);
+    const imagePath = resolveImagePath(this.platform, next.model, protocol);
 
-    const base = normalizeBase(input.baseUrl);
+    const base = normalizeBase(next.baseUrl);
     const path = `${base}/images/${imagePath}`;
     const { data } = await axios.post(path, body, {
-      headers: authHeaders(input.apiKey),
+      headers: authHeaders(next.apiKey),
       timeout: 180_000,
       validateStatus: () => true,
     });
@@ -503,10 +506,10 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
     const taskId = extractTaskId(data);
 
     // Catalog `async: true` → prefer task poll when a task id is present
-    if (input.async && taskId) {
+    if (next.async && taskId) {
       return this.pollImageTask({
         taskId,
-        apiKey: input.apiKey,
+        apiKey: next.apiKey,
         baseUrl: base,
         rawSubmit: data,
       });
@@ -524,13 +527,13 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
     if (taskId) {
       return this.pollImageTask({
         taskId,
-        apiKey: input.apiKey,
+        apiKey: next.apiKey,
         baseUrl: base,
         rawSubmit: data,
       });
     }
 
-    if (input.async) {
+    if (next.async) {
       throw new Error(
         formatProviderErrorBody(data, undefined, {
           platform: this.platform,
@@ -708,6 +711,7 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
     if (resolution) metadata.resolution = resolution;
     body.metadata = metadata;
     if (refs.length > 0) {
+      // 1.5 Pro: 仅首尾帧，无 reference 角色；优先 image_with_roles
       const roles: Array<{ url: string; role: string }> = [
         { url: refs[0]!, role: "first_frame" },
       ];
@@ -718,25 +722,24 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
   }
 
   if (id.includes("doubao-seedance-1-0")) {
+    const isFast = id.includes("fast");
     let res = resolution;
+
     if (refs.length > 0) {
-      const roles: Array<{ url: string; role: string }> = [];
-      if (input.refMode === "first_last") {
-        roles.push({ url: refs[0]!, role: "first_frame" });
-        if (refs[1] && id.includes("quality")) {
-          roles.push({ url: refs[1], role: "last_frame" });
-        }
-      } else if (refs.length === 1) {
-        roles.push({ url: refs[0]!, role: "reference" });
-        // docs: reference role cannot use 1080p
-        if (res === "1080p") res = "720p";
+      if (isFast) {
+        // Fast: 仅单图图生视频；用 image_urls（1 张=首帧）。不支持 last_frame。
+        body.image_urls = [refs[0]!];
+      } else if (
+        input.refMode === "first_last" ||
+        refs.length >= 2
+      ) {
+        // Quality: 1 张=首帧，2 张=首+尾（docs image_urls 兼容规则）
+        body.image_urls = refs.slice(0, 2);
       } else {
-        roles.push({ url: refs[0]!, role: "first_frame" });
-        if (refs[1] && id.includes("quality")) {
-          roles.push({ url: refs[1], role: "last_frame" });
-        }
+        // 单张风格参考
+        body.image_with_roles = [{ url: refs[0]!, role: "reference" }];
+        if (res === "1080p") res = "720p";
       }
-      body.image_with_roles = roles;
     }
     if (res) body.resolution = res;
     return body;
@@ -795,18 +798,25 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
   constructor(readonly platform: string) {}
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {
+    const prompt = rewritePromptMentionsForApi(input.prompt);
+    const withMentions =
+      prompt === input.prompt ? input : { ...input, prompt };
     const isToapis = this.platform.trim().toLowerCase() === "toapis";
-    let submitInput = input;
-    if (isToapis && input.refMode === "first_last" && input.firstLastViaPrompt) {
+    let submitInput = withMentions;
+    if (
+      isToapis &&
+      withMentions.refMode === "first_last" &&
+      withMentions.firstLastViaPrompt
+    ) {
       // ToAPIs Seedance/Grok use native roles; skip prompt-prefix fallback.
-      submitInput = { ...input, firstLastViaPrompt: false };
+      submitInput = { ...withMentions, firstLastViaPrompt: false };
     }
 
     const body = isToapis
       ? buildToapisVideoBody(submitInput)
       : buildGenericOpenAIVideoBody(submitInput);
 
-    const base = normalizeBase(input.baseUrl);
+    const base = normalizeBase(withMentions.baseUrl);
     const paths = [
       `${base}/videos/generations`,
       `${base}/videos`,

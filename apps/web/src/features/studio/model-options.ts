@@ -536,8 +536,12 @@ export function refSlotLimitsFromCapabilities(
   const kind = opts?.kind ?? "image";
   const firstLast = kind === "video" && opts?.refMode === "first_last";
   if (firstLast) {
+    const capped =
+      typeof caps?.maxRefImages === "number" && caps.maxRefImages > 0
+        ? Math.min(2, caps.maxRefImages)
+        : 2;
     return {
-      images: 2,
+      images: capped,
       videos: 0,
       audios: 0,
       ...mediaLimitsFromCaps(caps, {

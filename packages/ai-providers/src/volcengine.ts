@@ -2,6 +2,7 @@ import axios from "axios";
 import { ProviderPlatform } from "@joyai/shared";
 import { formatProviderError, formatProviderErrorBody } from "./http-error";
 import { resolveImageSize } from "./image-size";
+import { rewritePromptMentionsForApi } from "./prompt-mentions";
 import type {
   ImageGenerateInput,
   ImageGenerateResult,
@@ -23,6 +24,7 @@ export class VolcengineImageProvider implements ImageProvider {
   readonly platform = ProviderPlatform.VOLCENGINE;
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
+    const prompt = rewritePromptMentionsForApi(input.prompt);
     const size = resolveImageSize({
       size: input.size,
       width: input.width,
@@ -36,7 +38,7 @@ export class VolcengineImageProvider implements ImageProvider {
 
     const body: Record<string, unknown> = {
       model: input.model,
-      prompt: input.prompt,
+      prompt,
       n: input.n ?? 1,
       size,
       response_format: "url",
@@ -142,12 +144,12 @@ export class VolcengineVideoProvider implements VideoProvider {
     const mode = input.refMode ?? (refs.length ? "omni" : undefined);
     const viaPrompt = Boolean(input.firstLastViaPrompt);
 
-    let prompt = input.prompt;
+    let prompt = rewritePromptMentionsForApi(input.prompt);
     if (mode === "first_last" && viaPrompt && refs.length > 0) {
       prompt =
         refs.length >= 2
-          ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${input.prompt}`
-          : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${input.prompt}`;
+          ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${prompt}`
+          : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${prompt}`;
     }
 
     const content: Array<Record<string, unknown>> = [

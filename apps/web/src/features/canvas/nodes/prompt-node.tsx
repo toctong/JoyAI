@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import {
   AiPromptEditor,
   getGeneratePayload,
+  mentionExpandText,
   type PromptGeneratePayload,
 } from "@/features/ai-prompt";
 import { cn } from "@/shared/lib/utils";
@@ -46,11 +47,13 @@ export function PromptNode({ node, onPointerDown }: Props) {
       .map((n, i) => {
         const url = String(n.data.url ?? n.data.src ?? "");
         const assetId = String(n.data.assetId ?? "");
+        const index1 = i + 1;
         return {
           id: assetId || n.id,
-          label: `@图${i + 1}`,
+          label: `@图片${index1}`,
           url,
           mediaKind: "image" as const,
+          expandText: mentionExpandText("image", index1),
         };
       })
       .filter((m) => m.url && !m.url.startsWith("data:"));

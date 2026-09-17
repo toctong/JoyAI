@@ -345,6 +345,45 @@
   word-break: break-word;
 }
 
+.joy-studio-mention-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 20px;
+  margin: 0 2px;
+  padding: 0 6px 0 2px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in oklab, #3b82f6 22%, var(--border));
+  background: color-mix(in oklab, #3b82f6 10%, var(--background));
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  vertical-align: -3px;
+  white-space: nowrap;
+}
+
+.joy-studio-mention-tag.is-video,
+.joy-studio-mention-tag.is-audio {
+  padding-left: 6px;
+}
+
+.joy-studio-mention-thumb {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+}
+
+.joy-studio-mention-label {
+  max-width: 6em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .joy-studio-prompt.is-clamp {
   display: -webkit-box;
   -webkit-box-orient: vertical;

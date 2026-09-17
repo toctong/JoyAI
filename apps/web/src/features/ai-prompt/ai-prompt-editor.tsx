@@ -15,6 +15,8 @@ import type { Editor, JSONContent } from "@tiptap/core";
 import { MentionTag } from "./extensions/mention-tag";
 import {
   emptyDoc,
+  hasMentionWireToken,
+  mentionExpandText,
   plainTextToDoc,
   serializeForGenerate,
   serializeToPlainText,
@@ -31,6 +33,17 @@ export type MentionCandidate = {
   mediaKind: "image" | "video" | "audio" | "text";
   expandText?: string;
 };
+
+function expandForItem(item: MentionCandidate): string {
+  if (item.expandText?.trim()) return item.expandText.trim();
+  const m = item.label.match(/(\d+)\s*$/);
+  const index1 = m ? Number(m[1]) : 1;
+  const kind =
+    item.mediaKind === "video" || item.mediaKind === "audio"
+      ? item.mediaKind
+      : "image";
+  return mentionExpandText(kind, index1);
+}
 
 type MenuState =
   | { type: "slash"; query: string; from: number; to: number; index: number }
@@ -123,8 +136,8 @@ export function AiPromptEditor({
   }, []);
 
   const initialDoc = useMemo(
-    () => (initialText ? plainTextToDoc(initialText) : emptyDoc()),
-    // seed once on mount
+    () => (initialText ? plainTextToDoc(initialText, mentionItems) : emptyDoc()),
+    // seed once on mount; later hydrates via mentionItems effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -166,7 +179,7 @@ export function AiPromptEditor({
         attrs: {
           label: item.label.startsWith("@") ? item.label : `@${item.label}`,
           mentionId: item.id,
-          expandText: item.expandText || "",
+          expandText: expandForItem(item),
           url: item.url,
           mediaKind: item.mediaKind,
         },
@@ -286,6 +299,56 @@ export function AiPromptEditor({
     if (!editor) return;
     editor.setEditable(!disabled);
   }, [editor, disabled]);
+
+  // When refs become available, turn @图片N (and legacy {{Image N}}) into tags
+  useEffect(() => {
+    if (!editor || mentionItems.length === 0) return;
+    const json = editor.getJSON();
+    const wire = serializeForGenerate(json).prompt;
+    if (!hasMentionWireToken(wire)) return;
+    // Only rewrite if there are still raw text tokens (not already all tags)
+    const hasRawToken = (() => {
+      let found = false;
+      const walk = (n: JSONContent) => {
+        if (found) return;
+        if (n.type === "text" && hasMentionWireToken(String(n.text || ""))) {
+          found = true;
+        }
+        for (const c of n.content || []) walk(c);
+      };
+      walk(json);
+      return found;
+    })();
+    if (!hasRawToken) return;
+    editor.commands.setContent(plainTextToDoc(wire, mentionItems));
+  }, [editor, mentionItems]);
+
+  useEffect(() => {
+    if (!editor) return;
+    const prev = editor.options.editorProps;
+    editor.setOptions({
+      editorProps: {
+        ...prev,
+        handlePaste: (_view, event) => {
+          const text = event.clipboardData?.getData("text/plain");
+          if (!text || !hasMentionWireToken(text)) return false;
+          event.preventDefault();
+          const doc = plainTextToDoc(text, mentionItemsRef.current);
+          const paragraphs = doc.content || [];
+          if (paragraphs.length === 1 && paragraphs[0]?.content) {
+            editor
+              .chain()
+              .focus()
+              .insertContent(paragraphs[0].content)
+              .run();
+          } else {
+            editor.chain().focus().insertContent(paragraphs).run();
+          }
+          return true;
+        },
+      },
+    });
+  }, [editor]);
 
   const slashItems =
     menu?.type === "slash" ? filterSlashCommands(menu.query) : [];

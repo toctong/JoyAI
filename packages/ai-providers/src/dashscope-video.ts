@@ -6,6 +6,7 @@ import type {
   VideoSubmitInput,
 } from "./types";
 import { formatProviderError, formatProviderErrorBody } from "./http-error";
+import { rewritePromptMentionsForApi } from "./prompt-mentions";
 
 function authHeaders(apiKey: string, async = false) {
   const h: Record<string, string> = {
@@ -125,12 +126,12 @@ export class DashscopeVideoProvider implements VideoProvider {
     const isR2v = /r2v/i.test(input.model);
     const isI2v = /i2v/i.test(input.model) || (!isR2v && refs.length > 0);
 
-    let prompt = input.prompt;
+    let prompt = rewritePromptMentionsForApi(input.prompt);
     if (input.refMode === "first_last" && refs.length > 0) {
       prompt =
         refs.length >= 2
-          ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${input.prompt}`
-          : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${input.prompt}`;
+          ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${prompt}`
+          : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${prompt}`;
     }
 
     const body: Record<string, unknown> = {

@@ -29,6 +29,10 @@ import {
   GeneratingThumb,
 } from "@/features/studio/generating-thumb";
 import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
+import {
+  splitPromptForDisplay,
+  type PromptDisplayPart,
+} from "@/features/ai-prompt";
 import "./studio-workspace.css";
 
 const CreationComposer = dynamic(
@@ -322,13 +326,48 @@ function extForAsset(url: string, mime: string, kind?: string) {
   return kind === "video" ? "mp4" : "png";
 }
 
+function PromptInlineParts({
+  parts,
+}: {
+  parts: PromptDisplayPart[];
+}) {
+  if (parts.length === 0) return null;
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (part.type === "text") {
+          return <span key={`t-${i}`}>{part.text}</span>;
+        }
+        return (
+          <span
+            key={`m-${i}-${part.index1}`}
+            className={cn(
+              "joy-studio-mention-tag",
+              part.kind === "video" && "is-video",
+              part.kind === "audio" && "is-audio",
+            )}
+          >
+            {part.url && part.kind === "image" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={part.url} alt="" className="joy-studio-mention-thumb" />
+            ) : null}
+            <span className="joy-studio-mention-label">{part.label}</span>
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 /** 默认 2 行省略；展开为浮层，不挤占下方文档流 */
 function StudioPrompt({
   text,
+  referenceUrls = [],
   onCopy,
   onUse,
 }: {
   text: string;
+  referenceUrls?: string[];
   onCopy?: () => void;
   onUse?: () => void;
 }) {
@@ -336,6 +375,10 @@ function StudioPrompt({
   const [overflow, setOverflow] = useState(false);
   const clampRef = useRef<HTMLParagraphElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const parts = useMemo(
+    () => splitPromptForDisplay(text, referenceUrls),
+    [text, referenceUrls],
+  );
 
   useEffect(() => {
     setOpen(false);
@@ -351,7 +394,7 @@ function StudioPrompt({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [text]);
+  }, [text, parts]);
 
   useEffect(() => {
     if (!open) return;
@@ -393,11 +436,13 @@ function StudioPrompt({
           if (overflow || canAct) setOpen((v) => !v);
         }}
       >
-        {text}
+        <PromptInlineParts parts={parts} />
       </p>
       {open ? (
         <div className="joy-studio-prompt-pop" role="dialog" aria-label="完整提示词">
-          <p className="joy-studio-prompt-pop-text">{text}</p>
+          <p className="joy-studio-prompt-pop-text">
+            <PromptInlineParts parts={parts} />
+          </p>
           <div className="joy-studio-prompt-pop-actions">
             {canAct ? (
               <>
@@ -626,6 +671,8 @@ function StudioInner() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [remixKey, setRemixKey] = useState(0);
   const [remixPrompt, setRemixPrompt] = useState<string | undefined>();
+  const [remixRefs, setRemixRefs] = useState<string[]>([]);
+  const [remixRefAssetIds, setRemixRefAssetIds] = useState<string[]>([]);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
@@ -781,6 +828,10 @@ function StudioInner() {
       return;
     }
     setRemixPrompt(prompt);
+    setRemixRefs(jobReferenceUrls(job.input));
+    setRemixRefAssetIds(
+      (job.input?.referenceAssetIds ?? []).filter(Boolean).map(String),
+    );
     setRemixKey((k) => k + 1);
     toast.message("已填入提示词，可继续修改后生成");
     requestAnimationFrame(() => {
@@ -922,6 +973,7 @@ function StudioInner() {
                       <div className="joy-studio-prompt-col">
                         <StudioPrompt
                           text={job.input?.prompt || "未命名创作"}
+                          referenceUrls={refUrls}
                           onCopy={() => void copyPrompt(job)}
                           onUse={() => applyPrompt(job)}
                         />
@@ -1070,6 +1122,8 @@ function StudioInner() {
             key={`dock-${remixKey}`}
             variant="dock"
             promptSeed={remixPrompt}
+            refSeed={remixRefs}
+            refAssetIdSeed={remixRefAssetIds}
             onSubmitted={() => {
               stickToBottomRef.current = true;
               void refreshLatest().then(() => {

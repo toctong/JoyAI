@@ -3,6 +3,7 @@ import { ProviderPlatform } from "@joyai/shared";
 import type { ImageGenerateInput, ImageGenerateResult, ImageProvider } from "./types";
 import { formatProviderErrorBody } from "./http-error";
 import { resolveImageSize } from "./image-size";
+import { rewritePromptMentionsForApi } from "./prompt-mentions";
 import { resolveDashscopeApiBase } from "./dashscope-video";
 
 const FLEXIBLE = new Set(["auto", "adaptive", "keep"]);
@@ -233,15 +234,17 @@ export class DashscopeImageProvider implements ImageProvider {
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
     const apiBase = resolveDashscopeApiBase(input.baseUrl, input.metadata);
+    const prompt = rewritePromptMentionsForApi(input.prompt);
+    const next = prompt === input.prompt ? input : { ...input, prompt };
 
-    if (isWanxImageEdit(input.model)) {
-      return this.generateImageEdit(apiBase, input);
+    if (isWanxImageEdit(next.model)) {
+      return this.generateImageEdit(apiBase, next);
     }
-    if (isWanxAsyncT2i(input.model)) {
-      return this.generateAsyncT2i(apiBase, input);
+    if (isWanxAsyncT2i(next.model)) {
+      return this.generateAsyncT2i(apiBase, next);
     }
     // `input.async` is reserved for catalog hinting; Qwen multimodal stays sync.
-    return this.generateMultimodal(apiBase, input);
+    return this.generateMultimodal(apiBase, next);
   }
 
   private async generateMultimodal(

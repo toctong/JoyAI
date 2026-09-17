@@ -273,8 +273,12 @@ export function parseProviderErrorBody(
     (err?.message as string | undefined) ??
     (root.message as string | undefined) ??
     (root.msg as string | undefined) ??
+    (root.failure_reason as string | undefined) ??
+    (root.error_message as string | undefined) ??
     (output?.message as string | undefined) ??
-    (dataField?.message as string | undefined);
+    (dataField?.message as string | undefined) ??
+    (dataField?.failure_reason as string | undefined) ??
+    (typeof root.error === "string" ? root.error : undefined);
 
   const requestId =
     (root.request_id as string | undefined) ??
@@ -434,6 +438,13 @@ function translateEnglishMessage(message: string): string | undefined {
   }
   if (m.includes("generation failed") || m.includes("task processing failed")) {
     return "上游生成失败";
+  }
+  if (
+    m.includes("requested option isn't supported") ||
+    m.includes("option is not supported") ||
+    m.includes("isn't supported by the upstream")
+  ) {
+    return "上游不支持当前参数组合（如双参考图/分辨率/模式）";
   }
   return undefined;
 }

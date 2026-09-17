@@ -37,6 +37,7 @@ import {
 import {
   AiPromptEditor,
   getGeneratePayload,
+  mentionExpandText,
   setEditorPlainText,
 } from "@/features/ai-prompt";
 import { SLASH_COMMANDS } from "@/features/ai-prompt/slash-items";
@@ -79,9 +80,12 @@ type PublicModel = {
 type PendingRef = {
   /** Client-only id for preview / @mention until upload. */
   localId: string;
-  /** blob: preview URL */
+  /** blob: or remote https preview URL */
   url: string;
-  file: File;
+  /** Absent when seeded from an existing job asset URL. */
+  file?: File;
+  /** Already-uploaded asset id (remix / 使用提示词). */
+  remoteAssetId?: string;
   mediaKind: RefMediaKind;
   /** Seconds for video/audio; undefined for images. */
   durationSec?: number;
@@ -96,7 +100,17 @@ function refLabel(kind: RefMediaKind, index1: number) {
 function refMentionLabel(kind: RefMediaKind, index1: number) {
   if (kind === "video") return `@视频${index1}`;
   if (kind === "audio") return `@音频${index1}`;
-  return `@图${index1}`;
+  return `@图片${index1}`;
+}
+
+function revokeIfBlob(url: string) {
+  if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+}
+
+function guessRefMediaKind(url: string): RefMediaKind {
+  if (/\.(mp4|webm|mov)(\?|$)/i.test(url)) return "video";
+  if (/\.(mp3|wav|m4a|aac|ogg|flac)(\?|$)/i.test(url)) return "audio";
+  return "image";
 }
 
 type Props = {
@@ -105,6 +119,9 @@ type Props = {
   initialPrompt?: string;
   onSubmitted?: () => void;
   promptSeed?: string;
+  /** Remote reference URLs to seed (e.g. 使用提示词). */
+  refSeed?: string[];
+  refAssetIdSeed?: string[];
 };
 
 const COMPOSER_PREFS_KEY = "joyai.studio.composer.prefs";
@@ -251,6 +268,8 @@ export function CreationComposer({
   initialPrompt = "",
   onSubmitted,
   promptSeed,
+  refSeed,
+  refAssetIdSeed,
 }: Props) {
   const search = useSearchParams();
   const [refs, setRefs] = useState<PendingRef[]>([]);
@@ -429,7 +448,7 @@ export function CreationComposer({
   useEffect(() => {
     if (canUploadRef) return;
     setRefs((prev) => {
-      for (const r of prev) URL.revokeObjectURL(r.url);
+      for (const r of prev) revokeIfBlob(r.url);
       return [];
     });
   }, [canUploadRef]);
@@ -440,7 +459,7 @@ export function CreationComposer({
       const keep = prev.filter((r) => r.mediaKind === "image");
       if (keep.length === prev.length) return prev;
       for (const r of prev) {
-        if (r.mediaKind !== "image") URL.revokeObjectURL(r.url);
+        if (r.mediaKind !== "image") revokeIfBlob(r.url);
       }
       return keep;
     });
@@ -448,7 +467,7 @@ export function CreationComposer({
 
   useEffect(() => {
     return () => {
-      for (const r of refsRef.current) URL.revokeObjectURL(r.url);
+      for (const r of refsRef.current) revokeIfBlob(r.url);
     };
   }, []);
 
@@ -456,11 +475,13 @@ export function CreationComposer({
     const counters = { image: 0, video: 0, audio: 0 };
     return refs.map((r) => {
       counters[r.mediaKind] += 1;
+      const index1 = counters[r.mediaKind];
       return {
-        id: r.localId,
-        label: refMentionLabel(r.mediaKind, counters[r.mediaKind]),
+        id: r.remoteAssetId || r.localId,
+        label: refMentionLabel(r.mediaKind, index1),
         url: r.url,
         mediaKind: r.mediaKind,
+        expandText: mentionExpandText(r.mediaKind, index1),
       };
     });
   }, [refs]);
@@ -612,15 +633,43 @@ export function CreationComposer({
 
   useEffect(() => {
     const q = promptSeed || search.get("prompt") || initialPrompt;
-    if (!q || seeded.current) return;
+    if ((!q && !(refSeed && refSeed.length)) || seeded.current) return;
     seeded.current = true;
-    setPrompt(q);
-    const t = window.setTimeout(
-      () => setEditorPlainText(editorRef.current, q),
-      0,
-    );
-    return () => window.clearTimeout(t);
-  }, [search, initialPrompt, promptSeed]);
+    if (refSeed?.length) {
+      const seededRefs: PendingRef[] = refSeed
+        .map((url, i) => {
+          const u = String(url || "").trim();
+          if (!u) return null;
+          return {
+            localId: crypto.randomUUID(),
+            url: u,
+            remoteAssetId: refAssetIdSeed?.[i],
+            mediaKind: guessRefMediaKind(u),
+          } satisfies PendingRef;
+        })
+        .filter((r): r is PendingRef => r != null);
+      if (seededRefs.length) setRefs(seededRefs);
+    }
+    if (q) {
+      setPrompt(q);
+      const t = window.setTimeout(() => {
+        const counters = { image: 0, video: 0, audio: 0 };
+        const items = (refSeed || []).map((url, i) => {
+          const mediaKind = guessRefMediaKind(url);
+          counters[mediaKind] += 1;
+          return {
+            id: refAssetIdSeed?.[i] || `seed-${i}`,
+            label: refMentionLabel(mediaKind, counters[mediaKind]),
+            url,
+            mediaKind,
+            expandText: mentionExpandText(mediaKind, counters[mediaKind]),
+          };
+        });
+        setEditorPlainText(editorRef.current, q, items);
+      }, 0);
+      return () => window.clearTimeout(t);
+    }
+  }, [search, initialPrompt, promptSeed, refSeed, refAssetIdSeed]);
 
   const onDrop = useCallback(
     async (files: File[]) => {
@@ -794,7 +843,7 @@ export function CreationComposer({
       const drop = prev.filter((r) => r.mediaKind !== "image");
       if (images.length <= 2 && drop.length === 0) return prev;
       for (const r of [...drop, ...images.slice(2)]) {
-        URL.revokeObjectURL(r.url);
+        revokeIfBlob(r.url);
       }
       return images.slice(0, 2);
     });
@@ -803,7 +852,7 @@ export function CreationComposer({
   function removeRef(localId: string) {
     setRefs((prev) => {
       const target = prev.find((r) => r.localId === localId);
-      if (target) URL.revokeObjectURL(target.url);
+      if (target) revokeIfBlob(target.url);
       const next = prev.filter((r) => r.localId !== localId);
       if (next.length === 0) setRefsExpanded(false);
       return next;
@@ -842,9 +891,19 @@ export function CreationComposer({
     }
     setSubmitting(true);
     try {
-      // Upload pending refs only on send
+      // Upload pending local files; keep remote seeds as-is
       const uploaded: { localId: string; id: string; url: string }[] = [];
       for (const ref of refs) {
+        if (!ref.file) {
+          if (/^https?:\/\//i.test(ref.url)) {
+            uploaded.push({
+              localId: ref.localId,
+              id: ref.remoteAssetId || "",
+              url: ref.url,
+            });
+          }
+          continue;
+        }
         const asset = await apiUpload<{ id: string; url: string }>(
           "/upload",
           ref.file,
@@ -855,10 +914,12 @@ export function CreationComposer({
         uploaded.map((u) => [u.localId, u] as const),
       );
       const referenceAssetIds = Array.from(
-        new Set([
-          ...uploaded.map((u) => u.id),
-          ...payload.assetIds.map((id) => localToAsset.get(id)?.id ?? id),
-        ]),
+        new Set(
+          [
+            ...uploaded.map((u) => u.id),
+            ...payload.assetIds.map((id) => localToAsset.get(id)?.id ?? id),
+          ].filter(Boolean),
+        ),
       );
       const isRemoteUrl = (u: string) => /^https?:\/\//i.test(u);
       const referenceUrls = Array.from(

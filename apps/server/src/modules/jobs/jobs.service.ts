@@ -230,10 +230,23 @@ export class JobsService {
     referenceAssetIds?: string[],
     referenceUrls?: string[],
   ) {
-    const urls = [...(referenceUrls ?? [])];
-    if (referenceAssetIds?.length) {
-      const assets = await this.assets.findByIds(userId, referenceAssetIds);
-      for (const a of assets) urls.push(a.url);
+    const seen = new Set<string>();
+    const urls: string[] = [];
+    const push = (raw?: string) => {
+      const url = String(raw || "").trim();
+      if (!url || seen.has(url)) return;
+      seen.add(url);
+      urls.push(url);
+    };
+
+    for (const u of referenceUrls ?? []) push(u);
+
+    const ids = [...new Set((referenceAssetIds ?? []).filter(Boolean))];
+    if (ids.length) {
+      const assets = await this.assets.findByIds(userId, ids);
+      const byId = new Map(assets.map((a) => [a.id, a.url]));
+      // Preserve caller id order (DB find may not)
+      for (const id of ids) push(byId.get(id));
     }
     return urls;
   }

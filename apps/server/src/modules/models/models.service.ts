@@ -21,7 +21,6 @@ import { JobKind } from "../../database/enums";
 const CATALOG_REMOTE_ID_ALIASES: Record<string, string[]> = {
   gemini_omni_flash: ["gemini-omni-flash"],
   "gemini-omni-flash-preview-official": ["gemini_omni"],
-  "doubao-seedance-1-5-pro": ["doubao-seedance-1-5-pro-251215"],
   "sora-2-official": ["sora-2"],
 };
 
@@ -282,6 +281,8 @@ export class ModelsService {
         existing.capabilities =
           (item.capabilities as Record<string, unknown>) ?? null;
         existing.kind = item.kind as JobKind;
+        // Catalog 里重新出现的模型自动启用（之前因下架被禁用的会回来）
+        existing.enabled = true;
         await this.models.save(existing);
         updated += 1;
       } else {
