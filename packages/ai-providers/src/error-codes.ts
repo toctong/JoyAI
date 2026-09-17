@@ -291,6 +291,16 @@ export function parseProviderErrorBody(
   if (type) out.type = String(type);
   if (message) out.message = String(message).slice(0, 500);
 
+  // APIMart often nests upstream JSON inside message, e.g.
+  // fail_to_fetch_task → "{\"code\":\"invalid-argument\",\"error\":\"Zero Data Retention...\"}"
+  const unwrapped = unwrapNestedProviderMessage(out.message);
+  if (unwrapped) {
+    if (unwrapped.message) out.message = unwrapped.message.slice(0, 500);
+    if (unwrapped.code && (!out.code || out.code === "fail_to_fetch_task" || out.code === "task_failed")) {
+      out.code = unwrapped.code;
+    }
+  }
+
   if (
     out.message &&
     /just a moment|cloudflare|cf-ray|cf-challenge|<!DOCTYPE html/i.test(
@@ -313,6 +323,65 @@ function isSuccessBusinessCode(code: unknown): boolean {
   if (code == null) return false;
   const s = String(code).trim().toLowerCase();
   return s === "200" || s === "0" || s === "ok" || s === "success";
+}
+
+/**
+ * Unwrap nested JSON / HTTP-prefixed messages from relay gateways.
+ * e.g. `HTTP 400: {"code":"fail_to_fetch_task","message":"{\"error\":\"Zero Data...\"}"}`
+ */
+function unwrapNestedProviderMessage(
+  message?: string,
+): { message?: string; code?: string } | undefined {
+  if (!message) return undefined;
+  let text = message.trim();
+  // Strip leading "HTTP 400: " / "HTTP 502: "
+  const httpPrefix = text.match(/^HTTP\s+\d{3}\s*:\s*/i);
+  if (httpPrefix) text = text.slice(httpPrefix[0].length).trim();
+
+  const tryParse = (
+    raw: string,
+  ): { message?: string; code?: string } | undefined => {
+    if (!raw.startsWith("{") && !raw.startsWith("[")) return undefined;
+    try {
+      const obj = JSON.parse(raw) as Record<string, unknown>;
+      const nestedMsg =
+        (typeof obj.error === "string" ? obj.error : undefined) ??
+        (typeof obj.message === "string" ? obj.message : undefined) ??
+        (obj.error &&
+        typeof obj.error === "object" &&
+        typeof (obj.error as { message?: unknown }).message === "string"
+          ? ((obj.error as { message: string }).message)
+          : undefined);
+      const nestedCode =
+        (typeof obj.code === "string" || typeof obj.code === "number"
+          ? String(obj.code)
+          : undefined) ??
+        (obj.error &&
+        typeof obj.error === "object" &&
+        (obj.error as { code?: unknown }).code != null
+          ? String((obj.error as { code: string | number }).code)
+          : undefined);
+
+      // message itself may still be a JSON string
+      if (typeof nestedMsg === "string" && nestedMsg.trim().startsWith("{")) {
+        const deeper = tryParse(nestedMsg.trim());
+        if (deeper) {
+          return {
+            message: deeper.message ?? nestedMsg,
+            code: deeper.code ?? nestedCode,
+          };
+        }
+      }
+      if (nestedMsg || nestedCode) {
+        return { message: nestedMsg, code: nestedCode };
+      }
+    } catch {
+      /* ignore */
+    }
+    return undefined;
+  };
+
+  return tryParse(text);
 }
 
 function extractRequestId(message?: string): string | undefined {
@@ -438,6 +507,13 @@ function translateEnglishMessage(message: string): string | undefined {
   }
   if (m.includes("fail_to_fetch_task")) {
     return "上游拉取任务失败（渠道不可用、被拦截，或参考素材格式/参数不被该渠道接受）";
+  }
+  if (
+    m.includes("zero data retention") ||
+    m.includes("output.upload_url") ||
+    (m.includes("upload_url") && m.includes("video generation"))
+  ) {
+    return "Grok 官方渠道启用了零数据保留（ZDR），需自备 output.upload_url；请改用 APIMart 中转版 Grok，或联系渠道关闭 ZDR";
   }
   if (
     m.includes("width to be at least") ||

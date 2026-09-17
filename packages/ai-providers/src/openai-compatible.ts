@@ -1226,6 +1226,532 @@ function assertKlingOmniImageUrl(url: string) {
   }
 }
 
+/** Map legacy / ToAPIs-style ids onto APIMart public model names. */
+function normalizeApiMartVideoModelId(model: string): string {
+  let id = model.trim();
+  // seedance-2 / seedance-2-5 (ToAPIs) → seedance-2.0 / seedance-2.5
+  if (/^seedance-2-5\b/i.test(id)) return "seedance-2.5";
+  if (/^seedance-2-0(-fast|-mini|-face|-fast-face)?$/i.test(id)) {
+    return id.replace(/^seedance-2-0/i, "seedance-2.0");
+  }
+  if (/^seedance-2(-fast|-mini)?$/i.test(id)) {
+    return id.replace(/^seedance-2/i, "seedance-2.0");
+  }
+  if (/^wan3\.0-video$/i.test(id)) return "wan3.0";
+  // Docs use viduq3-pro / viduq3-turbo (no hyphen after vidu)
+  if (/^vidu-q3\b/i.test(id)) {
+    return id.replace(/^vidu-q3/i, "viduq3");
+  }
+  return id;
+}
+
+/** Snap duration to the nearest allowed value (e.g. Kling 5|10). */
+function snapDuration(value: unknown, allowed: number[], fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  let best = allowed[0] ?? fallback;
+  let bestDist = Math.abs(value - best);
+  for (const d of allowed) {
+    const dist = Math.abs(value - d);
+    if (dist < bestDist) {
+      best = d;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
+function clampDuration(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+/**
+ * APIMart / apib.ai video dialect — field shapes differ from ToAPIs.
+ * @see https://docs.apimart.ai/en/api-reference/texts/models/list
+ * @see https://docs.apimart.ai/en/api-reference/videos/
+ */
+function buildApiMartVideoBody(input: VideoSubmitInput): Record<string, unknown> {
+  const model = normalizeApiMartVideoModelId(input.model);
+  const refs = (input.referenceUrls ?? []).filter(Boolean);
+  const resolution = normalizeVideoResolution(input.resolution);
+  const body: Record<string, unknown> = {
+    model,
+    prompt: input.prompt,
+  };
+  if (input.duration != null) body.duration = input.duration;
+  if (input.ratio) body.aspect_ratio = input.ratio;
+
+  const id = model.toLowerCase();
+  const partitioned = partitionToapisRefs(input);
+
+  // Seedance 2.5 — size + video_urls/audio_urls; 480p/720p only; 4–30s
+  // @see https://docs.apimart.ai/en/api-reference/videos/seedance-2-5/generation
+  if (/^seedance-2\.5\b/i.test(id)) {
+    let res = resolution;
+    if (res && /^(1080p|4k)$/i.test(res)) res = "720p";
+    if (res) body.resolution = res;
+    body.prompt = rewriteSeedancePromptMentions(String(body.prompt ?? ""));
+    body.generate_audio = true;
+
+    const firstLast = input.refMode === "first_last";
+    if (firstLast) {
+      body.size = "adaptive";
+      delete body.aspect_ratio;
+      const roles: Array<{ url: string; role: string }> = [];
+      if (partitioned.images[0]) {
+        roles.push({ url: partitioned.images[0], role: "first_frame" });
+      }
+      if (partitioned.images[1]) {
+        roles.push({ url: partitioned.images[1], role: "last_frame" });
+      }
+      if (roles.length) body.image_with_roles = roles;
+    } else {
+      if (input.ratio) {
+        body.size = input.ratio;
+        delete body.aspect_ratio;
+      }
+      if (partitioned.images.length) {
+        body.image_urls = partitioned.images.slice(0, 30);
+      }
+      if (partitioned.videos.length) {
+        body.video_urls = partitioned.videos.slice(0, 10);
+      }
+      if (partitioned.audios.length) {
+        body.audio_urls = partitioned.audios.slice(0, 10);
+      }
+    }
+    body.duration = clampDuration(body.duration, 4, 30, 5);
+    return body;
+  }
+
+  // Seedance 2.0 / fast / mini
+  // @see https://docs.apimart.ai/en/api-reference/videos/seedance-2-0/generation
+  if (/^seedance-2\.0\b/i.test(id)) {
+    let res = resolution;
+    if (/fast|mini/i.test(id) && res && /^(1080p|4k)$/i.test(res)) {
+      res = "720p";
+    }
+    if (res) body.resolution = res;
+    body.prompt = rewriteSeedancePromptMentions(String(body.prompt ?? ""));
+    body.generate_audio = true;
+
+    const firstLast = input.refMode === "first_last";
+    if (firstLast) {
+      // Docs: first/last cannot mix with video_urls / audio_urls
+      const roles: Array<{ url: string; role: string }> = [];
+      if (partitioned.images[0]) {
+        roles.push({ url: partitioned.images[0], role: "first_frame" });
+      }
+      if (partitioned.images[1]) {
+        roles.push({ url: partitioned.images[1], role: "last_frame" });
+      }
+      if (roles.length) body.image_with_roles = roles;
+      if (input.ratio) {
+        body.size = input.ratio;
+        delete body.aspect_ratio;
+      }
+    } else {
+      if (input.ratio) {
+        body.size = input.ratio;
+        delete body.aspect_ratio;
+      }
+      if (partitioned.images.length) {
+        body.image_urls = partitioned.images.slice(0, 9);
+      }
+      if (partitioned.videos.length) {
+        body.video_urls = partitioned.videos.slice(0, 3);
+      }
+      if (partitioned.audios.length) {
+        body.audio_urls = partitioned.audios.slice(0, 3);
+      }
+    }
+    body.duration = clampDuration(body.duration, 4, 15, 5);
+    return body;
+  }
+
+  // Seedance 1.5 Pro — aspect_ratio + audio; first/last via image_urls or roles
+  // @see https://docs.apimart.ai/en/api-reference/videos/seedance-1-5-pro/generation
+  if (/^seedance-1-5-pro\b/i.test(id)) {
+    if (resolution) body.resolution = resolution;
+    body.audio = true;
+    body.duration = clampDuration(body.duration, 4, 12, 5);
+    const images = partitioned.images;
+    if (images.length > 0) {
+      if (input.refMode === "first_last" || images.length >= 2) {
+        const roles: Array<{ url: string; role: string }> = [
+          { url: images[0]!, role: "first_frame" },
+        ];
+        if (images[1]) roles.push({ url: images[1], role: "last_frame" });
+        body.image_with_roles = roles;
+      } else {
+        body.image_urls = [images[0]!];
+      }
+    }
+    return body;
+  }
+
+  // Seedance 1.0 Pro — first/last via image_urls; no audio
+  // @see https://docs.apimart.ai/en/api-reference/videos/seedance-1-0-pro/generation
+  if (/^seedance-1-0-pro\b/i.test(id)) {
+    if (resolution) body.resolution = resolution;
+    body.duration = clampDuration(body.duration, 2, 12, 5);
+    const images = partitioned.images;
+    if (images.length > 0) {
+      if (input.refMode === "first_last" || images.length >= 2) {
+        body.image_urls = images.slice(0, 2);
+      } else {
+        body.image_urls = [images[0]!];
+      }
+    }
+    return body;
+  }
+
+  // Kling V3 — mode std/pro/4k + image_urls (1 first / 2 first+last)
+  // @see https://docs.apimart.ai/en/api-reference/videos/kling-v3/generation
+  if (/^kling-v3$/i.test(id)) {
+    const r = (resolution ?? "").toLowerCase();
+    body.mode = r.includes("4k")
+      ? "4k"
+      : r.includes("1080") || r.includes("pro")
+        ? "pro"
+        : "std";
+    delete body.resolution;
+    body.audio = true;
+    body.duration = clampDuration(body.duration, 3, 15, 5);
+    const images = partitioned.images;
+    if (images.length > 0) {
+      body.image_urls = images.slice(0, 2);
+    }
+    return body;
+  }
+
+  // Kling 2.6 — duration only 5|10; mode std/pro
+  // @see https://docs.apimart.ai/en/api-reference/videos/kling-v2-6/generation
+  if (/^kling-v2-6$/i.test(id) || /^kling-v2\.6$/i.test(id)) {
+    const r = (resolution ?? "").toLowerCase();
+    const isPro = r.includes("1080") || r.includes("pro");
+    body.mode = isPro ? "pro" : "std";
+    delete body.resolution;
+    body.duration = snapDuration(body.duration, [5, 10], 5);
+    if (isPro) body.audio = true;
+    const images = partitioned.images;
+    if (images.length > 0) {
+      // last frame only supported in pro
+      body.image_urls = images.slice(0, isPro ? 2 : 1);
+    }
+    return body;
+  }
+
+  // Kling V3 Omni — image_urls + <<<image_N>>>; top-level video_list
+  // audio mutually exclusive with video_list (official APIMart docs).
+  // @see https://docs.apimart.ai/en/api-reference/videos/kling-v3-omni/generation
+  if (/kling-v3-omni/i.test(id)) {
+    const r = (resolution ?? "").toLowerCase();
+    body.mode = r.includes("4k")
+      ? "4k"
+      : r.includes("1080") || r.includes("pro")
+        ? "pro"
+        : "std";
+    delete body.resolution;
+
+    const images = partitioned.images.slice(0, 4);
+    const videos = partitioned.videos.slice(0, 1);
+
+    body.duration = clampDuration(body.duration, 3, 15, 5);
+
+    if (input.refMode === "first_last" && images.length > 0) {
+      const roles: Array<{ url: string; role: string }> = [
+        { url: images[0]!, role: "first_frame" },
+      ];
+      if (images[1]) roles.push({ url: images[1], role: "last_frame" });
+      body.image_with_roles = roles;
+    } else if (images.length > 0) {
+      body.image_urls = images;
+      body.prompt = rewriteKlingOmniPlaceholders(String(body.prompt ?? ""), {
+        images: images.length,
+        videos: videos.length,
+      });
+    }
+
+    if (videos.length > 0) {
+      body.video_list = [
+        {
+          video_url: videos[0],
+          refer_type: "base",
+          keep_original_sound: "no",
+        },
+      ];
+      // Docs: audio is mutually exclusive with video_list
+    } else {
+      body.audio = true;
+    }
+    return body;
+  }
+
+  // Kling 3.0 Turbo — image_urls as first frame
+  if (/kling-3\.0-turbo|kling-v3-turbo/i.test(id)) {
+    if (resolution) body.resolution = resolution;
+    body.duration = clampDuration(body.duration, 3, 15, 5);
+    if (partitioned.images.length) {
+      body.image_urls = partitioned.images.slice(0, 1);
+    }
+    return body;
+  }
+
+  // FLUX 3 Video — duration 5–20; resolution hd|fhd
+  // @see https://docs.apimart.ai/en/api-reference/videos/flux-3-video/generation
+  if (/^flux-3-video$/i.test(id)) {
+    const r = (resolution ?? "fhd").toLowerCase();
+    body.resolution = r.includes("hd") && !r.includes("fhd") ? "hd" : "fhd";
+    body.duration = clampDuration(body.duration, 5, 20, 5);
+    body.audio = true;
+    if (partitioned.images.length) {
+      body.image_urls = partitioned.images.slice(0, 10);
+    }
+    if (partitioned.videos.length) {
+      body.video_url = partitioned.videos[0];
+    }
+    return body;
+  }
+
+  // Grok Imagine Video (official) — duration 1–15
+  // @see https://docs.apimart.ai/en/api-reference/videos/grok-imagine/official
+  if (/^grok-imagine-video(-1\.5)?$/i.test(id)) {
+    body.duration = clampDuration(body.duration, 1, 15, 8);
+    if (resolution) {
+      const r = resolution.toLowerCase();
+      if (/^grok-imagine-video$/i.test(id) && r.includes("1080")) {
+        body.resolution = "720p";
+      } else {
+        body.resolution = r.includes("1080")
+          ? "1080p"
+          : r.includes("480")
+            ? "480p"
+            : "720p";
+      }
+    }
+    if (partitioned.images.length) {
+      body.image_urls = partitioned.images.slice(0, 7);
+    }
+    return body;
+  }
+
+  // Grok Imagine 1.5 video (APIMart relay, non-ZDR) — size + quality, duration 6–30
+  // @see https://docs.apimart.ai/en/api-reference/videos/grok-imagine/generation
+  if (/grok-imagine-1\.5-video-apimart/i.test(id)) {
+    body.duration = clampDuration(body.duration, 6, 30, 6);
+    if (input.ratio) {
+      body.size = input.ratio;
+      delete body.aspect_ratio;
+    }
+    if (resolution) {
+      const r = resolution.toLowerCase();
+      body.quality = r.includes("720") || r.includes("1080") ? "720p" : "480p";
+    }
+    delete body.resolution;
+    if (partitioned.images.length) {
+      body.image_urls = partitioned.images.slice(0, 7);
+    }
+    return body;
+  }
+
+  // HappyHorse 1.1 — first_frame_image (I2V) vs image_urls (R2V); size for ratio
+  // @see https://docs.apimart.ai/en/api-reference/videos/happyhorse-1.1/generation
+  if (/happyhorse-1\.1/i.test(id)) {
+    if (resolution) {
+      body.resolution = /1080/i.test(resolution) ? "1080P" : "720P";
+    }
+    body.duration = clampDuration(body.duration, 3, 15, 5);
+    if (input.ratio) {
+      body.size = input.ratio;
+      delete body.aspect_ratio;
+    }
+    const images = partitioned.images;
+    if (images.length > 0) {
+      if (input.refMode === "omni" || images.length > 1) {
+        body.image_urls = images.slice(0, 9);
+      } else {
+        // Single image / first-frame → I2V
+        body.first_frame_image = images[0];
+        delete body.aspect_ratio;
+        delete body.size;
+      }
+    }
+    return body;
+  }
+
+  // HappyHorse 1.0 — same media fields as 1.1 (+ optional video edit via video_url)
+  if (/happyhorse-1\.0/i.test(id)) {
+    if (resolution) {
+      body.resolution = /1080/i.test(resolution) ? "1080P" : "720P";
+    }
+    body.duration = clampDuration(body.duration, 3, 15, 5);
+    if (input.ratio) {
+      body.size = input.ratio;
+      delete body.aspect_ratio;
+    }
+    if (partitioned.videos.length > 0) {
+      body.video_url = partitioned.videos[0];
+      if (partitioned.images.length) {
+        body.image_urls = partitioned.images.slice(0, 5);
+      }
+    } else if (partitioned.images.length === 1 || input.refMode === "first_last") {
+      body.first_frame_image = partitioned.images[0];
+    } else if (partitioned.images.length > 0) {
+      body.image_urls = partitioned.images.slice(0, 9);
+    }
+    return body;
+  }
+
+  // Wan 2.6 — image_urls (1); duration 5|10|15; audio
+  // @see https://docs.apimart.ai/en/api-reference/videos/wan2.6/generation
+  if (/^wan2\.6\b/i.test(id)) {
+    if (resolution) body.resolution = resolution.toLowerCase();
+    body.audio = true;
+    body.duration = snapDuration(body.duration, [5, 10, 15], 5);
+    if (partitioned.images.length) {
+      body.image_urls = partitioned.images.slice(0, 1);
+      delete body.aspect_ratio;
+    }
+    return body;
+  }
+
+  // Wan 2.7 — image_urls / video_urls; size via aspect_ratio; 2–15s
+  // @see https://docs.apimart.ai/en/api-reference/videos/wan2.7/generation
+  if (/^wan2\.7\b/i.test(id) && !/r2v|videoedit|image/i.test(id)) {
+    if (resolution) {
+      body.resolution = /1080/i.test(resolution) ? "1080P" : "720P";
+    }
+    body.duration = clampDuration(body.duration, 2, 15, 5);
+    if (partitioned.videos.length > 0) {
+      body.video_urls = partitioned.videos.slice(0, 1);
+      delete body.aspect_ratio;
+    } else if (partitioned.images.length > 0) {
+      if (input.refMode === "first_last" && partitioned.images.length >= 2) {
+        body.image_with_roles = [
+          { url: partitioned.images[0]!, role: "first_frame" },
+          { url: partitioned.images[1]!, role: "last_frame" },
+        ];
+      } else {
+        body.image_urls = partitioned.images.slice(0, 2);
+      }
+      delete body.aspect_ratio;
+    }
+    if (partitioned.audios.length > 0 && !partitioned.videos.length) {
+      body.audio_url = partitioned.audios[0];
+    }
+    return body;
+  }
+
+  // Wan 3.0 — multimodal refs; ratio field; audio
+  if (/^wan3\.0\b/i.test(id)) {
+    if (input.ratio) {
+      body.ratio = input.ratio;
+      delete body.aspect_ratio;
+    }
+    if (resolution) {
+      const r = resolution.toLowerCase();
+      body.resolution = r.includes("1080")
+        ? "1080P"
+        : r.includes("480")
+          ? "480P"
+          : "720P";
+    }
+    body.duration = clampDuration(body.duration, 2, 30, 5);
+    body.audio = true;
+    body.prompt = rewriteSeedancePromptMentions(String(body.prompt ?? ""));
+
+    if (input.refMode === "first_last" && partitioned.images.length > 0) {
+      const roles: Array<{ url: string; role: string }> = [
+        { url: partitioned.images[0]!, role: "first_frame" },
+      ];
+      if (partitioned.images[1]) {
+        roles.push({ url: partitioned.images[1], role: "last_frame" });
+      }
+      body.image_with_roles = roles;
+      if (!body.ratio) body.ratio = "adaptive";
+    } else {
+      if (partitioned.images.length) {
+        body.image_urls = partitioned.images.slice(0, 10);
+      }
+      if (partitioned.videos.length) {
+        body.video_urls = partitioned.videos.slice(0, 5);
+      }
+      if (partitioned.audios.length) {
+        body.audio_urls = partitioned.audios.slice(0, 5);
+      }
+    }
+    return body;
+  }
+
+  // MiniMax Hailuo 02 — duration 5|10 only
+  // @see https://docs.apimart.ai/en/api-reference/videos/minimax-hailuo/generation
+  if (/minimax-hailuo-02/i.test(id)) {
+    const r = (resolution ?? "768p").toLowerCase();
+    body.resolution = r.includes("1080")
+      ? "1080p"
+      : r.includes("512")
+        ? "512p"
+        : "768p";
+    let duration = snapDuration(body.duration, [5, 10], 5);
+    if (body.resolution === "1080p") duration = 5;
+    body.duration = duration;
+    body.prompt_optimizer = true;
+    if (partitioned.images.length >= 2) {
+      body.first_frame_image = partitioned.images[0];
+      body.last_frame_image = partitioned.images[1];
+    } else if (partitioned.images.length === 1) {
+      body.first_frame_image = partitioned.images[0];
+    }
+    delete body.aspect_ratio;
+    return body;
+  }
+
+  // MiniMax Hailuo 2.3 — duration 6|10; 1080P → 6s only
+  if (/minimax-hailuo-2\.3/i.test(id)) {
+    const r = (resolution ?? "768P").toLowerCase();
+    body.resolution = r.includes("1080") ? "1080P" : "768P";
+    let duration = snapDuration(body.duration, [6, 10], 6);
+    if (body.resolution === "1080P") duration = 6;
+    body.duration = duration;
+    if (/fast/i.test(id) && partitioned.images.length === 0) {
+      throw new Error(
+        "MiniMax-Hailuo-2.3-Fast 仅支持图生视频，请上传 1 张首帧图",
+      );
+    }
+    if (partitioned.images.length > 0) {
+      body.first_frame_image = partitioned.images[0];
+    }
+    delete body.aspect_ratio;
+    return body;
+  }
+
+  // Vidu Q3 Pro/Turbo — wire id viduq3-pro; duration 1–16
+  // @see https://docs.apimart.ai/en/api-reference/videos/vidu-q3-pro/generation
+  if (/^viduq3/i.test(id)) {
+    if (resolution) body.resolution = resolution.toLowerCase();
+    const maxImgs = /mix|standard/i.test(id) ? 7 : 2;
+    if (partitioned.images.length) {
+      body.image_urls = partitioned.images.slice(0, maxImgs);
+      delete body.aspect_ratio;
+    }
+    body.audio = true;
+    const min = /^viduq3$/i.test(id) ? 3 : 1;
+    body.duration = clampDuration(body.duration, min, 16, 5);
+    return body;
+  }
+
+  // Default APIMart OpenAI-compatible video
+  if (resolution) body.resolution = resolution;
+  if (typeof body.duration === "number" && body.duration > 0) {
+    body.duration = Math.max(1, Math.round(body.duration));
+  }
+  if (refs.length > 0) {
+    body.image_urls = refs.slice(0, 10);
+  }
+  return body;
+}
+
 function buildGenericOpenAIVideoBody(
   input: VideoSubmitInput,
 ): Record<string, unknown> {
@@ -1270,27 +1796,37 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
     });
     const withMentions =
       prompt === input.prompt ? input : { ...input, prompt };
-    const isToapis = this.platform.trim().toLowerCase() === "toapis";
+    const platform = this.platform.trim().toLowerCase();
+    const isToapis = platform === "toapis";
+    const isApimart = platform === "apimart";
     let submitInput = withMentions;
     if (
-      isToapis &&
+      (isToapis || isApimart) &&
       withMentions.refMode === "first_last" &&
       withMentions.firstLastViaPrompt
     ) {
-      // ToAPIs Seedance/Grok use native roles; skip prompt-prefix fallback.
+      // Seedance/Kling use native roles; skip prompt-prefix fallback.
       submitInput = { ...withMentions, firstLastViaPrompt: false };
     }
 
     const body = isToapis
       ? buildToapisVideoBody(submitInput)
-      : buildGenericOpenAIVideoBody(submitInput);
+      : isApimart
+        ? buildApiMartVideoBody(submitInput)
+        : buildGenericOpenAIVideoBody(submitInput);
 
     const base = normalizeBase(withMentions.baseUrl);
-    const paths = [
-      `${base}/videos/generations`,
-      `${base}/videos`,
-      `${base}/video/generations`,
-    ];
+    // Official OpenAI-compatible video endpoint is /videos/generations.
+    // Only fall back on 404/405 — never on 400 (param errors), or lastError
+    // becomes the misleading "Invalid URL (POST /v1/video/generations)".
+    const paths =
+      isApimart || isToapis
+        ? [`${base}/videos/generations`, `${base}/videos`]
+        : [
+            `${base}/videos/generations`,
+            `${base}/videos`,
+            `${base}/video/generations`,
+          ];
 
     let lastError = "Video submit failed";
     for (const url of paths) {
@@ -1305,7 +1841,9 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
             platform: this.platform,
             fallback: `HTTP ${status}`,
           });
-          continue;
+          // Wrong endpoint → try next path; param/auth errors → stop.
+          if (status === 404 || status === 405) continue;
+          break;
         }
         const remoteTaskId = extractTaskId(data);
         if (remoteTaskId) return { remoteTaskId };

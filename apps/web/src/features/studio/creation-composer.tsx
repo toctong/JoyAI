@@ -664,18 +664,18 @@ export function CreationComposer({
     if ((!q && !(refSeed && refSeed.length)) || seeded.current) return;
     seeded.current = true;
     if (refSeed?.length) {
-      const seededRefs: PendingRef[] = refSeed
-        .map((url, i) => {
-          const u = String(url || "").trim();
-          if (!u) return null;
-          return {
+      const seededRefs: PendingRef[] = refSeed.flatMap((url, i) => {
+        const u = String(url || "").trim();
+        if (!u) return [];
+        return [
+          {
             localId: crypto.randomUUID(),
             url: u,
             remoteAssetId: refAssetIdSeed?.[i],
             mediaKind: guessRefMediaKind(u),
-          } satisfies PendingRef;
-        })
-        .filter((r): r is PendingRef => r != null);
+          } satisfies PendingRef,
+        ];
+      });
       if (seededRefs.length) setRefs(seededRefs);
     }
     if (q) {
