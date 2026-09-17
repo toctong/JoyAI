@@ -1123,7 +1123,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 300,
+        "minRefImageSidePx": 240,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -1176,7 +1176,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 300,
+        "minRefImageSidePx": 240,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -1228,7 +1228,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 300,
+        "minRefImageSidePx": 240,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -1281,7 +1281,7 @@
         "minRefVideoDurationSec": 2,
         "maxRefVideoDurationSec": 15,
         "maxRefAudioDurationSec": 15,
-        "minRefImageSidePx": 300,
+        "minRefImageSidePx": 240,
         "maxRefImageSidePx": 6000,
         "minRefImageAspect": 0.4,
         "maxRefImageAspect": 2.5,
@@ -1306,6 +1306,44 @@
         "features": [
           "t2v",
           "i2v",
+          "first-last-frame",
+          "audio"
+        ],
+        "maxDurationSec": 15,
+        "resolutions": [
+          "720P",
+          "1080P",
+          "4K"
+        ],
+        "ratios": [
+          "16:9",
+          "9:16",
+          "1:1"
+        ]
+      }
+    },
+    {
+      "name": "Kling V3 Omni",
+      "remoteId": "kling-v3-omni",
+      "description": "Omni 多模态：metadata.image_list + video_list；prompt 用 <<<image_N>>> / <<<video_N>>>",
+      "capabilities": {
+        "input": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 4,
+        "maxRefVideos": 1,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "r2v",
+          "omni-ref",
+          "ref-video",
           "first-last-frame",
           "audio"
         ],

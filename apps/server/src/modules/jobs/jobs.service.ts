@@ -230,13 +230,27 @@ export class JobsService {
     referenceAssetIds?: string[],
     referenceUrls?: string[],
   ) {
+    const resolved = await this.resolveReferenceMedia(
+      userId,
+      referenceAssetIds,
+      referenceUrls,
+    );
+    return resolved.map((r) => r.url);
+  }
+
+  /** Resolve refs with media kind (from asset metadata or URL heuristics). */
+  async resolveReferenceMedia(
+    userId: string,
+    referenceAssetIds?: string[],
+    referenceUrls?: string[],
+  ): Promise<Array<{ url: string; kind: "image" | "video" | "audio" }>> {
     const seen = new Set<string>();
-    const urls: string[] = [];
-    const push = (raw?: string) => {
+    const out: Array<{ url: string; kind: "image" | "video" | "audio" }> = [];
+    const push = (raw?: string, kindHint?: string | null) => {
       const url = String(raw || "").trim();
       if (!url || seen.has(url)) return;
       seen.add(url);
-      urls.push(url);
+      out.push({ url, kind: classifyRefMediaKind(url, kindHint) });
     };
 
     for (const u of referenceUrls ?? []) push(u);
@@ -244,11 +258,14 @@ export class JobsService {
     const ids = [...new Set((referenceAssetIds ?? []).filter(Boolean))];
     if (ids.length) {
       const assets = await this.assets.findByIds(userId, ids);
-      const byId = new Map(assets.map((a) => [a.id, a.url]));
-      // Preserve caller id order (DB find may not)
-      for (const id of ids) push(byId.get(id));
+      const byId = new Map(assets.map((a) => [a.id, a]));
+      for (const id of ids) {
+        const a = byId.get(id);
+        if (!a) continue;
+        push(a.url, a.kind || a.mimeType);
+      }
     }
-    return urls;
+    return out;
   }
 
   /** Mark worker start once; safe to call repeatedly. */
@@ -383,4 +400,17 @@ export class JobsService {
       });
     });
   }
+}
+
+function classifyRefMediaKind(
+  url: string,
+  hint?: string | null,
+): "image" | "video" | "audio" {
+  const h = String(hint || "").toLowerCase();
+  if (h.includes("video") || h.startsWith("video/")) return "video";
+  if (h.includes("audio") || h.startsWith("audio/")) return "audio";
+  if (h.includes("image") || h.startsWith("image/")) return "image";
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)) return "video";
+  if (/\.(mp3|wav|m4a|aac|ogg|flac)(\?|$)/i.test(url)) return "audio";
+  return "image";
 }

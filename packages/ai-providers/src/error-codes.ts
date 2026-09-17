@@ -437,7 +437,7 @@ function translateEnglishMessage(message: string): string | undefined {
     return "上游未开通该模型渠道";
   }
   if (m.includes("fail_to_fetch_task")) {
-    return "上游拉取任务失败（渠道不可用或被拦截）";
+    return "上游拉取任务失败（渠道不可用、被拦截，或参考素材格式/参数不被该渠道接受）";
   }
   if (m.includes("generation failed") || m.includes("task processing failed")) {
     return "上游生成失败";

@@ -50,6 +50,8 @@ export type VideoSubmitInput = {
   resolution?: string;
   watermark?: boolean;
   referenceUrls?: string[];
+  /** Parallel to referenceUrls when known (image | video | audio). */
+  referenceMediaKinds?: Array<"image" | "video" | "audio" | string>;
   /** omni = reference_image*; first_last = first/last frame roles or prompt fallback */
   refMode?: "omni" | "first_last";
   /** When true, first_last uses reference_image + prompt prefix instead of native roles */

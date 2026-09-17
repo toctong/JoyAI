@@ -710,6 +710,102 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
 
   const id = model.toLowerCase();
 
+  // Seedance 2 family (ToAPIs): multimodal refs use *_with_roles, not image_urls.
+  // @see https://docs.toapis.com/docs/cn/api-reference/videos/seedance-2/generation
+  if (/^seedance-2\b/i.test(id)) {
+    const partitioned = partitionToapisRefs(input);
+    let res = resolution;
+    if (res && /mini|fast/i.test(id) && /^(1080p|4k)$/i.test(res)) {
+      res = "720p";
+    }
+    if (res) body.resolution = res;
+
+    // Docs: prompt refers to 图片1 / 视频1 / 音频1 (no leading @)
+    body.prompt = String(body.prompt ?? "")
+      .replace(/@(图片|视频|音频|图)(\d+)/g, (_m, k: string, n: string) =>
+        k === "图" ? `图片${n}` : `${k}${n}`,
+      )
+      .replace(/\{\{(Image|Video|Audio)\s+(\d+)\}\}/gi, (_m, kind: string, n: string) => {
+        const k = kind.toLowerCase();
+        if (k === "video") return `视频${n}`;
+        if (k === "audio") return `音频${n}`;
+        return `图片${n}`;
+      });
+
+    const firstLast = input.refMode === "first_last";
+    if (firstLast) {
+      const roles: Array<{ url: string; role: string }> = [];
+      if (partitioned.images[0]) {
+        roles.push({ url: partitioned.images[0], role: "first_frame" });
+      }
+      if (partitioned.images[1]) {
+        roles.push({ url: partitioned.images[1], role: "last_frame" });
+      }
+      if (roles.length) body.image_with_roles = roles;
+    } else {
+      if (partitioned.images.length) {
+        body.image_with_roles = partitioned.images
+          .slice(0, 9)
+          .map((url) => ({ url, role: "reference_image" }));
+      }
+      if (partitioned.videos.length) {
+        body.video_with_roles = partitioned.videos
+          .slice(0, 3)
+          .map((url) => ({ url, role: "reference_video" }));
+      }
+      if (partitioned.audios.length) {
+        body.audio_with_roles = partitioned.audios
+          .slice(0, 3)
+          .map((url) => ({ url, role: "reference_audio" }));
+      }
+    }
+    return body;
+  }
+
+  // Kling V3 Omni: metadata.image_list + video_list; prompt <<<image_N>>> / <<<video_N>>>
+  // @see https://docs.toapis.com/docs/cn/api-reference/videos/kling-v3-omni/generation
+  if (/kling-v3-omni/i.test(id)) {
+    const partitioned = partitionToapisRefs(input);
+    const r = (resolution ?? "").toLowerCase();
+    body.mode = r.includes("1080") || r.includes("4k") ? "pro" : "std";
+    // Official dialect uses mode, not resolution
+    delete body.resolution;
+
+    const images = partitioned.images.slice(0, 4);
+    const videos = partitioned.videos.slice(0, 1);
+
+    if (input.refMode === "first_last" && images.length > 0) {
+      const imageList: Array<Record<string, string>> = [
+        { image_url: images[0]!, type: "first_frame" },
+      ];
+      if (images[1]) {
+        imageList.push({ image_url: images[1], type: "end_frame" });
+      }
+      body.metadata = { image_list: imageList };
+    } else if (images.length > 0) {
+      body.metadata = {
+        image_list: images.map((image_url) => ({ image_url })),
+      };
+    }
+
+    // audio=true is mutually exclusive with video_list
+    if (videos.length > 0) {
+      body.video_list = [
+        {
+          video_url: videos[0],
+          refer_type: "base",
+          keep_original_sound: "no",
+        },
+      ];
+    }
+
+    body.prompt = rewriteKlingOmniPlaceholders(String(body.prompt ?? ""), {
+      images: images.length,
+      videos: videos.length,
+    });
+    return body;
+  }
+
   if (id.includes("doubao-seedance-1-5")) {
     const metadata: Record<string, unknown> = { audio: true };
     if (resolution) metadata.resolution = resolution;
@@ -819,6 +915,65 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
     }
   }
   return body;
+}
+
+function partitionToapisRefs(input: VideoSubmitInput): {
+  images: string[];
+  videos: string[];
+  audios: string[];
+} {
+  const refs = (input.referenceUrls ?? []).filter(Boolean);
+  const kinds = input.referenceMediaKinds ?? [];
+  const images: string[] = [];
+  const videos: string[] = [];
+  const audios: string[] = [];
+  refs.forEach((url, i) => {
+    const hint = kinds[i];
+    const kind =
+      hint === "video" || hint === "audio" || hint === "image"
+        ? hint
+        : /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)
+          ? "video"
+          : /\.(mp3|wav|m4a|aac|ogg|flac)(\?|$)/i.test(url)
+            ? "audio"
+            : "image";
+    if (kind === "video") videos.push(url);
+    else if (kind === "audio") audios.push(url);
+    else images.push(url);
+  });
+  return { images, videos, audios };
+}
+
+/** Map JoyAI @图片N / @视频N → Kling Omni <<<image_N>>> / <<<video_N>>>. */
+function rewriteKlingOmniPlaceholders(
+  prompt: string,
+  counts: { images: number; videos: number },
+): string {
+  let out = prompt
+    .replace(/@(图片|图)(\d+)/g, (_m, _k: string, n: string) => {
+      const i = Number(n);
+      return i >= 1 && i <= counts.images ? `<<<image_${i}>>>` : _m;
+    })
+    .replace(/@视频(\d+)/g, (_m, n: string) => {
+      const i = Number(n);
+      return i >= 1 && i <= counts.videos ? `<<<video_${i}>>>` : _m;
+    })
+    .replace(/\{\{Image\s+(\d+)\}\}/gi, (_m, n: string) => {
+      const i = Number(n);
+      return i >= 1 && i <= counts.images ? `<<<image_${i}>>>` : _m;
+    })
+    .replace(/\{\{Video\s+(\d+)\}\}/gi, (_m, n: string) => {
+      const i = Number(n);
+      return i >= 1 && i <= counts.videos ? `<<<video_${i}>>>` : _m;
+    });
+
+  if (counts.videos > 0 && !/<<<video_\d+>>>/.test(out)) {
+    out = `${out} <<<video_1>>>`.trim();
+  }
+  if (counts.images > 0 && !/<<<image_\d+>>>/.test(out)) {
+    out = `${out} <<<image_1>>>`.trim();
+  }
+  return out;
 }
 
 function buildGenericOpenAIVideoBody(

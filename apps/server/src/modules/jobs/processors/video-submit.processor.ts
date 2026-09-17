@@ -54,11 +54,13 @@ export class VideoSubmitProcessor extends WorkerHost {
       };
 
       const model = await this.channels.resolveForKind("video", input.modelId);
-      const referenceUrls = await this.jobs.resolveReferenceUrls(
+      const referenceMedia = await this.jobs.resolveReferenceMedia(
         job.userId,
         input.referenceAssetIds,
         input.referenceUrls,
       );
+      const referenceUrls = referenceMedia.map((r) => r.url);
+      const referenceMediaKinds = referenceMedia.map((r) => r.kind);
 
       const features = Array.isArray(
         (model.capabilities as { features?: unknown } | null)?.features,
@@ -87,6 +89,7 @@ export class VideoSubmitProcessor extends WorkerHost {
         duration: input.duration,
         resolution: input.resolution,
         referenceUrls,
+        referenceMediaKinds,
         refMode,
         firstLastViaPrompt,
         metadata: channelMeta,
