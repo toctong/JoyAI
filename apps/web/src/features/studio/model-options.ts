@@ -584,8 +584,7 @@ export function refSlotLimitsFromCapabilities(
       videos = Math.max(0, caps.maxRefVideos);
     } else if (
       (caps.input ?? []).includes("video") ||
-      featureSet(caps).has("ref-video") ||
-      hasOmniRefCapability(caps)
+      featureSet(caps).has("ref-video")
     ) {
       videos = null;
     }
@@ -593,8 +592,7 @@ export function refSlotLimitsFromCapabilities(
       audios = Math.max(0, caps.maxRefAudios);
     } else if (
       (caps.input ?? []).includes("audio") ||
-      featureSet(caps).has("audio") ||
-      hasOmniRefCapability(caps)
+      featureSet(caps).has("ref-audio")
     ) {
       audios = null;
     }
@@ -647,6 +645,17 @@ export function refDropAccept(
     accept["audio/*"] = [".mp3", ".wav", ".aac", ".m4a", ".ogg", ".flac"];
   }
   return Object.keys(accept).length ? accept : undefined;
+}
+
+/** Short chip / aria label for what the current model actually accepts. */
+export function refUploadHint(limits: RefSlotLimits): string {
+  const parts: string[] = [];
+  if (limits.images == null || limits.images > 0) parts.push("图");
+  if (limits.videos == null || limits.videos > 0) parts.push("视频");
+  if (limits.audios == null || limits.audios > 0) parts.push("音频");
+  if (parts.length === 0) return "参考内容";
+  if (parts.length === 1 && parts[0] === "图") return "参考图";
+  return `参考${parts.join("/")}`;
 }
 
 export function probeMediaDurationSec(file: File): Promise<number> {

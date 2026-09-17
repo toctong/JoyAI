@@ -57,6 +57,7 @@ import {
   probeImageSize,
   refDropAccept,
   refSlotLimitsFromCapabilities,
+  refUploadHint,
   validateRefFileBytes,
   validateRefImageConstraints,
   type AspectOption,
@@ -851,6 +852,7 @@ export function CreationComposer({
   );
 
   const dropAccept = useMemo(() => refDropAccept(refLimits), [refLimits]);
+  const uploadHint = useMemo(() => refUploadHint(refLimits), [refLimits]);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: (files) => {
@@ -1128,16 +1130,14 @@ export function CreationComposer({
                       onClick={open}
                       aria-label={
                         refs.length === 0
-                          ? kind === "video"
-                            ? "添加参考图/视频/音频"
-                            : "添加参考内容"
+                          ? `添加${uploadHint}`
                           : "继续添加参考素材"
                       }
                     >
                       <Plus className="h-4 w-4" strokeWidth={1.75} />
                       {refs.length === 0 || refsExpanded ? (
                         <span className="joy-composer-upload-label">
-                          参考内容
+                          {uploadHint}
                         </span>
                       ) : null}
                     </button>
