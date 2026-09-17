@@ -198,11 +198,8 @@ function ensureFlexibleRatioOption(
     return ["auto", ...ratios];
   }
 
-  // Video catalogs often use adaptive; add when ratios exist but none flexible
-  if (kind === "video" && ratios.length > 0) {
-    return ["adaptive", ...ratios];
-  }
-
+  // Do NOT inject "adaptive" for every video model — DashScope HappyHorse / Wan
+  // reject it (only fixed ratios). Seedance catalogs already list adaptive explicitly.
   return ratios;
 }
 

@@ -190,6 +190,24 @@ export class JobsService {
     );
   }
 
+  /** Admin: any user's job by id (full detail). */
+  async getAdmin(id: string) {
+    const job = await this.jobs.findOne({
+      where: { id },
+      relations: ["user", "assets"],
+    });
+    if (!job) throw new NotFoundException("任务不存在");
+    const [enriched] = await this.enrichMany([
+      {
+        ...job,
+        user: job.user
+          ? { id: job.user.id, username: job.user.username }
+          : undefined,
+      } as JobListRow,
+    ]);
+    return enriched;
+  }
+
   async get(userId: string, id: string) {
     const job = await this.jobs.findOne({
       where: { id, userId },

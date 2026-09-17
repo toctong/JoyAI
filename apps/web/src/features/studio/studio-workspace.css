@@ -321,8 +321,9 @@
   z-index: 1;
 }
 
+/* Above fixed composer dock (z-index 30) so expanded prompt is not covered */
 .joy-studio-prompt-wrap:has(.joy-studio-prompt-pop) {
-  z-index: 30;
+  z-index: 40;
 }
 
 .joy-studio-prompt {
@@ -360,11 +361,12 @@
   position: absolute;
   left: 0;
   top: 0;
-  z-index: 20;
+  z-index: 1;
   box-sizing: border-box;
   width: max(100%, 280px);
   max-width: min(560px, calc(100vw - 120px));
-  max-height: min(48vh, 360px);
+  /* Leave room above the bottom composer when near the fold */
+  max-height: min(52vh, calc(100dvh - 220px), 420px);
   display: flex;
   flex-direction: column;
   gap: 10px;

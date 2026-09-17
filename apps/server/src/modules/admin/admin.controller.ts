@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
 import { UsersService } from "../users/users.service";
@@ -23,5 +23,10 @@ export class AdminController {
   @Get("jobs")
   jobsList(@Query("take") take?: string) {
     return this.jobs.listAll(take ? Number(take) : 100);
+  }
+
+  @Get("jobs/:id")
+  jobDetail(@Param("id") id: string) {
+    return this.jobs.getAdmin(id);
   }
 }

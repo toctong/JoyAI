@@ -16,6 +16,37 @@ function authHeaders(apiKey: string, async = false) {
   return h;
 }
 
+/** DashScope video `parameters.ratio` allowlist (HappyHorse / Wan). */
+const DASHSCOPE_VIDEO_RATIOS = new Set([
+  "16:9",
+  "9:16",
+  "4:3",
+  "3:4",
+  "1:1",
+  "5:4",
+  "4:5",
+  "9:21",
+  "21:9",
+]);
+
+const FLEXIBLE_RATIO = new Set(["auto", "adaptive", "keep"]);
+
+/**
+ * Map UI ratio → DashScope enum. Flexible / unknown → 16:9
+ * (API rejects adaptive/auto; ratio is required for HappyHorse).
+ */
+function resolveDashscopeVideoRatio(raw?: string): string {
+  const ratio = raw?.trim();
+  if (!ratio || FLEXIBLE_RATIO.has(ratio.toLowerCase())) return "16:9";
+  if (DASHSCOPE_VIDEO_RATIOS.has(ratio)) return ratio;
+  // tolerate "16:9 " / lowercase
+  const norm = ratio.replace(/\s+/g, "");
+  for (const allowed of DASHSCOPE_VIDEO_RATIOS) {
+    if (allowed.toLowerCase() === norm.toLowerCase()) return allowed;
+  }
+  return "16:9";
+}
+
 /** Derive DashScope native API root from compatible-mode baseUrl or metadata. */
 export function resolveDashscopeApiBase(
   baseUrl: string,
@@ -70,7 +101,7 @@ export class DashscopeVideoProvider implements VideoProvider {
 
     const parameters = body.parameters as Record<string, unknown>;
     if (input.duration) parameters.duration = Math.round(input.duration);
-    if (input.ratio) parameters.ratio = input.ratio;
+    parameters.ratio = resolveDashscopeVideoRatio(input.ratio);
     if (input.resolution) parameters.resolution = input.resolution;
     if (input.watermark != null) parameters.watermark = input.watermark;
 
