@@ -444,7 +444,7 @@ function translateEnglishMessage(message: string): string | undefined {
     m.includes("option is not supported") ||
     m.includes("isn't supported by the upstream")
   ) {
-    return "上游不支持当前参数组合（如双参考图/分辨率/模式）";
+    return "上游不支持当前参数组合（Gemini Omni Flash 参考图仅支持 1 或 3 张，不能传 2 张）";
   }
   return undefined;
 }

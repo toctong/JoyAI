@@ -84,13 +84,21 @@
 .joy-composer-toolbar,
 .joy-composer-params-panel {
   position: relative;
-  z-index: 1;
 }
 
 .joy-composer-body {
+  z-index: 3;
   display: flex;
   gap: 14px;
   align-items: flex-start;
+}
+
+.joy-composer-toolbar {
+  z-index: 1;
+}
+
+.joy-composer-params-panel {
+  z-index: 2;
 }
 
 /* Jimeng collapsed deck → expanded portrait row (out of flow) */

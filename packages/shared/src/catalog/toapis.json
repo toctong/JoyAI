@@ -1450,6 +1450,7 @@
     {
       "name": "Gemini Omni Flash",
       "remoteId": "gemini_omni_flash",
+      "description": "文/图生视频；参考图仅支持 1 张或 3 张（不支持 2 张）",
       "capabilities": {
         "input": [
           "text",

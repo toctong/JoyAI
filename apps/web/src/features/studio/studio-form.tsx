@@ -485,42 +485,66 @@ function StudioJobRefs({ urls }: { urls: string[] }) {
   if (urls.length === 0) return null;
   const shown = urls.slice(0, 4);
   const extra = urls.length - shown.length;
+  const count = shown.length;
+
   return (
     <div
-      className={cn("joy-studio-refs", shown.length > 1 && "is-stack")}
+      className={cn("joy-studio-refs", count > 1 && "is-stack")}
+      data-count={count}
       aria-label="参考素材"
     >
-      {shown.map((url, i) => {
-        const kind = refMediaKind(url);
-        const thumb = (
-          <div
-            className={cn("joy-studio-ref-thumb", `is-${kind}`)}
-            style={shown.length > 1 ? { zIndex: shown.length - i } : undefined}
-            title={`参考${i + 1}`}
-          >
-            {kind === "video" ? (
-              <video src={url} muted playsInline preload="metadata" />
-            ) : kind === "audio" ? (
-              <span className="joy-studio-ref-audio">音</span>
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={url} alt={`参考${i + 1}`} />
-            )}
-            <span className="joy-studio-ref-index">{i + 1}</span>
-          </div>
-        );
-        return kind === "image" || kind === "other" ? (
-          <PhotoView key={`${url}-${i}`} src={url}>
-            <button type="button" className="joy-studio-ref-hit" aria-label={`预览参考${i + 1}`}>
+      <div className="joy-studio-refs-fan">
+        {shown.map((url, i) => {
+          const kind = refMediaKind(url);
+          const tilt =
+            count === 1
+              ? "is-tilt-solo"
+              : i % 2 === 0
+                ? "is-tilt-a"
+                : "is-tilt-b";
+          const thumb = (
+            <div
+              className={cn("joy-studio-ref-card", `is-${kind}`, tilt)}
+              title={`参考${i + 1}`}
+            >
+              {kind === "video" ? (
+                <video src={url} muted playsInline preload="metadata" />
+              ) : kind === "audio" ? (
+                <span className="joy-studio-ref-audio">音</span>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt={`参考${i + 1}`} />
+              )}
+              {i === 0 ? (
+                <span className="joy-studio-ref-index">{i + 1}</span>
+              ) : null}
+            </div>
+          );
+          const hitStyle = {
+            ["--ref-i"]: String(i),
+          } as CSSProperties;
+          return kind === "image" || kind === "other" ? (
+            <PhotoView key={`${url}-${i}`} src={url}>
+              <button
+                type="button"
+                className="joy-studio-ref-hit"
+                style={hitStyle}
+                aria-label={`预览参考${i + 1}`}
+              >
+                {thumb}
+              </button>
+            </PhotoView>
+          ) : (
+            <div
+              key={`${url}-${i}`}
+              className="joy-studio-ref-hit"
+              style={hitStyle}
+            >
               {thumb}
-            </button>
-          </PhotoView>
-        ) : (
-          <div key={`${url}-${i}`} className="joy-studio-ref-hit">
-            {thumb}
-          </div>
-        );
-      })}
+            </div>
+          );
+        })}
+      </div>
       {extra > 0 ? (
         <span className="joy-studio-ref-more">+{extra}</span>
       ) : null}

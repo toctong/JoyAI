@@ -126,7 +126,9 @@ export class DashscopeVideoProvider implements VideoProvider {
     const isR2v = /r2v/i.test(input.model);
     const isI2v = /i2v/i.test(input.model) || (!isR2v && refs.length > 0);
 
-    let prompt = rewritePromptMentionsForApi(input.prompt);
+    let prompt = rewritePromptMentionsForApi(input.prompt, {
+      maxImages: refs.length || undefined,
+    });
     if (input.refMode === "first_last" && refs.length > 0) {
       prompt =
         refs.length >= 2

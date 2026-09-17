@@ -24,7 +24,10 @@ export class VolcengineImageProvider implements ImageProvider {
   readonly platform = ProviderPlatform.VOLCENGINE;
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
-    const prompt = rewritePromptMentionsForApi(input.prompt);
+    const refs = (input.referenceUrls ?? []).filter(Boolean);
+    const prompt = rewritePromptMentionsForApi(input.prompt, {
+      maxImages: refs.length || undefined,
+    });
     const size = resolveImageSize({
       size: input.size,
       width: input.width,
@@ -144,7 +147,9 @@ export class VolcengineVideoProvider implements VideoProvider {
     const mode = input.refMode ?? (refs.length ? "omni" : undefined);
     const viaPrompt = Boolean(input.firstLastViaPrompt);
 
-    let prompt = rewritePromptMentionsForApi(input.prompt);
+    let prompt = rewritePromptMentionsForApi(input.prompt, {
+      maxImages: refs.length || undefined,
+    });
     if (mode === "first_last" && viaPrompt && refs.length > 0) {
       prompt =
         refs.length >= 2

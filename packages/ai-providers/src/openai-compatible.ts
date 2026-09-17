@@ -486,7 +486,10 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
   constructor(readonly platform: string) {}
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
-    const prompt = rewritePromptMentionsForApi(input.prompt);
+    const refs = (input.referenceUrls ?? []).filter(Boolean);
+    const prompt = rewritePromptMentionsForApi(input.prompt, {
+      maxImages: refs.length || undefined,
+    });
     const next = prompt === input.prompt ? input : { ...input, prompt };
     const protocol = resolveInputImageProtocol(this.platform, next);
     const body = buildImageBodyByProfile(this.platform, next, protocol);
@@ -761,7 +764,20 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
 
   // Gemini Omni / Veo / default ToAPIs video
   if (resolution) body.resolution = resolution;
-  if (refs.length > 0) body.image_urls = refs.slice(0, 10);
+  if (refs.length > 0) {
+    // Legacy Omni Flash: image_urls 仅允许 0 / 1 / 3 张，禁止 2 张
+    // @see https://docs.toapis.com/docs/cn/api-reference/videos/gemini-omni-flash/generation
+    if (
+      /gemini[_-]?omni[_-]?flash/i.test(id) &&
+      !/official/i.test(id) &&
+      refs.length === 2
+    ) {
+      throw new Error(
+        "Gemini Omni Flash 参考图只支持 1 张或 3 张，不支持 2 张",
+      );
+    }
+    body.image_urls = refs.slice(0, 10);
+  }
   return body;
 }
 
@@ -798,7 +814,15 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
   constructor(readonly platform: string) {}
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {
-    const prompt = rewritePromptMentionsForApi(input.prompt);
+    const refs = (input.referenceUrls ?? []).filter(Boolean);
+    const prompt = rewritePromptMentionsForApi(input.prompt, {
+      maxImages: refs.length || undefined,
+      maxVideos: refs.filter((u) => /\.(mp4|webm|mov)(\?|$)/i.test(u)).length || undefined,
+      maxAudios:
+        refs.filter((u) =>
+          /\.(mp3|wav|m4a|aac|ogg|flac)(\?|$)/i.test(u),
+        ).length || undefined,
+    });
     const withMentions =
       prompt === input.prompt ? input : { ...input, prompt };
     const isToapis = this.platform.trim().toLowerCase() === "toapis";

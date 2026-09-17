@@ -890,6 +890,16 @@ export function CreationComposer({
       toast.error("首尾帧参考请至少添加 1 张图（建议首帧 + 尾帧共 2 张）");
       return;
     }
+    const remoteId = selectedModel?.remoteId ?? "";
+    const imageRefCount = refs.filter((r) => r.mediaKind === "image").length;
+    if (
+      /gemini[_-]?omni[_-]?flash/i.test(remoteId) &&
+      !/official/i.test(remoteId) &&
+      imageRefCount === 2
+    ) {
+      toast.error("Gemini Omni Flash 参考图只支持 1 张或 3 张，不支持 2 张");
+      return;
+    }
     setSubmitting(true);
     try {
       // Upload pending local files; keep remote seeds as-is

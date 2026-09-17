@@ -234,7 +234,9 @@ export class DashscopeImageProvider implements ImageProvider {
 
   async generate(input: ImageGenerateInput): Promise<ImageGenerateResult> {
     const apiBase = resolveDashscopeApiBase(input.baseUrl, input.metadata);
-    const prompt = rewritePromptMentionsForApi(input.prompt);
+    const prompt = rewritePromptMentionsForApi(input.prompt, {
+      maxImages: (input.referenceUrls ?? []).filter(Boolean).length || undefined,
+    });
     const next = prompt === input.prompt ? input : { ...input, prompt };
 
     if (isWanxImageEdit(next.model)) {
