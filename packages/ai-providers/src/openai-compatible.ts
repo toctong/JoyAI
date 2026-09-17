@@ -749,10 +749,44 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
   }
 
   if (id.startsWith("grok-video")) {
-    if (resolution) body.resolution = resolution;
+    // 1.0: only 6 / 10s; 1.5: 1–15s. Clamp so stale UI prefs can't send 8s on 1.0.
+    const allowed =
+      /grok-video-1\.0\b/i.test(id)
+        ? [6, 10]
+        : Array.from({ length: 15 }, (_, i) => i + 1);
+    let duration = input.duration;
+    if (typeof duration === "number" && Number.isFinite(duration)) {
+      let best = allowed[0]!;
+      let bestDist = Math.abs(duration - best);
+      for (const d of allowed) {
+        const dist = Math.abs(duration - d);
+        if (dist < bestDist) {
+          best = d;
+          bestDist = dist;
+        }
+      }
+      duration = best;
+    } else {
+      duration = /grok-video-1\.0\b/i.test(id) ? 6 : 8;
+    }
+    body.duration = duration;
+
+    if (resolution) {
+      // ToAPIs Grok: 480p / 720p (1.5 t2v/i2v may allow 1080p on some channels)
+      const r = resolution.toLowerCase();
+      body.resolution =
+        r === "1080p" && /grok-video-1\.0\b/i.test(id) ? "720p" : resolution;
+    }
+
     if (refs.length === 0) {
       body.video_generation_mode = "text_to_video";
-    } else if (input.refMode === "first_last") {
+    } else if (
+      input.refMode === "first_last" ||
+      refs.length === 1 ||
+      /grok-video-1\.5\b/i.test(id)
+    ) {
+      // Single image → first-frame; 1.5 docs also accept reference mode but
+      // first_frame is the common i2v path.
       body.video_generation_mode = "first_frame_image_to_video";
       body.image = refs[0];
     } else {

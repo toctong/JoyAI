@@ -431,6 +431,9 @@ function translateEnglishMessage(message: string): string | undefined {
     return "参数不在计价规则内（请检查时长/分辨率组合）";
   }
   if (m.includes("no available channel") || m.includes("channelcapability")) {
+    if (m.includes("duration") || m.includes("resolution") || m.includes("params:")) {
+      return "当前参数组合无可用渠道（请检查时长/分辨率/参考图是否被该模型支持）";
+    }
     return "上游未开通该模型渠道";
   }
   if (m.includes("fail_to_fetch_task")) {

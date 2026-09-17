@@ -227,7 +227,20 @@ function pickResolution(
 }
 
 function pickDuration(options: number[], preferred: number | undefined) {
+  if (!options.length) return preferred ?? 5;
   if (preferred != null && options.includes(preferred)) return preferred;
+  if (preferred != null && Number.isFinite(preferred)) {
+    let best = options[0]!;
+    let bestDist = Math.abs(preferred - best);
+    for (const o of options) {
+      const d = Math.abs(preferred - o);
+      if (d < bestDist) {
+        best = o;
+        bestDist = d;
+      }
+    }
+    return best;
+  }
   return options.includes(5) ? 5 : (options[0] ?? 4);
 }
 
