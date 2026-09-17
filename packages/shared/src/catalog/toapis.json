@@ -1,6 +1,6 @@
 {
   "platform": "toapis",
-  "updatedAt": "2026-09-16",
+  "updatedAt": "2026-09-17",
   "note": "adapterId defaults: image→openai-images, video→openai-videos. Override per model via adapterId. image dialect via capabilities.protocol.imageProfile (inferred if omitted).",
   "llm": [
     {
@@ -129,24 +129,6 @@
     {
       "name": "Claude Sonnet 4.6",
       "remoteId": "claude-sonnet-4-6",
-      "capabilities": {
-        "input": [
-          "text",
-          "image"
-        ],
-        "output": [
-          "text"
-        ],
-        "features": [
-          "chat",
-          "vision",
-          "reasoning"
-        ]
-      }
-    },
-    {
-      "name": "Claude Sonnet 4.6 Official",
-      "remoteId": "claude-sonnet-4-6-official",
       "capabilities": {
         "input": [
           "text",
@@ -1327,8 +1309,10 @@
           "first-last-frame",
           "audio"
         ],
+        "minDurationSec": 4,
         "maxDurationSec": 12,
         "resolutions": [
+          "480p",
           "720p",
           "1080p"
         ],
@@ -1352,20 +1336,25 @@
       "remoteId": "doubao-seedance-1-0-pro-fast",
       "capabilities": {
         "input": [
-          "text"
+          "text",
+          "image"
         ],
         "output": [
           "video"
         ],
+        "maxRefImages": 1,
         "async": true,
         "features": [
           "t2v",
           "i2v",
           "first-last-frame"
         ],
-        "maxDurationSec": 10,
+        "minDurationSec": 2,
+        "maxDurationSec": 12,
         "resolutions": [
-          "720p"
+          "480p",
+          "720p",
+          "1080p"
         ],
         "ratios": [
           "16:9",
@@ -1393,15 +1382,18 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 1,
+        "maxRefImages": 2,
         "async": true,
         "features": [
           "t2v",
           "i2v",
           "first-last-frame"
         ],
+        "minDurationSec": 2,
         "maxDurationSec": 12,
         "resolutions": [
+          "480p",
+          "720p",
           "1080p"
         ],
         "ratios": [
@@ -1510,58 +1502,6 @@
       }
     },
     {
-      "name": "Grok Video 1.5",
-      "remoteId": "grok-video-1.5",
-      "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "video"
-        ],
-        "async": true,
-        "features": [
-          "t2v"
-        ],
-        "maxDurationSec": 10,
-        "resolutions": [
-          "480p",
-          "720p"
-        ],
-        "ratios": [
-          "16:9",
-          "9:16",
-          "1:1"
-        ]
-      }
-    },
-    {
-      "name": "Grok Video 1.0",
-      "remoteId": "grok-video-1.0",
-      "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "video"
-        ],
-        "async": true,
-        "features": [
-          "t2v"
-        ],
-        "maxDurationSec": 8,
-        "resolutions": [
-          "480p",
-          "720p"
-        ],
-        "ratios": [
-          "16:9",
-          "9:16",
-          "1:1"
-        ]
-      }
-    },
-    {
       "name": "Gemini Omni Flash",
       "remoteId": "gemini_omni_flash",
       "capabilities": {
@@ -1581,21 +1521,26 @@
           "omni-ref",
           "audio"
         ],
+        "minDurationSec": 4,
         "maxDurationSec": 10,
+        "durationOptions": [
+          4,
+          6,
+          10
+        ],
         "resolutions": [
-          "720P",
+          "720p",
           "1080p"
         ],
         "ratios": [
           "16:9",
-          "9:16",
-          "1:1"
+          "9:16"
         ]
       }
     },
     {
-      "name": "Gemini Omni",
-      "remoteId": "gemini_omni",
+      "name": "Gemini Omni Flash Official",
+      "remoteId": "gemini-omni-flash-preview-official",
       "capabilities": {
         "input": [
           "text",
@@ -1604,7 +1549,7 @@
         "output": [
           "video"
         ],
-        "maxRefImages": 3,
+        "maxRefImages": 10,
         "async": true,
         "features": [
           "t2v",
@@ -1612,16 +1557,20 @@
           "r2v",
           "omni-ref"
         ],
+        "minDurationSec": 4,
         "maxDurationSec": 10,
+        "durationOptions": [
+          4,
+          6,
+          8,
+          10
+        ],
         "resolutions": [
-          "720p",
-          "1080p",
-          "4k"
+          "720p"
         ],
         "ratios": [
           "16:9",
-          "9:16",
-          "1:1"
+          "9:16"
         ]
       }
     },
@@ -1692,8 +1641,8 @@
       }
     },
     {
-      "name": "Sora 2",
-      "remoteId": "sora-2",
+      "name": "Sora 2 Official",
+      "remoteId": "sora-2-official",
       "capabilities": {
         "input": [
           "text",

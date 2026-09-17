@@ -124,6 +124,10 @@ const OPENAI_COMPAT_CODES: Record<string, string> = {
   engine_overloaded: "引擎过载，请稍后重试",
   server_error: "上游服务器错误",
   task_failed: "上游任务失败",
+  fail_to_fetch_task: "上游拉取任务失败（渠道不可用或被拦截）",
+  generation_failed: "上游生成失败",
+  upstream_blocked: "上游网关拦截，渠道暂不可用",
+  invalid_request: "请求参数错误",
 };
 
 const HTTP_STATUS_ZH: Record<number, string> = {
@@ -218,6 +222,11 @@ export function parseProviderErrorBody(
   if (data == null) return out;
   if (typeof data === "string") {
     const text = data.trim();
+    if (/just a moment|cloudflare|cf-ray|cf-challenge|<!DOCTYPE html/i.test(text)) {
+      out.code = "upstream_blocked";
+      out.message = "Cloudflare / 网关挑战页，渠道暂不可用";
+      return out;
+    }
     if (text) out.message = text.slice(0, 500);
     return out;
   }
@@ -277,6 +286,20 @@ export function parseProviderErrorBody(
   if (code != null && String(code).length) out.code = String(code);
   if (type) out.type = String(type);
   if (message) out.message = String(message).slice(0, 500);
+
+  if (
+    out.message &&
+    /just a moment|cloudflare|cf-ray|cf-challenge|<!DOCTYPE html/i.test(
+      out.message,
+    )
+  ) {
+    out.code = "upstream_blocked";
+    out.message = "Cloudflare / 网关挑战页，渠道暂不可用";
+  } else if (!out.code && out.message) {
+    const bracket = out.message.match(/\[([a-z0-9_.-]+)\]\s*$/i);
+    if (bracket?.[1]) out.code = bracket[1];
+  }
+
   if (requestId) out.requestId = requestId;
   return out;
 }
@@ -309,13 +332,22 @@ export function formatParsedProviderError(
   const fallback = opts?.fallback ?? "请求失败";
   const platform = opts?.platform;
 
-  const zhFromCode =
+  const zhFromCodeRaw =
     translateErrorCode(parsed.code, platform) ??
     translateErrorCode(parsed.type, platform) ??
     translateHttpStatus(parsed.status);
 
   const rawMsg = parsed.message ? stripRequestId(parsed.message) : undefined;
-  const zhFromMsg = rawMsg ? translateEnglishMessage(rawMsg) : undefined;
+  const looksLikeCf =
+    parsed.code === "upstream_blocked" ||
+    (rawMsg != null &&
+      /just a moment|cloudflare|cf-ray|<!DOCTYPE html/i.test(rawMsg));
+
+  const zhFromCode = looksLikeCf
+    ? "上游网关拦截，渠道暂不可用"
+    : zhFromCodeRaw;
+
+  const zhFromMsg = rawMsg && !looksLikeCf ? translateEnglishMessage(rawMsg) : undefined;
   const msgLooksEnglish =
     rawMsg != null &&
     /[A-Za-z]/.test(rawMsg) &&
@@ -325,7 +357,9 @@ export function formatParsedProviderError(
   if (zhFromCode || zhFromMsg) {
     const zh = zhFromCode ?? zhFromMsg!;
     // Avoid duplicating when vendor already returned Chinese
-    if (rawMsg && !msgLooksEnglish && rawMsg !== zh) {
+    if (looksLikeCf) {
+      text = zh;
+    } else if (rawMsg && !msgLooksEnglish && rawMsg !== zh) {
       text = `${zh}：${rawMsg}`;
     } else if (
       rawMsg &&
@@ -337,8 +371,10 @@ export function formatParsedProviderError(
     } else {
       text = zh;
     }
-  } else if (rawMsg) {
+  } else if (rawMsg && !looksLikeCf) {
     text = rawMsg;
+  } else if (looksLikeCf) {
+    text = "上游网关拦截，渠道暂不可用";
   } else if (parsed.code) {
     text = `上游错误（${parsed.code}）`;
   } else if (parsed.status) {
@@ -386,6 +422,18 @@ function translateEnglishMessage(message: string): string | undefined {
   }
   if (m.includes("rate limit") || m.includes("too many requests")) {
     return "请求过于频繁，请稍后重试";
+  }
+  if (m.includes("pricing rule") || m.includes("no matching pricing")) {
+    return "参数不在计价规则内（请检查时长/分辨率组合）";
+  }
+  if (m.includes("no available channel") || m.includes("channelcapability")) {
+    return "上游未开通该模型渠道";
+  }
+  if (m.includes("fail_to_fetch_task")) {
+    return "上游拉取任务失败（渠道不可用或被拦截）";
+  }
+  if (m.includes("generation failed") || m.includes("task processing failed")) {
+    return "上游生成失败";
   }
   return undefined;
 }

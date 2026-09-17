@@ -330,7 +330,18 @@ export function resolutionsFromCapabilities(
 export function durationsFromCapabilities(
   caps?: ModelCapabilities | null,
 ): number[] {
+  if (caps?.durationOptions?.length) {
+    return [...new Set(caps.durationOptions)]
+      .filter((d) => typeof d === "number" && Number.isFinite(d) && d > 0)
+      .sort((a, b) => a - b);
+  }
   const max = caps?.maxDurationSec;
+  const min =
+    typeof caps?.minDurationSec === "number" &&
+    Number.isFinite(caps.minDurationSec) &&
+    caps.minDurationSec > 0
+      ? caps.minDurationSec
+      : 1;
   const candidates: number[] = [...DEFAULT_VIDEO_DURATIONS];
   if (typeof max === "number" && Number.isFinite(max) && max > 0) {
     const extras = [max];
@@ -342,10 +353,10 @@ export function durationsFromCapabilities(
       }
     }
     return [...new Set(candidates)]
-      .filter((d) => d <= max)
+      .filter((d) => d >= min && d <= max)
       .sort((a, b) => a - b);
   }
-  return [...DEFAULT_VIDEO_DURATIONS];
+  return [...DEFAULT_VIDEO_DURATIONS].filter((d) => d >= min);
 }
 
 export function formatQualityLabel(

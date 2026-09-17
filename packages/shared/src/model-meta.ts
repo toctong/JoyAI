@@ -77,6 +77,10 @@ export const ModelCapabilitiesSchema = z.object({
   /** 单个参考音频体积上限（字节） */
   maxRefAudioBytes: z.number().int().optional(),
   maxDurationSec: z.number().optional(),
+  /** 最短时长（秒） */
+  minDurationSec: z.number().optional(),
+  /** 显式可选时长列表；有则优先于默认 [4,5,8,10] */
+  durationOptions: z.array(z.number()).optional(),
   /** 输出分辨率档位，如 480p / 720p / 2K */
   resolutions: z.array(z.string()).optional(),
   /** 画幅比例，如 16:9 */

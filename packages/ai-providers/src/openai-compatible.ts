@@ -668,39 +668,145 @@ export function extractImages(
   return [];
 }
 
+function normalizeVideoResolution(res?: string): string | undefined {
+  if (!res?.trim()) return undefined;
+  return res.trim().toLowerCase();
+}
+
+/** Strip Ark dated IDs / legacy aliases so ToAPIs public names are used. */
+function normalizeToapisVideoModelId(model: string): string {
+  let id = model.trim();
+  const dated = id.match(/^(doubao-seedance-[\w.-]+?)-\d{6}$/i);
+  if (dated?.[1]) id = dated[1];
+  // Marketplace uses underscore for legacy Omni Flash; hyphen redirects here.
+  if (/^gemini-omni-flash$/i.test(id)) return "gemini_omni_flash";
+  // Broken ChannelCapability id → official Vertex SKU
+  if (/^gemini_omni$/i.test(id)) return "gemini-omni-flash-preview-official";
+  if (/^sora-2$/i.test(id)) return "sora-2-official";
+  return id;
+}
+
+/**
+ * ToAPIs video dialect — do not shotgun ratio/size/image aliases.
+ * @see https://docs.toapis.com/docs/cn/api-reference/videos/
+ */
+function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> {
+  const model = normalizeToapisVideoModelId(input.model);
+  const refs = (input.referenceUrls ?? []).filter(Boolean);
+  const resolution = normalizeVideoResolution(input.resolution);
+  const body: Record<string, unknown> = {
+    model,
+    prompt: input.prompt,
+  };
+  if (input.duration != null) body.duration = input.duration;
+  if (input.ratio) body.aspect_ratio = input.ratio;
+
+  const id = model.toLowerCase();
+
+  if (id.includes("doubao-seedance-1-5")) {
+    const metadata: Record<string, unknown> = { audio: true };
+    if (resolution) metadata.resolution = resolution;
+    body.metadata = metadata;
+    if (refs.length > 0) {
+      const roles: Array<{ url: string; role: string }> = [
+        { url: refs[0]!, role: "first_frame" },
+      ];
+      if (refs[1]) roles.push({ url: refs[1], role: "last_frame" });
+      body.image_with_roles = roles;
+    }
+    return body;
+  }
+
+  if (id.includes("doubao-seedance-1-0")) {
+    let res = resolution;
+    if (refs.length > 0) {
+      const roles: Array<{ url: string; role: string }> = [];
+      if (input.refMode === "first_last") {
+        roles.push({ url: refs[0]!, role: "first_frame" });
+        if (refs[1] && id.includes("quality")) {
+          roles.push({ url: refs[1], role: "last_frame" });
+        }
+      } else if (refs.length === 1) {
+        roles.push({ url: refs[0]!, role: "reference" });
+        // docs: reference role cannot use 1080p
+        if (res === "1080p") res = "720p";
+      } else {
+        roles.push({ url: refs[0]!, role: "first_frame" });
+        if (refs[1] && id.includes("quality")) {
+          roles.push({ url: refs[1], role: "last_frame" });
+        }
+      }
+      body.image_with_roles = roles;
+    }
+    if (res) body.resolution = res;
+    return body;
+  }
+
+  if (id.startsWith("grok-video")) {
+    if (resolution) body.resolution = resolution;
+    if (refs.length === 0) {
+      body.video_generation_mode = "text_to_video";
+    } else if (input.refMode === "first_last") {
+      body.video_generation_mode = "first_frame_image_to_video";
+      body.image = refs[0];
+    } else {
+      body.video_generation_mode = "reference_images_to_video";
+      body.reference_images = refs.slice(0, 7);
+    }
+    return body;
+  }
+
+  // Gemini Omni / Veo / default ToAPIs video
+  if (resolution) body.resolution = resolution;
+  if (refs.length > 0) body.image_urls = refs.slice(0, 10);
+  return body;
+}
+
+function buildGenericOpenAIVideoBody(
+  input: VideoSubmitInput,
+): Record<string, unknown> {
+  const refs = input.referenceUrls ?? [];
+  let prompt = input.prompt;
+  if (input.refMode === "first_last" && refs.length > 0) {
+    prompt =
+      refs.length >= 2
+        ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${input.prompt}`
+        : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${input.prompt}`;
+  }
+
+  const body: Record<string, unknown> = {
+    model: input.model,
+    prompt,
+  };
+  if (input.duration) body.duration = input.duration;
+  if (input.resolution) body.resolution = normalizeVideoResolution(input.resolution);
+  if (input.ratio) {
+    body.aspect_ratio = input.ratio;
+  }
+  if (refs.length) {
+    body.image_urls = refs;
+    body.image = refs[0];
+  }
+  return body;
+}
+
 export class OpenAICompatibleVideoProvider implements VideoProvider {
   readonly adapterId = "openai-videos";
   constructor(readonly platform: string) {}
 
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {
-    const refs = input.referenceUrls ?? [];
-    let prompt = input.prompt;
-    if (input.refMode === "first_last" && refs.length > 0) {
-      // Gateways rarely expose Ark-style roles; always use prompt guidance.
-      prompt =
-        refs.length >= 2
-          ? `【首尾帧约束】请将第 1 张参考图作为视频首帧、第 2 张参考图作为视频尾帧，在两帧之间生成自然连贯的过渡动画。用户需求：${input.prompt}`
-          : `【首帧约束】请将参考图作为视频首帧，据此生成后续动作。用户需求：${input.prompt}`;
+    const isToapis = this.platform.trim().toLowerCase() === "toapis";
+    let submitInput = input;
+    if (isToapis && input.refMode === "first_last" && input.firstLastViaPrompt) {
+      // ToAPIs Seedance/Grok use native roles; skip prompt-prefix fallback.
+      submitInput = { ...input, firstLastViaPrompt: false };
     }
+
+    const body = isToapis
+      ? buildToapisVideoBody(submitInput)
+      : buildGenericOpenAIVideoBody(submitInput);
 
     const base = normalizeBase(input.baseUrl);
-    const body: Record<string, unknown> = {
-      model: input.model,
-      prompt,
-    };
-    if (input.duration) body.duration = input.duration;
-    if (input.resolution) body.resolution = input.resolution;
-    if (input.ratio) {
-      body.ratio = input.ratio;
-      body.aspect_ratio = input.ratio;
-      body.size = input.ratio;
-    }
-    if (refs.length) {
-      body.image = refs[0];
-      body.images = refs;
-      body.input_reference = refs[0];
-    }
-
     const paths = [
       `${base}/videos/generations`,
       `${base}/videos`,
@@ -752,7 +858,20 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
           timeout: 30_000,
           validateStatus: () => true,
         });
-        if (status >= 400) continue;
+        if (status >= 400) {
+          // Surface CF / auth failures instead of silently "running"
+          if (status === 403 || status === 401 || isCloudflareBody(data)) {
+            return {
+              status: "failed",
+              error: formatProviderErrorBody(data, status, {
+                platform: this.platform,
+                fallback: `HTTP ${status}`,
+              }),
+              raw: data,
+            };
+          }
+          continue;
+        }
 
         const st = readStatus(data);
 
@@ -793,6 +912,18 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
     }
     return { status: "running" };
   }
+}
+
+function isCloudflareBody(data: unknown): boolean {
+  const text =
+    typeof data === "string"
+      ? data
+      : data && typeof data === "object"
+        ? JSON.stringify(data)
+        : "";
+  return /just a moment|cloudflare|cf-ray|cf-challenge|<!DOCTYPE html/i.test(
+    text,
+  );
 }
 
 /**

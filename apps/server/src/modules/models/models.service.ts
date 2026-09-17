@@ -17,6 +17,14 @@ import { Channel } from "../../database/entities/channel.entity";
 import { Model } from "../../database/entities/model.entity";
 import { JobKind } from "../../database/enums";
 
+/** Legacy remoteIds → current catalog ids (matched during import). */
+const CATALOG_REMOTE_ID_ALIASES: Record<string, string[]> = {
+  gemini_omni_flash: ["gemini-omni-flash"],
+  "gemini-omni-flash-preview-official": ["gemini_omni"],
+  "doubao-seedance-1-5-pro": ["doubao-seedance-1-5-pro-251215"],
+  "sora-2-official": ["sora-2"],
+};
+
 @Injectable()
 export class ModelsService {
   constructor(
@@ -252,12 +260,20 @@ export class ModelsService {
     const catalogIds = new Set(catalog.map((item) => item.remoteId));
 
     for (const item of catalog) {
-      const existing = await this.models.findOne({
-        where: { channelId, remoteId: item.remoteId },
-      });
+      const aliasIds = CATALOG_REMOTE_ID_ALIASES[item.remoteId] ?? [];
+      const existing =
+        (await this.models.findOne({
+          where: { channelId, remoteId: item.remoteId },
+        })) ??
+        (aliasIds.length
+          ? await this.models.findOne({
+              where: { channelId, remoteId: In(aliasIds) },
+            })
+          : null);
 
       if (existing) {
         if (opts?.forceRename) existing.name = item.name;
+        existing.remoteId = item.remoteId;
         existing.description = item.description ?? existing.description;
         existing.pricing =
           item.pricing != null
