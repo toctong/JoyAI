@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
+import { copyText } from "@/shared/lib/clipboard";
 import dayjs from "dayjs";
 import { api } from "@/shared/lib/api";
 import { formatDurationMs } from "@/shared/lib/format-duration";
@@ -291,19 +292,34 @@ function scrollFeedToBottom() {
   vp.scrollTop = vp.scrollHeight;
 }
 
-async function downloadAsset(url: string) {
+async function downloadAsset(url: string, kind?: string) {
   try {
     const res = await fetch(url);
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = objectUrl;
-    a.download = `joyai-${Date.now()}.png`;
+    a.download = `joyai-${Date.now()}.${extForAsset(url, blob.type, kind)}`;
     a.click();
     URL.revokeObjectURL(objectUrl);
   } catch {
     window.open(url, "_blank", "noopener,noreferrer");
   }
+}
+
+function extForAsset(url: string, mime: string, kind?: string) {
+  if (kind === "video" || mime.startsWith("video/")) {
+    if (mime.includes("webm")) return "webm";
+    if (mime.includes("quicktime")) return "mov";
+    return "mp4";
+  }
+  if (mime.includes("png")) return "png";
+  if (mime.includes("webp")) return "webp";
+  if (mime.includes("jpeg") || mime.includes("jpg")) return "jpg";
+  if (mime.includes("gif")) return "gif";
+  const fromUrl = url.match(/\.(mp4|webm|mov|png|jpe?g|webp|gif)(?:\?|$)/i)?.[1];
+  if (fromUrl) return fromUrl.toLowerCase() === "jpeg" ? "jpg" : fromUrl.toLowerCase();
+  return kind === "video" ? "mp4" : "png";
 }
 
 /** 默认 2 行省略；展开为浮层，不挤占下方文档流 */
@@ -542,6 +558,27 @@ function JobActions({
   onRegenerate: () => void;
   onDelete: () => void;
 }) {
+  const assets = job.assets ?? [];
+  const canDownload = assets.length > 0;
+
+  async function onDownload() {
+    if (!canDownload) {
+      toast.error("暂无可下载资产");
+      return;
+    }
+    try {
+      for (const asset of assets) {
+        await downloadAsset(
+          asset.url,
+          isVideoAsset(asset) ? "video" : asset.kind,
+        );
+      }
+      toast.success(assets.length > 1 ? "已开始下载全部资产" : "已开始下载");
+    } catch {
+      toast.error("下载失败");
+    }
+  }
+
   return (
     <div className="joy-studio-actions">
       <button
@@ -558,6 +595,15 @@ function JobActions({
           )}
         />
         再次生成
+      </button>
+      <button
+        type="button"
+        className="joy-studio-action"
+        disabled={!canDownload}
+        onClick={() => void onDownload()}
+      >
+        <Download strokeWidth={1.75} className="h-3.5 w-3.5" />
+        下载
       </button>
       <button
         type="button"
@@ -750,10 +796,9 @@ function StudioInner() {
       toast.error("没有可复制的提示词");
       return;
     }
-    try {
-      await navigator.clipboard.writeText(prompt);
+    if (await copyText(prompt)) {
       toast.success("提示词已复制");
-    } catch {
+    } else {
       toast.error("复制失败，请手动选择文本");
     }
   }
@@ -964,7 +1009,7 @@ function StudioInner() {
                                   title="下载"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    void downloadAsset(asset.url);
+                                    void downloadAsset(asset.url, asset.kind);
                                   }}
                                 >
                                   <Download className="h-4 w-4" />

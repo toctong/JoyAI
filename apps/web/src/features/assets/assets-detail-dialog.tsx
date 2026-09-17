@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Crosshair, ExternalLink, ImageIcon, Video, X } from "lucide-react";
+import {
+  Copy,
+  Crosshair,
+  ExternalLink,
+  ImageIcon,
+  Sparkles,
+  Video,
+  X,
+} from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -11,6 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { toast } from "@/shared/lib/toast";
+import { copyText } from "@/shared/lib/clipboard";
 import { cn } from "@/shared/lib/utils";
 import { ExplorePlyrPlayer } from "@/features/explore/explore-plyr-player";
 import { ExploreDialogSkeleton } from "@/features/explore/explore-skeleton";
@@ -23,10 +33,15 @@ export type AssetsPreviewItem = {
   url: string;
   createdAt: string;
   mimeType?: string | null;
+  jobId?: string | null;
   job?: {
     id: string;
     canvasProjectId?: string | null;
     canvasNodeId?: string | null;
+    modelName?: string | null;
+    channelName?: string | null;
+    prompt?: string | null;
+    referenceUrls?: string[];
   } | null;
 };
 
@@ -68,6 +83,24 @@ export function AssetsDetailDialog({
 
   const markReady = useCallback(() => setReady(true), []);
   const isVideo = asset?.kind === "video";
+  const isUpload = Boolean(asset && !asset.jobId && !asset.job);
+  const prompt = asset?.job?.prompt?.trim() || "";
+  const refUrls = asset?.job?.referenceUrls?.filter(Boolean) ?? [];
+  const modelLabel = [asset?.job?.modelName, asset?.job?.channelName]
+    .filter(Boolean)
+    .join(" · ");
+
+  async function onCopyPrompt() {
+    if (!prompt) {
+      toast.error("没有可复制的提示词");
+      return;
+    }
+    if (await copyText(prompt)) {
+      toast.success("提示词已复制");
+    } else {
+      toast.error("复制失败");
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -95,13 +128,25 @@ export function AssetsDetailDialog({
             <div className="joy-explore-dialog-inner">
               <div className="joy-explore-dialog-media">
                 <div className="joy-explore-dialog-stage">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={asset.url}
-                    alt=""
-                    aria-hidden
-                    className="joy-explore-dialog-blur"
-                  />
+                  {isVideo ? (
+                    <video
+                      src={asset.url}
+                      muted
+                      playsInline
+                      autoPlay
+                      loop
+                      aria-hidden
+                      className="joy-explore-dialog-blur"
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={asset.url}
+                      alt=""
+                      aria-hidden
+                      className="joy-explore-dialog-blur"
+                    />
+                  )}
                   <div className="joy-explore-dialog-fg">
                     {isVideo ? (
                       <ExplorePlyrPlayer
@@ -132,21 +177,71 @@ export function AssetsDetailDialog({
                   ) : (
                     <ImageIcon className="h-3.5 w-3.5" />
                   )}
-                  <span>{isVideo ? "视频" : "图片"}</span>
+                  <span>
+                    {isUpload
+                      ? isVideo
+                        ? "上传视频"
+                        : "上传图片"
+                      : isVideo
+                        ? "生成视频"
+                        : "生成图片"}
+                  </span>
                 </div>
 
-                <dl className="joy-assets-dialog-meta">
-                  <div>
-                    <dt>创建时间</dt>
-                    <dd>{createdLabel}</dd>
+                <div className="joy-assets-dialog-time">{createdLabel}</div>
+
+                {modelLabel ? (
+                  <div className="joy-explore-dialog-model">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{modelLabel}</span>
                   </div>
-                  {asset.mimeType ? (
-                    <div>
-                      <dt>类型</dt>
-                      <dd className="joy-assets-dialog-mono">{asset.mimeType}</dd>
+                ) : null}
+
+                {!isUpload ? (
+                  <>
+                    <div className="joy-explore-dialog-prompt-head">
+                      <span>提示词</span>
+                      <button
+                        type="button"
+                        className="joy-explore-dialog-copy"
+                        onClick={() => void onCopyPrompt()}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        复制
+                      </button>
                     </div>
-                  ) : null}
-                </dl>
+
+                    <div className="joy-explore-dialog-prompt">
+                      {prompt || "（无提示词）"}
+                    </div>
+
+                    {refUrls.length > 0 ? (
+                      <div className="joy-assets-dialog-refs">
+                        <div className="joy-assets-dialog-refs-label">
+                          参考图 · {refUrls.length}
+                        </div>
+                        <div className="joy-assets-dialog-refs-grid">
+                          {refUrls.map((url) => (
+                            <a
+                              key={url}
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="joy-assets-dialog-ref"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt="" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="joy-assets-dialog-upload-note">
+                    用户上传的参考素材，无生成提示词
+                  </p>
+                )}
 
                 <div className="joy-assets-dialog-actions">
                   <a
@@ -159,7 +254,10 @@ export function AssetsDetailDialog({
                     新窗口打开
                   </a>
                   {locateHref ? (
-                    <Link href={locateHref} className="joy-assets-dialog-btn is-primary">
+                    <Link
+                      href={locateHref}
+                      className="joy-assets-dialog-btn is-primary"
+                    >
                       <Crosshair className="h-4 w-4" />
                       在画布中定位
                     </Link>

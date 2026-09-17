@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
+import { copyText } from "@/shared/lib/clipboard";
 import {
   Dialog,
   DialogClose,
@@ -80,10 +81,9 @@ export function ExploreDetailDialog({
       toast.error("没有可复制的提示词");
       return;
     }
-    try {
-      await navigator.clipboard.writeText(text);
+    if (await copyText(text)) {
       toast.success("提示词已复制");
-    } catch {
+    } else {
       toast.error("复制失败");
     }
   }

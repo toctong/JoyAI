@@ -10,7 +10,7 @@
   gap: 6px;
   width: fit-content;
   height: 28px;
-  margin-bottom: 18px;
+  margin-bottom: 10px;
   padding: 0 10px;
   border-radius: 999px;
   background: var(--secondary);
@@ -20,34 +20,67 @@
   flex-shrink: 0;
 }
 
-.joy-assets-dialog-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  flex: 1;
-  min-height: 0;
-  margin: 0 0 18px;
+.joy-assets-dialog-time {
+  margin-bottom: 12px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
-.joy-assets-dialog-meta dt {
-  margin: 0 0 4px;
+.joy-assets-dialog-upload-note {
+  flex: 1;
+  min-height: 0;
+  margin: 0 0 14px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.joy-assets-dialog-side .joy-explore-dialog-model {
+  margin-bottom: 12px;
+}
+
+.joy-assets-dialog-side .joy-explore-dialog-prompt {
+  margin-bottom: 12px;
+}
+
+.joy-assets-dialog-refs {
+  flex-shrink: 0;
+  margin-bottom: 14px;
+}
+
+.joy-assets-dialog-refs-label {
+  margin-bottom: 8px;
   color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 500;
 }
 
-.joy-assets-dialog-meta dd {
-  margin: 0;
-  color: var(--foreground);
-  font-size: 14px;
-  line-height: 1.5;
-  word-break: break-word;
+.joy-assets-dialog-refs-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.joy-assets-dialog-mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
-  color: var(--muted-foreground);
+.joy-assets-dialog-ref {
+  display: block;
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+}
+
+.joy-assets-dialog-ref img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-explore-dialog-stage > video.joy-explore-dialog-blur {
+  object-fit: cover;
 }
 
 .joy-assets-dialog-actions {

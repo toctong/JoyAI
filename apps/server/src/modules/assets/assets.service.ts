@@ -74,23 +74,47 @@ export class AssetsService {
   }
 
   list(userId: string, take = 50) {
-    return this.assets.find({
-      where: { userId },
-      order: { createdAt: "DESC" },
-      take,
-      relations: ["job"],
-    }).then((rows) =>
-      rows.map((a) => ({
-        ...a,
-        job: a.job
-          ? {
-              id: a.job.id,
-              canvasProjectId: a.job.canvasProjectId,
-              canvasNodeId: a.job.canvasNodeId,
-            }
-          : null,
-      })),
-    );
+    return this.assets
+      .find({
+        where: { userId },
+        order: { createdAt: "DESC" },
+        take,
+        relations: ["job"],
+      })
+      .then((rows) =>
+        rows.map((a) => ({
+          ...a,
+          job: a.job ? this.toJobPreview(a.job) : null,
+        })),
+      );
+  }
+
+  private toJobPreview(job: {
+    id: string;
+    canvasProjectId: string | null;
+    canvasNodeId: string | null;
+    modelName: string | null;
+    channelName: string | null;
+    input: Record<string, unknown> | null;
+  }) {
+    const input = job.input ?? {};
+    const prompt =
+      typeof input.prompt === "string" ? input.prompt.trim() || null : null;
+    const referenceUrls = Array.isArray(input.referenceUrls)
+      ? input.referenceUrls.filter(
+          (u): u is string => typeof u === "string" && Boolean(u.trim()),
+        )
+      : [];
+
+    return {
+      id: job.id,
+      canvasProjectId: job.canvasProjectId,
+      canvasNodeId: job.canvasNodeId,
+      modelName: job.modelName,
+      channelName: job.channelName,
+      prompt,
+      referenceUrls,
+    };
   }
 
   findByIds(userId: string, ids: string[]) {
