@@ -217,6 +217,8 @@ export function ExploreHome() {
   const feedQuery = useInfiniteQuery({
     queryKey: feedKey,
     initialPageParam: null as string | null,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 2 * 60 * 60 * 1000,
     queryFn: async ({ pageParam, signal }) => {
       const qs = new URLSearchParams({ limit: "20" });
       if (pageParam) qs.set("cursor", pageParam);

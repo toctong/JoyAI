@@ -86,6 +86,8 @@ export async function fetchPromptSourceFeed(params: {
   sourceId: string;
   limit: number;
   cursor?: string;
+  /** Bypass in-memory full-list cache (warmer / forced refresh). */
+  forceRefresh?: boolean;
 }): Promise<{
   items: ExploreFeedItem[];
   nextCursor: string | null;
@@ -106,7 +108,7 @@ export async function fetchPromptSourceFeed(params: {
     return loadPixaiMarketPage(def, params.limit, params.cursor);
   }
 
-  const all = await loadAllItems(def);
+  const all = await loadAllItems(def, Boolean(params.forceRefresh));
   const offset = parseOffset(params.cursor);
   const slice = all.slice(offset, offset + params.limit);
   const next = offset + slice.length;
@@ -119,13 +121,24 @@ export async function fetchPromptSourceFeed(params: {
   };
 }
 
-/** In-memory full-list cache per source id */
+/** In-memory full-list cache per source id (aligned with explore feed TTL). */
 const listCache = new Map<string, { expiresAt: number; items: ExploreFeedItem[] }>();
-const LIST_CACHE_TTL_MS = 15 * 60 * 1000;
 
-async function loadAllItems(def: PromptSourceDef): Promise<ExploreFeedItem[]> {
-  const hit = listCache.get(def.id);
-  if (hit && Date.now() < hit.expiresAt) return hit.items;
+function listCacheTtlMs(): number {
+  const raw = process.env.ELSER_FEED_CACHE_TTL_MS;
+  const n = raw ? Number(raw) : NaN;
+  if (Number.isFinite(n) && n >= 0) return n;
+  return 6 * 60 * 60 * 1000; // 6h — aligned with explore service hard TTL
+}
+
+async function loadAllItems(
+  def: PromptSourceDef,
+  forceRefresh = false,
+): Promise<ExploreFeedItem[]> {
+  if (!forceRefresh) {
+    const hit = listCache.get(def.id);
+    if (hit && Date.now() < hit.expiresAt) return hit.items;
+  }
 
   let items: ExploreFeedItem[];
   switch (def.kind) {
@@ -156,7 +169,7 @@ async function loadAllItems(def: PromptSourceDef): Promise<ExploreFeedItem[]> {
   }
 
   listCache.set(def.id, {
-    expiresAt: Date.now() + LIST_CACHE_TTL_MS,
+    expiresAt: Date.now() + listCacheTtlMs(),
     items,
   });
   return items;
@@ -623,49 +636,20 @@ async function loadCivitaiModelsPage(
   const data = await getJson<CivitaiModelsRes>(url.toString());
   const rows = Array.isArray(data.items) ? data.items : [];
 
-  // Enrich covers with real sample prompts from model-version detail (list omits meta).
-  const enriched = await mapPool(rows, 4, async (model) => {
-    if (model.nsfw) return null;
+  // List payload already includes version images + trainedWords — skip N+1
+  // model-version detail fetches (was the main first-load bottleneck via proxy).
+  const items: ExploreFeedItem[] = [];
+  for (const model of rows) {
+    if (model.nsfw) continue;
     const id = String(model.id ?? "").trim();
     const ver = model.modelVersions?.[0];
-    const verId = Number(ver?.id);
-    if (!id || !verId) return null;
+    if (!id || !ver) continue;
 
-    let detailImages = ver?.images ?? [];
-    let trainedWords = ver?.trainedWords ?? [];
-    try {
-      const detail = await getJson<CivitaiVersion>(
-        `https://civitai.com/api/v1/model-versions/${verId}`,
-      );
-      if (Array.isArray(detail.images) && detail.images.length) {
-        detailImages = detail.images;
-      }
-      if (Array.isArray(detail.trainedWords) && detail.trainedWords.length) {
-        trainedWords = detail.trainedWords;
-      }
-    } catch {
-      // keep list payload
-    }
-
-    const scored = detailImages
-      .filter((img) => img.url)
-      .map((img) => {
-        const w = Number(img.width) || 0;
-        const h = Number(img.height) || 0;
-        const ar = w > 0 && h > 0 ? w / h : 1;
-        // Prefer portrait / near-square sample art over ultra-wide banners.
-        const ratioScore = ar > 1.6 ? -3 : ar < 0.55 ? -1 : ar <= 1.15 ? 2 : 1;
-        const nsfwScore = Number(img.nsfwLevel ?? 0) <= 1 ? 2 : 0;
-        const promptScore =
-          img.hasPositivePrompt || img.meta?.prompt ? 1 : 0;
-        return { img, score: ratioScore + nsfwScore + promptScore };
-      })
-      .sort((a, b) => b.score - a.score);
-    const cover = scored[0]?.img ?? null;
+    const cover = pickCivitaiCover(ver.images ?? []);
     const mediaUrl = String(cover?.url ?? "").trim();
-    if (!mediaUrl) return null;
+    if (!mediaUrl) continue;
 
-    const triggers = trainedWords
+    const triggers = (ver.trainedWords ?? [])
       .map((w) => String(w || "").trim())
       .filter(Boolean);
     const fromMeta = String(cover?.meta?.prompt ?? "").trim();
@@ -679,36 +663,55 @@ async function loadCivitaiModelsPage(
 
     const w = Number(cover?.width) || 0;
     const h = Number(cover?.height) || 0;
-    return toItem({
-      id: `${def.id}:${id}`,
-      title,
-      prompt,
-      mediaUrl,
-      thumbnailUrl: mediaUrl,
-      refs: [mediaUrl],
-      author: String(model.creator?.username ?? "").trim() || "Civitai",
-      avatarUrl: String(model.creator?.image ?? "").trim() || null,
-      tags: [
-        def.id,
-        String(model.type ?? "").trim(),
-        String(ver?.baseModel ?? "").trim(),
-        ...(model.tags ?? []).slice(0, 4).map((t) => String(t)),
-      ].filter(Boolean),
-      modelId: String(ver?.baseModel || model.type || "civitai").trim(),
-      createdAt: null,
-      likeCount: Number(model.stats?.thumbsUpCount) || 0,
-      viewCount: Number(model.stats?.downloadCount) || 0,
-      aspectRatio: w > 0 && h > 0 ? `${w}:${h}` : null,
-    });
-  });
+    items.push(
+      toItem({
+        id: `${def.id}:${id}`,
+        title,
+        prompt,
+        mediaUrl,
+        thumbnailUrl: mediaUrl,
+        refs: [mediaUrl],
+        author: String(model.creator?.username ?? "").trim() || "Civitai",
+        avatarUrl: String(model.creator?.image ?? "").trim() || null,
+        tags: [
+          def.id,
+          String(model.type ?? "").trim(),
+          String(ver.baseModel ?? "").trim(),
+          ...(model.tags ?? []).slice(0, 4).map((t) => String(t)),
+        ].filter(Boolean),
+        modelId: String(ver.baseModel || model.type || "civitai").trim(),
+        createdAt: null,
+        likeCount: Number(model.stats?.thumbsUpCount) || 0,
+        viewCount: Number(model.stats?.downloadCount) || 0,
+        aspectRatio: w > 0 && h > 0 ? `${w}:${h}` : null,
+      }),
+    );
+  }
 
-  const items = enriched.filter((x): x is ExploreFeedItem => Boolean(x));
   const nextCursor = String(data.metadata?.nextCursor ?? "").trim() || null;
   return {
     items,
     nextCursor,
     hasMore: Boolean(nextCursor) && items.length > 0,
   };
+}
+
+function pickCivitaiCover(images: CivitaiImage[]): CivitaiImage | null {
+  const scored = images
+    .filter((img) => img.url)
+    .map((img) => {
+      const w = Number(img.width) || 0;
+      const h = Number(img.height) || 0;
+      const ar = w > 0 && h > 0 ? w / h : 1;
+      // Prefer portrait / near-square sample art over ultra-wide banners.
+      const ratioScore = ar > 1.6 ? -3 : ar < 0.55 ? -1 : ar <= 1.15 ? 2 : 1;
+      const nsfwScore = Number(img.nsfwLevel ?? 0) <= 1 ? 2 : 0;
+      const promptScore =
+        img.hasPositivePrompt || img.meta?.prompt ? 1 : 0;
+      return { img, score: ratioScore + nsfwScore + promptScore };
+    })
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.img ?? null;
 }
 
 type PixaiImageUrl = { variant?: string; url?: string };

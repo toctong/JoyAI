@@ -50,13 +50,27 @@ type ElserFeedResponse = {
 };
 
 type CacheEntry = {
+  /** Soft freshness — past this, serve stale + background revalidate (SWR). */
+  softUntil: number;
+  /** Hard expiry — past this, treat as miss (unless warmer/SWR still writing). */
   expiresAt: number;
   value: ExploreFeedResult;
+  refreshing?: boolean;
 };
 
-/** 默认 10 分钟，降低对 Elser 上游的请求频率 */
-const DEFAULT_CACHE_TTL_MS = 10 * 60 * 1000;
-const MAX_CACHE_ENTRIES = 200;
+export type ExploreFeedOptions = {
+  /** Bypass cache read and refresh upstream (used by warmer). */
+  forceRefresh?: boolean;
+};
+
+/**
+ * Default hard TTL 6h. With background warmer (~3h) users hit warm cache;
+ * long TTL is a safety net so a missed warm cycle still serves instantly.
+ */
+const DEFAULT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+/** Soft window before SWR background refresh (independent of hard TTL). */
+const DEFAULT_SOFT_TTL_MS = 2 * 60 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 400;
 
 @Injectable()
 export class ExploreService implements OnModuleInit {
@@ -92,44 +106,38 @@ export class ExploreService implements OnModuleInit {
     };
   }
 
-  async feed(params: {
-    limit?: number;
-    cursor?: string;
-    /** 精选：对应 Elser featured_only=true */
-    featuredOnly?: boolean;
-    /** 分类标签：对应 Elser tag=fanart|fantasy|… */
-    tag?: string;
-    /** 热门模型：对应 Elser model_id */
-    modelId?: string;
-    /** 第三方提示词源（与 Elser 互斥） */
-    source?: string;
-  }): Promise<ExploreFeedResult> {
+  async feed(
+    params: {
+      limit?: number;
+      cursor?: string;
+      /** 精选：对应 Elser featured_only=true */
+      featuredOnly?: boolean;
+      /** 分类标签：对应 Elser tag=fanart|fantasy|… */
+      tag?: string;
+      /** 热门模型：对应 Elser model_id */
+      modelId?: string;
+      /** 第三方提示词源（与 Elser 互斥） */
+      source?: string;
+    },
+    options?: ExploreFeedOptions,
+  ): Promise<ExploreFeedResult> {
     const limit = Math.max(1, Math.min(Number(params.limit) || 24, 48));
     const sourceId = params.source?.trim() || "";
+    const forceRefresh = Boolean(options?.forceRefresh);
 
     if (sourceId && sourceId !== "elser") {
       if (!findPromptSource(sourceId)) {
         throw new ServiceUnavailableException("未知的探索数据源");
       }
       const cacheKey = `prompt:${sourceId}:l${limit}:c${params.cursor?.trim() || ""}`;
-      const cached = this.getCache(cacheKey);
-      if (cached) return cached;
-      try {
-        const result = await fetchPromptSourceFeed({
+      return this.readThrough(cacheKey, forceRefresh, () =>
+        fetchPromptSourceFeed({
           sourceId,
           limit,
           cursor: params.cursor,
-        });
-        this.setCache(cacheKey, result);
-        return result;
-      } catch (error) {
-        this.logger.error(
-          `Prompt source feed failed (${sourceId}): ${
-            error instanceof Error ? error.message : error
-          }`,
-        );
-        throw new ServiceUnavailableException("探索内容暂时不可用，请稍后重试");
-      }
+          forceRefresh,
+        }),
+      );
     }
 
     const base =
@@ -150,43 +158,98 @@ export class ExploreService implements OnModuleInit {
       url.searchParams.set("model_id", params.modelId.trim());
     }
 
-    const cacheKey = url.search;
-    const cached = this.getCache(cacheKey);
-    if (cached) return cached;
+    const cacheKey = `elser:${url.search}`;
+    return this.readThrough(cacheKey, forceRefresh, () =>
+      this.fetchElser(url.toString()),
+    );
+  }
+
+  private async readThrough(
+    cacheKey: string,
+    forceRefresh: boolean,
+    loader: () => Promise<ExploreFeedResult>,
+  ): Promise<ExploreFeedResult> {
+    if (!forceRefresh) {
+      const hit = this.getCacheEntry(cacheKey);
+      if (hit) {
+        if (Date.now() >= hit.softUntil) {
+          this.scheduleRevalidate(cacheKey, loader);
+        }
+        return hit.value;
+      }
+    }
 
     try {
-      const { data, status } = await axios.get<ElserFeedResponse>(url.toString(), {
-        timeout: 30_000,
-        headers: {
-          Accept: "application/json",
-          "User-Agent": "JoyAI/0.1 (+explore-proxy)",
-        },
-        validateStatus: () => true,
-      });
-
-      if (status >= 400 || !data) {
-        this.logger.warn(`Elser feed upstream ${status} ${url.search}`);
-        throw new ServiceUnavailableException("探索内容暂时不可用，请稍后重试");
-      }
-
-      const items = (data.items ?? [])
-        .map((item) => this.mapItem(item))
-        .filter((item): item is ExploreFeedItem => Boolean(item));
-
-      const result: ExploreFeedResult = {
-        items,
-        nextCursor: data.next_cursor ?? null,
-        hasMore: Boolean(data.has_more),
-      };
+      const result = await loader();
       this.setCache(cacheKey, result);
       return result;
     } catch (error) {
+      // Stale-if-error: keep serving last good snapshot when upstream flakes.
+      const stale = this.cache.get(cacheKey);
+      if (stale?.value) {
+        this.logger.warn(
+          `Explore feed upstream failed, serving stale cache (${cacheKey}): ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+        return stale.value;
+      }
       if (error instanceof ServiceUnavailableException) throw error;
       this.logger.error(
-        `Elser feed proxy failed: ${error instanceof Error ? error.message : error}`,
+        `Explore feed failed (${cacheKey}): ${
+          error instanceof Error ? error.message : error
+        }`,
       );
       throw new ServiceUnavailableException("探索内容暂时不可用，请稍后重试");
     }
+  }
+
+  private scheduleRevalidate(
+    cacheKey: string,
+    loader: () => Promise<ExploreFeedResult>,
+  ) {
+    const hit = this.cache.get(cacheKey);
+    if (!hit || hit.refreshing) return;
+    hit.refreshing = true;
+    void loader()
+      .then((result) => this.setCache(cacheKey, result))
+      .catch((err) => {
+        this.logger.warn(
+          `Explore SWR refresh failed (${cacheKey}): ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      })
+      .finally(() => {
+        const cur = this.cache.get(cacheKey);
+        if (cur) cur.refreshing = false;
+      });
+  }
+
+  private async fetchElser(url: string): Promise<ExploreFeedResult> {
+    const { data, status } = await axios.get<ElserFeedResponse>(url, {
+      timeout: 30_000,
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "JoyAI/0.1 (+explore-proxy)",
+      },
+      validateStatus: () => true,
+    });
+
+    if (status >= 400 || !data) {
+      this.logger.warn(`Elser feed upstream ${status} ${url}`);
+      throw new ServiceUnavailableException("探索内容暂时不可用，请稍后重试");
+    }
+
+    const items = (data.items ?? [])
+      .map((item) => this.mapItem(item))
+      .filter((item): item is ExploreFeedItem => Boolean(item));
+
+    return {
+      items,
+      nextCursor: data.next_cursor ?? null,
+      hasMore: Boolean(data.has_more),
+    };
   }
 
   private cacheTtlMs(): number {
@@ -196,28 +259,38 @@ export class ExploreService implements OnModuleInit {
     return DEFAULT_CACHE_TTL_MS;
   }
 
-  private getCache(key: string): ExploreFeedResult | null {
+  private softTtlMs(): number {
+    const raw = this.config.get<string>("ELSER_FEED_SOFT_TTL_MS");
+    const n = raw ? Number(raw) : NaN;
+    if (Number.isFinite(n) && n >= 0) return n;
+    return DEFAULT_SOFT_TTL_MS;
+  }
+
+  private getCacheEntry(key: string): CacheEntry | null {
     const hit = this.cache.get(key);
     if (!hit) return null;
     if (Date.now() >= hit.expiresAt) {
-      this.cache.delete(key);
+      // Keep entry for stale-if-error, but treat as miss for sync path.
       return null;
     }
-    return hit.value;
+    return hit;
   }
 
   private setCache(key: string, value: ExploreFeedResult) {
     const ttl = this.cacheTtlMs();
     if (ttl <= 0) return;
 
-    if (this.cache.size >= MAX_CACHE_ENTRIES) {
+    if (this.cache.size >= MAX_CACHE_ENTRIES && !this.cache.has(key)) {
       const oldest = this.cache.keys().next().value;
       if (oldest !== undefined) this.cache.delete(oldest);
     }
 
+    const soft = Math.min(this.softTtlMs(), ttl);
     this.cache.set(key, {
+      softUntil: Date.now() + soft,
       expiresAt: Date.now() + ttl,
       value,
+      refreshing: false,
     });
   }
 
