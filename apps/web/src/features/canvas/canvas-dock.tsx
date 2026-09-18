@@ -1,6 +1,10 @@
 "use client";
 
-import { Compass, Focus, HelpCircle } from "lucide-react";
+import {
+  CanvasIconFit,
+  CanvasIconMinimap,
+  CanvasIconShortcuts,
+} from "./icons/canvas-icons";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -40,7 +44,7 @@ function ChipBtn({
   );
 }
 
-/** Bottom-left zoom cluster — aligned to infinite-canvas zoom controls. */
+/** Bottom-left zoom cluster — file SVG icons (no lucide). */
 export function CanvasDock({
   zoom,
   miniMapOpen,
@@ -62,10 +66,10 @@ export function CanvasDock({
         active={miniMapOpen}
         onClick={onToggleMiniMap}
       >
-        <Compass className="size-4" />
+        <CanvasIconMinimap className="size-4" />
       </ChipBtn>
       <ChipBtn title="适应内容 0" onClick={onFit}>
-        <Focus className="size-4" />
+        <CanvasIconFit className="size-4" />
       </ChipBtn>
       <input
         type="range"
@@ -78,7 +82,7 @@ export function CanvasDock({
         onChange={(e) => onZoomChange(Number(e.target.value) / 100)}
         className="mx-1 h-1.5 w-24 cursor-pointer accent-foreground"
       />
-      <span className="joy-canvas-chrome-muted w-10 select-none text-right text-xs tabular-nums">
+      <span className="joy-canvas-chrome-muted w-10 text-center text-[11px] tabular-nums">
         {Math.round(zoom * 100)}%
       </span>
       <ChipBtn
@@ -86,7 +90,7 @@ export function CanvasDock({
         active={shortcutsOpen}
         onClick={onToggleShortcuts}
       >
-        <HelpCircle className="size-4" />
+        <CanvasIconShortcuts className="size-4" />
       </ChipBtn>
     </div>
   );

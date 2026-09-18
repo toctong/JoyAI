@@ -10,6 +10,7 @@ import type {
 } from "@joyai/shared";
 import { useCanvasStore } from "./store";
 import { CanvasToolbar } from "./toolbar";
+import { CanvasCreateRail } from "./canvas-create-rail";
 import { CanvasTopBar } from "./canvas-top-bar";
 import { CanvasDock } from "./canvas-dock";
 import {
@@ -22,31 +23,75 @@ import { NodeFloatToolbar } from "./node-float-toolbar";
 import { MultiSelectToolbar } from "./multi-select-toolbar";
 import { GroupBoundsOverlay } from "./group-bounds-overlay";
 import { NodeView } from "./node-view";
+import { NodeResizeHandles } from "./node-resize-handles";
+import { NodeGenPanel } from "./node-gen-panel";
 import { CanvasEdges, NodeHandles } from "./canvas-edges";
+import { hitNodeAt, nodeBox } from "./lib/node-box";
 import {
   CanvasCreateMenu,
   CanvasNodeContextMenu,
   type CanvasCreateMenuState,
   type CanvasNodeMenuState,
 } from "./canvas-context-menu";
-import { CanvasSidePanel } from "./canvas-side-panel";
-import { hydrateSidePanelPrefs } from "./side-panel-store";
+import { CanvasRightPanel } from "./canvas-right-panel";
+import { CanvasAssetDialog } from "./canvas-asset-dialog";
+import { useCanvasRightPanelStore } from "./right-panel-store";
 import { computeMentionHighlightIds } from "./lib/mention-highlight";
 import {
+  CANVAS_GRID,
   readSnapPreference,
   snapPoint,
   writeSnapPreference,
 } from "./lib/snap";
-import { groupIdOf } from "./lib/align";
+import {
+  applyGroupDrop,
+  findGroupDropTarget,
+  groupIdOf,
+  selectionBounds,
+} from "./lib/align";
+import { copiedGroupId, prepareCopiedData } from "./lib/copy-node";
 import {
   isCanvasOverlayTarget,
   readGridModePreference,
   writeGridModePreference,
   type CanvasGridMode,
 } from "./lib/canvas-prefs";
+import {
+  captureVideoFrame,
+  type VideoFrameAt,
+} from "./lib/capture-video-frame";
 import { api, apiUpload } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
+import { toast } from "@/shared/lib/toast";
+import { DirectorDesk } from "./director-desk";
+import { ImageToolDialog, type ImageToolMode } from "./image-tool-dialog";
+import { NodeInfoDialog } from "./node-info-dialog";
+import { AudioTrimDialog } from "./audio-trim-dialog";
+import { MaskEditDialog } from "./mask-edit-dialog";
+import { trimMediaToFile } from "./lib/trim-audio";
+import { flagPanoramaAspect } from "./lib/panorama-prompt";
+import { convertImagePanoramaType } from "./lib/convert-media-type";
+import { commitImagePieces } from "./lib/commit-image-pieces";
+import {
+  copyUpstreamPrompt,
+  toggleFreeResize,
+} from "./lib/image-node-actions";
+import type { RasterPiece } from "./lib/image-raster";
+import {
+  nodeTypeForAssetKind,
+  nodeTypeForUpload,
+  probeImageUrlType,
+} from "./lib/upload-node-type";
+import { extractAudioFromVideo } from "./lib/extract-audio";
+import { frameNodeToMedia } from "./lib/fit-node-size";
+import { getPlaybackTime } from "./lib/playback-clock";
 import "./canvas-chrome.css";
+
+function notePanoramaAspect(nodeId: string, url: string) {
+  flagPanoramaAspect(url, (aspectHint) => {
+    useCanvasStore.getState().updateNodeData(nodeId, { aspectHint });
+  });
+}
 
 type ProjectPayload = {
   id: string;
@@ -89,6 +134,20 @@ function isEmptyMediaNode(node: CanvasNode) {
   return !url || url.startsWith("data:");
 }
 
+function mediaKindOf(
+  node: CanvasNode,
+): "image" | "video" | "panorama" | "audio" | null {
+  if (
+    node.type === "image" ||
+    node.type === "video" ||
+    node.type === "panorama" ||
+    node.type === "audio"
+  ) {
+    return node.type;
+  }
+  return null;
+}
+
 export function CanvasBoard({
   projectId,
   focusQuery,
@@ -103,15 +162,37 @@ export function CanvasBoard({
   const [panMode, setPanMode] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isNodeDragging, setIsNodeDragging] = useState(false);
+  const [dropTargetGid, setDropTargetGid] = useState<string | null>(null);
+  const [isNodeResizing, setIsNodeResizing] = useState(false);
+  const [genPanelOpen, setGenPanelOpen] = useState(true);
+  const [directorId, setDirectorId] = useState<string | null>(null);
   const [miniMapOpen, setMiniMapOpen] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   const [gridMode, setGridMode] = useState<CanvasGridMode>("dots");
   const [editingImageId, setEditingImageId] = useState<string | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [createMenu, setCreateMenu] = useState<CanvasCreateMenuState | null>(
     null,
   );
+  const createMenuRef = useRef<CanvasCreateMenuState | null>(null);
+  createMenuRef.current = createMenu;
   const [nodeMenu, setNodeMenu] = useState<CanvasNodeMenuState | null>(null);
+  const [imageTool, setImageTool] = useState<{
+    nodeId: string;
+    url: string;
+    mode: ImageToolMode;
+  } | null>(null);
+  const [infoNodeId, setInfoNodeId] = useState<string | null>(null);
+  const [audioTrim, setAudioTrim] = useState<{
+    nodeId: string;
+    url: string;
+  } | null>(null);
+  const [audioTrimBusy, setAudioTrimBusy] = useState(false);
+  const [maskEdit, setMaskEdit] = useState<{
+    nodeId: string;
+    url: string;
+  } | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [projectReady, setProjectReady] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
@@ -156,6 +237,7 @@ export function CanvasBoard({
   const addEdge = useCanvasStore((s) => s.addEdge);
   const removeSelectedEdge = useCanvasStore((s) => s.removeSelectedEdge);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
+  const updateNode = useCanvasStore((s) => s.updateNode);
   const markClean = useCanvasStore((s) => s.markClean);
   const getSnapshot = useCanvasStore((s) => s.getSnapshot);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
@@ -163,7 +245,9 @@ export function CanvasBoard({
   const redo = useCanvasStore((s) => s.redo);
   const addNode = useCanvasStore((s) => s.addNode);
   const removeNodes = useCanvasStore((s) => s.removeNodes);
+  const removeEdge = useCanvasStore((s) => s.removeEdge);
   const duplicateNodes = useCanvasStore((s) => s.duplicateNodes);
+  const moveNodes = useCanvasStore((s) => s.moveNodes);
   const groupSelection = useCanvasStore((s) => s.groupSelection);
   const ungroupSelection = useCanvasStore((s) => s.ungroupSelection);
   const expandSelectionWithGroup = useCanvasStore(
@@ -179,15 +263,17 @@ export function CanvasBoard({
     ? nodes.find((n) => n.id === hoveredNodeId)
     : null;
   const floatToolbarNodes =
-    selectedNodes.length === 1
-      ? selectedNodes
-      : selectedNodes.length === 0 && hoveredNode
+    selectedNodes.length > 1
+      ? []
+      : hoveredNode
         ? [hoveredNode]
-        : [];
+        : selectedNodes.length === 1
+          ? selectedNodes
+          : [];
 
   const mentionHighlights = useMemo(
-    () => computeMentionHighlightIds(nodes, selectedIds),
-    [nodes, selectedIds],
+    () => computeMentionHighlightIds(nodes, selectedIds, edges),
+    [edges, nodes, selectedIds],
   );
 
   useEffect(() => {
@@ -195,7 +281,6 @@ export function CanvasBoard({
   }, [mentionHighlights, setHighlightedIds]);
 
   useEffect(() => {
-    hydrateSidePanelPrefs();
     setMiniMapOpen(readMinimapOpenPreference(true));
     setSnapToGrid(readSnapPreference(true));
     setGridMode(readGridModePreference("dots"));
@@ -275,20 +360,32 @@ export function CanvasBoard({
     }) => {
       const asset = payload.assets?.[0];
       if (!asset) return;
-      const state = useCanvasStore.getState();
-      for (const node of state.nodes) {
-        if (node.data.jobId !== payload.jobId) continue;
+      const matches = useCanvasStore
+        .getState()
+        .nodes.filter((node) => node.data.jobId === payload.jobId);
+      if (!matches.length) return;
+      const keepSelection = useCanvasStore.getState().selectedIds.slice();
+      useCanvasStore.getState().pushHistory();
+      let addedNode = false;
+      for (const node of matches) {
+        const live = useCanvasStore.getState();
         if (node.type === "prompt") {
+          const url = String(asset.url ?? "").toLowerCase();
+          const stored = String(node.data.outputKind ?? "");
+          const outputKind: "image" | "video" | "panorama" =
+            stored === "video" || /\.(mp4|webm|mov)(\?|$)/.test(url)
+              ? "video"
+              : stored === "panorama"
+                ? "panorama"
+                : "image";
           updateNodeData(node.id, {
             status: "succeeded",
-            url: asset.url,
-            assetId: asset.id,
             error: "",
           });
-          const outgoing = state.edges
+          const outgoing = live.edges
             .filter((e) => e.source === node.id)
-            .map((e) => state.nodes.find((n) => n.id === e.target))
-            .filter((n): n is CanvasNode => n != null && n.type === "image");
+            .map((e) => live.nodes.find((n) => n.id === e.target))
+            .filter((n): n is CanvasNode => n != null && n.type === outputKind);
           const emptyTarget = outgoing.find(isEmptyMediaNode);
           if (emptyTarget) {
             updateNodeData(emptyTarget.id, {
@@ -296,18 +393,35 @@ export function CanvasBoard({
               assetId: asset.id,
               status: "succeeded",
               error: "",
+              ...(outputKind === "panorama"
+                ? { projection: "equirectangular" }
+                : {}),
             });
+            if (outputKind === "panorama") {
+              notePanoramaAspect(emptyTarget.id, asset.url);
+            } else if (outputKind === "image" || outputKind === "video") {
+              void frameNodeToMedia(emptyTarget.id, asset.url, outputKind);
+            }
           } else {
-            const imageId = state.addNode("image", {
-              x: node.x + (node.width ?? 280) + 40,
-              y: node.y,
+            const box = nodeBox(node);
+            const mediaId = live.addNode(outputKind, {
+              x: box.x + box.width + 40,
+              y: box.y,
             });
-            updateNodeData(imageId, {
+            updateNodeData(mediaId, {
               url: asset.url,
               assetId: asset.id,
               status: "succeeded",
+              ...(outputKind === "panorama"
+                ? { projection: "equirectangular" }
+                : {}),
             });
-            state.addEdge(node.id, imageId);
+            live.addEdge(node.id, mediaId);
+            if (outputKind === "panorama") notePanoramaAspect(mediaId, asset.url);
+            else if (outputKind === "image" || outputKind === "video") {
+              void frameNodeToMedia(mediaId, asset.url, outputKind);
+            }
+            addedNode = true;
           }
         } else {
           updateNodeData(node.id, {
@@ -315,8 +429,18 @@ export function CanvasBoard({
             assetId: asset.id,
             status: "succeeded",
             error: "",
+            ...(node.type === "panorama"
+              ? { projection: "equirectangular" }
+              : {}),
           });
+          if (node.type === "panorama") notePanoramaAspect(node.id, asset.url);
+          else if (node.type === "image" || node.type === "video") {
+            void frameNodeToMedia(node.id, asset.url, node.type);
+          }
         }
+      }
+      if (addedNode) {
+        useCanvasStore.getState().setSelection(keepSelection);
       }
     };
     const onFailed = (payload: { jobId: string; error?: string }) => {
@@ -339,6 +463,7 @@ export function CanvasBoard({
       if (!asset?.id || !asset.url) return;
       const state = useCanvasStore.getState();
       for (const node of state.nodes) {
+        if (!mediaKindOf(node)) continue;
         const byAsset = node.data.assetId === asset.id;
         const byJob = payload.jobId && node.data.jobId === payload.jobId;
         if (!byAsset && !byJob) continue;
@@ -359,7 +484,10 @@ export function CanvasBoard({
   const ingestFiles = useCallback(
     async (files: FileList | File[], at?: { x: number; y: number }) => {
       const list = Array.from(files).filter(
-        (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
+        (f) =>
+          f.type.startsWith("image/") ||
+          f.type.startsWith("video/") ||
+          f.type.startsWith("audio/"),
       );
       if (!list.length) return;
       pushHistory();
@@ -371,8 +499,7 @@ export function CanvasBoard({
           url: string;
           kind: string;
         }>("/upload", file);
-        const type: CanvasNodeType =
-          asset.kind === "video" ? "video" : "image";
+        const type = await nodeTypeForUpload(file, asset.kind);
         const id = addNode(type, {
           x: (at?.x ?? (-vp.x + 280) / vp.zoom) + i * 36,
           y: (at?.y ?? (-vp.y + 160) / vp.zoom) + i * 36,
@@ -381,7 +508,12 @@ export function CanvasBoard({
           url: asset.url,
           assetId: asset.id,
           status: "succeeded",
+          ...(type === "panorama" ? { projection: "equirectangular" } : {}),
         });
+        if (type === "panorama") notePanoramaAspect(id, asset.url);
+        else if (type === "image" || type === "video") {
+          void frameNodeToMedia(id, file, type);
+        }
         i += 1;
       }
     },
@@ -397,12 +529,11 @@ export function CanvasBoard({
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const src of srcList) {
-      const w = src.width ?? 240;
-      const h = src.height ?? 180;
-      minX = Math.min(minX, src.x);
-      minY = Math.min(minY, src.y);
-      maxX = Math.max(maxX, src.x + w);
-      maxY = Math.max(maxY, src.y + h);
+      const box = nodeBox(src);
+      minX = Math.min(minX, box.x);
+      minY = Math.min(minY, box.y);
+      maxX = Math.max(maxX, box.x + box.width);
+      maxY = Math.max(maxY, box.y + box.height);
     }
     const rect = containerRef.current?.getBoundingClientRect();
     const vp = useCanvasStore.getState().viewport;
@@ -416,10 +547,14 @@ export function CanvasBoard({
     const oy = centerY - (minY + maxY) / 2;
     const idMap = new Map<string, string>();
     const created: string[] = [];
+    const groupCache = new Map<string, string>();
     for (const src of srcList) {
       const id = addNode(src.type, { x: src.x + ox, y: src.y + oy });
       idMap.set(src.id, id);
-      updateNodeData(id, { ...src.data });
+      updateNodeData(
+        id,
+        prepareCopiedData(src.data, copiedGroupId(srcList, src, groupCache)),
+      );
       useCanvasStore.getState().updateNode(id, {
         width: src.width,
         height: src.height,
@@ -507,6 +642,7 @@ export function CanvasBoard({
           setNodeMenu(null);
           setEditingImageId(null);
           setShortcutsOpen(false);
+          useCanvasRightPanelStore.getState().close();
         }
         return;
       }
@@ -552,6 +688,39 @@ export function CanvasBoard({
         return;
       }
 
+      if (
+        !mod &&
+        (e.key === "ArrowLeft" ||
+          e.key === "ArrowRight" ||
+          e.key === "ArrowUp" ||
+          e.key === "ArrowDown")
+      ) {
+        const state = useCanvasStore.getState();
+        const ids = expandSelectionWithGroup(state.selectedIds);
+        if (!ids.length) return;
+        e.preventDefault();
+        if (ids.length !== state.selectedIds.length) setSelection(ids);
+        if (!e.repeat) pushHistory();
+        const step = e.shiftKey
+          ? state.snapToGrid
+            ? CANVAS_GRID * 2
+            : 10
+          : state.snapToGrid
+            ? CANVAS_GRID
+            : 1;
+        const dx =
+          e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0;
+        const dy =
+          e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0;
+        moveNodes(ids, dx, dy);
+        const live = useCanvasStore.getState().nodes;
+        const next = applyGroupDrop(live, ids);
+        if (next !== live) {
+          useCanvasStore.setState({ nodes: next, dirty: true });
+        }
+        return;
+      }
+
       if (e.key === "Delete" || e.key === "Backspace") {
         const state = useCanvasStore.getState();
         if (state.selectedEdgeId) {
@@ -575,6 +744,7 @@ export function CanvasBoard({
         setShortcutsOpen(false);
         setConnectDraft(null);
         connectSourceRef.current = null;
+        useCanvasRightPanelStore.getState().close();
       }
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
@@ -584,6 +754,11 @@ export function CanvasBoard({
       if (e.key === "0" && !mod) {
         e.preventDefault();
         fitToContent();
+        return;
+      }
+      if (e.key === "1" && !mod) {
+        e.preventDefault();
+        fitSelection();
         return;
       }
       if (mod && (e.key === "=" || e.key === "+")) {
@@ -614,7 +789,9 @@ export function CanvasBoard({
   }, [
     clearSelection,
     duplicateNodes,
+    expandSelectionWithGroup,
     groupSelection,
+    moveNodes,
     pasteInternal,
     pasteSystemClipboard,
     pushHistory,
@@ -651,41 +828,43 @@ export function CanvasBoard({
     if (!rect) return;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
+    const vp = useCanvasStore.getState().viewport;
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const nextZoom = Math.min(5, Math.max(0.05, viewport.zoom * zoomFactor));
+    const nextZoom = Math.min(5, Math.max(0.05, vp.zoom * zoomFactor));
     zoomAt(nextZoom, mx, my);
   }
 
-  function fitToContent() {
+  function fitNodes(list: CanvasNode[]) {
     const el = containerRef.current;
-    const state = useCanvasStore.getState();
     if (!el) return;
-    if (state.nodes.length === 0) {
+    if (!list.length) {
       setViewport({ x: 0, y: 0, zoom: 1 });
       return;
     }
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const n of state.nodes) {
-      const w = n.width ?? 240;
-      const h = n.height ?? 180;
-      minX = Math.min(minX, n.x);
-      minY = Math.min(minY, n.y);
-      maxX = Math.max(maxX, n.x + w);
-      maxY = Math.max(maxY, n.y + h);
-    }
+    const bounds = selectionBounds(list);
+    if (!bounds) return;
     const pad = 80;
-    const bw = maxX - minX + pad * 2;
-    const bh = maxY - minY + pad * 2;
+    const bw = bounds.w + pad * 2;
+    const bh = bounds.h + pad * 2;
     const zoom = Math.min(
       2.5,
       Math.max(0.05, Math.min(el.clientWidth / bw, el.clientHeight / bh)),
     );
-    const x = el.clientWidth / 2 - (minX + (maxX - minX) / 2) * zoom;
-    const y = el.clientHeight / 2 - (minY + (maxY - minY) / 2) * zoom;
+    const x = el.clientWidth / 2 - (bounds.x + bounds.w / 2) * zoom;
+    const y = el.clientHeight / 2 - (bounds.y + bounds.h / 2) * zoom;
     setViewport({ x, y, zoom });
+  }
+
+  function fitToContent() {
+    fitNodes(useCanvasStore.getState().nodes);
+  }
+
+  function fitSelection() {
+    const state = useCanvasStore.getState();
+    const picked = state.nodes.filter((node) =>
+      state.selectedIds.includes(node.id),
+    );
+    fitNodes(picked.length ? picked : state.nodes);
   }
 
   function clientToLocal(clientX: number, clientY: number) {
@@ -707,30 +886,36 @@ export function CanvasBoard({
       if (!marqueeAdditive.current) clearSelection();
       return;
     }
-    const world = {
-      x: (left - viewport.x) / viewport.zoom,
-      y: (top - viewport.y) / viewport.zoom,
-      w: (right - left) / viewport.zoom,
-      h: (bottom - top) / viewport.zoom,
-    };
-    const hit = nodes
-      .filter((n) =>
-        rectsIntersect(world, {
-          x: n.x,
-          y: n.y,
-          w: n.width ?? 240,
-          h: n.height ?? 180,
-        }),
-      )
+    const world = (() => {
+      const vp = useCanvasStore.getState().viewport;
+      return {
+        x: (left - vp.x) / vp.zoom,
+        y: (top - vp.y) / vp.zoom,
+        w: (right - left) / vp.zoom,
+        h: (bottom - top) / vp.zoom,
+      };
+    })();
+    const hit = useCanvasStore
+      .getState()
+      .nodes.filter((n) => {
+        const box = nodeBox(n);
+        return rectsIntersect(world, {
+          x: box.x,
+          y: box.y,
+          w: box.width,
+          h: box.height,
+        });
+      })
       .map((n) => n.id);
+    const expanded = expandSelectionWithGroup(hit);
     if (marqueeAdditive.current) {
       const merged = new Set([
         ...useCanvasStore.getState().selectedIds,
-        ...hit,
+        ...expanded,
       ]);
       setSelection([...merged]);
     } else {
-      setSelection(hit);
+      setSelection(expanded);
     }
   }
 
@@ -755,8 +940,8 @@ export function CanvasBoard({
       panStart.current = {
         x: e.clientX,
         y: e.clientY,
-        vx: viewport.x,
-        vy: viewport.y,
+        vx: useCanvasStore.getState().viewport.x,
+        vy: useCanvasStore.getState().viewport.y,
       };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
@@ -776,8 +961,9 @@ export function CanvasBoard({
     if (connectSourceRef.current) {
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
-        const wx = (e.clientX - rect.left - viewport.x) / viewport.zoom;
-        const wy = (e.clientY - rect.top - viewport.y) / viewport.zoom;
+        const vp = useCanvasStore.getState().viewport;
+        const wx = (e.clientX - rect.left - vp.x) / vp.zoom;
+        const wy = (e.clientY - rect.top - vp.y) / vp.zoom;
         setConnectDraft({
           sourceId: connectSourceRef.current,
           x: wx,
@@ -806,16 +992,21 @@ export function CanvasBoard({
       if (!dragPushed.current) {
         pushHistory();
         dragPushed.current = true;
+        useCanvasStore.getState().raiseNodes(drag.current.ids);
       }
-      const dx = (e.clientX - drag.current.ox) / viewport.zoom;
-      const dy = (e.clientY - drag.current.oy) / viewport.zoom;
+      const zoom = useCanvasStore.getState().viewport.zoom;
+      const dx = (e.clientX - drag.current.ox) / zoom;
+      const dy = (e.clientY - drag.current.oy) / zoom;
       const state = useCanvasStore.getState();
+      const movedIds = drag.current.ids;
       const next = state.nodes.map((n) => {
         const origin = drag.current?.origins[n.id];
         if (!origin) return n;
         return { ...n, x: origin.x + dx, y: origin.y + dy };
       });
       useCanvasStore.setState({ nodes: next, dirty: true });
+      const target = findGroupDropTarget(next, movedIds);
+      setDropTargetGid((prev) => (prev === target ? prev : target));
     }
   }
 
@@ -826,18 +1017,16 @@ export function CanvasBoard({
       if (rect) {
         const localX = e.clientX - rect.left;
         const localY = e.clientY - rect.top;
-        const wx = (localX - viewport.x) / viewport.zoom;
-        const wy = (localY - viewport.y) / viewport.zoom;
-        const hit = nodes.find((n) => {
-          const w = n.width ?? 240;
-          const h = n.height ?? (n.type === "text" ? 80 : 180);
-          return wx >= n.x && wx <= n.x + w && wy >= n.y && wy <= n.y + h;
-        });
+        const vp = useCanvasStore.getState().viewport;
+        const liveNodes = useCanvasStore.getState().nodes;
+        const wx = (localX - vp.x) / vp.zoom;
+        const wy = (localY - vp.y) / vp.zoom;
+        const hit = hitNodeAt(liveNodes, wx, wy);
         if (hit && hit.id !== sourceId) {
           pushHistory();
           addEdge(sourceId, hit.id);
         } else if (!hit) {
-          const sourceNode = nodes.find((n) => n.id === sourceId);
+          const sourceNode = liveNodes.find((n) => n.id === sourceId);
           setCreateMenu({
             kind: "connect",
             x: localX,
@@ -846,9 +1035,14 @@ export function CanvasBoard({
             worldY: wy,
             sourceId,
             preferredType:
-              sourceNode?.type === "image" || sourceNode?.type === "text"
-                ? "prompt"
-                : undefined,
+              sourceNode?.type === "panorama"
+                ? "director"
+                : sourceNode?.type === "image" ||
+                    sourceNode?.type === "text" ||
+                    sourceNode?.type === "video" ||
+                    sourceNode?.type === "audio"
+                  ? "prompt"
+                  : undefined,
           });
         }
       }
@@ -867,10 +1061,32 @@ export function CanvasBoard({
       });
       useCanvasStore.setState({ nodes: next, dirty: true });
     }
+    if (drag.current) {
+      const moved = drag.current.ids;
+      const origins = drag.current.origins;
+      const live = useCanvasStore.getState().nodes;
+      const actuallyMoved = moved.some((id) => {
+        const node = live.find((item) => item.id === id);
+        const origin = origins[id];
+        return (
+          node != null &&
+          origin != null &&
+          (Math.abs(node.x - origin.x) > 0.5 ||
+            Math.abs(node.y - origin.y) > 0.5)
+        );
+      });
+      if (actuallyMoved) {
+        const next = applyGroupDrop(live, moved);
+        if (next !== live) {
+          useCanvasStore.setState({ nodes: next, dirty: true });
+        }
+      }
+    }
     panning.current = false;
     setIsPanning(false);
     drag.current = null;
     dragPushed.current = false;
+    setDropTargetGid(null);
     setIsNodeDragging(false);
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
@@ -881,6 +1097,8 @@ export function CanvasBoard({
 
   function onNodePointerDown(e: React.PointerEvent, node: CanvasNode) {
     if (isPanningTool || e.button === 1) return;
+    // Prevent browser native media drag (ghost / drop-as-copy).
+    e.preventDefault();
     e.stopPropagation();
     closeMenus();
     const additive = e.shiftKey;
@@ -888,10 +1106,16 @@ export function CanvasBoard({
     const already = state.selectedIds.includes(node.id);
 
     let dragIds: string[];
-    if (additive) {
+    // Alt: drag this node alone (leave group on drop) — not a duplicate.
+    if (e.altKey) {
+      setSelection([node.id]);
+      dragIds = [node.id];
+    } else if (additive) {
       select(node.id, { additive: true });
       const ids = useCanvasStore.getState().selectedIds;
-      dragIds = ids.includes(node.id) ? ids : [...ids, node.id];
+      if (!ids.includes(node.id)) return;
+      dragIds = expandSelectionWithGroup(ids);
+      if (dragIds.length !== ids.length) setSelection(dragIds);
     } else if (already) {
       dragIds = expandSelectionWithGroup(state.selectedIds);
       if (dragIds.length !== state.selectedIds.length) {
@@ -985,25 +1209,46 @@ export function CanvasBoard({
       x: mx,
       y: my,
       nodeId: node.id,
+      nodeType: node.type,
+      hasMedia: Boolean(
+        String(node.data.url ?? "") &&
+          !String(node.data.url ?? "").startsWith("data:"),
+      ),
       canGroup,
       canUngroup,
     });
   }
 
   function handleCreateFromMenu(type: CanvasNodeType) {
-    if (!createMenu) return;
+    const menu = createMenuRef.current;
+    if (!menu) return;
+    createMenuRef.current = null;
+    setCreateMenu(null);
     pushHistory();
     const id = addNode(type, {
-      x: createMenu.worldX,
-      y: createMenu.worldY,
+      x: menu.worldX,
+      y: menu.worldY,
     });
-    if (createMenu.kind === "connect" && createMenu.sourceId) {
-      addEdge(createMenu.sourceId, id);
-      const source = nodes.find((n) => n.id === createMenu.sourceId);
-      if (type === "prompt" && source?.type === "image") {
+    if (menu.kind === "connect" && menu.sourceId) {
+      addEdge(menu.sourceId, id);
+      const source = nodes.find((n) => n.id === menu.sourceId);
+      if (
+        type === "prompt" &&
+        source &&
+        (source.type === "image" ||
+          source.type === "video" ||
+          source.type === "panorama" ||
+          source.type === "audio")
+      ) {
         const assetId = String(source.data.assetId ?? "");
         const refUrl = String(source.data.url ?? "");
         updateNodeData(id, {
+          outputKind:
+            source.type === "audio"
+              ? "video"
+              : source.type === "panorama"
+                ? "panorama"
+                : "image",
           referenceIds: assetId ? [assetId, source.id] : [source.id],
           referenceUrls:
             refUrl && !refUrl.startsWith("data:") ? [refUrl] : [],
@@ -1016,7 +1261,6 @@ export function CanvasBoard({
       }
     }
     setSelection([id]);
-    setCreateMenu(null);
   }
 
   function openUploadAt(world: { x: number; y: number }) {
@@ -1069,44 +1313,337 @@ export function CanvasBoard({
     }, 220);
   }
 
-  function insertAssetAtCenter(asset: {
-    id: string;
-    url: string;
-    kind: string;
-  }) {
+  async function insertAssetAtCenter(
+    asset: { id: string; url: string; kind: string },
+    opts?: { offset?: number; history?: boolean },
+  ) {
     const rect = containerRef.current?.getBoundingClientRect();
     const vp = useCanvasStore.getState().viewport;
+    const offset = opts?.offset ?? 0;
     const at = rect
       ? {
-          x: (-vp.x + rect.width / 2) / vp.zoom - 120,
-          y: (-vp.y + rect.height / 2) / vp.zoom - 90,
+          x: (-vp.x + rect.width / 2) / vp.zoom - 120 + offset * 36,
+          y: (-vp.y + rect.height / 2) / vp.zoom - 90 + offset * 28,
         }
       : undefined;
-    pushHistory();
-    const type: CanvasNodeType = asset.kind === "video" ? "video" : "image";
+    if (opts?.history !== false) pushHistory();
+    let type = nodeTypeForAssetKind(asset.kind);
+    if (type === "image") {
+      type = await probeImageUrlType(asset.url);
+    }
     const id = addNode(type, at);
     updateNodeData(id, {
       url: asset.url,
       assetId: asset.id,
       status: "succeeded",
+      ...(type === "panorama" ? { projection: "equirectangular" } : {}),
     });
+    if (type === "panorama") notePanoramaAspect(id, asset.url);
+    else if (type === "image" || type === "video") {
+      void frameNodeToMedia(id, asset.url, type);
+    }
     setSelection([id]);
+    return id;
   }
 
-  function addPromptAtCenter(text?: string) {
-    const rect = containerRef.current?.getBoundingClientRect();
-    const vp = useCanvasStore.getState().viewport;
-    const at = rect
-      ? {
-          x: (-vp.x + rect.width / 2) / vp.zoom - 140,
-          y: (-vp.y + rect.height / 2) / vp.zoom - 90,
-        }
-      : undefined;
+  async function insertPickedAssets(
+    assets: { id: string; url: string; kind: string }[],
+  ) {
+    if (!assets.length) return;
     pushHistory();
-    const id = addNode("prompt", at);
-    if (text?.trim()) updateNodeData(id, { prompt: text.trim() });
-    setSelection([id]);
+    const ids: string[] = [];
+    for (let index = 0; index < assets.length; index += 1) {
+      const asset = assets[index];
+      if (!asset) continue;
+      const id = await insertAssetAtCenter(asset, {
+        offset: index,
+        history: false,
+      });
+      ids.push(id);
+    }
+    if (ids.length) setSelection(ids);
+    setAssetPickerOpen(false);
   }
+
+  async function handleCaptureVideoFrame(at: VideoFrameAt) {
+    const id = nodeMenu?.nodeId;
+    setNodeMenu(null);
+    if (!id) return;
+    const node = useCanvasStore.getState().nodes.find((n) => n.id === id);
+    if (!node || node.type !== "video") return;
+    const url = String(node.data.url ?? "");
+    if (!url || url.startsWith("data:")) return;
+    try {
+      pushHistory();
+      const file = await captureVideoFrame(
+        url,
+        at,
+        at === "current" ? getPlaybackTime(id) : 0,
+      );
+      const asset = await apiUpload<{ id: string; url: string }>(
+        "/upload",
+        file,
+      );
+      const imageId = addNode("image", {
+        x: node.x + (node.width ?? 280) + 40,
+        y: node.y,
+      });
+      updateNodeData(imageId, {
+        url: asset.url,
+        assetId: asset.id,
+        status: "succeeded",
+        title:
+          at === "first" ? "首帧" : at === "last" ? "尾帧" : "当前帧",
+      });
+      addEdge(node.id, imageId);
+      toast.success("已截取帧并创建图像节点");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "截帧失败");
+    }
+  }
+
+  function openImageTool(nodeId: string, mode: ImageToolMode) {
+    const node = useCanvasStore.getState().nodes.find((item) => item.id === nodeId);
+    const url = String(node?.data.url ?? "");
+    if (!node || !url || url.startsWith("data:")) {
+      toast.message("请先放入图片");
+      return;
+    }
+    if (node.type !== "image" && node.type !== "panorama") return;
+    setImageTool({ nodeId, url, mode });
+  }
+
+  async function commitImageTool(pieces: RasterPiece[]) {
+    const session = imageTool;
+    if (!session) return;
+    const node = useCanvasStore
+      .getState()
+      .nodes.find((item) => item.id === session.nodeId);
+    if (!node) {
+      toast.error("节点已不存在");
+      setImageTool(null);
+      return;
+    }
+    await commitImagePieces(node, pieces);
+    toast.success(
+      pieces.length > 1 ? `已切出 ${pieces.length} 张图` : "已生成新图像节点",
+    );
+    setImageTool(null);
+  }
+
+  async function handleExtractAudio() {
+    const id = nodeMenu?.nodeId;
+    setNodeMenu(null);
+    if (!id) return;
+    const node = useCanvasStore.getState().nodes.find((item) => item.id === id);
+    if (!node || node.type !== "video") return;
+    const url = String(node.data.url ?? "");
+    if (!url || url.startsWith("data:")) return;
+    try {
+      pushHistory();
+      toast.message("正在抽音，请稍候…");
+      const file = await extractAudioFromVideo(url);
+      const asset = await apiUpload<{ id: string; url: string }>(
+        "/upload",
+        file,
+      );
+      const audioId = addNode("audio", {
+        x: node.x + (node.width ?? 280) + 40,
+        y: node.y + 40,
+      });
+      updateNodeData(audioId, {
+        url: asset.url,
+        assetId: asset.id,
+        status: "succeeded",
+        title: "视频音轨",
+      });
+      addEdge(node.id, audioId);
+      toast.success("已抽取音轨到音频节点");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "抽音失败");
+    }
+  }
+
+  function openInfo(nodeId: string) {
+    setInfoNodeId(nodeId);
+    setNodeMenu(null);
+  }
+
+  function openAudioTrim(nodeId: string) {
+    const node = useCanvasStore.getState().nodes.find((item) => item.id === nodeId);
+    const url = String(node?.data.url ?? "");
+    setNodeMenu(null);
+    if (
+      !node ||
+      (node.type !== "audio" && node.type !== "video") ||
+      !url ||
+      url.startsWith("data:")
+    ) {
+      toast.message("请先放入音频或视频");
+      return;
+    }
+    setAudioTrim({ nodeId, url });
+  }
+
+  function openMask(nodeId: string) {
+    const node = useCanvasStore.getState().nodes.find((item) => item.id === nodeId);
+    const url = String(node?.data.url ?? "");
+    setNodeMenu(null);
+    if (!node || node.type !== "image" || !url || url.startsWith("data:")) {
+      toast.message("请先放入图片");
+      return;
+    }
+    setMaskEdit({ nodeId, url });
+  }
+
+  async function commitAudioTrim(range: { start: number; end: number }) {
+    const session = audioTrim;
+    if (!session || audioTrimBusy) return;
+    const node = useCanvasStore
+      .getState()
+      .nodes.find((item) => item.id === session.nodeId);
+    if (!node) {
+      toast.error("节点已不存在");
+      setAudioTrim(null);
+      return;
+    }
+    setAudioTrimBusy(true);
+    try {
+      const file = await trimMediaToFile(session.url, range.start, range.end);
+      const asset = await apiUpload<{ id: string; url: string }>(
+        "/upload",
+        file,
+      );
+      pushHistory();
+      const audioId = addNode("audio", {
+        x: node.x + (node.width ?? 280) + 40,
+        y: node.y + 28,
+      });
+      updateNodeData(audioId, {
+        url: asset.url,
+        assetId: asset.id,
+        status: "succeeded",
+        title: "截取音频",
+      });
+      addEdge(node.id, audioId);
+      setSelection([audioId]);
+      setAudioTrim(null);
+      toast.success("已截取并创建音频节点");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "截取失败");
+    } finally {
+      setAudioTrimBusy(false);
+    }
+  }
+
+  async function commitMask(payload: { prompt: string; blob: Blob }) {
+    const session = maskEdit;
+    if (!session) return;
+    const node = useCanvasStore
+      .getState()
+      .nodes.find((item) => item.id === session.nodeId);
+    if (!node) {
+      toast.error("节点已不存在");
+      setMaskEdit(null);
+      return;
+    }
+    const toastId = toast.loading("正在提交局部重绘…");
+    try {
+      const file = new File([payload.blob], `mask-${Date.now()}.png`, {
+        type: "image/png",
+      });
+      const asset = await apiUpload<{ id: string; url: string }>(
+        "/upload",
+        file,
+      );
+      pushHistory();
+      const box = nodeBox(node);
+      const markedId = addNode("image", {
+        x: box.x + box.width + 40,
+        y: box.y,
+      });
+      updateNodeData(markedId, {
+        url: asset.url,
+        assetId: asset.id,
+        status: "succeeded",
+        title: "涂抹参考",
+      });
+      const promptId = addNode("prompt", {
+        x: box.x + box.width + 40,
+        y: box.y + box.height + 36,
+      });
+      const sourceAssetId = String(node.data.assetId ?? "");
+      const sourceUrl = String(node.data.url ?? "");
+      const referenceAssetIds = [
+        ...new Set(
+          [sourceAssetId, asset.id].filter(Boolean),
+        ),
+      ];
+      const referenceUrls = [
+        ...new Set(
+          [sourceUrl, asset.url].filter(
+            (item) => item && !item.startsWith("data:"),
+          ),
+        ),
+      ];
+      updateNodeData(promptId, {
+        prompt: payload.prompt,
+        operation: "inpaint",
+        outputKind: "image",
+        status: "queued",
+        error: "",
+        referenceIds: referenceAssetIds,
+        referenceUrls,
+      });
+      addEdge(node.id, promptId);
+      addEdge(markedId, promptId);
+      setSelection([promptId]);
+      setMaskEdit(null);
+
+      const job = await api<{ id: string }>("/jobs", {
+        method: "POST",
+        body: {
+          kind: "image",
+          input: {
+            prompt: payload.prompt,
+            n: 1,
+            canvasProjectId: projectId,
+            canvasNodeId: promptId,
+            referenceAssetIds,
+            referenceUrls,
+            operation: "inpaint",
+          },
+        },
+      });
+      updateNodeData(promptId, { status: "running", jobId: job.id });
+      toast.success("已提交局部重绘", { id: toastId });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "局部重绘失败", {
+        id: toastId,
+      });
+    }
+  }
+
+  function handleConvertType(to: "image" | "panorama") {
+    const id = nodeMenu?.nodeId;
+    setNodeMenu(null);
+    if (!id) return;
+    pushHistory();
+    convertImagePanoramaType(id, to);
+  }
+
+  const chromeBusy = isPanningTool || isNodeDragging || isNodeResizing;
+  const selectedMedia =
+    selectedNodes.length === 1 ? mediaKindOf(selectedNodes[0]) : null;
+  const genCapable =
+    selectedMedia === "image" ||
+    selectedMedia === "video" ||
+    selectedMedia === "panorama";
+  const emptyMedia =
+    genCapable &&
+    (!String(selectedNodes[0]?.data.url ?? "") ||
+      String(selectedNodes[0]?.data.url ?? "").startsWith("data:"));
+  const showGenPanel = genCapable && !chromeBusy && (genPanelOpen || emptyMedia);
 
   const gridSize = (snapToGrid ? 24 : 48) * viewport.zoom;
   const marqueeStyle = marquee
@@ -1120,15 +1657,6 @@ export function CanvasBoard({
 
   return (
     <div className="joy-canvas-board flex h-full min-h-[480px] overflow-hidden">
-      <CanvasSidePanel
-        nodes={nodes}
-        selectedIds={selectedIds}
-        onFocusNode={(id) => {
-          focusNode(id, viewportSize);
-        }}
-        onInsertAsset={insertAssetAtCenter}
-        onAddPrompt={addPromptAtCenter}
-      />
       <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
       <CanvasTopBar
         projectId={projectId}
@@ -1138,6 +1666,19 @@ export function CanvasBoard({
         onRedo={redo}
         onImport={() => uploadRef.current?.click()}
         onOpenShortcuts={() => setShortcutsOpen(true)}
+      />
+      <CanvasRightPanel
+        projectId={projectId}
+        nodes={nodes}
+        selectedIds={selectedIds}
+        onFocusNode={(id) => {
+          focusNode(id, viewportSize);
+        }}
+        onFocusJob={({ jobId, assetId, nodeId }) => {
+          let ok = false;
+          if (nodeId) ok = focusNode(nodeId, viewportSize);
+          if (!ok) ok = focusByJobOrAsset({ jobId, assetId }, viewportSize);
+        }}
       />
       <CanvasToolbar
         panMode={panMode}
@@ -1167,6 +1708,13 @@ export function CanvasBoard({
         }}
         onClearCanvas={clearCanvas}
       />
+      <CanvasCreateRail
+        onAddNode={(type) => {
+          pushHistory();
+          addNode(type);
+        }}
+        onOpenAssets={() => setAssetPickerOpen(true)}
+      />
       <CanvasDock
         zoom={viewport.zoom}
         miniMapOpen={miniMapOpen}
@@ -1181,6 +1729,11 @@ export function CanvasBoard({
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
       />
+      <CanvasAssetDialog
+        open={assetPickerOpen}
+        onClose={() => setAssetPickerOpen(false)}
+        onConfirm={(assets) => void insertPickedAssets(assets)}
+      />
 
       {miniMapOpen ? (
         <CanvasMinimap
@@ -1191,11 +1744,11 @@ export function CanvasBoard({
         />
       ) : null}
 
-      {selectedNodes.length > 1 && !isPanningTool && !isNodeDragging ? (
+      {selectedNodes.length > 1 && !chromeBusy ? (
         <MultiSelectToolbar nodes={selectedNodes} viewport={viewport} />
       ) : null}
 
-      {floatToolbarNodes.length === 1 && !isPanningTool && !isNodeDragging ? (
+      {floatToolbarNodes.length === 1 && !chromeBusy ? (
         <div
           onMouseEnter={clearHoverLeaveTimer}
           onMouseLeave={onNodeHoverLeave}
@@ -1204,8 +1757,33 @@ export function CanvasBoard({
             nodes={floatToolbarNodes}
             viewport={viewport}
             onEditImage={(id) => setEditingImageId(id)}
+            onOpenDirector={(id) => setDirectorId(id)}
+            genPanelOpen={genPanelOpen}
+            onToggleGenPanel={
+              genCapable ? () => setGenPanelOpen((v) => !v) : undefined
+            }
+            onOpenImageTool={(mode) => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openImageTool(id, mode);
+            }}
+            onOpenInfo={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openInfo(id);
+            }}
+            onOpenAudioTrim={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openAudioTrim(id);
+            }}
+            onOpenMask={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openMask(id);
+            }}
           />
         </div>
+      ) : null}
+
+      {showGenPanel && selectedNodes[0] ? (
+        <NodeGenPanel node={selectedNodes[0]} viewport={viewport} />
       ) : null}
 
       <div
@@ -1231,11 +1809,13 @@ export function CanvasBoard({
         onContextMenu={onBoardContextMenu}
         onDoubleClick={onBoardDoubleClick}
         onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
         }}
         onDrop={(e) => {
           e.preventDefault();
+          if (!e.dataTransfer.files?.length) return;
           const rect = containerRef.current?.getBoundingClientRect();
           if (!rect) return;
           const mx = e.clientX - rect.left;
@@ -1260,26 +1840,58 @@ export function CanvasBoard({
             onSelectEdge={(id) => {
               selectEdge(id);
             }}
+            onCutEdge={(id) => {
+              pushHistory();
+              removeEdge(id);
+            }}
           />
-          <GroupBoundsOverlay nodes={nodes} selectedIds={selectedIds} />
-          {nodes.map((node) => (
-            <div
-              key={node.id}
-              onMouseEnter={() => onNodeHoverEnter(node.id)}
-              onMouseLeave={onNodeHoverLeave}
-              onContextMenu={(e) => onNodeContextMenu(e, node)}
-            >
-              <NodeView
-                node={node}
-                onPointerDown={onNodePointerDown}
-                editingImage={editingImageId === node.id}
-                onEditingImageChange={(open) =>
-                  setEditingImageId(open ? node.id : null)
-                }
-              />
-              <NodeHandles node={node} onConnectStart={onConnectStart} />
-            </div>
-          ))}
+          {nodes.map((node, index) => {
+            const selected = selectedIds.includes(node.id);
+            return (
+              <div
+                key={node.id}
+                className="joy-canvas-node"
+                draggable={false}
+                style={{
+                  position: "relative",
+                  zIndex: selected ? 10_000 + index : index + 1,
+                  isolation: "isolate",
+                }}
+                onDragStart={(event) => event.preventDefault()}
+                onMouseEnter={() => onNodeHoverEnter(node.id)}
+                onMouseLeave={onNodeHoverLeave}
+                onContextMenu={(e) => onNodeContextMenu(e, node)}
+              >
+                <NodeView
+                  node={node}
+                  onPointerDown={onNodePointerDown}
+                  editingImage={editingImageId === node.id}
+                  onEditingImageChange={(open) =>
+                    setEditingImageId(open ? node.id : null)
+                  }
+                  onOpenDirector={(id) => setDirectorId(id)}
+                />
+                <NodeHandles node={node} onConnectStart={onConnectStart} />
+              </div>
+            );
+          })}
+          <GroupBoundsOverlay
+            nodes={nodes}
+            selectedIds={selectedIds}
+            dropTargetGid={dropTargetGid}
+          />
+          {selectedIds.length === 1 && !isPanningTool
+            ? (() => {
+                const n = nodes.find((x) => x.id === selectedIds[0]);
+                return n ? (
+                  <NodeResizeHandles
+                    node={n}
+                    zoom={viewport.zoom}
+                    onResizingChange={setIsNodeResizing}
+                  />
+                ) : null;
+              })()
+            : null}
         </div>
 
         {marqueeStyle ? (
@@ -1313,6 +1925,14 @@ export function CanvasBoard({
                     x: createMenu.worldX,
                     y: createMenu.worldY,
                   });
+                  setCreateMenu(null);
+                }
+              : undefined
+          }
+          onOpenAssets={
+            createMenu.kind === "blank"
+              ? () => {
+                  setAssetPickerOpen(true);
                   setCreateMenu(null);
                 }
               : undefined
@@ -1353,14 +1973,101 @@ export function CanvasBoard({
                 }
               : undefined
           }
+          onCaptureFrame={
+            nodeMenu.nodeType === "video" && nodeMenu.hasMedia
+              ? (at) => void handleCaptureVideoFrame(at)
+              : undefined
+          }
+          onExtractAudio={
+            nodeMenu.nodeType === "video" && nodeMenu.hasMedia
+              ? () => void handleExtractAudio()
+              : undefined
+          }
+          onConvertType={
+            nodeMenu.hasMedia &&
+            (nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama")
+              ? handleConvertType
+              : undefined
+          }
+          onImageTool={
+            nodeMenu.hasMedia &&
+            (nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama")
+              ? (mode) => {
+                  const id = nodeMenu.nodeId;
+                  setNodeMenu(null);
+                  openImageTool(id, mode);
+                }
+              : undefined
+          }
+          onCopyPrompt={
+            nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama"
+              ? () => {
+                  copyUpstreamPrompt(nodeMenu.nodeId);
+                  setNodeMenu(null);
+                }
+              : undefined
+          }
+          onToggleFreeResize={
+            nodeMenu.nodeType === "image" ||
+            nodeMenu.nodeType === "panorama" ||
+            nodeMenu.nodeType === "video"
+              ? () => {
+                  toggleFreeResize(nodeMenu.nodeId);
+                  setNodeMenu(null);
+                }
+              : undefined
+          }
+          freeResize={Boolean(
+            nodes.find((item) => item.id === nodeMenu.nodeId)?.data.freeResize,
+          )}
+          onInfo={() => openInfo(nodeMenu.nodeId)}
+          onTrimAudio={
+            nodeMenu.hasMedia &&
+            (nodeMenu.nodeType === "audio" || nodeMenu.nodeType === "video")
+              ? () => openAudioTrim(nodeMenu.nodeId)
+              : undefined
+          }
+          onMaskEdit={
+            nodeMenu.hasMedia && nodeMenu.nodeType === "image"
+              ? () => openMask(nodeMenu.nodeId)
+              : undefined
+          }
           onClose={() => setNodeMenu(null)}
         />
       ) : null}
 
+      <ImageToolDialog
+        mode={imageTool?.mode ?? null}
+        url={imageTool?.url ?? ""}
+        onClose={() => setImageTool(null)}
+        onCommit={commitImageTool}
+      />
+
+      <NodeInfoDialog
+        node={nodes.find((item) => item.id === infoNodeId) ?? null}
+        open={Boolean(infoNodeId)}
+        onClose={() => setInfoNodeId(null)}
+      />
+      <AudioTrimDialog
+        url={audioTrim?.url ?? ""}
+        open={Boolean(audioTrim)}
+        busy={audioTrimBusy}
+        onClose={() => {
+          if (!audioTrimBusy) setAudioTrim(null);
+        }}
+        onConfirm={(range) => void commitAudioTrim(range)}
+      />
+      <MaskEditDialog
+        url={maskEdit?.url ?? ""}
+        open={Boolean(maskEdit)}
+        onClose={() => setMaskEdit(null)}
+        onConfirm={commitMask}
+      />
+
       <input
         ref={uploadRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*,video/*,audio/*"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -1370,6 +2077,12 @@ export function CanvasBoard({
           e.target.value = "";
         }}
       />
+      {directorId ? (
+        <DirectorDesk
+          nodeId={directorId}
+          onClose={() => setDirectorId(null)}
+        />
+      ) : null}
       </div>
     </div>
   );

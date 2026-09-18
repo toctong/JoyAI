@@ -1,6 +1,10 @@
 "use client";
 
-import { AlertCircle, Loader2, RotateCcw } from "lucide-react";
+import {
+  CanvasIconAlert,
+  CanvasIconLoader,
+  CanvasIconRetry,
+} from "./icons/canvas-icons";
 import { cn } from "@/shared/lib/utils";
 import { isBusyStatus, isFailedStatus } from "./node-registry";
 
@@ -31,7 +35,7 @@ export function NodeRuntimeBadge({
           className,
         )}
       >
-        <Loader2 className="h-3 w-3 shrink-0 animate-spin" />
+        <CanvasIconLoader className="h-3 w-3 shrink-0 animate-spin" />
         <span>{status === "queued" ? "排队中…" : "生成中…"}</span>
       </div>
     );
@@ -48,7 +52,7 @@ export function NodeRuntimeBadge({
         )}
         title={error || "生成失败"}
       >
-        <AlertCircle className="h-3 w-3 shrink-0" />
+        <CanvasIconAlert className="h-3 w-3 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{error || "生成失败"}</span>
         {onRetry ? (
           <button
@@ -60,7 +64,7 @@ export function NodeRuntimeBadge({
               onRetry();
             }}
           >
-            <RotateCcw className="h-3 w-3" />
+            <CanvasIconRetry className="h-3 w-3" />
             重试
           </button>
         ) : null}

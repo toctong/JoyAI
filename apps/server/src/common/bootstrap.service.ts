@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import * as bcrypt from "bcryptjs";
 import {
   CHANNEL_PRESETS,
@@ -11,6 +11,10 @@ import {
 import { User } from "../database/entities/user.entity";
 import { Channel } from "../database/entities/channel.entity";
 import { Model } from "../database/entities/model.entity";
+import { Job } from "../database/entities/job.entity";
+import { Asset } from "../database/entities/asset.entity";
+import { CanvasProject } from "../database/entities/canvas-project.entity";
+import { CanvasFolder } from "../database/entities/canvas-folder.entity";
 import { JobKind, UserRole } from "../database/enums";
 
 @Injectable()
@@ -21,11 +25,18 @@ export class BootstrapService {
     @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(Channel) private readonly channels: Repository<Channel>,
     @InjectRepository(Model) private readonly models: Repository<Model>,
+    @InjectRepository(Job) private readonly jobs: Repository<Job>,
+    @InjectRepository(Asset) private readonly assets: Repository<Asset>,
+    @InjectRepository(CanvasProject)
+    private readonly projects: Repository<CanvasProject>,
+    @InjectRepository(CanvasFolder)
+    private readonly folders: Repository<CanvasFolder>,
     private readonly config: ConfigService,
   ) {}
 
   async run() {
     await this.ensureAdmin();
+    await this.healOrphanOwnershipByUsername();
     await this.ensureChannelFromEnv(
       ProviderPlatform.VOLCENGINE,
       "ARK_API_KEY",
@@ -48,9 +59,12 @@ export class BootstrapService {
     );
   }
 
+  private bootstrapUsername() {
+    return this.config.get<string>("AUTH_BOOTSTRAP_USERNAME") ?? "admin";
+  }
+
   private async ensureAdmin() {
-    const username =
-      this.config.get<string>("AUTH_BOOTSTRAP_USERNAME") ?? "admin";
+    const username = this.bootstrapUsername();
     const password =
       this.config.get<string>("AUTH_BOOTSTRAP_PASSWORD") ?? "admin123";
 
@@ -66,6 +80,57 @@ export class BootstrapService {
       }),
     );
     this.logger.log(`Bootstrap admin created: ${username}`);
+  }
+
+  /**
+   * Hang orphaned job/asset/canvas rows on the bootstrap username (unique).
+   * userId is internal; username is the stable owner key for local recoveries.
+   */
+  private async healOrphanOwnershipByUsername() {
+    const username = this.bootstrapUsername();
+    const owner = await this.users.findOne({ where: { username } });
+    if (!owner) return;
+
+    const livingIds = new Set(
+      (await this.users.find({ select: ["id"] })).map((user) => user.id),
+    );
+    const mentioned = new Set<string>();
+    for (const id of await this.distinctUserIds(this.jobs)) mentioned.add(id);
+    for (const id of await this.distinctUserIds(this.assets)) mentioned.add(id);
+    for (const id of await this.distinctUserIds(this.projects)) {
+      mentioned.add(id);
+    }
+    for (const id of await this.distinctUserIds(this.folders)) {
+      mentioned.add(id);
+    }
+
+    const orphans = [...mentioned].filter((id) => id && !livingIds.has(id));
+    if (!orphans.length) return;
+
+    const where = { userId: In(orphans) };
+    const jobs = await this.jobs.update(where, { userId: owner.id });
+    const assets = await this.assets.update(where, { userId: owner.id });
+    const projects = await this.projects.update(where, { userId: owner.id });
+    const folders = await this.folders.update(where, { userId: owner.id });
+
+    this.logger.warn(
+      `Reattached orphaned ownership → @${username} (${owner.id}): ` +
+        `jobs=${jobs.affected ?? 0}, assets=${assets.affected ?? 0}, ` +
+        `projects=${projects.affected ?? 0}, folders=${folders.affected ?? 0}`,
+    );
+  }
+
+  private async distinctUserIds(
+    repo: Repository<{ userId: string }>,
+  ): Promise<string[]> {
+    const rows = await repo.find({ select: ["userId"] as never });
+    return [
+      ...new Set(
+        rows
+          .map((row) => String((row as { userId?: string }).userId ?? ""))
+          .filter(Boolean),
+      ),
+    ];
   }
 
   private async ensureChannelFromEnv(
@@ -86,7 +151,6 @@ export class BootstrapService {
       metadata.dashscopeApiBase = preset.dashscopeApiBase;
     }
 
-    // Optional env override: only remap the default image/video model ids.
     const catalog = getCatalogForPlatform(platform).map((m) => {
       if (platform !== ProviderPlatform.VOLCENGINE || !m.isDefault) {
         return m;

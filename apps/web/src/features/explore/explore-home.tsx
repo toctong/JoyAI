@@ -342,7 +342,6 @@ export function ExploreHome() {
         <KeepAlive
           activeCacheKey={paneKey}
           max={KEEP_ALIVE_MAX}
-          enableActivity
           containerClassName="joy-explore-keepalive"
           cacheNodeClassName="joy-explore-keepalive-node"
         >

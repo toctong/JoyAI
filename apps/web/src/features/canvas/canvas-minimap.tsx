@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { CanvasNode } from "@joyai/shared";
 import type { Viewport } from "./store";
+import { nodeBox } from "./lib/node-box";
 
 const MAP_W = 168;
 const MAP_H = 112;
@@ -14,6 +15,9 @@ const NODE_COLOR: Record<string, string> = {
   video: "#60a5fa",
   text: "#a1a1aa",
   prompt: "#c084fc",
+  panorama: "#2dd4bf",
+  audio: "#fbbf24",
+  director: "#f472b6",
 };
 
 type Props = {
@@ -45,12 +49,11 @@ export function CanvasMinimap({
     let maxX = -Infinity;
     let maxY = -Infinity;
     for (const n of nodes) {
-      const w = n.width ?? 240;
-      const h = n.height ?? 180;
-      minX = Math.min(minX, n.x);
-      minY = Math.min(minY, n.y);
-      maxX = Math.max(maxX, n.x + w);
-      maxY = Math.max(maxY, n.y + h);
+      const box = nodeBox(n);
+      minX = Math.min(minX, box.x);
+      minY = Math.min(minY, box.y);
+      maxX = Math.max(maxX, box.x + box.width);
+      maxY = Math.max(maxY, box.y + box.height);
     }
     const pad = 320;
     minX -= pad;
@@ -140,9 +143,10 @@ export function CanvasMinimap({
       <svg width={MAP_W} height={MAP_H} className="block">
         <rect width={MAP_W} height={MAP_H} fill="var(--background)" />
         {drawNodes.map((n) => {
-          const p = toMinimap(n.x, n.y);
-          const w = Math.max((n.width ?? 240) * scale, 3);
-          const h = Math.max((n.height ?? 180) * scale, 3);
+          const box = nodeBox(n);
+          const p = toMinimap(box.x, box.y);
+          const w = Math.max(box.width * scale, 3);
+          const h = Math.max(box.height * scale, 3);
           return (
             <rect
               key={n.id}

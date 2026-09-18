@@ -6,9 +6,24 @@ export type NodeToolbarAction =
   | "upload"
   | "download"
   | "spawn-prompt"
+  | "spawn-video"
   | "outpaint"
   | "inpaint"
+  | "capture-frame"
+  | "extract-audio"
+  | "crop"
+  | "split"
+  | "upscale"
+  | "view-image"
+  | "copy-prompt"
+  | "toggle-resize"
+  | "to-panorama"
+  | "to-image"
+  | "open-director"
   | "text-to-prompt"
+  | "font-down"
+  | "font-up"
+  | "trim-audio"
   | "clear-prompt"
   | "retry"
   | "duplicate"
@@ -30,20 +45,28 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
     defaultWidth: 240,
     defaultHeight: 80,
     defaultData: () => ({ text: "双击编辑文本" }),
-    toolbar: ["text-to-prompt", "duplicate", "delete"],
+    toolbar: ["font-down", "font-up", "text-to-prompt", "duplicate", "delete"],
   },
   image: {
     type: "image",
     label: "图像",
-    defaultWidth: 240,
-    defaultHeight: 180,
+    defaultWidth: 340,
+    defaultHeight: 240,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
     toolbar: [
       "edit-image",
       "upload",
       "spawn-prompt",
+      "spawn-video",
+      "to-panorama",
       "outpaint",
       "inpaint",
+      "crop",
+      "split",
+      "upscale",
+      "view-image",
+      "copy-prompt",
+      "toggle-resize",
       "download",
       "duplicate",
       "delete",
@@ -52,10 +75,20 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   video: {
     type: "video",
     label: "视频",
-    defaultWidth: 280,
-    defaultHeight: 180,
+    defaultWidth: 420,
+    defaultHeight: 236,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
-    toolbar: ["upload", "download", "duplicate", "delete"],
+    toolbar: [
+      "upload",
+      "capture-frame",
+      "extract-audio",
+      "trim-audio",
+      "toggle-resize",
+      "spawn-prompt",
+      "download",
+      "duplicate",
+      "delete",
+    ],
   },
   prompt: {
     type: "prompt",
@@ -68,8 +101,58 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       jobId: "",
       error: "",
       operation: "generate",
+      outputKind: "image",
     }),
     toolbar: ["clear-prompt", "retry", "duplicate", "delete"],
+  },
+  panorama: {
+    type: "panorama",
+    label: "全景",
+    defaultWidth: 340,
+    defaultHeight: 170,
+    defaultData: () => ({
+      url: "",
+      assetId: "",
+      status: "idle",
+      projection: "equirectangular",
+    }),
+    toolbar: [
+      "upload",
+      "spawn-prompt",
+      "crop",
+      "split",
+      "upscale",
+      "view-image",
+      "copy-prompt",
+      "toggle-resize",
+      "to-image",
+      "download",
+      "duplicate",
+      "delete",
+    ],
+  },
+  audio: {
+    type: "audio",
+    label: "音频",
+    defaultWidth: 320,
+    defaultHeight: 120,
+    defaultData: () => ({ url: "", assetId: "", status: "idle" }),
+    toolbar: [
+      "upload",
+      "trim-audio",
+      "spawn-prompt",
+      "download",
+      "duplicate",
+      "delete",
+    ],
+  },
+  director: {
+    type: "director",
+    label: "导演台",
+    defaultWidth: 280,
+    defaultHeight: 180,
+    defaultData: () => ({ directorProject: { version: 1, shots: [] } }),
+    toolbar: ["open-director", "duplicate", "delete"],
   },
 };
 

@@ -1,25 +1,22 @@
 "use client";
 
+import {
+  CanvasIconFolder,
+  CanvasIconHistory,
+  CanvasIconHome,
+  CanvasIconKeyboard,
+  CanvasIconMenu,
+  CanvasIconRedo,
+  CanvasIconSearch,
+  CanvasIconShortcuts,
+  CanvasIconUndo,
+  CanvasIconUpload,
+} from "./icons/canvas-icons";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  FolderOpen,
-  HelpCircle,
-  Home,
-  Keyboard,
-  Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Redo2,
-  Undo2,
-  Upload,
-} from "lucide-react";
 import { useCanvasStore } from "./store";
-import {
-  hydrateSidePanelPrefs,
-  useCanvasSidePanelStore,
-} from "./side-panel-store";
+import { useCanvasRightPanelStore } from "./right-panel-store";
 import { api } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -56,15 +53,11 @@ export function CanvasTopBar({
   const title = useCanvasStore((s) => s.title);
   const dirty = useCanvasStore((s) => s.dirty);
   const setTitle = useCanvasStore((s) => s.setTitle);
-  const sideOpen = useCanvasSidePanelStore((s) => s.open);
-  const toggleSide = useCanvasSidePanelStore((s) => s.toggle);
+  const rightMode = useCanvasRightPanelStore((s) => s.mode);
+  const toggleRight = useCanvasRightPanelStore((s) => s.toggle);
   const [draft, setDraft] = useState(title);
   const [editing, setEditing] = useState(false);
   const titleWrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    hydrateSidePanelPrefs();
-  }, []);
 
   useEffect(() => {
     setDraft(title);
@@ -100,21 +93,6 @@ export function CanvasTopBar({
       className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-14 items-center justify-between pl-2 pr-4"
     >
       <div className="pointer-events-auto flex min-w-0 items-center gap-1.5">
-        <button
-          type="button"
-          title={sideOpen ? "收起侧栏" : "展开侧栏"}
-          aria-label={sideOpen ? "收起侧栏" : "展开侧栏"}
-          aria-pressed={sideOpen}
-          onClick={toggleSide}
-          className="grid size-8 place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
-        >
-          {sideOpen ? (
-            <PanelLeftClose className="size-4" />
-          ) : (
-            <PanelLeftOpen className="size-4" />
-          )}
-        </button>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -123,36 +101,36 @@ export function CanvasTopBar({
               aria-label="菜单"
               className="grid size-8 place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
             >
-              <Menu className="size-4" />
+              <CanvasIconMenu className="size-4" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
             <DropdownMenuLabel>画布</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => router.push("/")}>
-              <Home className="size-4" />
+              <CanvasIconHome className="size-4" />
               首页
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push("/canvas")}>
-              <FolderOpen className="size-4" />
+              <CanvasIconFolder className="size-4" />
               项目列表
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onImport}>
-              <Upload className="size-4" />
+              <CanvasIconUpload className="size-4" />
               导入素材
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onOpenShortcuts}>
-              <Keyboard className="size-4" />
+              <CanvasIconKeyboard className="size-4" />
               快捷键
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled={!canUndo} onClick={onUndo}>
-              <Undo2 className="size-4" />
+              <CanvasIconUndo className="size-4" />
               撤销
               <DropdownMenuShortcut>⌘Z</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuItem disabled={!canRedo} onClick={onRedo}>
-              <Redo2 className="size-4" />
+              <CanvasIconRedo className="size-4" />
               重做
               <DropdownMenuShortcut>⇧⌘Z</DropdownMenuShortcut>
             </DropdownMenuItem>
@@ -199,6 +177,34 @@ export function CanvasTopBar({
       </div>
 
       <div className="pointer-events-auto flex items-center gap-1.5">
+        <div className="joy-canvas-chrome flex items-center gap-0.5 rounded-xl p-1">
+          <button
+            type="button"
+            title="搜索节点"
+            aria-label="搜索节点"
+            aria-pressed={rightMode === "nodes"}
+            onClick={() => toggleRight("nodes")}
+            className={cn(
+              "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg",
+              rightMode === "nodes" && "is-active",
+            )}
+          >
+            <CanvasIconSearch className="size-4" />
+          </button>
+          <button
+            type="button"
+            title="生成历史"
+            aria-label="生成历史"
+            aria-pressed={rightMode === "history"}
+            onClick={() => toggleRight("history")}
+            className={cn(
+              "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg",
+              rightMode === "history" && "is-active",
+            )}
+          >
+            <CanvasIconHistory className="size-4" />
+          </button>
+        </div>
         <Link
           href="/assets"
           className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -212,7 +218,7 @@ export function CanvasTopBar({
           onClick={onOpenShortcuts}
           className="grid size-8 place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
         >
-          <HelpCircle className="size-4" />
+          <CanvasIconShortcuts className="size-4" />
         </button>
       </div>
     </div>

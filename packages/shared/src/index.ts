@@ -21,6 +21,9 @@ export const CanvasNodeTypeSchema = z.enum([
   "text",
   "prompt",
   "video",
+  "panorama",
+  "audio",
+  "director",
 ]);
 export type CanvasNodeType = z.infer<typeof CanvasNodeTypeSchema>;
 

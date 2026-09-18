@@ -16,11 +16,10 @@
 }
 
 .joy-canvas-chrome {
-  background: color-mix(in oklab, var(--popover) 92%, transparent);
+  background: var(--popover);
   border: 1px solid var(--border);
   color: var(--popover-foreground);
-  box-shadow: 0 12px 40px -20px color-mix(in oklab, var(--foreground) 35%, transparent);
-  backdrop-filter: blur(14px);
+  box-shadow: none;
 }
 
 .joy-canvas-chrome-btn {
@@ -90,7 +89,7 @@
 }
 
 .joy-canvas-menu-item.is-preferred {
-  background: color-mix(in oklab, var(--ring) 14%, transparent);
+  background: var(--muted);
 }
 
 .joy-canvas-menu-item.is-danger {
@@ -99,4 +98,12 @@
 
 .joy-canvas-menu-item.is-danger:hover {
   background: color-mix(in oklab, var(--destructive) 12%, transparent);
+}
+
+/* Media must not start the browser's native drag (ghost looks like a copy). */
+.joy-canvas-node img,
+.joy-canvas-node video,
+.joy-canvas-node audio {
+  -webkit-user-drag: none;
+  user-select: none;
 }

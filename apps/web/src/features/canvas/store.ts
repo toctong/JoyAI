@@ -10,6 +10,8 @@ import type {
 import { normalizeCanvasSnapshot } from "@joyai/shared";
 import { createNodeData, nodeDefaultSize } from "./node-registry";
 import { snapPoint } from "./lib/snap";
+import { nodeBox } from "./lib/node-box";
+import { copiedGroupId, prepareCopiedData } from "./lib/copy-node";
 import {
   alignNodes,
   distributeNodes,
@@ -59,6 +61,12 @@ type CanvasState = {
   updateNodeData: (id: string, data: Record<string, unknown>) => void;
   moveNode: (id: string, x: number, y: number) => void;
   moveNodes: (ids: string[], dx: number, dy: number) => void;
+  /** Move these nodes to the end of the paint order, keeping their relative order. */
+  raiseNodes: (ids: string[]) => void;
+  resizeNode: (
+    id: string,
+    size: { width: number; height: number; x?: number; y?: number },
+  ) => void;
   removeNode: (id: string) => void;
   removeNodes: (ids: string[]) => void;
   duplicateNode: (id: string) => string | null;
@@ -283,6 +291,47 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }));
   },
 
+  raiseNodes: (ids) => {
+    if (!ids.length) return;
+    const idSet = new Set(ids);
+    set((s) => {
+      const rest: CanvasNode[] = [];
+      const raised: CanvasNode[] = [];
+      for (const node of s.nodes) {
+        if (idSet.has(node.id)) raised.push(node);
+        else rest.push(node);
+      }
+      if (!raised.length) return s;
+      const tail = s.nodes.slice(s.nodes.length - raised.length);
+      if (
+        tail.length === raised.length &&
+        tail.every((node, index) => node.id === raised[index]?.id)
+      ) {
+        return s;
+      }
+      return { nodes: [...rest, ...raised], dirty: true };
+    });
+  },
+
+  resizeNode: (id, size) => {
+    const width = Math.max(120, size.width);
+    const height = Math.max(72, size.height);
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        n.id === id
+          ? {
+              ...n,
+              width,
+              height,
+              x: size.x ?? n.x,
+              y: size.y ?? n.y,
+            }
+          : n,
+      ),
+      dirty: true,
+    }));
+  },
+
   removeNode: (id) => get().removeNodes([id]),
 
   removeNodes: (ids) => {
@@ -317,15 +366,34 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       .map((id) => nodes.find((n) => n.id === id))
       .filter((n): n is CanvasNode => Boolean(n));
     if (!srcList.length) return [];
+    const groupCache = new Map<string, string>();
     const created: CanvasNode[] = srcList.map((src) => ({
       ...src,
       id: uid("n"),
       x: src.x + 36,
       y: src.y + 36,
-      data: { ...src.data },
+      data: prepareCopiedData(
+        src.data,
+        copiedGroupId(srcList, src, groupCache),
+      ),
     }));
+    const idMap = new Map(
+      srcList.map((src, index) => [src.id, created[index]!.id]),
+    );
+    const srcIds = new Set(srcList.map((src) => src.id));
+    const copiedEdges = get()
+      .edges.filter(
+        (edge) => srcIds.has(edge.source) && srcIds.has(edge.target),
+      )
+      .map((edge) => ({
+        id: uid("e"),
+        source: idMap.get(edge.source) ?? "",
+        target: idMap.get(edge.target) ?? "",
+      }))
+      .filter((edge) => edge.source && edge.target);
     set((s) => ({
       nodes: [...s.nodes, ...created],
+      edges: [...s.edges, ...copiedEdges],
       selectedIds: created.map((n) => n.id),
       selectedEdgeId: null,
       dirty: true,
@@ -362,29 +430,50 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   alignSelection: (mode) => {
-    const ids = get().selectedIds;
+    const ids = get().expandSelectionWithGroup(get().selectedIds);
     if (ids.length < 2) return;
     set((s) => ({
+      selectedIds: ids,
       nodes: alignNodes(s.nodes, ids, mode),
       dirty: true,
     }));
   },
 
   distributeSelection: (mode) => {
-    const ids = get().selectedIds;
+    const ids = get().expandSelectionWithGroup(get().selectedIds);
     if (ids.length < 3) return;
     set((s) => ({
+      selectedIds: ids,
       nodes: distributeNodes(s.nodes, ids, mode),
       dirty: true,
     }));
   },
 
   groupSelection: () => {
-    const ids = get().selectedIds;
+    const ids = get().expandSelectionWithGroup(get().selectedIds);
     if (ids.length < 2) return null;
+    const { nodes } = get();
+    const existing = ids
+      .map((id) => nodes.find((n) => n.id === id))
+      .filter((n): n is CanvasNode => Boolean(n))
+      .map((n) => groupIdOf(n));
+    const first = existing[0] ?? null;
+    if (
+      first &&
+      existing.every((g) => g === first) &&
+      ids.every((id) => {
+        const n = nodes.find((item) => item.id === id);
+        return n && groupIdOf(n) === first;
+      }) &&
+      nodes.filter((n) => groupIdOf(n) === first).length === ids.length
+    ) {
+      set({ selectedIds: ids });
+      return first;
+    }
     const gid = uid("g");
     const idSet = new Set(ids);
     set((s) => ({
+      selectedIds: ids,
       nodes: s.nodes.map((n) =>
         idSet.has(n.id)
           ? { ...n, data: { ...n.data, groupId: gid } }
@@ -451,16 +540,15 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   focusNode: (id, viewportSize) => {
     const node = get().nodes.find((n) => n.id === id);
     if (!node) return false;
-    const w = node.width ?? 240;
-    const h = node.height ?? 180;
+    const box = nodeBox(node);
     const zoom = get().viewport.zoom;
     set({
       selectedIds: [id],
       selectedEdgeId: null,
       pulseId: id,
       viewport: {
-        x: viewportSize.width / 2 - (node.x + w / 2) * zoom,
-        y: viewportSize.height / 2 - (node.y + h / 2) * zoom,
+        x: viewportSize.width / 2 - (box.x + box.width / 2) * zoom,
+        y: viewportSize.height / 2 - (box.y + box.height / 2) * zoom,
         zoom,
       },
       dirty: true,

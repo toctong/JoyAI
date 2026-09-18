@@ -1,12 +1,15 @@
 import {
   Controller,
+  Get,
   Post,
+  Query,
   Req,
   UseGuards,
   BadRequestException,
   Body,
+  StreamableFile,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiConsumes, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiConsumes, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { FastifyRequest } from "fastify";
 import { IsOptional, IsString, IsInt, Min } from "class-validator";
 import { Type } from "class-transformer";
@@ -14,6 +17,7 @@ import { JwtAuthGuard } from "../../common/guards";
 import { CurrentUser, AuthUser } from "../../common/current-user.decorator";
 import { StorageService } from "./storage.service";
 import { AssetsService } from "../assets/assets.service";
+import { fetchPublicImage } from "./fetch-public-image";
 
 class CheckDto {
   @IsString()
@@ -39,6 +43,16 @@ export class UploadController {
     private readonly storage: StorageService,
     private readonly assets: AssetsService,
   ) {}
+
+  /** Same-origin image bytes for canvas crop / split / upscale (remote hosts often omit CORS). */
+  @ApiQuery({ name: "url", required: true })
+  @Get("media/fetch")
+  async fetchMedia(@Query("url") url?: string) {
+    const trimmed = String(url ?? "").trim();
+    if (!trimmed) throw new BadRequestException("缺少图片地址");
+    const image = await fetchPublicImage(trimmed);
+    return new StreamableFile(image.buffer, { type: image.contentType });
+  }
 
   /** 前端预检：同用户同 MD5 已有资产则直接复用，免传文件 */
   @Post("upload/check")

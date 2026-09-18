@@ -1,6 +1,8 @@
 "use client";
 
-import { X } from "lucide-react";
+import {
+  CanvasIconClose,
+} from "./icons/canvas-icons";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   Dialog,
@@ -27,11 +29,15 @@ const ROWS: { keys: string[]; desc: string }[] = [
   { keys: ["Ctrl / Cmd", "D"], desc: "复制节点" },
   { keys: ["Ctrl / Cmd", "Z"], desc: "撤销" },
   { keys: ["Ctrl / Cmd", "Shift", "Z"], desc: "重做" },
+  { keys: ["方向键"], desc: "微调选中（吸附时按网格，Shift 加倍）" },
+  { keys: ["Alt", "拖动"], desc: "单独移动编组成员，拖入或拖出编组" },
   { keys: ["Delete / Backspace"], desc: "删除选中" },
   { keys: ["Esc"], desc: "取消选中并关闭浮层" },
   { keys: ["双击空白"], desc: "添加节点" },
   { keys: ["右键空白"], desc: "添加节点 / 上传" },
   { keys: ["拖入图片 / 视频"], desc: "上传到画布" },
+  { keys: ["0"], desc: "适应全部节点" },
+  { keys: ["1"], desc: "适应选中（无选中则适应全部）" },
   { keys: ["?"], desc: "打开 / 关闭快捷键" },
 ];
 
@@ -90,7 +96,7 @@ export function CanvasShortcutsHelp({ open, onClose }: Props) {
             ))}
           </ul>
           <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
-            <X className="h-4 w-4" />
+            <CanvasIconClose className="h-4 w-4" />
             <span className="sr-only">关闭</span>
           </DialogPrimitive.Close>
         </DialogPrimitive.Content>

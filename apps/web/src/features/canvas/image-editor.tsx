@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -70,8 +71,8 @@ export function ImageEditor({ url, busy = false, onClose, onApply }: Props) {
     onApply(dataUrl);
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-3xl rounded-lg border border-border bg-card p-4 shadow-2xl">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="font-medium">图像编辑</h3>
@@ -89,6 +90,7 @@ export function ImageEditor({ url, busy = false, onClose, onApply }: Props) {
         </p>
         <canvas ref={canvasRef} className="mx-auto rounded border border-border" />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

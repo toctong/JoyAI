@@ -2,7 +2,12 @@
 
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuthHydrated, useAuthStore } from "@/shared/lib/auth-store";
+import {
+  useAuthHydrated,
+  useAuthStore,
+  type AuthUser,
+} from "@/shared/lib/auth-store";
+import { ApiError, api, isApiCancelError } from "@/shared/lib/api";
 import { AppSidebar } from "@/features/shell/app-sidebar";
 import {
   AppearanceTokens,
@@ -19,6 +24,8 @@ export default function AppShellLayout({
   const pathname = usePathname();
   const router = useRouter();
   const token = useAuthStore((s) => s.token);
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const logout = useAuthStore((s) => s.logout);
   const hydrated = useAuthHydrated();
   const isCanvasEditor = /^\/canvas\/[^/]+$/.test(pathname);
   const isAdmin =
@@ -34,6 +41,40 @@ export default function AppShellLayout({
   useEffect(() => {
     if (hydrated && !token) router.replace("/login");
   }, [hydrated, token, router]);
+
+  /** Keep local user.id in sync: JWT identity is username, DB id may change. */
+  useEffect(() => {
+    if (!hydrated || !token) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const me = await api<AuthUser & { createdAt?: string }>("/auth/me");
+        if (cancelled) return;
+        const current = useAuthStore.getState().user;
+        if (
+          !current ||
+          current.id !== me.id ||
+          current.username !== me.username ||
+          current.role !== me.role
+        ) {
+          setAuth(token, {
+            id: me.id,
+            username: me.username,
+            role: me.role,
+          });
+        }
+      } catch (error) {
+        if (cancelled || isApiCancelError(error)) return;
+        if (error instanceof ApiError && error.status === 401) {
+          logout();
+          router.replace("/login");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, token, setAuth, logout, router]);
 
   if (!hydrated) {
     return (

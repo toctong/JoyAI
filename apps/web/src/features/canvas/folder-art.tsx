@@ -1,7 +1,9 @@
 "use client";
 
+import {
+  CanvasIconFolderPlus,
+} from "./icons/canvas-icons";
 import { useId } from "react";
-import { FolderPlus } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import "./folder-art.css";
 
@@ -106,7 +108,7 @@ export function FolderArt({ covers }: Props) {
 
       {empty ? (
         <div className="joy-folder__mark" aria-hidden>
-          <FolderPlus strokeWidth={1.6} />
+          <CanvasIconFolderPlus />
         </div>
       ) : null}
     </div>

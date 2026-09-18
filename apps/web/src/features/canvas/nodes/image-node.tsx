@@ -14,6 +14,7 @@ import { NodeTitleChip } from "../node-title-chip";
 import { dataUrlToFile } from "../lib/data-url-to-file";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { CanvasIconImage } from "../icons/canvas-icons";
+import { MediaUploadLabel } from "../media-upload-label";
 import { apiUpload } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
 
@@ -84,11 +85,16 @@ export function ImageNode({
         style={{
           left: node.x,
           top: node.y,
-          width: node.width ?? 240,
-          height: node.height ?? 180,
+          width: node.width ?? 340,
+          height: node.height ?? 240,
         }}
       >
-        <NodeTitleChip label={title} visible={selected || hovered} />
+        <NodeTitleChip
+          nodeId={node.id}
+          label={title}
+          customTitle={String(node.data.title ?? "")}
+          visible={selected || hovered}
+        />
         <div
           className={cn(
             "relative h-full w-full overflow-hidden rounded-md",
@@ -97,16 +103,34 @@ export function ImageNode({
         >
           {url ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="" className="h-full w-full object-cover" />
+            <img
+              src={url}
+              alt=""
+              draggable={false}
+              className={cn(
+                "pointer-events-none h-full w-full select-none",
+                node.data.freeResize ? "object-fill" : "object-contain",
+              )}
+              onDragStart={(event) => event.preventDefault()}
+            />
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+            <MediaUploadLabel nodeId={node.id} kind="image">
               <CanvasIconImage className="size-7 opacity-70" />
-              <span className="text-xs">空图像节点</span>
-            </div>
+            </MediaUploadLabel>
           )}
           <NodeRuntimeBadge
             status={applying ? "running" : status}
             error={error}
+            onRetry={
+              status === "failed"
+                ? () =>
+                    updateNodeData(node.id, {
+                      status: "idle",
+                      error: "",
+                      jobId: "",
+                    })
+                : undefined
+            }
           />
         </div>
       </div>

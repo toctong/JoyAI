@@ -1,19 +1,19 @@
 "use client";
 
 import {
-  AlignCenterHorizontal,
-  AlignCenterVertical,
-  AlignLeft,
-  AlignRight,
-  AlignHorizontalSpaceAround,
-  AlignVerticalSpaceAround,
-  ArrowDownToLine,
-  ArrowUpToLine,
-  Copy,
-  Group,
-  Trash2,
-  Ungroup,
-} from "lucide-react";
+  CanvasIconAlignBottom,
+  CanvasIconAlignCenterH,
+  CanvasIconAlignCenterV,
+  CanvasIconAlignLeft,
+  CanvasIconAlignRight,
+  CanvasIconAlignTop,
+  CanvasIconCopy,
+  CanvasIconDistributeH,
+  CanvasIconDistributeV,
+  CanvasIconGroup,
+  CanvasIconTrash,
+  CanvasIconUngroup,
+} from "./icons/canvas-icons";
 import type { CanvasNode } from "@joyai/shared";
 import type { Viewport } from "./store";
 import { useCanvasStore } from "./store";
@@ -100,52 +100,52 @@ export function MultiSelectToolbar({ nodes, viewport }: Props) {
         </span>
         <Sep />
         <ToolBtn title="成组 ⌘G" onClick={() => run(() => groupSelection())}>
-          <Group className="h-3.5 w-3.5" />
+          <CanvasIconGroup className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn
           title="解组 ⇧⌘G"
           disabled={!hasGroup}
           onClick={() => run(() => ungroupSelection())}
         >
-          <Ungroup className="h-3.5 w-3.5" />
+          <CanvasIconUngroup className="h-3.5 w-3.5" />
         </ToolBtn>
         <Sep />
         <ToolBtn
           title="左对齐"
           onClick={() => run(() => alignSelection("left"))}
         >
-          <AlignLeft className="h-3.5 w-3.5" />
+          <CanvasIconAlignLeft className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn
           title="水平居中"
           onClick={() => run(() => alignSelection("center-x"))}
         >
-          <AlignCenterVertical className="h-3.5 w-3.5" />
+          <CanvasIconAlignCenterH className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn
           title="右对齐"
           onClick={() => run(() => alignSelection("right"))}
         >
-          <AlignRight className="h-3.5 w-3.5" />
+          <CanvasIconAlignRight className="h-3.5 w-3.5" />
         </ToolBtn>
         <Sep />
         <ToolBtn
           title="顶对齐"
           onClick={() => run(() => alignSelection("top"))}
         >
-          <ArrowUpToLine className="h-3.5 w-3.5" />
+          <CanvasIconAlignTop className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn
           title="垂直居中"
           onClick={() => run(() => alignSelection("center-y"))}
         >
-          <AlignCenterHorizontal className="h-3.5 w-3.5" />
+          <CanvasIconAlignCenterV className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn
           title="底对齐"
           onClick={() => run(() => alignSelection("bottom"))}
         >
-          <ArrowDownToLine className="h-3.5 w-3.5" />
+          <CanvasIconAlignBottom className="h-3.5 w-3.5" />
         </ToolBtn>
         <Sep />
         <ToolBtn
@@ -153,14 +153,14 @@ export function MultiSelectToolbar({ nodes, viewport }: Props) {
           disabled={!canDistribute}
           onClick={() => run(() => distributeSelection("horizontal"))}
         >
-          <AlignHorizontalSpaceAround className="h-3.5 w-3.5" />
+          <CanvasIconDistributeH className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn
           title="垂直分布"
           disabled={!canDistribute}
           onClick={() => run(() => distributeSelection("vertical"))}
         >
-          <AlignVerticalSpaceAround className="h-3.5 w-3.5" />
+          <CanvasIconDistributeV className="h-3.5 w-3.5" />
         </ToolBtn>
         <Sep />
         <ToolBtn
@@ -169,14 +169,14 @@ export function MultiSelectToolbar({ nodes, viewport }: Props) {
             run(() => duplicateNodes(nodes.map((n) => n.id)))
           }
         >
-          <Copy className="h-3.5 w-3.5" />
+          <CanvasIconCopy className="h-3.5 w-3.5" />
         </ToolBtn>
         <ToolBtn
           title={`删除 ${nodes.length} 个`}
           danger
           onClick={() => run(() => removeNodes(nodes.map((n) => n.id)))}
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <CanvasIconTrash className="h-3.5 w-3.5" />
         </ToolBtn>
       </div>
     </div>

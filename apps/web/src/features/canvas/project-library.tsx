@@ -1,6 +1,18 @@
 "use client";
 
 import {
+  CanvasIconCheck,
+  CanvasIconChevronLeft,
+  CanvasIconFolder,
+  CanvasIconFolderPlus,
+  CanvasIconImage,
+  CanvasIconMore,
+  CanvasIconMove,
+  CanvasIconPlus,
+  CanvasIconSearch,
+  CanvasIconTrash,
+} from "./icons/canvas-icons";
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -11,18 +23,6 @@ import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/zh-cn";
-import {
-  Check,
-  ChevronLeft,
-  FolderInput,
-  FolderPlus,
-  ImageIcon,
-  MoreVertical,
-  Move,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { api } from "@/shared/lib/api";
@@ -382,7 +382,7 @@ export function ProjectLibrary() {
                   setFolderId(current?.parentId ?? null);
                 }}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <CanvasIconChevronLeft className="h-4 w-4" />
               </button>
             ) : null}
             <h1 className="joy-projects-title">
@@ -399,7 +399,7 @@ export function ProjectLibrary() {
                   disabled={!selectedCount}
                   onClick={() => openMoveProjects(Array.from(selected))}
                 >
-                  <Move className="h-3.5 w-3.5" />
+                  <CanvasIconMove className="h-3.5 w-3.5" />
                   移动至
                 </button>
                 <button
@@ -408,7 +408,7 @@ export function ProjectLibrary() {
                   disabled={!selectedCount}
                   onClick={() => void deleteProjects(Array.from(selected))}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <CanvasIconTrash className="h-3.5 w-3.5" />
                   删除
                 </button>
                 <button
@@ -434,12 +434,12 @@ export function ProjectLibrary() {
               className="joy-projects-pill"
               onClick={() => void createFolder()}
             >
-              <FolderPlus className="h-3.5 w-3.5" />
+              <CanvasIconFolderPlus className="h-3.5 w-3.5" />
               新建文件夹
             </button>
 
             <label className="joy-projects-search">
-              <Search />
+              <CanvasIconSearch />
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -457,7 +457,7 @@ export function ProjectLibrary() {
               onClick={() => void createProject()}
               disabled={creating}
             >
-              <Plus />
+              <CanvasIconPlus />
               <span>新建项目</span>
             </button>
           </div>
@@ -500,7 +500,7 @@ export function ProjectLibrary() {
                       className="joy-projects-more"
                       aria-label="更多"
                     >
-                      <MoreVertical className="h-4 w-4" />
+                      <CanvasIconMore className="h-4 w-4" />
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
@@ -510,7 +510,7 @@ export function ProjectLibrary() {
                     <DropdownMenuItem
                       onClick={() => openMoveFolder(folder.id)}
                     >
-                      <FolderInput className="h-4 w-4" />
+                      <CanvasIconFolder className="h-4 w-4" />
                       移动至文件夹
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -558,7 +558,7 @@ export function ProjectLibrary() {
                     />
                   ) : (
                     <div className="joy-projects-cover-empty">
-                      <ImageIcon />
+                      <CanvasIconImage />
                     </div>
                   )}
                   {showSelectChrome ? (
@@ -568,7 +568,7 @@ export function ProjectLibrary() {
                         checked && "is-on",
                       )}
                     >
-                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                      <CanvasIconCheck className="h-3.5 w-3.5" />
                     </span>
                   ) : null}
                   <button
@@ -598,7 +598,7 @@ export function ProjectLibrary() {
                           className="joy-projects-more"
                           aria-label="更多"
                         >
-                          <MoreVertical className="h-4 w-4" />
+                          <CanvasIconMore className="h-4 w-4" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
@@ -608,7 +608,7 @@ export function ProjectLibrary() {
                         <DropdownMenuItem
                           onClick={() => openMoveProjects([project.id])}
                         >
-                          <FolderInput className="h-4 w-4" />
+                          <CanvasIconFolder className="h-4 w-4" />
                           移动至文件夹
                         </DropdownMenuItem>
                         <DropdownMenuItem
