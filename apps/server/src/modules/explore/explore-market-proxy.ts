@@ -1,6 +1,7 @@
 /**
- * Outbound proxy for PixAI / Civitai explore sources only.
- * Prefer admin setting `explore.marketProxy`, then env EXPLORE_MARKET_PROXY.
+ * Outbound proxy for explore upstreams that are flaky from CN networks:
+ * PixAI / Civitai / Elser. Prefer admin setting `explore.marketProxy`,
+ * then env EXPLORE_MARKET_PROXY.
  */
 import axios from "axios";
 import { HttpsProxyAgent } from "https-proxy-agent";
@@ -14,6 +15,10 @@ const MARKET_HOSTS = new Set([
   "pixai.art",
   "api.pixai.art",
   "www.pixai.art",
+  "elser.ai",
+  "www.elser.ai",
+  "api.tool.elser.ai",
+  "api.elser.ai",
 ]);
 
 type ProxyResolver = () => Promise<string | null>;
@@ -60,7 +65,7 @@ async function getAgent(): Promise<HttpsProxyAgent<string> | null> {
   return agent;
 }
 
-/** Axios config fragment — only for PixAI / Civitai hosts. */
+/** Axios config fragment — only for PixAI / Civitai / Elser hosts. */
 export async function marketProxyAxiosConfig(
   targetUrl: string,
 ): Promise<Pick<AxiosRequestConfig, "httpAgent" | "httpsAgent" | "proxy">> {
@@ -88,7 +93,7 @@ export function invalidateMarketProxy(reason?: string) {
 }
 
 export type MarketProxyProbeTarget = {
-  id: "civitai" | "pixai";
+  id: "civitai" | "pixai" | "elser";
   label: string;
   ok: boolean;
   status: number | null;
@@ -102,7 +107,7 @@ export type MarketProxyProbeResult = {
   targets: MarketProxyProbeTarget[];
 };
 
-/** Probe Civitai + PixAI through an explicit proxy URL (or resolved setting/env). */
+/** Probe Civitai + PixAI + Elser through an explicit proxy URL (or resolved setting/env). */
 export async function probeMarketProxy(
   proxyOverride?: string | null,
 ): Promise<MarketProxyProbeResult> {
@@ -111,7 +116,7 @@ export async function probeMarketProxy(
   const targets: MarketProxyProbeTarget[] = [];
 
   const checks: Array<{
-    id: "civitai" | "pixai";
+    id: "civitai" | "pixai" | "elser";
     label: string;
     url: string;
     method: "get" | "post";
@@ -149,6 +154,17 @@ export async function probeMarketProxy(
           !payload?.errors?.length &&
           Array.isArray(payload?.data?.generationModels?.edges)
         );
+      },
+    },
+    {
+      id: "elser",
+      label: "Elser Feed",
+      url: "https://api.tool.elser.ai/v1/community/feed?limit=1",
+      method: "get",
+      accept: (status, data) => {
+        if (status < 200 || status >= 300) return false;
+        const payload = data as { items?: unknown[] };
+        return Array.isArray(payload?.items);
       },
     },
   ];

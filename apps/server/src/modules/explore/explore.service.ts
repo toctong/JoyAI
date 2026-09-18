@@ -9,6 +9,9 @@ import { findPromptSource } from "./prompt-sources";
 import {
   configureMarketProxyResolver,
   EXPLORE_MARKET_PROXY_SETTING_KEY,
+  invalidateMarketProxy,
+  isMarketProxyHost,
+  marketProxyAxiosConfig,
 } from "./explore-market-proxy";
 import { SettingsService } from "../settings/settings.service";
 import type { ExploreFeedItem, ExploreFeedResult } from "./explore.types";
@@ -227,29 +230,54 @@ export class ExploreService implements OnModuleInit {
   }
 
   private async fetchElser(url: string): Promise<ExploreFeedResult> {
-    const { data, status } = await axios.get<ElserFeedResponse>(url, {
-      timeout: 30_000,
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "JoyAI/0.1 (+explore-proxy)",
-      },
-      validateStatus: () => true,
-    });
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const proxyCfg = await marketProxyAxiosConfig(url);
+        const { data, status } = await axios.get<ElserFeedResponse>(url, {
+          timeout: 45_000,
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "JoyAI/0.1 (+explore-proxy)",
+          },
+          validateStatus: () => true,
+          ...proxyCfg,
+        });
 
-    if (status >= 400 || !data) {
-      this.logger.warn(`Elser feed upstream ${status} ${url}`);
-      throw new ServiceUnavailableException("探索内容暂时不可用，请稍后重试");
+        if (status >= 400 || !data) {
+          this.logger.warn(`Elser feed upstream ${status} ${url}`);
+          throw new ServiceUnavailableException("探索内容暂时不可用，请稍后重试");
+        }
+
+        const items = (data.items ?? [])
+          .map((item) => this.mapItem(item))
+          .filter((item): item is ExploreFeedItem => Boolean(item));
+
+        return {
+          items,
+          nextCursor: data.next_cursor ?? null,
+          hasMore: Boolean(data.has_more),
+        };
+      } catch (err) {
+        lastError = err;
+        if (isMarketProxyHost(url)) {
+          invalidateMarketProxy(
+            err instanceof Error ? err.message : "elser fetch failed",
+          );
+        }
+        if (err instanceof ServiceUnavailableException && attempt >= 3) {
+          throw err;
+        }
+        if (attempt < 3) {
+          await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+          continue;
+        }
+      }
     }
-
-    const items = (data.items ?? [])
-      .map((item) => this.mapItem(item))
-      .filter((item): item is ExploreFeedItem => Boolean(item));
-
-    return {
-      items,
-      nextCursor: data.next_cursor ?? null,
-      hasMore: Boolean(data.has_more),
-    };
+    if (lastError instanceof ServiceUnavailableException) throw lastError;
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(String(lastError ?? "elser fetch failed"));
   }
 
   private cacheTtlMs(): number {

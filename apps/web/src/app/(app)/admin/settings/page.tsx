@@ -248,8 +248,9 @@ export default function SettingsPage() {
         <TabsContent value="explore" className="mt-0">
           <ListPageCard className="max-w-xl p-6">
             <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-              仅用于拉取 <strong>PixAI</strong> / <strong>Civitai</strong>{" "}
-              市集源。留空则直连（或回退环境变量{" "}
+              用于拉取 <strong>Elser</strong> / <strong>PixAI</strong> /{" "}
+              <strong>Civitai</strong>{" "}
+              探索上游。留空则直连（或回退环境变量{" "}
               <code className="text-xs">EXPLORE_MARKET_PROXY</code>）。
             </p>
             <div className="space-y-2">

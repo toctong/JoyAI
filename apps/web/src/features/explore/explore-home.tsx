@@ -254,6 +254,7 @@ export function ExploreHome() {
   const loading = feedQuery.isPending;
   const loadingMore = feedQuery.isFetchingNextPage;
   const fetchNextPage = feedQuery.fetchNextPage;
+  const pageCount = feedQuery.data?.pages.length ?? 0;
 
   useEffect(() => {
     if (!feedQuery.isError || !feedQuery.error) return;
@@ -265,6 +266,14 @@ export function ExploreHome() {
     );
   }, [feedQuery.isError, feedQuery.error]);
 
+  // Buffer ~3 pages on open so a short scroll doesn't wait on upstream.
+  // Later pages still come from the sentinel / IntersectionObserver.
+  useEffect(() => {
+    if (loading || loadingMore || !hasMore) return;
+    if (pageCount < 1 || pageCount >= 3) return;
+    void fetchNextPage();
+  }, [pageCount, hasMore, loading, loadingMore, fetchNextPage]);
+
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || !scrollEl) return;
@@ -275,7 +284,7 @@ export function ExploreHome() {
         if (!hit || !hasMore || loading || loadingMore) return;
         void fetchNextPage();
       },
-      { root: scrollEl, rootMargin: "480px 0px", threshold: 0 },
+      { root: scrollEl, rootMargin: "800px 0px", threshold: 0 },
     );
 
     io.observe(el);

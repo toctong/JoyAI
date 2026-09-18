@@ -32,10 +32,19 @@ const ELSER_WARM_MODELS = [
   "midjourney",
 ] as const;
 
+type WarmFeedParams = {
+  limit: number;
+  cursor?: string;
+  featuredOnly?: boolean;
+  tag?: string;
+  modelId?: string;
+  source?: string;
+};
+
 /**
  * Background cache warmer for explore feeds.
- * Market pattern: cron / interval prefetches hot keys so user traffic hits warm cache
- * (stale-while-revalidate + long TTL). Interval default 3h; set EXPLORE_FEED_WARM_MS=0 to disable.
+ * Prefetches the first N pages (cursor chain) so scroll rarely hits a cold upstream.
+ * Interval default 3h; set EXPLORE_FEED_WARM_MS=0 to disable.
  */
 @Injectable()
 export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
@@ -45,6 +54,7 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
   private running = false;
   private readonly intervalMs: number;
   private readonly bootDelayMs: number;
+  private readonly warmPages: number;
 
   constructor(
     private readonly explore: ExploreService,
@@ -52,6 +62,7 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
   ) {
     this.intervalMs = envMs(config, "EXPLORE_FEED_WARM_MS", 3 * 60 * 60_000);
     this.bootDelayMs = envMs(config, "EXPLORE_FEED_WARM_BOOT_MS", 8_000);
+    this.warmPages = envInt(config, "EXPLORE_FEED_WARM_PAGES", 3);
   }
 
   onModuleInit() {
@@ -71,7 +82,7 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
     if (typeof this.timer.unref === "function") this.timer.unref();
 
     this.logger.log(
-      `Explore feed warmer enabled: boot=${this.bootDelayMs}ms interval=${this.intervalMs}ms`,
+      `Explore feed warmer enabled: boot=${this.bootDelayMs}ms interval=${this.intervalMs}ms pages=${this.warmPages}`,
     );
   }
 
@@ -98,36 +109,24 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
       for (const src of PROMPT_SOURCES) {
         const id = src.id;
         jobs.push(async () => {
-          await this.explore.feed(
-            { source: id, limit: WARM_LIMIT },
-            { forceRefresh: true },
-          );
+          await this.warmFeedPages({ source: id, limit: WARM_LIMIT });
         });
       }
 
       jobs.push(async () => {
-        await this.explore.feed(
-          { featuredOnly: true, limit: WARM_LIMIT },
-          { forceRefresh: true },
-        );
+        await this.warmFeedPages({ featuredOnly: true, limit: WARM_LIMIT });
       });
       jobs.push(async () => {
-        await this.explore.feed({ limit: WARM_LIMIT }, { forceRefresh: true });
+        await this.warmFeedPages({ limit: WARM_LIMIT });
       });
       for (const tag of ELSER_WARM_TAGS) {
         jobs.push(async () => {
-          await this.explore.feed(
-            { tag, limit: WARM_LIMIT },
-            { forceRefresh: true },
-          );
+          await this.warmFeedPages({ tag, limit: WARM_LIMIT });
         });
       }
       for (const modelId of ELSER_WARM_MODELS) {
         jobs.push(async () => {
-          await this.explore.feed(
-            { modelId, limit: WARM_LIMIT },
-            { forceRefresh: true },
-          );
+          await this.warmFeedPages({ modelId, limit: WARM_LIMIT });
         });
       }
 
@@ -145,10 +144,24 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
       });
 
       this.logger.log(
-        `Explore warm done reason=${reason} ok=${ok} fail=${fail} ms=${Date.now() - started}`,
+        `Explore warm done reason=${reason} ok=${ok} fail=${fail} pages=${this.warmPages} ms=${Date.now() - started}`,
       );
     } finally {
       this.running = false;
+    }
+  }
+
+  /** Fetch page 1..N following nextCursor so scroll hits warm keys. */
+  private async warmFeedPages(base: WarmFeedParams): Promise<void> {
+    const pages = Math.max(1, Math.min(this.warmPages, 5));
+    let cursor: string | undefined;
+    for (let i = 0; i < pages; i++) {
+      const result = await this.explore.feed(
+        { ...base, cursor },
+        { forceRefresh: true },
+      );
+      if (!result.hasMore || !result.nextCursor?.trim()) break;
+      cursor = result.nextCursor.trim();
     }
   }
 }
@@ -162,6 +175,17 @@ function envMs(
   if (raw == null || raw === "") return fallback;
   const n = Number(raw);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+function envInt(
+  config: ConfigService,
+  key: string,
+  fallback: number,
+): number {
+  const raw = config.get<string>(key);
+  if (raw == null || raw === "") return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
 async function mapPool<T, R>(
