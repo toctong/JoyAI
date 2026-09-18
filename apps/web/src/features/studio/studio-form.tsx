@@ -4,12 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type CSSPr
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
+import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
+import { downloadAsset } from "@/shared/lib/download-asset";
 import {
   Copy,
   Download,
-  Expand,
   RefreshCw,
   Sparkles,
   Trash2,
@@ -300,36 +299,6 @@ function scrollFeedToBottom() {
   const vp = getAppScrollViewport();
   if (!vp) return;
   vp.scrollTop = vp.scrollHeight;
-}
-
-async function downloadAsset(url: string, kind?: string) {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = `joyai-${Date.now()}.${extForAsset(url, blob.type, kind)}`;
-    a.click();
-    URL.revokeObjectURL(objectUrl);
-  } catch {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-}
-
-function extForAsset(url: string, mime: string, kind?: string) {
-  if (kind === "video" || mime.startsWith("video/")) {
-    if (mime.includes("webm")) return "webm";
-    if (mime.includes("quicktime")) return "mov";
-    return "mp4";
-  }
-  if (mime.includes("png")) return "png";
-  if (mime.includes("webp")) return "webp";
-  if (mime.includes("jpeg") || mime.includes("jpg")) return "jpg";
-  if (mime.includes("gif")) return "gif";
-  const fromUrl = url.match(/\.(mp4|webm|mov|png|jpe?g|webp|gif)(?:\?|$)/i)?.[1];
-  if (fromUrl) return fromUrl.toLowerCase() === "jpeg" ? "jpg" : fromUrl.toLowerCase();
-  return kind === "video" ? "mp4" : "png";
 }
 
 function PromptInlineParts({
@@ -633,22 +602,38 @@ function JobActions({
   onRegenerate: () => void;
   onDelete: () => void;
 }) {
-  const assets = job.assets ?? [];
-  const canDownload = assets.length > 0;
+  /** Only generation outputs — never reference uploads. */
+  const outputs = useMemo(() => {
+    const assets = job.assets ?? [];
+    const refIds = new Set(
+      (job.input?.referenceAssetIds ?? []).filter(Boolean).map(String),
+    );
+    const refUrls = new Set(
+      (job.input?.referenceUrls ?? [])
+        .map((u) => String(u || "").trim())
+        .filter(Boolean),
+    );
+    return assets.filter(
+      (a) => !refIds.has(a.id) && !refUrls.has(String(a.url || "").trim()),
+    );
+  }, [job.assets, job.input?.referenceAssetIds, job.input?.referenceUrls]);
+  const canDownload = outputs.length > 0;
 
   async function onDownload() {
     if (!canDownload) {
-      toast.error("暂无可下载资产");
+      toast.error("暂无可下载的生成结果");
       return;
     }
     try {
-      for (const asset of assets) {
+      for (const asset of outputs) {
         await downloadAsset(
           asset.url,
           isVideoAsset(asset) ? "video" : asset.kind,
         );
       }
-      toast.success(assets.length > 1 ? "已开始下载全部资产" : "已开始下载");
+      toast.success(
+        outputs.length > 1 ? "已开始下载全部生成结果" : "已开始下载生成结果",
+      );
     } catch {
       toast.error("下载失败");
     }
@@ -675,6 +660,7 @@ function JobActions({
         type="button"
         className="joy-studio-action"
         disabled={!canDownload}
+        title="仅下载本次生成结果"
         onClick={() => void onDownload()}
       >
         <Download strokeWidth={1.75} className="h-3.5 w-3.5" />
@@ -703,6 +689,7 @@ function StudioInner() {
   const [remixPrompt, setRemixPrompt] = useState<string | undefined>();
   const [remixRefs, setRemixRefs] = useState<string[]>([]);
   const [remixRefAssetIds, setRemixRefAssetIds] = useState<string[]>([]);
+  const [remixKind, setRemixKind] = useState<"image" | "video" | undefined>();
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
@@ -862,8 +849,9 @@ function StudioInner() {
     setRemixRefAssetIds(
       (job.input?.referenceAssetIds ?? []).filter(Boolean).map(String),
     );
+    setRemixKind(job.kind === "video" ? "video" : "image");
     setRemixKey((k) => k + 1);
-    toast.message("已填入提示词，可继续修改后生成");
+    toast.message("已填入提示词与参考素材，可继续修改后生成");
     requestAnimationFrame(() => {
       document
         .querySelector(".joy-studio-dock")
@@ -970,7 +958,7 @@ function StudioInner() {
               <span className="joy-studio-feed-loading">加载中…</span>
             ) : null}
           </div>
-          <PhotoProvider>
+          <JoyPhotoProvider>
             {feed.map((job) => {
               const assets = job.assets ?? [];
               const busy = isBusy(job.status);
@@ -1064,40 +1052,6 @@ function StudioInner() {
                                 <img src={asset.url} alt="" />
                               </button>
                             </PhotoView>
-                            <div className="joy-studio-thumb-hover">
-                              <div className="joy-studio-thumb-hover-top">
-                                <button
-                                  type="button"
-                                  className="joy-studio-thumb-tool"
-                                  aria-label="预览"
-                                  title="预览"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    (
-                                      e.currentTarget
-                                        .closest(".joy-studio-thumb-frame")
-                                        ?.querySelector(
-                                          ".joy-studio-thumb-preview",
-                                        ) as HTMLButtonElement | null
-                                    )?.click();
-                                  }}
-                                >
-                                  <Expand className="h-4 w-4" />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="joy-studio-thumb-tool"
-                                  aria-label="下载"
-                                  title="下载"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    void downloadAsset(asset.url, asset.kind);
-                                  }}
-                                >
-                                  <Download className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
                           </div>
                         ),
                       )}
@@ -1141,7 +1095,7 @@ function StudioInner() {
                 </article>
               );
             })}
-          </PhotoProvider>
+          </JoyPhotoProvider>
         </div>
       )}
 
@@ -1154,6 +1108,7 @@ function StudioInner() {
             promptSeed={remixPrompt}
             refSeed={remixRefs}
             refAssetIdSeed={remixRefAssetIds}
+            kindSeed={remixKind}
             onSubmitted={() => {
               stickToBottomRef.current = true;
               void refreshLatest().then(() => {

@@ -10,6 +10,7 @@ import {
   Box,
   ChevronDown,
   Clock,
+  Eraser,
   Loader2,
   Orbit,
   Plus,
@@ -45,6 +46,7 @@ import { SLASH_COMMANDS } from "@/features/ai-prompt/slash-items";
 import { cn } from "@/shared/lib/utils";
 import { ComposerRipple } from "./composer-ripple";
 import { DurationSlider } from "./duration-slider";
+import { consumeStudioRemixSeed } from "./studio-remix-seed";
 import {
   durationsFromCapabilities,
   formatQualityLabel,
@@ -117,6 +119,68 @@ function guessRefMediaKind(url: string): RefMediaKind {
   return "image";
 }
 
+function buildPendingRefs(
+  urls: string[] | undefined,
+  assetIds?: string[],
+): PendingRef[] {
+  if (!urls?.length) return [];
+  return urls.flatMap((url, i) => {
+    const u = String(url || "").trim();
+    if (!u) return [];
+    return [
+      {
+        localId: crypto.randomUUID(),
+        url: u,
+        remoteAssetId: assetIds?.[i],
+        mediaKind: guessRefMediaKind(u),
+      } satisfies PendingRef,
+    ];
+  });
+}
+
+type ComposerBoot = {
+  prompt: string;
+  refs: PendingRef[];
+  type: "image" | "video" | null;
+};
+
+function readComposerBoot(opts: {
+  promptSeed?: string;
+  refSeed?: string[];
+  refAssetIdSeed?: string[];
+  kindSeed?: "image" | "video";
+  initialPrompt?: string;
+  searchType: string | null;
+  searchPrompt: string | null;
+}): ComposerBoot {
+  const stored =
+    typeof window !== "undefined" ? consumeStudioRemixSeed() : null;
+  const prompt = normalizeOmniWireMentions(
+    opts.promptSeed ||
+      stored?.prompt ||
+      opts.searchPrompt ||
+      opts.initialPrompt ||
+      "",
+  ).trim();
+  const refUrls =
+    opts.refSeed && opts.refSeed.length > 0
+      ? opts.refSeed
+      : (stored?.refs ?? []);
+  const type: "image" | "video" | null =
+    opts.kindSeed === "video" || opts.kindSeed === "image"
+      ? opts.kindSeed
+      : opts.searchType === "video" || opts.searchType === "image"
+        ? opts.searchType
+        : stored?.type === "video" || stored?.type === "image"
+          ? stored.type
+          : null;
+  return {
+    prompt,
+    refs: buildPendingRefs(refUrls, opts.refAssetIdSeed),
+    type,
+  };
+}
+
 type Props = {
   variant?: "hero" | "dock";
   className?: string;
@@ -126,6 +190,7 @@ type Props = {
   /** Remote reference URLs to seed (e.g. 使用提示词). */
   refSeed?: string[];
   refAssetIdSeed?: string[];
+  kindSeed?: "image" | "video";
 };
 
 const COMPOSER_PREFS_KEY = "joyai.studio.composer.prefs";
@@ -287,20 +352,39 @@ export function CreationComposer({
   promptSeed,
   refSeed,
   refAssetIdSeed,
+  kindSeed,
 }: Props) {
   const search = useSearchParams();
-  const [refs, setRefs] = useState<PendingRef[]>([]);
+  const bootRef = useRef<ComposerBoot | null>(null);
+  if (bootRef.current == null) {
+    bootRef.current = readComposerBoot({
+      promptSeed,
+      refSeed,
+      refAssetIdSeed,
+      kindSeed,
+      initialPrompt,
+      searchType: search.get("type"),
+      searchPrompt: search.get("prompt"),
+    });
+  }
+  const boot = bootRef.current;
+
+  const [refs, setRefs] = useState<PendingRef[]>(() => boot.refs);
   const refsRef = useRef(refs);
   refsRef.current = refs;
-  const [prompt, setPrompt] = useState(initialPrompt);
+  const [prompt, setPrompt] = useState(() => boot.prompt);
   const [kind, setKind] = useState<"image" | "video">(() =>
-    initialComposerKind(search.get("type")),
+    boot.type === "video" || boot.type === "image"
+      ? boot.type
+      : initialComposerKind(search.get("type")),
   );
   const [aspect, setAspect] = useState(() =>
-    initialComposerKind(search.get("type")) === "video" ? "16:9" : "1:1",
+    (boot.type ?? initialComposerKind(search.get("type"))) === "video"
+      ? "16:9"
+      : "1:1",
   );
   const [n, setN] = useState(() =>
-    initialComposerKind(search.get("type")) === "video" ? 1 : 2,
+    (boot.type ?? initialComposerKind(search.get("type"))) === "video" ? 1 : 2,
   );
   const [imageQuality, setImageQuality] = useState("2K");
   const [videoQuality, setVideoQuality] = useState("720p");
@@ -316,7 +400,7 @@ export function CreationComposer({
   const [editorFocused, setEditorFocused] = useState(false);
   const [composerHovered, setComposerHovered] = useState(false);
   const editorRef = useRef<Editor | null>(null);
-  const seeded = useRef(false);
+  const seeded = useRef(Boolean(boot.prompt || boot.refs.length));
   const [refsExpanded, setRefsExpanded] = useState(false);
   const [prefsHydrated, setPrefsHydrated] = useState(false);
   /** After file picker, keep stacked until pointer leaves the ref area. */
@@ -589,16 +673,18 @@ export function CreationComposer({
       });
   }, []);
 
-  // 首屏：URL ?type= 优先，否则从本地恢复工具与参数
+  // 首屏：seed / URL ?type= 优先，否则从本地恢复工具与参数
   useEffect(() => {
     const prefs = readPrefs();
     const t = search.get("type");
     const nextKind =
-      t === "video" || t === "image"
-        ? t
-        : prefs.kind === "video"
-          ? "video"
-          : "image";
+      boot.type === "video" || boot.type === "image"
+        ? boot.type
+        : t === "video" || t === "image"
+          ? t
+          : prefs.kind === "video"
+            ? "video"
+            : "image";
     applyKindPrefs(nextKind, prefs[nextKind] ?? {});
     patchPrefs({ kind: nextKind });
     setPrefsHydrated(true);
@@ -659,45 +745,40 @@ export function CreationComposer({
     layout.showResolution,
   ]);
 
+  // Ensure TipTap picks up boot prompt after dynamic editor mounts.
   useEffect(() => {
-    const q = promptSeed || search.get("prompt") || initialPrompt;
-    if ((!q && !(refSeed && refSeed.length)) || seeded.current) return;
-    seeded.current = true;
-    if (refSeed?.length) {
-      const seededRefs: PendingRef[] = refSeed.flatMap((url, i) => {
-        const u = String(url || "").trim();
-        if (!u) return [];
-        return [
-          {
-            localId: crypto.randomUUID(),
-            url: u,
-            remoteAssetId: refAssetIdSeed?.[i],
-            mediaKind: guessRefMediaKind(u),
-          } satisfies PendingRef,
-        ];
+    if (!seeded.current) return;
+    const q = prompt.trim();
+    if (!q && refs.length === 0) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      const editor = editorRef.current;
+      if (!editor) {
+        if (tries > 40) window.clearInterval(timer);
+        return;
+      }
+      window.clearInterval(timer);
+      if (!q) return;
+      const current = editor.getText().trim();
+      if (current) return;
+      const counters = { image: 0, video: 0, audio: 0 };
+      const items = refs.map((r) => {
+        counters[r.mediaKind] += 1;
+        return {
+          id: r.remoteAssetId || r.localId,
+          label: refMentionLabel(r.mediaKind, counters[r.mediaKind]),
+          url: r.url,
+          mediaKind: r.mediaKind,
+          expandText: mentionExpandText(r.mediaKind, counters[r.mediaKind]),
+        };
       });
-      if (seededRefs.length) setRefs(seededRefs);
-    }
-    if (q) {
-      setPrompt(q);
-      const t = window.setTimeout(() => {
-        const counters = { image: 0, video: 0, audio: 0 };
-        const items = (refSeed || []).map((url, i) => {
-          const mediaKind = guessRefMediaKind(url);
-          counters[mediaKind] += 1;
-          return {
-            id: refAssetIdSeed?.[i] || `seed-${i}`,
-            label: refMentionLabel(mediaKind, counters[mediaKind]),
-            url,
-            mediaKind,
-            expandText: mentionExpandText(mediaKind, counters[mediaKind]),
-          };
-        });
-        setEditorPlainText(editorRef.current, q, items);
-      }, 0);
-      return () => window.clearTimeout(t);
-    }
-  }, [search, initialPrompt, promptSeed, refSeed, refAssetIdSeed]);
+      setEditorPlainText(editor, q, items);
+    }, 50);
+    return () => window.clearInterval(timer);
+    // Only on mount — boot payload is fixed per composer instance
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onDrop = useCallback(
     async (files: File[]) => {
@@ -1051,6 +1132,17 @@ export function CreationComposer({
     slotOpen(refLimits.images, imageRefCount) ||
     slotOpen(refLimits.videos, videoRefCount) ||
     slotOpen(refLimits.audios, audioRefCount);
+  const canClearComposer = Boolean(prompt.trim()) || refs.length > 0;
+
+  function clearComposer() {
+    for (const r of refsRef.current) revokeIfBlob(r.url);
+    setRefs([]);
+    setRefsExpanded(false);
+    setPrompt("");
+    setEditorPlainText(editorRef.current, "");
+    editorRef.current?.commands.focus("end");
+  }
+
   const cost = kind === "image" ? n : Math.max(1, Math.round(duration / 2));
   const skillChips = SLASH_COMMANDS.filter((c) => c.insert || c.kind).slice(
     0,
@@ -1078,6 +1170,20 @@ export function CreationComposer({
       >
         <input {...getInputProps()} />
         <ComposerRipple idle={rippleIdle} />
+        {canClearComposer ? (
+          <button
+            type="button"
+            className="joy-composer-clear"
+            aria-label="清除输入与参考素材"
+            title="清除"
+            onClick={(e) => {
+              e.stopPropagation();
+              clearComposer();
+            }}
+          >
+            <Eraser className="h-3.5 w-3.5" strokeWidth={1.75} />
+          </button>
+        ) : null}
         <div className="joy-composer-body">
           {canUploadRef ? (
             <div

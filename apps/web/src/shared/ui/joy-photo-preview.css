@@ -1,0 +1,30 @@
+.joy-photo-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.joy-photo-tool {
+  display: inline-flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  opacity: 0.92;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.joy-photo-tool:hover:not(:disabled) {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.joy-photo-tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

@@ -1,9 +1,8 @@
 "use client";
 
-import { PhotoProvider, PhotoView } from "react-photo-view";
-import "react-photo-view/dist/react-photo-view.css";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
+import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import "./inspiration-masonry.css";
 
 export type InspirationCard = {
@@ -26,7 +25,7 @@ export function InspirationMasonry({ items, onRemix }: Props) {
   if (items.length === 0) return null;
 
   return (
-    <PhotoProvider>
+    <JoyPhotoProvider>
       <div className="joy-masonry">
         {items.map((card) => (
           <article
@@ -73,6 +72,6 @@ export function InspirationMasonry({ items, onRemix }: Props) {
           </article>
         ))}
       </div>
-    </PhotoProvider>
+    </JoyPhotoProvider>
   );
 }

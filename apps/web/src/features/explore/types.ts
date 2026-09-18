@@ -5,6 +5,8 @@ export type ExploreFeedItem = {
   prompt: string;
   mediaUrl: string;
   thumbnailUrl: string;
+  /** Reference media from upstream generation_params.image_inputs etc. */
+  referenceUrls?: string[];
   modelId: string | null;
   likeCount: number;
   recreateCount?: number;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Copy,
   Crosshair,
+  Download,
   ExternalLink,
   ImageIcon,
   Sparkles,
@@ -21,7 +22,9 @@ import {
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { toast } from "@/shared/lib/toast";
 import { copyText } from "@/shared/lib/clipboard";
+import { downloadAsset } from "@/shared/lib/download-asset";
 import { cn } from "@/shared/lib/utils";
+import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import { ExplorePlyrPlayer } from "@/features/explore/explore-plyr-player";
 import { ExploreDialogSkeleton } from "@/features/explore/explore-skeleton";
 import "@/features/explore/explore-detail-dialog.css";
@@ -102,6 +105,16 @@ export function AssetsDetailDialog({
     }
   }
 
+  async function onDownload() {
+    if (!asset?.url) return;
+    try {
+      await downloadAsset(asset.url, asset.kind);
+      toast.success("已开始下载");
+    } catch {
+      toast.error("下载失败");
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
@@ -125,6 +138,7 @@ export function AssetsDetailDialog({
           </DialogClose>
 
           {asset ? (
+            <JoyPhotoProvider>
             <div className="joy-explore-dialog-inner">
               <div className="joy-explore-dialog-media">
                 <div className="joy-explore-dialog-stage">
@@ -157,14 +171,17 @@ export function AssetsDetailDialog({
                         onError={markReady}
                       />
                     ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={asset.url}
-                        alt=""
-                        className="joy-explore-dialog-media-el"
-                        onLoad={markReady}
-                        onError={markReady}
-                      />
+                      <PhotoView src={asset.url}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={asset.url}
+                          alt=""
+                          className="joy-explore-dialog-media-el"
+                          style={{ cursor: "zoom-in" }}
+                          onLoad={markReady}
+                          onError={markReady}
+                        />
+                      </PhotoView>
                     )}
                   </div>
                 </div>
@@ -222,16 +239,16 @@ export function AssetsDetailDialog({
                         </div>
                         <div className="joy-assets-dialog-refs-grid">
                           {refUrls.map((url) => (
-                            <a
-                              key={url}
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="joy-assets-dialog-ref"
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={url} alt="" />
-                            </a>
+                            <PhotoView key={url} src={url}>
+                              <button
+                                type="button"
+                                className="joy-assets-dialog-ref"
+                                aria-label="预览参考图"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={url} alt="" />
+                              </button>
+                            </PhotoView>
                           ))}
                         </div>
                       </div>
@@ -244,6 +261,14 @@ export function AssetsDetailDialog({
                 )}
 
                 <div className="joy-assets-dialog-actions">
+                  <button
+                    type="button"
+                    className="joy-assets-dialog-btn is-primary"
+                    onClick={() => void onDownload()}
+                  >
+                    <Download className="h-4 w-4" />
+                    下载
+                  </button>
                   <a
                     href={asset.url}
                     target="_blank"
@@ -256,7 +281,7 @@ export function AssetsDetailDialog({
                   {locateHref ? (
                     <Link
                       href={locateHref}
-                      className="joy-assets-dialog-btn is-primary"
+                      className="joy-assets-dialog-btn"
                     >
                       <Crosshair className="h-4 w-4" />
                       在画布中定位
@@ -265,6 +290,7 @@ export function AssetsDetailDialog({
                 </div>
               </aside>
             </div>
+            </JoyPhotoProvider>
           ) : null}
 
           {!ready ? (

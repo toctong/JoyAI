@@ -269,7 +269,7 @@
   gap: 6px;
   width: fit-content;
   height: 28px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   padding: 0 10px;
   border-radius: 999px;
   background: var(--secondary);
@@ -277,6 +277,59 @@
   font-size: 12px;
   font-weight: 500;
   flex-shrink: 0;
+}
+
+.joy-explore-dialog-refs {
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.joy-explore-dialog-refs-label {
+  margin-bottom: 8px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.joy-explore-dialog-refs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.joy-explore-dialog-ref {
+  position: relative;
+  display: block;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  cursor: zoom-in;
+}
+
+.joy-explore-dialog-ref img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-explore-dialog-ref span {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, #000 55%, transparent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 16px;
+  text-align: center;
 }
 
 .joy-explore-dialog-prompt-head {

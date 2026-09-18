@@ -7,6 +7,7 @@ import { toast } from "@/shared/lib/toast";
 import { api } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { cn } from "@/shared/lib/utils";
+import { writeStudioRemixSeed } from "@/features/studio/studio-remix-seed";
 import { ExploreDetailDialog } from "./explore-detail-dialog";
 import { ExploreMasonry } from "./explore-masonry";
 import { ExploreFeedSkeleton } from "./explore-skeleton";
@@ -137,8 +138,17 @@ export function ExploreHome() {
       return;
     }
     setActive(null);
-    const qs = new URLSearchParams({ prompt });
+    const refs = (item.referenceUrls ?? [])
+      .map((u) => String(u || "").trim())
+      .filter(Boolean);
+    writeStudioRemixSeed({
+      prompt,
+      refs,
+      type: item.type === "video" ? "video" : "image",
+    });
+    const qs = new URLSearchParams({ remix: "1" });
     if (item.type === "video") qs.set("type", "video");
+    else qs.set("type", "image");
     router.push(`/studio?${qs.toString()}`);
   }
 

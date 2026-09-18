@@ -23,6 +23,10 @@ type ElserFeedItem = {
   created_at?: string | null;
   generation_params?: {
     community_tags?: string[];
+    image_inputs?: unknown;
+    video_inputs?: unknown;
+    audio_inputs?: unknown;
+    parameters?: Record<string, unknown> | null;
   } | null;
 };
 
@@ -39,6 +43,8 @@ export type ExploreFeedItem = {
   prompt: string;
   mediaUrl: string;
   thumbnailUrl: string;
+  /** Reference media used for the original generation (from generation_params). */
+  referenceUrls: string[];
   modelId: string | null;
   likeCount: number;
   favoriteCount: number;
@@ -189,6 +195,7 @@ export class ExploreService {
       prompt: (item.prompt || item.title || "").trim(),
       mediaUrl,
       thumbnailUrl: item.thumbnail_url || mediaUrl,
+      referenceUrls: extractReferenceUrls(item.generation_params),
       modelId: item.model_id ?? null,
       likeCount: item.like_count ?? 0,
       favoriteCount: item.favorite_count ?? 0,
@@ -205,4 +212,41 @@ export class ExploreService {
       createdAt: item.created_at ?? null,
     };
   }
+}
+
+function extractReferenceUrls(
+  params: ElserFeedItem["generation_params"],
+): string[] {
+  if (!params) return [];
+  const nested = params.parameters ?? null;
+  const bags: unknown[] = [
+    params.image_inputs,
+    params.video_inputs,
+    params.audio_inputs,
+    nested?.image_inputs,
+    nested?.video_inputs,
+    nested?.audio_inputs,
+    nested?.reference_images,
+    nested?.reference_videos,
+  ];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const bag of bags) {
+    if (!Array.isArray(bag)) continue;
+    for (const raw of bag) {
+      const url =
+        typeof raw === "string"
+          ? raw.trim()
+          : raw &&
+              typeof raw === "object" &&
+              typeof (raw as { url?: unknown }).url === "string"
+            ? String((raw as { url: string }).url).trim()
+            : "";
+      if (!url || seen.has(url)) continue;
+      if (!/^https?:\/\//i.test(url) && !url.startsWith("data:")) continue;
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return out;
 }

@@ -66,10 +66,12 @@
   display: block;
   width: 56px;
   height: 56px;
+  padding: 0;
   overflow: hidden;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--muted);
+  cursor: zoom-in;
 }
 
 .joy-assets-dialog-ref img {

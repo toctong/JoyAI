@@ -21,6 +21,7 @@ import {
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
+import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import { ExplorePlyrPlayer } from "./explore-plyr-player";
 import { ExploreDialogSkeleton } from "./explore-skeleton";
 import type { ExploreFeedItem } from "./types";
@@ -113,6 +114,7 @@ export function ExploreDetailDialog({
           </DialogClose>
 
           {item ? (
+            <JoyPhotoProvider>
             <div className="joy-explore-dialog-inner">
               <div className="joy-explore-dialog-media">
                 <div className="joy-explore-dialog-stage">
@@ -134,14 +136,17 @@ export function ExploreDetailDialog({
                         onError={markReady}
                       />
                     ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.mediaUrl}
-                        alt={item.title}
-                        className="joy-explore-dialog-media-el"
-                        onLoad={markReady}
-                        onError={markReady}
-                      />
+                      <PhotoView src={item.mediaUrl}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.mediaUrl}
+                          alt={item.title}
+                          className="joy-explore-dialog-media-el"
+                          style={{ cursor: "zoom-in" }}
+                          onLoad={markReady}
+                          onError={markReady}
+                        />
+                      </PhotoView>
                     )}
                   </div>
                 </div>
@@ -183,6 +188,28 @@ export function ExploreDetailDialog({
                   </div>
                 ) : null}
 
+                {(item.referenceUrls?.length ?? 0) > 0 ? (
+                  <div className="joy-explore-dialog-refs">
+                    <div className="joy-explore-dialog-refs-label">参考图</div>
+                    <div className="joy-explore-dialog-refs-row">
+                      {item.referenceUrls!.map((url, i) => (
+                        <PhotoView key={`${item.id}-ref-${i}`} src={url}>
+                          <button
+                            type="button"
+                            className="joy-explore-dialog-ref"
+                            title={`参考 ${i + 1}`}
+                            aria-label={`预览参考 ${i + 1}`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt="" />
+                            <span>{i + 1}</span>
+                          </button>
+                        </PhotoView>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="joy-explore-dialog-prompt-head">
                   <span>提示词</span>
                   <button
@@ -217,6 +244,7 @@ export function ExploreDetailDialog({
                 </button>
               </aside>
             </div>
+            </JoyPhotoProvider>
           ) : null}
 
           {!ready ? (
