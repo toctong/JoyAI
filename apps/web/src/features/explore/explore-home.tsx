@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { Compass, Sparkles } from "lucide-react";
+import { KeepAlive } from "keepalive-for-react";
 import { toast } from "@/shared/lib/toast";
-import { api, isApiCancelError } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { cn } from "@/shared/lib/utils";
 import { writeStudioRemixSeed } from "@/features/studio/studio-remix-seed";
 import { ExploreDetailDialog } from "./explore-detail-dialog";
-import { ExploreMasonry } from "./explore-masonry";
-import { ExploreFeedSkeleton } from "./explore-skeleton";
-import type { ExploreFeedItem, ExploreFeedResult } from "./types";
+import {
+  ExploreFeedPane,
+  explorePaneKey,
+  type ExplorePaneQuery,
+} from "./explore-feed-pane";
+import type { ExploreFeedItem } from "./types";
 import "./explore-home.css";
 
 type CommunityChip = {
@@ -158,21 +159,33 @@ const MODEL_FAMILIES: ModelFamily[] = [
 
 type MainTab = "feed" | string;
 
+const KEEP_ALIVE_MAX = 12;
+
 export function ExploreHome() {
   const router = useRouter();
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const [active, setActive] = useState<ExploreFeedItem | null>(null);
   const [tab, setTab] = useState<MainTab>("feed");
   const [category, setCategory] = useState("featured");
-  const [communityId, setCommunityId] = useState(
-    MODEL_FAMILIES[0].communities[0].id,
-  );
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  /** Remember last community per model family (a-tabs style). */
+  const [communityByFamily, setCommunityByFamily] = useState<
+    Record<string, string>
+  >(() => {
+    const init: Record<string, string> = {};
+    for (const family of MODEL_FAMILIES) {
+      init[family.id] = family.communities[0]?.id ?? "";
+    }
+    return init;
+  });
 
   const activeFamily = useMemo(
     () => MODEL_FAMILIES.find((f) => f.id === tab) ?? null,
     [tab],
   );
+
+  const communityId =
+    (activeFamily && communityByFamily[activeFamily.id]) ||
+    activeFamily?.communities[0]?.id ||
+    "";
 
   const activeCommunity = useMemo(() => {
     if (!activeFamily) return null;
@@ -187,109 +200,36 @@ export function ExploreHome() {
     [category],
   );
 
+  const paneQuery = useMemo((): ExplorePaneQuery => {
+    if (tab === "feed") {
+      return {
+        kind: "feed",
+        categoryId: activeCat.id,
+        featuredOnly: activeCat.featuredOnly,
+        tag: activeCat.tag,
+      };
+    }
+    return {
+      kind: "model",
+      familyId: tab,
+      communityId: activeCommunity?.id ?? "",
+      modelId: activeCommunity?.modelId,
+      source: activeCommunity?.source,
+    };
+  }, [tab, activeCat, activeCommunity]);
+
+  const paneKey = explorePaneKey(paneQuery);
+
   function selectFamily(familyId: string) {
     const family = MODEL_FAMILIES.find((f) => f.id === familyId);
     if (!family) return;
     setTab(familyId);
-    setCommunityId(family.communities[0]?.id ?? "");
   }
 
-  const feedKey = useMemo(() => {
-    if (tab === "feed") {
-      return [
-        "explore",
-        "feed",
-        activeCat.id,
-        activeCat.featuredOnly ? "1" : "0",
-        activeCat.tag ?? "",
-      ] as const;
-    }
-    return [
-      "explore",
-      "model",
-      tab,
-      activeCommunity?.id ?? "",
-      activeCommunity?.modelId ?? "",
-      activeCommunity?.source ?? "",
-    ] as const;
-  }, [tab, activeCat, activeCommunity]);
-
-  const feedQuery = useInfiniteQuery({
-    queryKey: feedKey,
-    initialPageParam: null as string | null,
-    staleTime: 30 * 60 * 1000,
-    gcTime: 2 * 60 * 60 * 1000,
-    queryFn: async ({ pageParam, signal }) => {
-      const qs = new URLSearchParams({ limit: "20" });
-      if (pageParam) qs.set("cursor", pageParam);
-
-      if (tab === "feed") {
-        if (activeCat.featuredOnly) qs.set("featuredOnly", "true");
-        if (activeCat.tag) qs.set("tag", activeCat.tag);
-      } else if (activeCommunity?.modelId) {
-        qs.set("modelId", activeCommunity.modelId);
-      } else if (activeCommunity?.source) {
-        qs.set("source", activeCommunity.source);
-      }
-
-      return api<ExploreFeedResult>(`/explore/feed?${qs}`, { signal });
-    },
-    getNextPageParam: (last) =>
-      last.hasMore && last.nextCursor ? last.nextCursor : undefined,
-  });
-
-  const items = useMemo(() => {
-    const pages = feedQuery.data?.pages.flatMap((p) => p.items) ?? [];
-    const seen = new Set<string>();
-    const out: ExploreFeedItem[] = [];
-    for (const item of pages) {
-      const id = String(item.id ?? "").trim();
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      out.push(item);
-    }
-    return out;
-  }, [feedQuery.data]);
-  const hasMore = Boolean(feedQuery.hasNextPage);
-  const loading = feedQuery.isPending;
-  const loadingMore = feedQuery.isFetchingNextPage;
-  const fetchNextPage = feedQuery.fetchNextPage;
-  const pageCount = feedQuery.data?.pages.length ?? 0;
-
-  useEffect(() => {
-    if (!feedQuery.isError || !feedQuery.error) return;
-    if (isApiCancelError(feedQuery.error)) return;
-    toast.error(
-      feedQuery.error instanceof Error
-        ? feedQuery.error.message
-        : "加载探索内容失败",
-    );
-  }, [feedQuery.isError, feedQuery.error]);
-
-  // Buffer ~3 pages on open so a short scroll doesn't wait on upstream.
-  // Later pages still come from the sentinel / IntersectionObserver.
-  useEffect(() => {
-    if (loading || loadingMore || !hasMore) return;
-    if (pageCount < 1 || pageCount >= 3) return;
-    void fetchNextPage();
-  }, [pageCount, hasMore, loading, loadingMore, fetchNextPage]);
-
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || !scrollEl) return;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        const hit = entries.some((e) => e.isIntersecting);
-        if (!hit || !hasMore || loading || loadingMore) return;
-        void fetchNextPage();
-      },
-      { root: scrollEl, rootMargin: "800px 0px", threshold: 0 },
-    );
-
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasMore, loading, loadingMore, fetchNextPage, scrollEl]);
+  function selectCommunity(id: string) {
+    if (!activeFamily) return;
+    setCommunityByFamily((prev) => ({ ...prev, [activeFamily.id]: id }));
+  }
 
   function remix(item: ExploreFeedItem) {
     const prompt = item.prompt?.trim() || item.title?.trim();
@@ -320,137 +260,106 @@ export function ExploreHome() {
       : "换个社区试试，或回到灵感发现浏览精选。";
 
   return (
-    <div className="joy-explore" ref={setScrollEl}>
-      <div className="joy-explore-inner">
-        <header className="joy-explore-header">
-          <div className="joy-explore-tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === "feed"}
-              className={cn("joy-explore-tab", tab === "feed" && "is-active")}
-              onClick={() => setTab("feed")}
-            >
-              灵感发现
-            </button>
-            {MODEL_FAMILIES.map((family) => {
-              const icon = modelIconSrc({ name: family.iconName });
-              const on = tab === family.id;
-              return (
-                <button
-                  key={family.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={on}
-                  className={cn(
-                    "joy-explore-tab joy-explore-tab-model",
-                    on && "is-active",
-                  )}
-                  onClick={() => selectFamily(family.id)}
-                >
-                  {icon ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={icon}
-                      alt=""
-                      className="joy-explore-tab-model-icon"
-                    />
-                  ) : null}
-                  <span>{family.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {tab === "feed" ? (
-            <div className="joy-explore-cats">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  className={cn(
-                    "joy-explore-cat",
-                    category === cat.id && "is-on",
-                  )}
-                  onClick={() => setCategory(cat.id)}
-                >
-                  {cat.label}
-                </button>
-              ))}
-            </div>
-          ) : activeFamily ? (
-            <div className="joy-explore-cats" role="listbox">
-              {activeFamily.communities.map((community) => (
-                <button
-                  key={community.id}
-                  type="button"
-                  role="option"
-                  aria-selected={activeCommunity?.id === community.id}
-                  className={cn(
-                    "joy-explore-cat",
-                    activeCommunity?.id === community.id && "is-on",
-                  )}
-                  onClick={() => setCommunityId(community.id)}
-                >
-                  {community.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </header>
-
-        {loading ? (
-          <ExploreFeedSkeleton />
-        ) : items.length === 0 ? (
-          <div className="joy-explore-empty">
-            <Compass className="joy-explore-empty-icon" aria-hidden />
-            <h2 className="joy-explore-empty-title">{emptyTitle}</h2>
-            <p className="joy-explore-empty-desc">{emptyDesc}</p>
-            <div className="joy-explore-empty-actions">
+    <div className="joy-explore">
+      <header className="joy-explore-header">
+        <div className="joy-explore-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "feed"}
+            className={cn("joy-explore-tab", tab === "feed" && "is-active")}
+            onClick={() => setTab("feed")}
+          >
+            灵感发现
+          </button>
+          {MODEL_FAMILIES.map((family) => {
+            const icon = modelIconSrc({ name: family.iconName });
+            const on = tab === family.id;
+            return (
               <button
+                key={family.id}
                 type="button"
-                className="joy-explore-empty-cta"
-                onClick={() => {
-                  setTab("feed");
-                  setCategory("featured");
-                }}
+                role="tab"
+                aria-selected={on}
+                className={cn(
+                  "joy-explore-tab joy-explore-tab-model",
+                  on && "is-active",
+                )}
+                onClick={() => selectFamily(family.id)}
               >
-                查看精选
+                {icon ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={icon}
+                    alt=""
+                    className="joy-explore-tab-model-icon"
+                  />
+                ) : null}
+                <span>{family.label}</span>
               </button>
-              <button
-                type="button"
-                className="joy-explore-empty-cta is-ghost"
-                onClick={() => router.push("/studio")}
-              >
-                <Sparkles className="h-4 w-4" />
-                去创作
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <ExploreMasonry
-              items={items}
-              loadingMore={loadingMore}
-              onOpen={setActive}
-              onRemix={remix}
-            />
+            );
+          })}
+        </div>
 
-            <div className="joy-explore-more">
-              {loadingMore ? (
-                <span className="sr-only">加载更多中</span>
-              ) : hasMore ? (
-                <div
-                  ref={sentinelRef}
-                  className="joy-explore-sentinel"
-                  aria-hidden
-                />
-              ) : (
-                <p className="joy-explore-end">没有更多了</p>
-              )}
-            </div>
-          </>
-        )}
+        {tab === "feed" ? (
+          <div className="joy-explore-cats">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                className={cn(
+                  "joy-explore-cat",
+                  category === cat.id && "is-on",
+                )}
+                onClick={() => setCategory(cat.id)}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+        ) : activeFamily ? (
+          <div className="joy-explore-cats" role="listbox">
+            {activeFamily.communities.map((community) => (
+              <button
+                key={community.id}
+                type="button"
+                role="option"
+                aria-selected={activeCommunity?.id === community.id}
+                className={cn(
+                  "joy-explore-cat",
+                  activeCommunity?.id === community.id && "is-on",
+                )}
+                onClick={() => selectCommunity(community.id)}
+              >
+                {community.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </header>
+
+      <div className="joy-explore-panels">
+        <KeepAlive
+          activeCacheKey={paneKey}
+          max={KEEP_ALIVE_MAX}
+          enableActivity
+          containerClassName="joy-explore-keepalive"
+          cacheNodeClassName="joy-explore-keepalive-node"
+        >
+          <ExploreFeedPane
+            key={paneKey}
+            query={paneQuery}
+            emptyTitle={emptyTitle}
+            emptyDesc={emptyDesc}
+            onOpen={setActive}
+            onRemix={remix}
+            onGoFeatured={() => {
+              setTab("feed");
+              setCategory("featured");
+            }}
+            onGoStudio={() => router.push("/studio")}
+          />
+        </KeepAlive>
       </div>
 
       <ExploreDetailDialog
