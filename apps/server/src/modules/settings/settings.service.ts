@@ -3,6 +3,10 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { TypeOrmCrudService } from "@dataui/crud-typeorm";
 import { Repository } from "typeorm";
 import { AppSetting } from "../../database/entities/app-setting.entity";
+import {
+  EXPLORE_MARKET_PROXY_SETTING_KEY,
+  invalidateMarketProxy,
+} from "../explore/explore-market-proxy";
 
 @Injectable()
 export class SettingsService extends TypeOrmCrudService<AppSetting> {
@@ -18,11 +22,17 @@ export class SettingsService extends TypeOrmCrudService<AppSetting> {
 
   async set(key: string, value: unknown) {
     const existing = await this.repo.findOne({ where: { key } });
+    let saved: AppSetting;
     if (existing) {
       existing.value = value;
-      return this.repo.save(existing);
+      saved = await this.repo.save(existing);
+    } else {
+      saved = await this.repo.save(this.repo.create({ key, value }));
     }
-    return this.repo.save(this.repo.create({ key, value }));
+    if (key === EXPLORE_MARKET_PROXY_SETTING_KEY) {
+      invalidateMarketProxy("settings updated");
+    }
+    return saved;
   }
 
   list() {

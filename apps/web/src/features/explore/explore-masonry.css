@@ -53,6 +53,20 @@
   opacity: 1;
 }
 
+/* 无封面的视频必须保持可见，浏览器才会解码首帧；骨架盖在上面 */
+video.joy-explore-media:not(.is-hover-play) {
+  opacity: 1;
+}
+
+/* 有静态封面时，视频只在悬停播放，避免盖住已显示的封面 */
+.joy-explore-media.is-hover-play {
+  opacity: 0;
+}
+
+.joy-explore-card:hover .joy-explore-media.is-hover-play {
+  opacity: 1;
+}
+
 .joy-explore-card:hover .joy-explore-media.is-ready {
   transform: scale(1.03);
 }

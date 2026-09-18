@@ -1,8 +1,11 @@
 .joy-explore {
-  min-height: 100%;
-  padding: 22px 20px 64px;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 20px 64px;
   background: var(--background);
   color: var(--foreground);
+  overscroll-behavior: contain;
 }
 
 .joy-explore-inner {
@@ -10,13 +13,21 @@
 }
 
 .joy-explore-header {
-  margin-bottom: 18px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: 0 -20px 18px;
+  padding: 22px 20px 12px;
+  background: color-mix(in oklab, var(--background) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .joy-explore-tabs {
   display: flex;
   align-items: center;
-  gap: 22px;
+  flex-wrap: wrap;
+  gap: 18px 22px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--border);
 }
@@ -51,6 +62,20 @@
   height: 2px;
   border-radius: 999px;
   background: var(--foreground);
+}
+
+.joy-explore-tab-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.joy-explore-tab-model-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .joy-explore-desc {
@@ -171,10 +196,122 @@
   color: var(--secondary-foreground);
 }
 
+.joy-explore-models-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
 .joy-explore-models-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
+}
+
+.joy-explore-models-viewport {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 30px;
+}
+
+.joy-explore-models-track {
+  display: flex;
+  width: 100%;
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.joy-explore-models-page {
+  display: flex;
+  flex: 0 0 100%;
+  align-items: center;
+  gap: 8px;
+  min-width: 100%;
+  width: 100%;
+}
+
+.joy-explore-models-measure {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.joy-explore-models-nav {
+  position: absolute;
+  top: 20px;
+  z-index: 2;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--background) 92%, transparent);
+  color: var(--foreground);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px color-mix(in oklab, #000 8%, transparent);
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.joy-explore-models-nav.is-prev {
+  left: 0;
+}
+
+.joy-explore-models-nav.is-next {
+  right: 0;
+}
+
+.joy-explore-models-nav.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.joy-explore-models-nav:hover:not(:disabled) {
+  background: var(--background);
+}
+
+.joy-explore-models-nav:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.joy-explore-models-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 10px;
+}
+
+.joy-explore-models-dot {
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+  cursor: pointer;
+  transition: width 0.2s, background 0.2s;
+}
+
+.joy-explore-models-dot.is-on {
+  width: 16px;
+  background: var(--foreground);
 }
 
 .joy-explore-model-chip {
@@ -190,6 +327,8 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
+  flex: 0 0 auto;
   transition: background 0.15s, color 0.15s;
 }
 

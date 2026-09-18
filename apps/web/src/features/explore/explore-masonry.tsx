@@ -26,16 +26,81 @@ type Props = {
   onRemix: (item: ExploreFeedItem) => void;
 };
 
-function resolveAspectRatio(item: ExploreFeedItem): string {
+function stillPoster(item: ExploreFeedItem): string | null {
+  const thumb = item.thumbnailUrl?.trim() || "";
+  const media = item.mediaUrl?.trim() || "";
+  if (!thumb || thumb === media) return null;
+  if (/\.(mp4|webm|mov|m4v|m3u8)(\?|#|$)/i.test(thumb)) return null;
+  return thumb;
+}
+
+/** 让浏览器在未播放时就解码一帧，避免卡片一直停在骨架上。 */
+function videoMime(url: string): string {
+  const path = url.split("?")[0]?.split("#")[0]?.toLowerCase() ?? "";
+  if (path.endsWith(".webm")) return "video/webm";
+  if (path.endsWith(".ogg") || path.endsWith(".ogv")) return "video/ogg";
+  if (path.endsWith(".mov")) return "video/quicktime";
+  return "video/mp4";
+}
+
+function seekPreviewFrame(el: HTMLVideoElement) {
+  if (el.error || el.seekable.length === 0) return;
+  const duration = el.duration;
+  const t =
+    Number.isFinite(duration) && duration > 0.2
+      ? Math.min(0.12, duration / 2)
+      : 0;
+  if (t <= 0) return;
+  try {
+    if (Math.abs(el.currentTime - t) > 0.02) el.currentTime = t;
+  } catch {
+    // 部分源不允许 seek，保留当前帧
+  }
+}
+
+function primeVideoFrame(el: HTMLVideoElement) {
+  if (el.dataset.primed === "1" || !el.paused) return;
+  el.dataset.primed = "1";
+  seekPreviewFrame(el);
+}
+
+function playPreview(el: HTMLVideoElement) {
+  if (el.error || !el.currentSrc) return;
+  void el.play().catch(() => {
+    // 源尚未就绪或不支持时，play() 会 reject，不能冒泡成未捕获异常
+  });
+}
+
+/** Clamp extreme cover ratios (Civitai banners etc.) so masonry cards stay usable. */
+const MIN_CARD_AR = 9 / 16;
+const MAX_CARD_AR = 16 / 9;
+
+function parseAspectParts(item: ExploreFeedItem): { w: number; h: number } | null {
   if (item.width && item.height && item.width > 0 && item.height > 0) {
-    return `${item.width} / ${item.height}`;
+    return { w: item.width, h: item.height };
   }
   const ar = item.aspectRatio?.trim();
-  if (ar) {
-    if (ar.includes(":")) return ar.replace(":", " / ");
-    if (ar.includes("/")) return ar;
-    const n = Number(ar);
-    if (Number.isFinite(n) && n > 0) return `${n} / 1`;
+  if (!ar) return null;
+  if (ar.includes(":")) {
+    const [a, b] = ar.split(":").map((x) => Number(x.trim()));
+    if (a > 0 && b > 0) return { w: a, h: b };
+  }
+  if (ar.includes("/")) {
+    const [a, b] = ar.split("/").map((x) => Number(x.trim()));
+    if (a > 0 && b > 0) return { w: a, h: b };
+  }
+  const n = Number(ar);
+  if (Number.isFinite(n) && n > 0) return { w: n, h: 1 };
+  return null;
+}
+
+function resolveAspectRatio(item: ExploreFeedItem): string {
+  const parts = parseAspectParts(item);
+  if (parts) {
+    const r = parts.w / parts.h;
+    if (r > MAX_CARD_AR) return "16 / 9";
+    if (r < MIN_CARD_AR) return "9 / 16";
+    return `${parts.w} / ${parts.h}`;
   }
   return item.type === "video" ? "9 / 16" : "3 / 4";
 }
@@ -51,7 +116,9 @@ function ExploreCard({
 }) {
   const [loaded, setLoaded] = useState(false);
   const isVideo = item.type === "video";
+  const poster = isVideo ? stillPoster(item) : null;
   const ar = resolveAspectRatio(item);
+  const reveal = () => setLoaded(true);
 
   return (
     <article
@@ -76,25 +143,48 @@ function ExploreCard({
           <span className="joy-explore-play" aria-hidden>
             <Play className="h-3.5 w-3.5 fill-current" />
           </span>
+          {poster ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={poster}
+              alt=""
+              className={cn("joy-explore-media", loaded && "is-ready")}
+              loading="lazy"
+              decoding="async"
+              onLoad={reveal}
+              onError={reveal}
+            />
+          ) : null}
           <video
             className={cn(
               "joy-explore-media",
               loaded && "is-ready",
+              poster && "is-hover-play",
             )}
-            src={item.mediaUrl}
-            poster={item.thumbnailUrl}
+            poster={poster || undefined}
             muted
             playsInline
             loop
             preload="metadata"
-            onLoadedData={() => setLoaded(true)}
-            onError={() => setLoaded(true)}
-            onMouseEnter={(e) => void e.currentTarget.play()}
-            onMouseLeave={(e) => {
-              e.currentTarget.pause();
-              e.currentTarget.currentTime = 0;
+            onLoadedMetadata={(e) => {
+              reveal();
+              primeVideoFrame(e.currentTarget);
             }}
-          />
+            onLoadedData={reveal}
+            onSeeked={reveal}
+            onCanPlay={reveal}
+            onError={reveal}
+            onMouseEnter={(e) => playPreview(e.currentTarget)}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget;
+              el.pause();
+              seekPreviewFrame(el);
+            }}
+          >
+            {item.mediaUrl ? (
+              <source src={item.mediaUrl} type={videoMime(item.mediaUrl)} />
+            ) : null}
+          </video>
         </>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element

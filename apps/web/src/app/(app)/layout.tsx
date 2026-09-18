@@ -26,6 +26,9 @@ export default function AppShellLayout({
   /** Wallpaper plugin only paints the inspire home (updream-style). */
   const isInspireHome =
     pathname === "/inspire" || pathname.startsWith("/inspire/");
+  /** Explore owns its scroll so sticky header + infinite load stay correct. */
+  const isExplore =
+    pathname === "/explore" || pathname.startsWith("/explore/");
   const wallpaperActive = isInspireHome && !isCanvasEditor;
 
   useEffect(() => {
@@ -59,7 +62,7 @@ export default function AppShellLayout({
       >
         <AppSidebar />
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-          {isCanvasEditor || isAdmin || isInspireHome ? (
+          {isCanvasEditor || isAdmin || isInspireHome || isExplore ? (
             children
           ) : (
             <ScrollArea className="h-full" type="hover">

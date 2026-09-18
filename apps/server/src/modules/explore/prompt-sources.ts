@@ -6,8 +6,16 @@ export type PromptSourceKind =
   | "tigerowo-cases"
   | "davidwu-json"
   | "xianyu-gallery"
-  | "hiapi-seedance"
-  | "ericgood-video";
+  /** YouMind README gallery (image and/or video via optional video-urls.json) */
+  | "youmind-readme"
+  /** @deprecated alias of youmind-readme */
+  | "youmind-seedance"
+  | "ericgood-video"
+  | "domer-explore"
+  /** Civitai model market (PixAI-like cards) */
+  | "civitai-models"
+  /** PixAI model market */
+  | "pixai-market";
 
 export type PromptSourceMedia = "image" | "video" | "mixed";
 
@@ -20,6 +28,23 @@ export type PromptSourceDef = {
   media: PromptSourceMedia;
   /** Primary fetch URL (JSON) or raw repo base (tigerowo) */
   url: string;
+  /** Optional model id stamped on feed items (YouMind / filtered Domer) */
+  modelId?: string;
+  /** Optional tag stamped on YouMind items */
+  tag?: string;
+  /** Domer: case-insensitive substring match on task.model */
+  modelFilter?: string;
+  /** Civitai models sort */
+  civitaiSort?:
+    | "Highest Rated"
+    | "Most Downloaded"
+    | "Newest"
+    | "Most Liked"
+    | "Most Discussed";
+  /** Civitai model types, e.g. "LORA" or "Checkpoint" */
+  civitaiTypes?: string;
+  /** PixAI market sort hint */
+  pixaiSort?: "hot" | "popular" | "newest";
 };
 
 /** jsDelivr is more reliable than raw.githubusercontent.com from CN networks. */
@@ -101,12 +126,45 @@ export const PROMPT_SOURCES: PromptSourceDef[] = [
     url: "https://cdn.jsdelivr.net/gh/xianyu110/image-prompt-generator@main/data/prompts.json",
   },
   {
-    id: "hiapi-seedance-2",
-    label: "Seedance 视频",
-    homepage: "https://github.com/HiAPIAI/awesome-seedance-2-0-prompts",
-    kind: "hiapi-seedance",
+    id: "youmind-seedance-2",
+    label: "YouMind Seedance",
+    homepage: "https://youmind.com/zh-CN/seedance-2-0-prompts",
+    kind: "youmind-readme",
     media: "video",
-    url: "https://cdn.jsdelivr.net/gh/HiAPIAI/awesome-seedance-2-0-prompts@main/data/prompts.json",
+    modelId: "seedance-2.0",
+    tag: "seedance",
+    // README 含最多约 100 条精选提示词；同仓 video-urls.json 映射可播放 release mp4
+    url: "https://cdn.jsdelivr.net/gh/YouMind-OpenLab/awesome-seedance-2-prompts@main/README_zh.md",
+  },
+  {
+    id: "youmind-seedream-4.5",
+    label: "YouMind Seedream",
+    homepage: "https://github.com/YouMind-OpenLab/awesome-seedream-4.5",
+    kind: "youmind-readme",
+    media: "image",
+    modelId: "seedream-4.5",
+    tag: "seedream",
+    url: "https://cdn.jsdelivr.net/gh/YouMind-OpenLab/awesome-seedream-4.5@main/README_zh.md",
+  },
+  {
+    id: "youmind-grok-imagine",
+    label: "YouMind Grok Imagine",
+    homepage: "https://github.com/YouMind-OpenLab/awesome-grok-imagine-prompts",
+    kind: "youmind-readme",
+    media: "video",
+    modelId: "grok-imagine",
+    tag: "grok",
+    url: "https://cdn.jsdelivr.net/gh/YouMind-OpenLab/awesome-grok-imagine-prompts@main/README_zh.md",
+  },
+  {
+    id: "youmind-gemini-3",
+    label: "YouMind Gemini 3",
+    homepage: "https://github.com/YouMind-OpenLab/awesome-gemini-3-prompts",
+    kind: "youmind-readme",
+    media: "image",
+    modelId: "gemini-3",
+    tag: "gemini",
+    url: "https://cdn.jsdelivr.net/gh/YouMind-OpenLab/awesome-gemini-3-prompts@main/README_zh.md",
   },
   {
     id: "ericgood-seedance",
@@ -115,6 +173,105 @@ export const PROMPT_SOURCES: PromptSourceDef[] = [
     kind: "ericgood-video",
     media: "video",
     url: "https://cdn.jsdelivr.net/gh/Ericgood/seedance-prompt@main/prompts.json",
+  },
+  {
+    id: "domer",
+    label: "Domer",
+    homepage: "https://domer.io/explore",
+    kind: "domer-explore",
+    media: "mixed",
+    url: "https://domer.io/api/explore",
+  },
+  {
+    id: "domer-kling",
+    label: "Domer Kling",
+    homepage: "https://domer.io/explore",
+    kind: "domer-explore",
+    media: "video",
+    modelFilter: "kling",
+    url: "https://domer.io/api/explore",
+  },
+  {
+    id: "domer-seedance",
+    label: "Domer Seedance",
+    homepage: "https://domer.io/explore",
+    kind: "domer-explore",
+    media: "video",
+    modelFilter: "seedance",
+    url: "https://domer.io/api/explore",
+  },
+  {
+    id: "domer-grok",
+    label: "Domer Grok",
+    homepage: "https://domer.io/explore",
+    kind: "domer-explore",
+    media: "video",
+    modelFilter: "grok",
+    url: "https://domer.io/api/explore",
+  },
+  {
+    id: "domer-veo",
+    label: "Domer Veo",
+    homepage: "https://domer.io/explore",
+    kind: "domer-explore",
+    media: "video",
+    modelFilter: "veo",
+    url: "https://domer.io/api/explore",
+  },
+  {
+    id: "civitai-hot",
+    label: "Civitai Highest Rated",
+    homepage: "https://civitai.com/models",
+    kind: "civitai-models",
+    media: "image",
+    civitaiSort: "Highest Rated",
+    url: "https://civitai.com/api/v1/models",
+  },
+  {
+    id: "civitai-download",
+    label: "Civitai Most Downloaded",
+    homepage: "https://civitai.com/models?sort=Most+Downloaded",
+    kind: "civitai-models",
+    media: "image",
+    civitaiSort: "Most Downloaded",
+    url: "https://civitai.com/api/v1/models",
+  },
+  {
+    id: "civitai-newest",
+    label: "Civitai Newest",
+    homepage: "https://civitai.com/models?sort=Newest",
+    kind: "civitai-models",
+    media: "image",
+    civitaiSort: "Newest",
+    url: "https://civitai.com/api/v1/models",
+  },
+  {
+    id: "civitai-lora",
+    label: "Civitai LoRA",
+    homepage: "https://civitai.com/models?types=LORA",
+    kind: "civitai-models",
+    media: "image",
+    civitaiSort: "Highest Rated",
+    civitaiTypes: "LORA",
+    url: "https://civitai.com/api/v1/models",
+  },
+  {
+    id: "pixai-hot",
+    label: "PixAI 热门",
+    homepage: "https://pixai.art/zh/market",
+    kind: "pixai-market",
+    media: "image",
+    pixaiSort: "hot",
+    url: "https://api.pixai.art/graphql",
+  },
+  {
+    id: "pixai-newest",
+    label: "PixAI 最新",
+    homepage: "https://pixai.art/zh/market?sort=newest",
+    kind: "pixai-market",
+    media: "image",
+    pixaiSort: "newest",
+    url: "https://api.pixai.art/graphql",
   },
 ];
 

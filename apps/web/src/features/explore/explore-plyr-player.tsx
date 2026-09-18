@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "plyr/dist/plyr.css";
 
 type Props = {
@@ -10,6 +10,16 @@ type Props = {
   onReady?: () => void;
   onError?: () => void;
 };
+
+function guessVideoMime(url: string): string | undefined {
+  const path = url.split("?")[0]?.toLowerCase() ?? "";
+  if (path.endsWith(".webm")) return "video/webm";
+  if (path.endsWith(".ogg") || path.endsWith(".ogv")) return "video/ogg";
+  if (path.endsWith(".mp4") || path.endsWith(".m4v") || path.endsWith(".mov")) {
+    return "video/mp4";
+  }
+  return undefined;
+}
 
 export function ExplorePlyrPlayer({
   src,
@@ -21,12 +31,17 @@ export function ExplorePlyrPlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
+  const [failed, setFailed] = useState(false);
   onReadyRef.current = onReady;
   onErrorRef.current = onError;
 
   useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  useEffect(() => {
     const el = videoRef.current;
-    if (!el) return;
+    if (!el || failed) return;
 
     let destroyed = false;
     let player: { destroy: () => void } | null = null;
@@ -52,6 +67,10 @@ export function ExplorePlyrPlayer({
       player = instance;
 
       const markReady = () => onReadyRef.current?.();
+      const markFailed = () => {
+        setFailed(true);
+        onErrorRef.current?.();
+      };
 
       instance.on("ready", () => {
         instance.muted = false;
@@ -62,24 +81,48 @@ export function ExplorePlyrPlayer({
         markReady();
       });
       instance.on("loadeddata", markReady);
-      instance.on("error", () => onErrorRef.current?.());
+      instance.on("error", markFailed);
     });
 
     return () => {
       destroyed = true;
       player?.destroy();
     };
-  }, [src]);
+  }, [src, failed]);
+
+  if (failed) {
+    return poster ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={poster}
+        alt=""
+        className={className}
+        onLoad={() => onReadyRef.current?.()}
+      />
+    ) : (
+      <div className={className} style={{ display: "grid", placeItems: "center" }}>
+        <span style={{ color: "rgba(255,255,255,.7)", fontSize: 13 }}>
+          视频源暂不可播放
+        </span>
+      </div>
+    );
+  }
+
+  const mime = guessVideoMime(src);
 
   return (
     <video
       ref={videoRef}
       className={className}
-      src={src}
       poster={poster || undefined}
       playsInline
       preload="metadata"
-      onError={() => onErrorRef.current?.()}
-    />
+      onError={() => {
+        setFailed(true);
+        onErrorRef.current?.();
+      }}
+    >
+      {mime ? <source src={src} type={mime} /> : <source src={src} />}
+    </video>
   );
 }

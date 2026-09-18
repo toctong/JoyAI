@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import {
@@ -6,6 +6,11 @@ import {
   listPromptSources,
 } from "./prompt-source-feed";
 import { findPromptSource } from "./prompt-sources";
+import {
+  configureMarketProxyResolver,
+  EXPLORE_MARKET_PROXY_SETTING_KEY,
+} from "./explore-market-proxy";
+import { SettingsService } from "../settings/settings.service";
 import type { ExploreFeedItem, ExploreFeedResult } from "./explore.types";
 
 export type { ExploreFeedItem, ExploreFeedResult } from "./explore.types";
@@ -54,11 +59,24 @@ const DEFAULT_CACHE_TTL_MS = 10 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 200;
 
 @Injectable()
-export class ExploreService {
+export class ExploreService implements OnModuleInit {
   private readonly logger = new Logger(ExploreService.name);
   private readonly cache = new Map<string, CacheEntry>();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly settings: SettingsService,
+  ) {}
+
+  onModuleInit() {
+    configureMarketProxyResolver(async () => {
+      const row = await this.settings.get(EXPLORE_MARKET_PROXY_SETTING_KEY);
+      const raw = row?.value;
+      if (typeof raw === "string") return raw.trim() || null;
+      if (raw == null) return null;
+      return String(raw).trim() || null;
+    });
+  }
 
   sources() {
     return {
