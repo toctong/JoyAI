@@ -1,187 +1,217 @@
-/* Folder card art — plate + fan sheets + frosted flap */
+/* Folder card — irregular overlapping poster stack */
 
 .joy-folder {
   position: relative;
   height: 100%;
   width: 100%;
   overflow: hidden;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.05) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 72% 64%, rgba(255, 255, 255, 0.04) 0 1px, transparent 1.6px),
+    linear-gradient(180deg, #242428 0%, #141416 100%);
+  background-size: 28px 28px, 36px 36px, auto;
+}
+
+:root:not(.dark) .joy-folder {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(0, 0, 0, 0.06) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 72% 64%, rgba(0, 0, 0, 0.05) 0 1px, transparent 1.6px),
+    linear-gradient(180deg, #f7f4ee 0%, #ebe4d8 100%);
+  background-size: 28px 28px, 36px 36px, auto;
 }
 
 .joy-projects-media:has(.joy-folder) {
-  border-color: transparent;
+  border-color: color-mix(in oklab, var(--border) 70%, transparent);
   background: transparent;
 }
 
-.joy-folder__plate {
+.joy-folder__stack {
   position: absolute;
   inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-:root:not(.dark) .joy-folder__plate-a {
-  stop-color: #ececef;
-}
-
-:root:not(.dark) .joy-folder__plate-b {
-  stop-color: #dadade;
-}
-
-:root:not(.dark) .joy-folder__plate rect {
-  stroke: rgba(0, 0, 0, 0.06);
-  stroke-opacity: 1;
-}
-
-.joy-folder__fan {
-  position: absolute;
-  left: 16%;
-  right: 16%;
-  top: 8%;
-  height: 56%;
-  z-index: 1;
   pointer-events: none;
+}
+
+.joy-folder__card {
+  position: absolute;
+  z-index: 1;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.22));
+}
+
+.joy-folder__card.is-a {
+  z-index: 1;
+  left: 6%;
+  top: 14%;
+  width: 48%;
+  height: 58%;
+  transform: rotate(-11deg);
+}
+
+.joy-folder__card.is-b {
+  z-index: 2;
+  left: 42%;
+  top: 8%;
+  width: 50%;
+  height: 56%;
+  transform: rotate(8deg);
+}
+
+.joy-folder__card.is-c {
+  z-index: 4;
+  left: 22%;
+  top: 28%;
+  width: 54%;
+  height: 62%;
+  transform: rotate(-3deg);
+}
+
+.joy-folder__card.is-d {
+  z-index: 3;
+  left: 4%;
+  top: 46%;
+  width: 44%;
+  height: 48%;
+  transform: rotate(12deg);
+}
+
+.joy-folder__card.is-e {
+  z-index: 5;
+  left: 48%;
+  top: 42%;
+  width: 46%;
+  height: 50%;
+  transform: rotate(-7deg);
+}
+
+.joy-folder__card.is-f {
+  z-index: 6;
+  left: 28%;
+  top: 18%;
+  width: 42%;
+  height: 52%;
+  transform: rotate(4deg);
+}
+
+/* Solo: one large centered card */
+.joy-folder.is-n1 .joy-folder__card.is-a {
+  left: 18%;
+  top: 12%;
+  width: 64%;
+  height: 74%;
+  transform: rotate(-4deg);
+  z-index: 2;
+}
+
+/* Pair: offset duo */
+.joy-folder.is-n2 .joy-folder__card.is-a {
+  left: 8%;
+  top: 18%;
+  width: 52%;
+  height: 64%;
+  transform: rotate(-9deg);
+}
+
+.joy-folder.is-n2 .joy-folder__card.is-b {
+  left: 38%;
+  top: 14%;
+  width: 54%;
+  height: 66%;
+  transform: rotate(7deg);
+  z-index: 3;
+}
+
+/* Trio: classic pile */
+.joy-folder.is-n3 .joy-folder__card.is-a {
+  left: 4%;
+  top: 16%;
+  width: 50%;
+  height: 60%;
+  transform: rotate(-12deg);
+}
+
+.joy-folder.is-n3 .joy-folder__card.is-b {
+  left: 44%;
+  top: 10%;
+  width: 50%;
+  height: 58%;
+  transform: rotate(9deg);
+}
+
+.joy-folder.is-n3 .joy-folder__card.is-c {
+  left: 24%;
+  top: 30%;
+  width: 52%;
+  height: 60%;
+  transform: rotate(-2deg);
+  z-index: 4;
 }
 
 .joy-folder__sheet {
-  position: absolute;
-  top: 0;
-  width: 46%;
-  height: 100%;
-  border-radius: 14px;
-  object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
-  background: linear-gradient(180deg, #fff 0%, #f3f3f6 100%);
-}
-
-.dark .joy-folder__sheet {
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4);
-  background: linear-gradient(180deg, #3a3a40 0%, #222226 100%);
-}
-
-.joy-folder__sheet.is-l {
-  left: 0;
-  transform: rotate(-11deg) translateY(8%);
-  z-index: 1;
-  opacity: 0.92;
-}
-
-.joy-folder__sheet.is-c {
-  left: 50%;
-  width: 48%;
-  transform: translateX(-50%) translateY(-2%);
-  z-index: 3;
-  opacity: 1;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
-}
-
-.dark .joy-folder__sheet.is-c {
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
-}
-
-.joy-folder__sheet.is-r {
-  right: 0;
-  left: auto;
-  transform: rotate(11deg) translateY(8%);
-  z-index: 2;
-  opacity: 0.92;
-}
-
-.joy-folder__sheet.is-blank {
-  background: linear-gradient(
-    165deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(245, 245, 248, 0.82) 100%
-  );
-}
-
-.dark .joy-folder__sheet.is-blank {
-  background: linear-gradient(
-    165deg,
-    rgba(70, 70, 78, 0.85) 0%,
-    rgba(36, 36, 42, 0.9) 100%
-  );
-}
-
-.joy-folder__flap {
-  position: absolute;
-  left: 9%;
-  right: 9%;
-  top: 18%;
-  bottom: 6%;
-  z-index: 4;
-  pointer-events: none;
-  filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.12));
-}
-
-.dark .joy-folder__flap {
-  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.35));
-}
-
-.joy-folder__flap::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.58) 0%,
-    rgba(255, 255, 255, 0.28) 100%
-  );
-  backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cpath fill='black' d='M14 34C14 24 22 18 34 18H78C88 18 94 24 98 32L108 46H186C194 46 200 52 200 60V108C200 116 194 120 186 120H14C6 120 0 116 0 108V48C0 40 6 34 14 34Z'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'%3E%3Cpath fill='black' d='M14 34C14 24 22 18 34 18H78C88 18 94 24 98 32L108 46H186C194 46 200 52 200 60V108C200 116 194 120 186 120H14C6 120 0 116 0 108V48C0 40 6 34 14 34Z'/%3E%3C/svg%3E");
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-}
-
-.dark .joy-folder__flap::before {
-  background: linear-gradient(
-    180deg,
-    rgba(80, 80, 88, 0.5) 0%,
-    rgba(20, 20, 24, 0.58) 100%
-  );
-}
-
-.joy-folder__flap-shape {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
+  display: block;
   width: 100%;
   height: 100%;
-  display: block;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #111;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
-.joy-folder__flap-shape path {
-  fill: rgba(255, 255, 255, 0.22);
-  stroke: rgba(255, 255, 255, 0.75);
-  stroke-width: 1.1;
-  vector-effect: non-scaling-stroke;
+.joy-folder__sheet.is-empty {
+  background: linear-gradient(180deg, #3a3a40 0%, #2a2a30 100%);
 }
 
-.dark .joy-folder__flap-shape path {
-  fill: rgba(255, 255, 255, 0.04);
-  stroke: rgba(255, 255, 255, 0.18);
+:root:not(.dark) .joy-folder__sheet {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 1px 2px rgba(60, 40, 20, 0.1);
+}
+
+:root:not(.dark) .joy-folder__sheet.is-empty {
+  background: linear-gradient(180deg, #fff 0%, #f3efe8 100%);
+}
+
+.joy-folder__tape {
+  position: absolute;
+  left: 50%;
+  top: -5%;
+  z-index: 2;
+  width: 30%;
+  height: 11%;
+  min-height: 6px;
+  transform: translateX(-50%) rotate(-3deg);
+  border-radius: 1px;
+  background: rgba(255, 236, 170, 0.78);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.joy-folder__card.is-b .joy-folder__tape {
+  transform: translateX(-50%) rotate(4deg);
+}
+
+.joy-folder__card.is-d .joy-folder__tape,
+.joy-folder__card.is-e .joy-folder__tape {
+  left: 28%;
+  transform: translateX(-50%) rotate(-8deg);
+}
+
+:root:not(.dark) .joy-folder__tape {
+  background: rgba(255, 214, 120, 0.82);
 }
 
 .joy-folder__mark {
   position: absolute;
   left: 50%;
-  top: 58%;
-  z-index: 5;
+  top: 54%;
+  z-index: 8;
   display: grid;
   place-items: center;
   width: 42px;
   height: 42px;
   border-radius: 12px;
   transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.88);
   border: 1px solid rgba(0, 0, 0, 0.06);
   color: rgba(0, 0, 0, 0.32);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
@@ -194,8 +224,7 @@
 }
 
 .dark .joy-folder__mark {
-  background: rgba(40, 40, 46, 0.88);
+  background: rgba(40, 40, 46, 0.92);
   border-color: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.42);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }

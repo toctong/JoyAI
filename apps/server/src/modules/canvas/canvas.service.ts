@@ -86,7 +86,7 @@ export class CanvasService {
     for (const p of coverProjects) {
       if (!p.folderId || !p.coverUrl) continue;
       const list = coversByFolder.get(p.folderId) ?? [];
-      if (list.length >= 3) continue;
+      if (list.length >= 6) continue;
       list.push(p.coverUrl);
       coversByFolder.set(p.folderId, list);
     }
