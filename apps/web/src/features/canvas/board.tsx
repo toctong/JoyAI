@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { debounce } from "lodash-es";
-import type { CanvasNode, CanvasNodeType, CanvasSnapshot } from "@joyai/shared";
+import type {
+  CanvasEdge,
+  CanvasNode,
+  CanvasNodeType,
+  CanvasSnapshot,
+} from "@joyai/shared";
 import { useCanvasStore } from "./store";
 import { CanvasToolbar } from "./toolbar";
 import { CanvasTopBar } from "./canvas-top-bar";
@@ -18,27 +23,35 @@ import { MultiSelectToolbar } from "./multi-select-toolbar";
 import { GroupBoundsOverlay } from "./group-bounds-overlay";
 import { NodeView } from "./node-view";
 import { CanvasEdges, NodeHandles } from "./canvas-edges";
-import { NODE_TYPE_LIST } from "./node-registry";
+import {
+  CanvasCreateMenu,
+  CanvasNodeContextMenu,
+  type CanvasCreateMenuState,
+  type CanvasNodeMenuState,
+} from "./canvas-context-menu";
+import { CanvasSidePanel } from "./canvas-side-panel";
+import { hydrateSidePanelPrefs } from "./side-panel-store";
 import { computeMentionHighlightIds } from "./lib/mention-highlight";
 import {
   readSnapPreference,
   snapPoint,
   writeSnapPreference,
 } from "./lib/snap";
+import { groupIdOf } from "./lib/align";
+import {
+  isCanvasOverlayTarget,
+  readGridModePreference,
+  writeGridModePreference,
+  type CanvasGridMode,
+} from "./lib/canvas-prefs";
 import { api, apiUpload } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
+import "./canvas-chrome.css";
 
 type ProjectPayload = {
   id: string;
   title: string;
   snapshot: CanvasSnapshot | null;
-};
-
-type CtxMenu = {
-  x: number;
-  y: number;
-  worldX: number;
-  worldY: number;
 };
 
 type Marquee = {
@@ -54,6 +67,11 @@ type FocusQuery = {
   assetId?: string | null;
 };
 
+type ClipboardPayload = {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+};
+
 function rectsIntersect(
   a: { x: number; y: number; w: number; h: number },
   b: { x: number; y: number; w: number; h: number },
@@ -66,6 +84,11 @@ function rectsIntersect(
   );
 }
 
+function isEmptyMediaNode(node: CanvasNode) {
+  const url = String(node.data.url ?? "");
+  return !url || url.startsWith("data:");
+}
+
 export function CanvasBoard({
   projectId,
   focusQuery,
@@ -74,16 +97,24 @@ export function CanvasBoard({
   focusQuery?: FocusQuery;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
+  const uploadAtRef = useRef<{ x: number; y: number } | null>(null);
   const [spaceDown, setSpaceDown] = useState(false);
   const [panMode, setPanMode] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
+  const [isNodeDragging, setIsNodeDragging] = useState(false);
   const [miniMapOpen, setMiniMapOpen] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [gridMode, setGridMode] = useState<CanvasGridMode>("dots");
   const [editingImageId, setEditingImageId] = useState<string | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
-  const [ctxMenu, setCtxMenu] = useState<CtxMenu | null>(null);
+  const [createMenu, setCreateMenu] = useState<CanvasCreateMenuState | null>(
+    null,
+  );
+  const [nodeMenu, setNodeMenu] = useState<CanvasNodeMenuState | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [projectReady, setProjectReady] = useState(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [connectDraft, setConnectDraft] = useState<{
     sourceId: string;
     x: number;
@@ -91,6 +122,7 @@ export function CanvasBoard({
   } | null>(null);
   const focusApplied = useRef(false);
   const connectSourceRef = useRef<string | null>(null);
+  const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panning = useRef(false);
   const panStart = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
   const drag = useRef<{
@@ -102,7 +134,7 @@ export function CanvasBoard({
   const dragPushed = useRef(false);
   const marqueeRef = useRef<Marquee | null>(null);
   const marqueeAdditive = useRef(false);
-  const clipboard = useRef<CanvasNode[]>([]);
+  const clipboard = useRef<ClipboardPayload>({ nodes: [], edges: [] });
 
   const viewport = useCanvasStore((s) => s.viewport);
   const nodes = useCanvasStore((s) => s.nodes);
@@ -132,14 +164,26 @@ export function CanvasBoard({
   const addNode = useCanvasStore((s) => s.addNode);
   const removeNodes = useCanvasStore((s) => s.removeNodes);
   const duplicateNodes = useCanvasStore((s) => s.duplicateNodes);
+  const groupSelection = useCanvasStore((s) => s.groupSelection);
+  const ungroupSelection = useCanvasStore((s) => s.ungroupSelection);
   const expandSelectionWithGroup = useCanvasStore(
     (s) => s.expandSelectionWithGroup,
   );
   const focusNode = useCanvasStore((s) => s.focusNode);
   const focusByJobOrAsset = useCanvasStore((s) => s.focusByJobOrAsset);
 
-  const isPanningTool = spaceDown || panMode;
+  /** Space temporarily flips select ↔ pan (cleared on keyup / blur). */
+  const isPanningTool = panMode ? !spaceDown : spaceDown;
   const selectedNodes = nodes.filter((n) => selectedIds.includes(n.id));
+  const hoveredNode = hoveredNodeId
+    ? nodes.find((n) => n.id === hoveredNodeId)
+    : null;
+  const floatToolbarNodes =
+    selectedNodes.length === 1
+      ? selectedNodes
+      : selectedNodes.length === 0 && hoveredNode
+        ? [hoveredNode]
+        : [];
 
   const mentionHighlights = useMemo(
     () => computeMentionHighlightIds(nodes, selectedIds),
@@ -151,8 +195,10 @@ export function CanvasBoard({
   }, [mentionHighlights, setHighlightedIds]);
 
   useEffect(() => {
+    hydrateSidePanelPrefs();
     setMiniMapOpen(readMinimapOpenPreference(true));
     setSnapToGrid(readSnapPreference(true));
+    setGridMode(readGridModePreference("dots"));
   }, [setSnapToGrid]);
 
   useEffect(() => {
@@ -239,16 +285,30 @@ export function CanvasBoard({
             assetId: asset.id,
             error: "",
           });
-          const imageId = state.addNode("image", {
-            x: node.x + (node.width ?? 280) + 40,
-            y: node.y,
-          });
-          updateNodeData(imageId, {
-            url: asset.url,
-            assetId: asset.id,
-            status: "succeeded",
-          });
-          state.addEdge(node.id, imageId);
+          const outgoing = state.edges
+            .filter((e) => e.source === node.id)
+            .map((e) => state.nodes.find((n) => n.id === e.target))
+            .filter((n): n is CanvasNode => n != null && n.type === "image");
+          const emptyTarget = outgoing.find(isEmptyMediaNode);
+          if (emptyTarget) {
+            updateNodeData(emptyTarget.id, {
+              url: asset.url,
+              assetId: asset.id,
+              status: "succeeded",
+              error: "",
+            });
+          } else {
+            const imageId = state.addNode("image", {
+              x: node.x + (node.width ?? 280) + 40,
+              y: node.y,
+            });
+            updateNodeData(imageId, {
+              url: asset.url,
+              assetId: asset.id,
+              status: "succeeded",
+            });
+            state.addEdge(node.id, imageId);
+          }
         } else {
           updateNodeData(node.id, {
             url: asset.url,
@@ -280,10 +340,8 @@ export function CanvasBoard({
       const state = useCanvasStore.getState();
       for (const node of state.nodes) {
         const byAsset = node.data.assetId === asset.id;
-        const byJob =
-          payload.jobId && node.data.jobId === payload.jobId;
+        const byJob = payload.jobId && node.data.jobId === payload.jobId;
         if (!byAsset && !byJob) continue;
-        // Avoid mid-play hard cut on video nodes when possible — still update data.
         updateNodeData(node.id, {
           url: asset.url,
           assetId: asset.id,
@@ -298,6 +356,121 @@ export function CanvasBoard({
     };
   }, [updateNodeData]);
 
+  const ingestFiles = useCallback(
+    async (files: FileList | File[], at?: { x: number; y: number }) => {
+      const list = Array.from(files).filter(
+        (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
+      );
+      if (!list.length) return;
+      pushHistory();
+      let i = 0;
+      const vp = useCanvasStore.getState().viewport;
+      for (const file of list) {
+        const asset = await apiUpload<{
+          id: string;
+          url: string;
+          kind: string;
+        }>("/upload", file);
+        const type: CanvasNodeType =
+          asset.kind === "video" ? "video" : "image";
+        const id = addNode(type, {
+          x: (at?.x ?? (-vp.x + 280) / vp.zoom) + i * 36,
+          y: (at?.y ?? (-vp.y + 160) / vp.zoom) + i * 36,
+        });
+        updateNodeData(id, {
+          url: asset.url,
+          assetId: asset.id,
+          status: "succeeded",
+        });
+        i += 1;
+      }
+    },
+    [addNode, pushHistory, updateNodeData],
+  );
+
+  const pasteInternal = useCallback(() => {
+    const srcList = clipboard.current.nodes;
+    if (!srcList.length) return false;
+    pushHistory();
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const src of srcList) {
+      const w = src.width ?? 240;
+      const h = src.height ?? 180;
+      minX = Math.min(minX, src.x);
+      minY = Math.min(minY, src.y);
+      maxX = Math.max(maxX, src.x + w);
+      maxY = Math.max(maxY, src.y + h);
+    }
+    const rect = containerRef.current?.getBoundingClientRect();
+    const vp = useCanvasStore.getState().viewport;
+    const centerX = rect
+      ? (-vp.x + rect.width / 2) / vp.zoom
+      : (minX + maxX) / 2 + 36;
+    const centerY = rect
+      ? (-vp.y + rect.height / 2) / vp.zoom
+      : (minY + maxY) / 2 + 36;
+    const ox = centerX - (minX + maxX) / 2;
+    const oy = centerY - (minY + maxY) / 2;
+    const idMap = new Map<string, string>();
+    const created: string[] = [];
+    for (const src of srcList) {
+      const id = addNode(src.type, { x: src.x + ox, y: src.y + oy });
+      idMap.set(src.id, id);
+      updateNodeData(id, { ...src.data });
+      useCanvasStore.getState().updateNode(id, {
+        width: src.width,
+        height: src.height,
+      });
+      created.push(id);
+    }
+    for (const edge of clipboard.current.edges) {
+      const source = idMap.get(edge.source);
+      const target = idMap.get(edge.target);
+      if (source && target) addEdge(source, target);
+    }
+    setSelection(created);
+    return true;
+  }, [addEdge, addNode, pushHistory, setSelection, updateNodeData]);
+
+  const pasteSystemClipboard = useCallback(async () => {
+    if (!navigator.clipboard) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    const vp = useCanvasStore.getState().viewport;
+    const at = rect
+      ? {
+          x: (-vp.x + rect.width * 0.35) / vp.zoom,
+          y: (-vp.y + rect.height * 0.3) / vp.zoom,
+        }
+      : undefined;
+    try {
+      if (typeof navigator.clipboard.read === "function") {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find((t) => t.startsWith("image/"));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const file = new File([blob], "clipboard-image.png", {
+              type: imageType,
+            });
+            await ingestFiles([file], at);
+            return;
+          }
+        }
+      }
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) return;
+      pushHistory();
+      const id = addNode("text", at);
+      updateNodeData(id, { text: text.trim() });
+      setSelection([id]);
+    } catch {
+      /* permission denied or empty */
+    }
+  }, [addNode, ingestFiles, pushHistory, setSelection, updateNodeData]);
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -305,10 +478,14 @@ export function CanvasBoard({
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
         target.isContentEditable;
+      const ignoreBoard =
+        typing || Boolean(target.closest("[data-canvas-shortcuts-ignore]"));
 
       if (e.code === "Space" && !typing) {
-        setSpaceDown(true);
-        e.preventDefault();
+        if (!ignoreBoard && !e.repeat) {
+          setSpaceDown(true);
+          e.preventDefault();
+        }
       }
 
       const mod = e.metaKey || e.ctrlKey;
@@ -323,7 +500,18 @@ export function CanvasBoard({
         redo();
         return;
       }
-      if (mod && e.key.toLowerCase() === "d" && !typing) {
+      if (ignoreBoard) {
+        if (e.key === "Escape") {
+          clearSelection();
+          setCreateMenu(null);
+          setNodeMenu(null);
+          setEditingImageId(null);
+          setShortcutsOpen(false);
+        }
+        return;
+      }
+
+      if (mod && e.key.toLowerCase() === "d") {
         const ids = useCanvasStore.getState().selectedIds;
         if (ids.length) {
           e.preventDefault();
@@ -332,44 +520,39 @@ export function CanvasBoard({
         }
         return;
       }
-      if (mod && e.key.toLowerCase() === "a" && !typing) {
+      if (mod && e.key.toLowerCase() === "a") {
         e.preventDefault();
         setSelection(useCanvasStore.getState().nodes.map((n) => n.id));
         return;
       }
-      if (mod && e.key.toLowerCase() === "c" && !typing) {
+      if (mod && e.key.toLowerCase() === "c") {
         const state = useCanvasStore.getState();
-        const picked = state.nodes.filter((n) =>
-          state.selectedIds.includes(n.id),
-        );
+        const idSet = new Set(state.selectedIds);
+        const picked = state.nodes.filter((n) => idSet.has(n.id));
         if (picked.length) {
-          clipboard.current = picked.map((n) => ({
-            ...n,
-            data: { ...n.data },
-          }));
+          clipboard.current = {
+            nodes: picked.map((n) => ({ ...n, data: { ...n.data } })),
+            edges: state.edges.filter(
+              (edge) => idSet.has(edge.source) && idSet.has(edge.target),
+            ),
+          };
         }
         return;
       }
-      if (mod && e.key.toLowerCase() === "v" && !typing) {
-        const srcList = clipboard.current;
-        if (!srcList.length) return;
+      if (mod && e.key.toLowerCase() === "v") {
+        e.preventDefault();
+        if (!pasteInternal()) void pasteSystemClipboard();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "g") {
         e.preventDefault();
         pushHistory();
-        const created: string[] = [];
-        for (const src of srcList) {
-          const id = addNode(src.type, { x: src.x + 36, y: src.y + 36 });
-          updateNodeData(id, { ...src.data });
-          useCanvasStore.getState().updateNode(id, {
-            width: src.width,
-            height: src.height,
-          });
-          created.push(id);
-        }
-        setSelection(created);
+        if (e.shiftKey) ungroupSelection();
+        else groupSelection();
         return;
       }
 
-      if ((e.key === "Delete" || e.key === "Backspace") && !typing) {
+      if (e.key === "Delete" || e.key === "Backspace") {
         const state = useCanvasStore.getState();
         if (state.selectedEdgeId) {
           pushHistory();
@@ -384,125 +567,76 @@ export function CanvasBoard({
       }
       if (e.key === "Escape") {
         clearSelection();
-        setCtxMenu(null);
+        setCreateMenu(null);
+        setNodeMenu(null);
         setEditingImageId(null);
         setMarquee(null);
         marqueeRef.current = null;
         setShortcutsOpen(false);
+        setConnectDraft(null);
+        connectSourceRef.current = null;
       }
-      if (!typing && (e.key === "?" || (e.shiftKey && e.key === "/"))) {
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
         setShortcutsOpen((v) => !v);
         return;
       }
-      if (!typing && e.key === "0" && !mod) {
+      if (e.key === "0" && !mod) {
         e.preventDefault();
-        const el = containerRef.current;
-        const state = useCanvasStore.getState();
-        if (!el) return;
-        if (state.nodes.length === 0) {
-          state.setViewport({ x: 0, y: 0, zoom: 1 });
-          return;
-        }
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-        for (const n of state.nodes) {
-          const w = n.width ?? 240;
-          const h = n.height ?? 180;
-          minX = Math.min(minX, n.x);
-          minY = Math.min(minY, n.y);
-          maxX = Math.max(maxX, n.x + w);
-          maxY = Math.max(maxY, n.y + h);
-        }
-        const pad = 80;
-        const bw = maxX - minX + pad * 2;
-        const bh = maxY - minY + pad * 2;
-        const zoom = Math.min(
-          2.5,
-          Math.max(0.2, Math.min(el.clientWidth / bw, el.clientHeight / bh)),
-        );
-        state.setViewport({
-          zoom,
-          x: el.clientWidth / 2 - (minX + (maxX - minX) / 2) * zoom,
-          y: el.clientHeight / 2 - (minY + (maxY - minY) / 2) * zoom,
-        });
+        fitToContent();
         return;
       }
-      if (mod && !typing && (e.key === "=" || e.key === "+")) {
+      if (mod && (e.key === "=" || e.key === "+")) {
         e.preventDefault();
-        const el = containerRef.current;
-        const vp = useCanvasStore.getState().viewport;
-        const nextZoom = Math.min(3, vp.zoom * 1.1);
-        if (!el) {
-          useCanvasStore.getState().setViewport({ zoom: nextZoom });
-          return;
-        }
-        const cx = el.clientWidth / 2;
-        const cy = el.clientHeight / 2;
-        const wx = (cx - vp.x) / vp.zoom;
-        const wy = (cy - vp.y) / vp.zoom;
-        useCanvasStore.getState().setViewport({
-          zoom: nextZoom,
-          x: cx - wx * nextZoom,
-          y: cy - wy * nextZoom,
-        });
+        zoomAt(Math.min(5, useCanvasStore.getState().viewport.zoom * 1.1));
         return;
       }
-      if (mod && !typing && e.key === "-") {
+      if (mod && e.key === "-") {
         e.preventDefault();
-        const el = containerRef.current;
-        const vp = useCanvasStore.getState().viewport;
-        const nextZoom = Math.max(0.2, vp.zoom * 0.9);
-        if (!el) {
-          useCanvasStore.getState().setViewport({ zoom: nextZoom });
-          return;
-        }
-        const cx = el.clientWidth / 2;
-        const cy = el.clientHeight / 2;
-        const wx = (cx - vp.x) / vp.zoom;
-        const wy = (cy - vp.y) / vp.zoom;
-        useCanvasStore.getState().setViewport({
-          zoom: nextZoom,
-          x: cx - wx * nextZoom,
-          y: cy - wy * nextZoom,
-        });
+        zoomAt(Math.max(0.05, useCanvasStore.getState().viewport.zoom * 0.9));
         return;
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") setSpaceDown(false);
     };
+    const onBlur = () => {
+      setSpaceDown(false);
+    };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
   }, [
-    addNode,
     clearSelection,
     duplicateNodes,
+    groupSelection,
+    pasteInternal,
+    pasteSystemClipboard,
     pushHistory,
     redo,
     removeNodes,
     removeSelectedEdge,
     setSelection,
     undo,
-    updateNodeData,
+    ungroupSelection,
   ]);
 
   function zoomAt(nextZoom: number, mx?: number, my?: number) {
     const rect = containerRef.current?.getBoundingClientRect();
+    const vp = useCanvasStore.getState().viewport;
     if (!rect) {
       setViewport({ zoom: nextZoom });
       return;
     }
     const cx = mx ?? rect.width / 2;
     const cy = my ?? rect.height / 2;
-    const wx = (cx - viewport.x) / viewport.zoom;
-    const wy = (cy - viewport.y) / viewport.zoom;
+    const wx = (cx - vp.x) / vp.zoom;
+    const wy = (cy - vp.y) / vp.zoom;
     setViewport({
       zoom: nextZoom,
       x: cx - wx * nextZoom,
@@ -511,20 +645,22 @@ export function CanvasBoard({
   }
 
   function onWheel(e: React.WheelEvent) {
+    if (isCanvasOverlayTarget(e.target)) return;
     e.preventDefault();
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const nextZoom = Math.min(3, Math.max(0.2, viewport.zoom * zoomFactor));
+    const nextZoom = Math.min(5, Math.max(0.05, viewport.zoom * zoomFactor));
     zoomAt(nextZoom, mx, my);
   }
 
   function fitToContent() {
     const el = containerRef.current;
+    const state = useCanvasStore.getState();
     if (!el) return;
-    if (nodes.length === 0) {
+    if (state.nodes.length === 0) {
       setViewport({ x: 0, y: 0, zoom: 1 });
       return;
     }
@@ -532,7 +668,7 @@ export function CanvasBoard({
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    for (const n of nodes) {
+    for (const n of state.nodes) {
       const w = n.width ?? 240;
       const h = n.height ?? 180;
       minX = Math.min(minX, n.x);
@@ -545,7 +681,7 @@ export function CanvasBoard({
     const bh = maxY - minY + pad * 2;
     const zoom = Math.min(
       2.5,
-      Math.max(0.2, Math.min(el.clientWidth / bw, el.clientHeight / bh)),
+      Math.max(0.05, Math.min(el.clientWidth / bw, el.clientHeight / bh)),
     );
     const x = el.clientWidth / 2 - (minX + (maxX - minX) / 2) * zoom;
     const y = el.clientHeight / 2 - (minY + (maxY - minY) / 2) * zoom;
@@ -598,8 +734,13 @@ export function CanvasBoard({
     }
   }
 
+  function closeMenus() {
+    setCreateMenu(null);
+    setNodeMenu(null);
+  }
+
   function onPointerDownBoard(e: React.PointerEvent) {
-    setCtxMenu(null);
+    closeMenus();
     const wantPan =
       e.button === 1 ||
       isPanningTool ||
@@ -669,7 +810,6 @@ export function CanvasBoard({
       const dx = (e.clientX - drag.current.ox) / viewport.zoom;
       const dy = (e.clientY - drag.current.oy) / viewport.zoom;
       const state = useCanvasStore.getState();
-      // Recompute absolute positions from drag origins to avoid cumulative error.
       const next = state.nodes.map((n) => {
         const origin = drag.current?.origins[n.id];
         if (!origin) return n;
@@ -684,8 +824,10 @@ export function CanvasBoard({
       const sourceId = connectSourceRef.current;
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
-        const wx = (e.clientX - rect.left - viewport.x) / viewport.zoom;
-        const wy = (e.clientY - rect.top - viewport.y) / viewport.zoom;
+        const localX = e.clientX - rect.left;
+        const localY = e.clientY - rect.top;
+        const wx = (localX - viewport.x) / viewport.zoom;
+        const wy = (localY - viewport.y) / viewport.zoom;
         const hit = nodes.find((n) => {
           const w = n.width ?? 240;
           const h = n.height ?? (n.type === "text" ? 80 : 180);
@@ -694,6 +836,20 @@ export function CanvasBoard({
         if (hit && hit.id !== sourceId) {
           pushHistory();
           addEdge(sourceId, hit.id);
+        } else if (!hit) {
+          const sourceNode = nodes.find((n) => n.id === sourceId);
+          setCreateMenu({
+            kind: "connect",
+            x: localX,
+            y: localY,
+            worldX: wx,
+            worldY: wy,
+            sourceId,
+            preferredType:
+              sourceNode?.type === "image" || sourceNode?.type === "text"
+                ? "prompt"
+                : undefined,
+          });
         }
       }
       connectSourceRef.current = null;
@@ -715,6 +871,7 @@ export function CanvasBoard({
     setIsPanning(false);
     drag.current = null;
     dragPushed.current = false;
+    setIsNodeDragging(false);
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {
@@ -725,6 +882,7 @@ export function CanvasBoard({
   function onNodePointerDown(e: React.PointerEvent, node: CanvasNode) {
     if (isPanningTool || e.button === 1) return;
     e.stopPropagation();
+    closeMenus();
     const additive = e.shiftKey;
     const state = useCanvasStore.getState();
     const already = state.selectedIds.includes(node.id);
@@ -755,6 +913,7 @@ export function CanvasBoard({
       oy: e.clientY,
       origins,
     };
+    setIsNodeDragging(true);
     containerRef.current?.setPointerCapture(e.pointerId);
   }
 
@@ -768,14 +927,16 @@ export function CanvasBoard({
     containerRef.current?.setPointerCapture(e.pointerId);
   }
 
-  function onContextMenu(e: React.MouseEvent) {
+  function onBoardContextMenu(e: React.MouseEvent) {
     if (e.target !== e.currentTarget) return;
     e.preventDefault();
+    closeMenus();
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    setCtxMenu({
+    setCreateMenu({
+      kind: "blank",
       x: mx,
       y: my,
       worldX: (mx - viewport.x) / viewport.zoom,
@@ -783,33 +944,84 @@ export function CanvasBoard({
     });
   }
 
-  async function ingestFiles(
-    files: FileList | File[],
-    at?: { x: number; y: number },
-  ) {
-    const list = Array.from(files).filter(
-      (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
-    );
-    if (!list.length) return;
-    pushHistory();
-    let i = 0;
-    for (const file of list) {
-      const asset = await apiUpload<{ id: string; url: string; kind: string }>(
-        "/upload",
-        file,
-      );
-      const type: CanvasNodeType = asset.kind === "video" ? "video" : "image";
-      const id = addNode(type, {
-        x: (at?.x ?? (-viewport.x + 280) / viewport.zoom) + i * 36,
-        y: (at?.y ?? (-viewport.y + 160) / viewport.zoom) + i * 36,
-      });
-      updateNodeData(id, {
-        url: asset.url,
-        assetId: asset.id,
-        status: "succeeded",
-      });
-      i += 1;
+  function onBoardDoubleClick(e: React.MouseEvent) {
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    closeMenus();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    setCreateMenu({
+      kind: "blank",
+      x: mx,
+      y: my,
+      worldX: (mx - viewport.x) / viewport.zoom,
+      worldY: (my - viewport.y) / viewport.zoom,
+    });
+  }
+
+  function onNodeContextMenu(e: React.MouseEvent, node: CanvasNode) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeMenus();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const state = useCanvasStore.getState();
+    if (!state.selectedIds.includes(node.id)) {
+      setSelection(expandSelectionWithGroup([node.id]));
     }
+    const selected = useCanvasStore
+      .getState()
+      .nodes.filter((n) =>
+        useCanvasStore.getState().selectedIds.includes(n.id),
+      );
+    const canGroup = selected.length >= 2;
+    const canUngroup = selected.some((n) => groupIdOf(n));
+    setNodeMenu({
+      kind: "node",
+      x: mx,
+      y: my,
+      nodeId: node.id,
+      canGroup,
+      canUngroup,
+    });
+  }
+
+  function handleCreateFromMenu(type: CanvasNodeType) {
+    if (!createMenu) return;
+    pushHistory();
+    const id = addNode(type, {
+      x: createMenu.worldX,
+      y: createMenu.worldY,
+    });
+    if (createMenu.kind === "connect" && createMenu.sourceId) {
+      addEdge(createMenu.sourceId, id);
+      const source = nodes.find((n) => n.id === createMenu.sourceId);
+      if (type === "prompt" && source?.type === "image") {
+        const assetId = String(source.data.assetId ?? "");
+        const refUrl = String(source.data.url ?? "");
+        updateNodeData(id, {
+          referenceIds: assetId ? [assetId, source.id] : [source.id],
+          referenceUrls:
+            refUrl && !refUrl.startsWith("data:") ? [refUrl] : [],
+        });
+      }
+      if (type === "prompt" && source?.type === "text") {
+        updateNodeData(id, {
+          prompt: String(source.data.text ?? "").trim(),
+        });
+      }
+    }
+    setSelection([id]);
+    setCreateMenu(null);
+  }
+
+  function openUploadAt(world: { x: number; y: number }) {
+    uploadAtRef.current = world;
+    uploadRef.current?.click();
   }
 
   function toggleMiniMap() {
@@ -825,6 +1037,77 @@ export function CanvasBoard({
     writeSnapPreference(!snapToGrid);
   }
 
+  function setGridModePref(mode: CanvasGridMode) {
+    setGridMode(mode);
+    writeGridModePreference(mode);
+  }
+
+  function clearCanvas() {
+    if (!nodes.length) return;
+    if (!window.confirm("确定清空画布上的全部节点？此操作可撤销。")) return;
+    pushHistory();
+    removeNodes(nodes.map((n) => n.id));
+    clearSelection();
+  }
+
+  function clearHoverLeaveTimer() {
+    if (hoverLeaveTimer.current) {
+      clearTimeout(hoverLeaveTimer.current);
+      hoverLeaveTimer.current = null;
+    }
+  }
+
+  function onNodeHoverEnter(id: string) {
+    clearHoverLeaveTimer();
+    setHoveredNodeId(id);
+  }
+
+  function onNodeHoverLeave() {
+    clearHoverLeaveTimer();
+    hoverLeaveTimer.current = setTimeout(() => {
+      setHoveredNodeId(null);
+    }, 220);
+  }
+
+  function insertAssetAtCenter(asset: {
+    id: string;
+    url: string;
+    kind: string;
+  }) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const vp = useCanvasStore.getState().viewport;
+    const at = rect
+      ? {
+          x: (-vp.x + rect.width / 2) / vp.zoom - 120,
+          y: (-vp.y + rect.height / 2) / vp.zoom - 90,
+        }
+      : undefined;
+    pushHistory();
+    const type: CanvasNodeType = asset.kind === "video" ? "video" : "image";
+    const id = addNode(type, at);
+    updateNodeData(id, {
+      url: asset.url,
+      assetId: asset.id,
+      status: "succeeded",
+    });
+    setSelection([id]);
+  }
+
+  function addPromptAtCenter(text?: string) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const vp = useCanvasStore.getState().viewport;
+    const at = rect
+      ? {
+          x: (-vp.x + rect.width / 2) / vp.zoom - 140,
+          y: (-vp.y + rect.height / 2) / vp.zoom - 90,
+        }
+      : undefined;
+    pushHistory();
+    const id = addNode("prompt", at);
+    if (text?.trim()) updateNodeData(id, { prompt: text.trim() });
+    setSelection([id]);
+  }
+
   const gridSize = (snapToGrid ? 24 : 48) * viewport.zoom;
   const marqueeStyle = marquee
     ? {
@@ -836,25 +1119,61 @@ export function CanvasBoard({
     : null;
 
   return (
-    <div className="relative h-full min-h-[480px] overflow-hidden bg-[#0a0a0a]">
-      <CanvasTopBar projectId={projectId} />
-      <CanvasToolbar />
-      <CanvasDock
-        zoom={viewport.zoom}
+    <div className="joy-canvas-board flex h-full min-h-[480px] overflow-hidden">
+      <CanvasSidePanel
+        nodes={nodes}
+        selectedIds={selectedIds}
+        onFocusNode={(id) => {
+          focusNode(id, viewportSize);
+        }}
+        onInsertAsset={insertAssetAtCenter}
+        onAddPrompt={addPromptAtCenter}
+      />
+      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+      <CanvasTopBar
+        projectId={projectId}
+        canUndo={past.length > 0}
+        canRedo={future.length > 0}
+        onUndo={undo}
+        onRedo={redo}
+        onImport={() => uploadRef.current?.click()}
+        onOpenShortcuts={() => setShortcutsOpen(true)}
+      />
+      <CanvasToolbar
         panMode={panMode}
         canUndo={past.length > 0}
         canRedo={future.length > 0}
-        miniMapOpen={miniMapOpen}
         snapToGrid={snapToGrid}
-        shortcutsOpen={shortcutsOpen}
+        gridMode={gridMode}
+        selectedCount={selectedIds.length}
         onPanModeChange={setPanMode}
-        onZoomIn={() => zoomAt(Math.min(3, viewport.zoom * 1.1))}
-        onZoomOut={() => zoomAt(Math.max(0.2, viewport.zoom * 0.9))}
-        onFit={fitToContent}
         onUndo={undo}
         onRedo={redo}
-        onToggleMiniMap={toggleMiniMap}
         onToggleSnap={toggleSnap}
+        onGridModeChange={setGridModePref}
+        onAddNode={(type) => {
+          pushHistory();
+          addNode(type);
+        }}
+        onAddGroup={() => {
+          if (selectedIds.length < 2) return;
+          pushHistory();
+          groupSelection();
+        }}
+        onDeleteSelected={() => {
+          if (!selectedIds.length) return;
+          pushHistory();
+          removeNodes(selectedIds);
+        }}
+        onClearCanvas={clearCanvas}
+      />
+      <CanvasDock
+        zoom={viewport.zoom}
+        miniMapOpen={miniMapOpen}
+        shortcutsOpen={shortcutsOpen}
+        onZoomChange={(z) => zoomAt(Math.min(5, Math.max(0.05, z)))}
+        onFit={fitToContent}
+        onToggleMiniMap={toggleMiniMap}
         onToggleShortcuts={() => setShortcutsOpen((v) => !v)}
       />
 
@@ -872,21 +1191,27 @@ export function CanvasBoard({
         />
       ) : null}
 
-      {selectedNodes.length > 1 && !isPanningTool ? (
+      {selectedNodes.length > 1 && !isPanningTool && !isNodeDragging ? (
         <MultiSelectToolbar nodes={selectedNodes} viewport={viewport} />
       ) : null}
 
-      {selectedNodes.length === 1 && !isPanningTool ? (
-        <NodeFloatToolbar
-          nodes={selectedNodes}
-          viewport={viewport}
-          onEditImage={(id) => setEditingImageId(id)}
-        />
+      {floatToolbarNodes.length === 1 && !isPanningTool && !isNodeDragging ? (
+        <div
+          onMouseEnter={clearHoverLeaveTimer}
+          onMouseLeave={onNodeHoverLeave}
+        >
+          <NodeFloatToolbar
+            nodes={floatToolbarNodes}
+            viewport={viewport}
+            onEditImage={(id) => setEditingImageId(id)}
+          />
+        </div>
       ) : null}
 
       <div
         ref={containerRef}
-        className="absolute inset-0 touch-none"
+        className="joy-canvas-surface absolute inset-0 touch-none"
+        data-grid={gridMode}
         style={{
           cursor:
             isPanningTool || isPanning
@@ -896,8 +1221,6 @@ export function CanvasBoard({
               : marquee
                 ? "crosshair"
                 : "default",
-          backgroundImage:
-            "radial-gradient(circle, rgba(255,255,255,0.14) 1px, transparent 1px)",
           backgroundSize: `${gridSize}px ${gridSize}px`,
           backgroundPosition: `${viewport.x}px ${viewport.y}px`,
         }}
@@ -905,7 +1228,8 @@ export function CanvasBoard({
         onPointerDown={onPointerDownBoard}
         onPointerMove={onPointerMoveBoard}
         onPointerUp={onPointerUpBoard}
-        onContextMenu={onContextMenu}
+        onContextMenu={onBoardContextMenu}
+        onDoubleClick={onBoardDoubleClick}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "copy";
@@ -939,7 +1263,12 @@ export function CanvasBoard({
           />
           <GroupBoundsOverlay nodes={nodes} selectedIds={selectedIds} />
           {nodes.map((node) => (
-            <div key={node.id}>
+            <div
+              key={node.id}
+              onMouseEnter={() => onNodeHoverEnter(node.id)}
+              onMouseLeave={onNodeHoverLeave}
+              onContextMenu={(e) => onNodeContextMenu(e, node)}
+            >
               <NodeView
                 node={node}
                 onPointerDown={onNodePointerDown}
@@ -948,55 +1277,100 @@ export function CanvasBoard({
                   setEditingImageId(open ? node.id : null)
                 }
               />
-              <NodeHandles
-                node={node}
-                onConnectStart={onConnectStart}
-              />
+              <NodeHandles node={node} onConnectStart={onConnectStart} />
             </div>
           ))}
         </div>
 
         {marqueeStyle ? (
           <div
-            className="pointer-events-none absolute z-[5] border border-violet-400/80 bg-violet-500/10"
+            className="joy-canvas-marquee pointer-events-none absolute z-[5]"
             style={marqueeStyle}
           />
         ) : null}
 
         {nodes.length === 0 ? (
           <div className="pointer-events-none absolute inset-0 z-[4] flex flex-col items-center justify-center px-4 pb-28 text-center">
-            <p className="text-[28px] font-medium tracking-tight text-white/25">
-              右键、拖入文件或左侧工具添加节点
+            <p className="joy-canvas-empty-hint text-[28px] font-medium tracking-tight">
+              双击 / 右键、拖入文件或底栏工具添加节点
             </p>
-            <p className="mt-2 text-sm text-white/30">
-              框选多选 · 绿点拖出连线 · Space 平移 · ? 快捷键 · 磁铁吸附
+            <p className="joy-canvas-empty-hint-sub mt-2 text-sm">
+              框选多选 · 绿点连线 · Space 临时拖移 · ? 快捷键
             </p>
           </div>
         ) : null}
       </div>
 
-      {ctxMenu ? (
-        <div
-          className="absolute z-40 min-w-[140px] overflow-hidden rounded-xl bg-[#1c1c1ef2] py-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md"
-          style={{ left: ctxMenu.x, top: ctxMenu.y }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {NODE_TYPE_LIST.map((item) => (
-            <button
-              key={item.type}
-              type="button"
-              className="flex w-full px-3 py-2 text-left text-sm text-white/85 transition hover:bg-white/10"
-              onClick={() => {
-                pushHistory();
-                addNode(item.type, { x: ctxMenu.worldX, y: ctxMenu.worldY });
-                setCtxMenu(null);
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+      {createMenu ? (
+        <CanvasCreateMenu
+          menu={createMenu}
+          viewportSize={viewportSize}
+          onCreate={handleCreateFromMenu}
+          onUpload={
+            createMenu.kind === "blank"
+              ? () => {
+                  openUploadAt({
+                    x: createMenu.worldX,
+                    y: createMenu.worldY,
+                  });
+                  setCreateMenu(null);
+                }
+              : undefined
+          }
+          onClose={() => setCreateMenu(null)}
+        />
       ) : null}
+
+      {nodeMenu ? (
+        <CanvasNodeContextMenu
+          menu={nodeMenu}
+          viewportSize={viewportSize}
+          onDuplicate={() => {
+            pushHistory();
+            duplicateNodes(useCanvasStore.getState().selectedIds);
+            setNodeMenu(null);
+          }}
+          onDelete={() => {
+            pushHistory();
+            removeNodes(useCanvasStore.getState().selectedIds);
+            setNodeMenu(null);
+          }}
+          onGroup={
+            nodeMenu.canGroup
+              ? () => {
+                  pushHistory();
+                  groupSelection();
+                  setNodeMenu(null);
+                }
+              : undefined
+          }
+          onUngroup={
+            nodeMenu.canUngroup
+              ? () => {
+                  pushHistory();
+                  ungroupSelection();
+                  setNodeMenu(null);
+                }
+              : undefined
+          }
+          onClose={() => setNodeMenu(null)}
+        />
+      ) : null}
+
+      <input
+        ref={uploadRef}
+        type="file"
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          const at = uploadAtRef.current;
+          if (file) void ingestFiles([file], at ?? undefined);
+          uploadAtRef.current = null;
+          e.target.value = "";
+        }}
+      />
+      </div>
     </div>
   );
 }

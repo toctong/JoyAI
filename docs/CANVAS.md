@@ -15,7 +15,7 @@
 | 层 | 用途 | 该看什么 | 明确不做 |
 |----|------|----------|----------|
 | A. 产品 UX | 交互范式、chrome、节点体验 | Flora、Weavy / Figma Weave、Krea、Floyo、LibTV、即梦智能画布 | 抄 UI 皮肤或闭源实现 |
-| B. 开源实现 | MiniMap、多选、NodeToolbar、edges、registry | `@xyflow/react`、open-storyboard-canvas、caraca、flowcraft、franklin-canvas | 整仓粘贴；默认换栈 |
+| B. 开源实现 | MiniMap、多选、NodeToolbar、edges、registry、创建/连线 UX | `@xyflow/react`、[basketikun/infinite-canvas](https://github.com/basketikun/infinite-canvas)、open-storyboard-canvas、caraca、flowcraft、franklin-canvas | 整仓粘贴；默认换栈；不搬 Ant Design / 插件 / Agent |
 | C. 白板 SDK | 视口、选区、undo 心智 | Excalidraw（MIT）；tldraw（商用需授权） | 当作 JoyAI 主路径 |
 | 0. 旧仓踩坑 | Seedream/Seedance、队列、TOS、快照体积 | `ai-comic-drama`、`ai-video` | 当竞品标杆或代码源 |
 
@@ -35,6 +35,7 @@
 | 仓库 | 栈/定位 | 优先对照 |
 |------|---------|----------|
 | [xyflow/xyflow](https://github.com/xyflow/xyflow)（`@xyflow/react`） | 节点图引擎 MIT | MiniMap、Controls、Background、NodeToolbar、框选、edges、viewport API |
+| [basketikun/infinite-canvas](https://github.com/basketikun/infinite-canvas) | Vite + Zustand 自研无限画布（MIT） | 右键/连线落空创建菜单、系统剪贴板、网格模式、浮层 no-zoom、hover 工具条、结果落点；**不**引入其插件/Agent/IndexedDB/Ant 皮 |
 | [ganbo-gab/open-storyboard-canvas](https://github.com/ganbo-gab/open-storyboard-canvas) | Tauri + React 分镜/导演台 | 节点类型划分、参考素材、`@` 引用、几何索引/性能 |
 | [CPloscaru/caraca](https://github.com/CPloscaru/caraca) | Next + xyflow + fal | 与 JoyAI 栈接近的节点生图/生视频编排 |
 | [mblanc/flowcraft](https://github.com/mblanc/flowcraft) | Next + xyflow + Gemini/Veo | 依赖执行、节点运行态、配置面板 |
@@ -124,6 +125,21 @@
 
 - [x] 多选对齐与分布（≥2 对齐，≥3 分布）
 - [x] 轻量成组：`groupId` 写入 `node.data`（不升 snapshot 版本）；选中/拖动整组；虚线包围框
+
+### 6.6 Phase 8 — 交互打磨（参考 infinite-canvas，本仓栈重写）
+
+主题与 chrome 跟全局 light/dark tokens；创建入口为**右键**（不做双击空白）。
+
+- [x] Canvas chrome 换肤（`canvas-chrome.css`）：dock / toolbar / menus / minimap / top bar
+- [x] 空白右键创建菜单（图标 + 上传）；节点右键复制 / 删除 / 成组·解组
+- [x] 绿点拖到空白 → 创建菜单并自动连线（从图/文拖出优先推荐 prompt）
+- [x] 内部剪贴板带 edges；空时回退系统剪贴板图/文
+- [x] 网格 `dots | lines | blank`（localStorage）；`data-canvas-no-zoom` / `data-canvas-shortcuts-ignore`
+- [x] 单选工具条：选中常驻，未选中 hover 短暂显示
+- [x] 生成结果写回已有空 image 出边；重试带上 reference；连线创建 prompt 预填参考
+- [x] 多选虚线包围框；媒体节点画框化；Space 临时切换工具 + blur 释放；粘贴落视口中心；菜单边缘夹紧；拖动时隐藏工具条；节点标题 chip；dock 缩放滑条
+
+**本阶段明确不做：** 插件 / URL 装节点、本地 Canvas Agent / MCP、Ant Design 皮、IndexedDB 本地项目模型、audio 节点、换 `@xyflow/react`。
 
 ## 7. 文档与工程入口
 

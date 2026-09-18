@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Compass, Sparkles } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
-import { api } from "@/shared/lib/api";
+import { api, isApiCancelError } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { cn } from "@/shared/lib/utils";
 import { writeStudioRemixSeed } from "@/features/studio/studio-remix-seed";
@@ -14,9 +15,9 @@ import { ExploreFeedSkeleton } from "./explore-skeleton";
 import type { ExploreFeedItem, ExploreFeedResult } from "./types";
 import "./explore-home.css";
 
-type MainTab = "feed" | "models";
+type MainTab = "feed" | "models" | "sources";
 
-/** 分类直接对应 Elser feed 查询参数，切换即重新拉流 */
+/** Elser 内容分类（灵感发现） */
 const CATEGORIES: Array<{
   id: string;
   label: string;
@@ -33,6 +34,61 @@ const CATEGORIES: Array<{
   { id: "yandere", label: "病娇", tag: "yandere" },
 ];
 
+/** 开源提示词库（图片 / 视频） */
+const PROMPT_LIBRARIES: Array<{
+  id: string;
+  label: string;
+  source: string;
+}> = [
+  { id: "src-gpt-image-2-prompts", label: "GPT Image 2", source: "gpt-image-2-prompts" },
+  { id: "src-awesome-gpt-image", label: "Awesome GPT Image", source: "awesome-gpt-image" },
+  {
+    id: "src-awesome-gpt4o",
+    label: "GPT-4o Prompts",
+    source: "awesome-gpt4o-image-prompts",
+  },
+  {
+    id: "src-xianyu",
+    label: "咸鱼 GPT Image 2",
+    source: "xianyu-awesome-gptimage2",
+  },
+  {
+    id: "src-youmind-gpt",
+    label: "YouMind GPT Image 2",
+    source: "youmind-gpt-image-2",
+  },
+  {
+    id: "src-youmind-banana",
+    label: "Nano Banana Pro",
+    source: "youmind-nano-banana-pro",
+  },
+  {
+    id: "src-davidwu",
+    label: "DavidWu Prompts",
+    source: "davidwu-gpt-image2-prompts",
+  },
+  {
+    id: "src-banana-quicker",
+    label: "Banana Quicker",
+    source: "banana-prompt-quicker",
+  },
+  {
+    id: "src-xianyu-multi",
+    label: "image-prompt-generator",
+    source: "xianyu-multi-model",
+  },
+  {
+    id: "src-hiapi-seedance",
+    label: "Seedance 视频",
+    source: "hiapi-seedance-2",
+  },
+  {
+    id: "src-ericgood-seedance",
+    label: "Seedance 画廊",
+    source: "ericgood-seedance",
+  },
+];
+
 /** 热门模型 chips → Elser model_id */
 const HOT_MODELS: Array<{
   id: string;
@@ -43,28 +99,29 @@ const HOT_MODELS: Array<{
   {
     id: "seedance-2",
     label: "Seedance 2.0",
-    modelId: "doubao-seedance-2-5-260628",
+    modelId: "elser-vid-2",
   },
   { id: "kling-o3", label: "Kling 3.0", modelId: "kling-o3" },
 ];
 
 export function ExploreHome() {
   const router = useRouter();
-  const [items, setItems] = useState<ExploreFeedItem[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [active, setActive] = useState<ExploreFeedItem | null>(null);
   const [tab, setTab] = useState<MainTab>("feed");
   const [category, setCategory] = useState("featured");
+  const [promptLib, setPromptLib] = useState(PROMPT_LIBRARIES[0].id);
   const [hotModel, setHotModel] = useState(HOT_MODELS[0].id);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const loadingMoreRef = useRef(false);
 
   const activeCat = useMemo(
     () => CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0],
     [category],
+  );
+
+  const activeLib = useMemo(
+    () =>
+      PROMPT_LIBRARIES.find((c) => c.id === promptLib) ?? PROMPT_LIBRARIES[0],
+    [promptLib],
   );
 
   const activeModel = useMemo(
@@ -72,45 +129,62 @@ export function ExploreHome() {
     [hotModel],
   );
 
-  const load = useCallback(
-    async (next?: string | null, append = false) => {
-      if (append) {
-        if (loadingMoreRef.current) return;
-        loadingMoreRef.current = true;
-        setLoadingMore(true);
+  const feedKey = useMemo(() => {
+    if (tab === "models") {
+      return ["explore", "models", activeModel.modelId] as const;
+    }
+    if (tab === "sources") {
+      return ["explore", "sources", activeLib.source] as const;
+    }
+    return [
+      "explore",
+      "feed",
+      activeCat.id,
+      activeCat.featuredOnly ? "1" : "0",
+      activeCat.tag ?? "",
+    ] as const;
+  }, [tab, activeCat, activeLib, activeModel]);
+
+  const feedQuery = useInfiniteQuery({
+    queryKey: feedKey,
+    initialPageParam: null as string | null,
+    queryFn: async ({ pageParam, signal }) => {
+      const qs = new URLSearchParams({ limit: "20" });
+      if (pageParam) qs.set("cursor", pageParam);
+
+      if (tab === "models") {
+        qs.set("modelId", activeModel.modelId);
+      } else if (tab === "sources") {
+        qs.set("source", activeLib.source);
       } else {
-        setLoading(true);
+        if (activeCat.featuredOnly) qs.set("featuredOnly", "true");
+        if (activeCat.tag) qs.set("tag", activeCat.tag);
       }
-      try {
-        const qs = new URLSearchParams({ limit: "20" });
-        if (next) qs.set("cursor", next);
 
-        if (tab === "models") {
-          qs.set("modelId", activeModel.modelId);
-        } else {
-          if (activeCat.featuredOnly) qs.set("featuredOnly", "true");
-          if (activeCat.tag) qs.set("tag", activeCat.tag);
-        }
-
-        const res = await api<ExploreFeedResult>(`/explore/feed?${qs}`);
-        setItems((prev) => (append ? [...prev, ...res.items] : res.items));
-        setCursor(res.nextCursor);
-        setHasMore(res.hasMore);
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "加载探索内容失败");
-        if (!append) setItems([]);
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-        loadingMoreRef.current = false;
-      }
+      return api<ExploreFeedResult>(`/explore/feed?${qs}`, { signal });
     },
-    [tab, activeCat, activeModel],
+    getNextPageParam: (last) =>
+      last.hasMore && last.nextCursor ? last.nextCursor : undefined,
+  });
+
+  const items = useMemo(
+    () => feedQuery.data?.pages.flatMap((p) => p.items) ?? [],
+    [feedQuery.data],
   );
+  const hasMore = Boolean(feedQuery.hasNextPage);
+  const loading = feedQuery.isPending;
+  const loadingMore = feedQuery.isFetchingNextPage;
+  const fetchNextPage = feedQuery.fetchNextPage;
 
   useEffect(() => {
-    void load(null, false);
-  }, [load]);
+    if (!feedQuery.isError || !feedQuery.error) return;
+    if (isApiCancelError(feedQuery.error)) return;
+    toast.error(
+      feedQuery.error instanceof Error
+        ? feedQuery.error.message
+        : "加载探索内容失败",
+    );
+  }, [feedQuery.isError, feedQuery.error]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -119,17 +193,15 @@ export function ExploreHome() {
     const io = new IntersectionObserver(
       (entries) => {
         const hit = entries.some((e) => e.isIntersecting);
-        if (!hit || !hasMore || loading || loadingMoreRef.current || !cursor) {
-          return;
-        }
-        void load(cursor, true);
+        if (!hit || !hasMore || loading || loadingMore) return;
+        void fetchNextPage();
       },
       { root: null, rootMargin: "480px 0px", threshold: 0 },
     );
 
     io.observe(el);
     return () => io.disconnect();
-  }, [hasMore, loading, cursor, load]);
+  }, [hasMore, loading, loadingMore, fetchNextPage]);
 
   function remix(item: ExploreFeedItem) {
     const prompt = item.prompt?.trim() || item.title?.trim();
@@ -151,6 +223,19 @@ export function ExploreHome() {
     else qs.set("type", "image");
     router.push(`/studio?${qs.toString()}`);
   }
+
+  const emptyTitle =
+    tab === "models"
+      ? "该模型暂无内容"
+      : tab === "sources"
+        ? "该提示词库暂无内容"
+        : "该分类暂无内容";
+  const emptyDesc =
+    tab === "models"
+      ? "换个热门模型试试，或回到灵感发现浏览精选。"
+      : tab === "sources"
+        ? "换个开源库试试，或稍后再刷新。"
+        : "换个标签试试，或稍后再刷新。你也可以先去创作页生成作品。";
 
   return (
     <div className="joy-explore">
@@ -175,6 +260,18 @@ export function ExploreHome() {
             >
               热门模型
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === "sources"}
+              className={cn(
+                "joy-explore-tab",
+                tab === "sources" && "is-active",
+              )}
+              onClick={() => setTab("sources")}
+            >
+              提示词库
+            </button>
           </div>
 
           {tab === "feed" ? (
@@ -190,6 +287,24 @@ export function ExploreHome() {
                   onClick={() => setCategory(cat.id)}
                 >
                   {cat.label}
+                </button>
+              ))}
+            </div>
+          ) : tab === "sources" ? (
+            <div className="joy-explore-cats" role="listbox">
+              {PROMPT_LIBRARIES.map((lib) => (
+                <button
+                  key={lib.id}
+                  type="button"
+                  role="option"
+                  aria-selected={promptLib === lib.id}
+                  className={cn(
+                    "joy-explore-cat",
+                    promptLib === lib.id && "is-on",
+                  )}
+                  onClick={() => setPromptLib(lib.id)}
+                >
+                  {lib.label}
                 </button>
               ))}
             </div>
@@ -233,20 +348,14 @@ export function ExploreHome() {
         ) : items.length === 0 ? (
           <div className="joy-explore-empty">
             <Compass className="joy-explore-empty-icon" aria-hidden />
-            <h2 className="joy-explore-empty-title">
-              {tab === "models" ? "该模型暂无内容" : "该分类暂无内容"}
-            </h2>
-            <p className="joy-explore-empty-desc">
-              {tab === "models"
-                ? "换个热门模型试试，或回到灵感发现浏览精选。"
-                : "换个标签试试，或稍后再刷新。你也可以先去创作页生成作品。"}
-            </p>
+            <h2 className="joy-explore-empty-title">{emptyTitle}</h2>
+            <p className="joy-explore-empty-desc">{emptyDesc}</p>
             <div className="joy-explore-empty-actions">
               <button
                 type="button"
                 className="joy-explore-empty-cta"
                 onClick={() => {
-                  if (tab === "models") setTab("feed");
+                  setTab("feed");
                   setCategory("featured");
                 }}
               >

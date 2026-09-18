@@ -137,6 +137,19 @@ export function CanvasIconSnap({ className, title }: IconProps) {
   );
 }
 
+export function CanvasIconGrid({ className, title }: IconProps) {
+  return (
+    <svg {...base} className={cn("size-[18px]", className)}>
+      {title ? <title>{title}</title> : null}
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M4 10h16" />
+      <path d="M4 16h16" />
+      <path d="M10 4v16" />
+      <path d="M16 4v16" />
+    </svg>
+  );
+}
+
 export function CanvasIconShortcuts({ className, title }: IconProps) {
   return (
     <svg {...base} className={cn("size-[18px]", className)}>

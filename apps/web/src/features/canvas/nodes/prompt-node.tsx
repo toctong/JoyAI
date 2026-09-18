@@ -140,7 +140,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
     <div
       onPointerDown={onPointerDown}
       className={cn(
-        "absolute cursor-grab overflow-hidden rounded-md border bg-card/95 p-3 shadow-lg active:cursor-grabbing",
+        "absolute cursor-grab overflow-visible rounded-md active:cursor-grabbing",
         nodeChromeClass({ selected, highlighted, pulsing }),
       )}
       style={{
@@ -149,11 +149,12 @@ export function PromptNode({ node, onPointerDown }: Props) {
         width: node.width ?? 300,
       }}
     >
+      <div className="overflow-hidden rounded-md border border-border bg-card/95 p-3 shadow-lg">
       <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
         <CanvasIconSparkles className="size-3.5 text-primary" />
         Prompt
         {String(node.data.operation ?? "generate") !== "generate" ? (
-          <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-white/60">
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
             {String(node.data.operation)}
           </span>
         ) : null}
@@ -199,6 +200,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
         onRetry={() => void submit()}
         variant="inline"
       />
+      </div>
     </div>
   );
 }

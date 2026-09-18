@@ -17,7 +17,8 @@ import {
 import type { CanvasNode } from "@joyai/shared";
 import type { Viewport } from "./store";
 import { useCanvasStore } from "./store";
-import { groupIdOf } from "./lib/align";
+import { groupIdOf, selectionBounds } from "./lib/align";
+import { SELECTION_PAD } from "./group-bounds-overlay";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -46,8 +47,8 @@ function ToolBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "grid size-8 place-items-center rounded-lg text-white/85 transition hover:bg-white/12 hover:text-white disabled:cursor-not-allowed disabled:opacity-35",
-        danger && "hover:bg-red-500/20 hover:text-red-300",
+        "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-35",
+        danger && "hover:bg-destructive/15 hover:text-destructive",
       )}
     >
       {children}
@@ -56,7 +57,7 @@ function ToolBtn({
 }
 
 function Sep() {
-  return <span className="mx-0.5 h-4 w-px bg-white/10" aria-hidden />;
+  return <span className="joy-canvas-chrome-sep mx-0.5 h-4 w-px" aria-hidden />;
 }
 
 export function MultiSelectToolbar({ nodes, viewport }: Props) {
@@ -70,17 +71,12 @@ export function MultiSelectToolbar({ nodes, viewport }: Props) {
 
   if (nodes.length < 2) return null;
 
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  for (const node of nodes) {
-    const w = node.width ?? 240;
-    minX = Math.min(minX, node.x);
-    minY = Math.min(minY, node.y);
-    maxX = Math.max(maxX, node.x + w);
-  }
-  const left = viewport.x + ((minX + maxX) / 2) * viewport.zoom;
-  const top = viewport.y + minY * viewport.zoom - 12;
+  const bounds = selectionBounds(nodes);
+  if (!bounds) return null;
+  const left =
+    viewport.x + ((bounds.x + bounds.w / 2) ) * viewport.zoom;
+  const top =
+    viewport.y + (bounds.y - SELECTION_PAD) * viewport.zoom - 12;
 
   const hasGroup = nodes.some((n) => groupIdOf(n));
   const canDistribute = nodes.length >= 3;
@@ -92,14 +88,27 @@ export function MultiSelectToolbar({ nodes, viewport }: Props) {
 
   return (
     <div
+      data-canvas-no-zoom
+      data-canvas-shortcuts-ignore
       className="pointer-events-auto absolute z-30 -translate-x-1/2 -translate-y-full"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="flex max-w-[min(92vw,520px)] flex-wrap items-center justify-center gap-0.5 rounded-xl bg-[#1c1c1ef5] px-1 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
-        <span className="px-2 text-[11px] tabular-nums text-white/55">
+      <div className="joy-canvas-chrome flex max-w-[min(92vw,520px)] flex-wrap items-center justify-center gap-0.5 rounded-xl px-1 py-1">
+        <span className="joy-canvas-chrome-muted px-2 text-[11px] tabular-nums">
           {nodes.length}
         </span>
+        <Sep />
+        <ToolBtn title="成组 ⌘G" onClick={() => run(() => groupSelection())}>
+          <Group className="h-3.5 w-3.5" />
+        </ToolBtn>
+        <ToolBtn
+          title="解组 ⇧⌘G"
+          disabled={!hasGroup}
+          onClick={() => run(() => ungroupSelection())}
+        >
+          <Ungroup className="h-3.5 w-3.5" />
+        </ToolBtn>
         <Sep />
         <ToolBtn
           title="左对齐"
@@ -152,17 +161,6 @@ export function MultiSelectToolbar({ nodes, viewport }: Props) {
           onClick={() => run(() => distributeSelection("vertical"))}
         >
           <AlignVerticalSpaceAround className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <Sep />
-        <ToolBtn title="成组" onClick={() => run(() => groupSelection())}>
-          <Group className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn
-          title="解组"
-          disabled={!hasGroup}
-          onClick={() => run(() => ungroupSelection())}
-        >
-          <Ungroup className="h-3.5 w-3.5" />
         </ToolBtn>
         <Sep />
         <ToolBtn

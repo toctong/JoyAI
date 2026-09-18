@@ -47,6 +47,11 @@ class ExploreFeedQueryDto {
   @IsOptional()
   @IsString()
   modelId?: string;
+
+  /** 第三方提示词库：gpt-image-2-prompts / awesome-gpt-image / … */
+  @IsOptional()
+  @IsString()
+  source?: string;
 }
 
 @ApiTags("explore")
@@ -54,12 +59,18 @@ class ExploreFeedQueryDto {
 export class ExploreController {
   constructor(private readonly explore: ExploreService) {}
 
+  @Get("sources")
+  sources() {
+    return this.explore.sources();
+  }
+
   @Get("feed")
   @ApiQuery({ name: "limit", required: false })
   @ApiQuery({ name: "cursor", required: false })
   @ApiQuery({ name: "featuredOnly", required: false })
   @ApiQuery({ name: "tag", required: false })
   @ApiQuery({ name: "modelId", required: false })
+  @ApiQuery({ name: "source", required: false })
   feed(@Query() query: ExploreFeedQueryDto) {
     return this.explore.feed({
       limit: query.limit,
@@ -67,6 +78,7 @@ export class ExploreController {
       featuredOnly: query.featuredOnly,
       tag: query.tag,
       modelId: query.modelId,
+      source: query.source,
     });
   }
 }

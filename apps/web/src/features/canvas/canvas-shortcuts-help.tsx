@@ -1,29 +1,38 @@
 "use client";
 
-import { Keyboard } from "lucide-react";
+import { X } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import {
+  Dialog,
+  DialogDescription,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/shared/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
-const ROWS: { keys: string; desc: string }[] = [
-  { keys: "Space / 中键", desc: "平移画布" },
-  { keys: "滚轮", desc: "缩放" },
-  { keys: "⌘ / Ctrl + −", desc: "缩小" },
-  { keys: "⌘ / Ctrl + =", desc: "放大" },
-  { keys: "0", desc: "适应内容" },
-  { keys: "拖拽空白", desc: "框选" },
-  { keys: "Shift + 点击", desc: "加选 / 减选" },
-  { keys: "⌘ / Ctrl + A", desc: "全选" },
-  { keys: "⌘ / Ctrl + Z", desc: "撤销" },
-  { keys: "⇧⌘Z / Ctrl+Y", desc: "重做" },
-  { keys: "⌘ / Ctrl + D", desc: "复制节点" },
-  { keys: "Delete", desc: "删除选中" },
-  { keys: "拖出绿色点", desc: "连线到另一节点" },
-  { keys: "选中边 + Delete", desc: "删除连线" },
-  { keys: "绿点拖到节点", desc: "创建连线" },
-  { keys: "选中连线 + Delete", desc: "删除连线" },
-  { keys: "多选工具条", desc: "对齐 / 分布 / 成组" },
-  { keys: "磁铁按钮", desc: "网格吸附开关" },
-  { keys: "?", desc: "打开/关闭本面板" },
+const ROWS: { keys: string[]; desc: string }[] = [
+  { keys: ["Space", "拖动"], desc: "临时切换选中 / 拖动画布" },
+  { keys: ["滚轮"], desc: "缩放画布（对准光标）" },
+  { keys: ["中键拖动"], desc: "平移画布" },
+  { keys: ["拖动空白"], desc: "框选" },
+  { keys: ["Shift", "点击"], desc: "加选 / 减选" },
+  { keys: ["Ctrl / Cmd", "A"], desc: "全选" },
+  { keys: ["Ctrl / Cmd", "G"], desc: "成组" },
+  { keys: ["Ctrl / Cmd", "Shift", "G"], desc: "解组" },
+  {
+    keys: ["Ctrl / Cmd", "C / V"],
+    desc: "复制 / 粘贴节点，或粘贴剪贴板文本 / 图片",
+  },
+  { keys: ["Ctrl / Cmd", "D"], desc: "复制节点" },
+  { keys: ["Ctrl / Cmd", "Z"], desc: "撤销" },
+  { keys: ["Ctrl / Cmd", "Shift", "Z"], desc: "重做" },
+  { keys: ["Delete / Backspace"], desc: "删除选中" },
+  { keys: ["Esc"], desc: "取消选中并关闭浮层" },
+  { keys: ["双击空白"], desc: "添加节点" },
+  { keys: ["右键空白"], desc: "添加节点 / 上传" },
+  { keys: ["拖入图片 / 视频"], desc: "上传到画布" },
+  { keys: ["?"], desc: "打开 / 关闭快捷键" },
 ];
 
 type Props = {
@@ -32,38 +41,60 @@ type Props = {
 };
 
 export function CanvasShortcutsHelp({ open, onClose }: Props) {
-  if (!open) return null;
   return (
-    <div
-      className="pointer-events-auto absolute bottom-20 right-3.5 z-30 w-[260px] overflow-hidden rounded-xl bg-[#141416f5] shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md"
-      onPointerDown={(e) => e.stopPropagation()}
-    >
-      <div className="flex items-center gap-2 border-b border-white/8 px-3 py-2.5">
-        <Keyboard className="h-4 w-4 text-white/70" />
-        <span className="text-sm font-medium text-white/90">快捷键</span>
-        <button
-          type="button"
-          className="ml-auto text-xs text-white/45 hover:text-white/80"
-          onClick={onClose}
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogPortal>
+        <DialogOverlay className="bg-black/25" />
+        <DialogPrimitive.Content
+          data-canvas-no-zoom
+          data-canvas-shortcuts-ignore
+          className={cn(
+            "fixed left-1/2 top-1/2 z-50 flex max-h-[min(86vh,760px)] w-[min(640px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg",
+            "duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          )}
+          onPointerDown={(e) => e.stopPropagation()}
         >
-          关闭
-        </button>
-      </div>
-      <ScrollArea className="h-[320px]" type="hover">
-        <ul className="space-y-1 px-3 py-2">
-          {ROWS.map((row) => (
-            <li
-              key={row.keys}
-              className="flex items-baseline justify-between gap-3 py-1 text-xs"
-            >
-              <span className="shrink-0 rounded bg-white/8 px-1.5 py-0.5 font-mono text-[10px] text-white/75">
-                {row.keys}
-              </span>
-              <span className={cn("text-right text-white/50")}>{row.desc}</span>
-            </li>
-          ))}
-        </ul>
-      </ScrollArea>
-    </div>
+          <div className="flex items-center border-b border-border px-6 py-4 pr-12">
+            <DialogTitle className="text-base font-medium">快捷键</DialogTitle>
+            <DialogDescription className="sr-only">
+              画布操作快捷键列表
+            </DialogDescription>
+          </div>
+          <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto px-5 py-4">
+            {ROWS.map((row) => (
+              <li
+                key={`${row.keys.join("+")}-${row.desc}`}
+                className="grid grid-cols-[minmax(0,1fr)_11.5rem] items-center gap-6 px-1 py-1.5"
+              >
+                <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                  {row.keys.map((key, index) => (
+                    <span
+                      key={`${key}-${index}`}
+                      className="flex items-center gap-1.5"
+                    >
+                      {index > 0 ? (
+                        <span className="text-xs text-muted-foreground/60">
+                          +
+                        </span>
+                      ) : null}
+                      <kbd className="inline-flex min-w-9 items-center justify-center rounded-md border border-border bg-background px-2.5 py-1.5 text-center text-xs font-medium leading-none text-foreground shadow-sm">
+                        {key}
+                      </kbd>
+                    </span>
+                  ))}
+                </span>
+                <span className="text-right text-sm text-muted-foreground">
+                  {row.desc}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring">
+            <X className="h-4 w-4" />
+            <span className="sr-only">关闭</span>
+          </DialogPrimitive.Close>
+        </DialogPrimitive.Content>
+      </DialogPortal>
+    </Dialog>
   );
 }

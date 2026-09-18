@@ -1,0 +1,102 @@
+/* JoyAI canvas chrome — follows global light/dark tokens */
+
+.joy-canvas-board {
+  --joy-canvas-grid: color-mix(
+    in oklab,
+    var(--muted-foreground) 28%,
+    transparent
+  );
+  --joy-canvas-grid-strong: color-mix(
+    in oklab,
+    var(--muted-foreground) 40%,
+    transparent
+  );
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.joy-canvas-chrome {
+  background: color-mix(in oklab, var(--popover) 92%, transparent);
+  border: 1px solid var(--border);
+  color: var(--popover-foreground);
+  box-shadow: 0 12px 40px -20px color-mix(in oklab, var(--foreground) 35%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.joy-canvas-chrome-btn {
+  color: color-mix(in oklab, var(--popover-foreground) 78%, transparent);
+}
+
+.joy-canvas-chrome-btn:hover:not(:disabled) {
+  background: var(--muted);
+  color: var(--popover-foreground);
+}
+
+.joy-canvas-chrome-btn.is-active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.joy-canvas-chrome-btn.is-active:hover:not(:disabled) {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.joy-canvas-chrome-muted {
+  color: var(--muted-foreground);
+}
+
+.joy-canvas-chrome-sep {
+  background: var(--border);
+}
+
+.joy-canvas-empty-hint {
+  color: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+}
+
+.joy-canvas-empty-hint-sub {
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+}
+
+.joy-canvas-surface[data-grid="dots"] {
+  background-image: radial-gradient(
+    circle,
+    var(--joy-canvas-grid) 1px,
+    transparent 1px
+  );
+}
+
+.joy-canvas-surface[data-grid="lines"] {
+  background-image:
+    linear-gradient(var(--joy-canvas-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--joy-canvas-grid) 1px, transparent 1px);
+}
+
+.joy-canvas-surface[data-grid="blank"] {
+  background-image: none;
+}
+
+.joy-canvas-marquee {
+  border: 1px solid color-mix(in oklab, var(--ring) 80%, transparent);
+  background: color-mix(in oklab, var(--ring) 12%, transparent);
+}
+
+.joy-canvas-menu-item {
+  color: var(--popover-foreground);
+}
+
+.joy-canvas-menu-item:hover {
+  background: var(--muted);
+}
+
+.joy-canvas-menu-item.is-preferred {
+  background: color-mix(in oklab, var(--ring) 14%, transparent);
+}
+
+.joy-canvas-menu-item.is-danger {
+  color: var(--destructive);
+}
+
+.joy-canvas-menu-item.is-danger:hover {
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+}

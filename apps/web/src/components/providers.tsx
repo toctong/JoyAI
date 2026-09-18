@@ -5,6 +5,8 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ConfirmDialogHost } from "@/components/confirm-dialog-host";
 import { AppToaster } from "@/shared/lib/toast";
+import { QueryProvider } from "@/shared/providers/query-provider";
+import { RouteAbortEffects } from "@/shared/providers/route-abort-effects";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -14,11 +16,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <TooltipProvider delayDuration={200}>
-        {children}
-        <ConfirmDialogHost />
-        <AppToaster />
-      </TooltipProvider>
+      <QueryProvider>
+        <TooltipProvider delayDuration={200}>
+          <RouteAbortEffects />
+          {children}
+          <ConfirmDialogHost />
+          <AppToaster />
+        </TooltipProvider>
+      </QueryProvider>
     </NextThemesProvider>
   );
 }

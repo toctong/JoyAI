@@ -1,6 +1,14 @@
 import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
+import {
+  fetchPromptSourceFeed,
+  listPromptSources,
+} from "./prompt-source-feed";
+import { findPromptSource } from "./prompt-sources";
+import type { ExploreFeedItem, ExploreFeedResult } from "./explore.types";
+
+export type { ExploreFeedItem, ExploreFeedResult } from "./explore.types";
 
 type ElserFeedItem = {
   id?: string;
@@ -36,37 +44,6 @@ type ElserFeedResponse = {
   has_more?: boolean;
 };
 
-export type ExploreFeedItem = {
-  id: string;
-  type: "image" | "video" | string;
-  title: string;
-  prompt: string;
-  mediaUrl: string;
-  thumbnailUrl: string;
-  /** Reference media used for the original generation (from generation_params). */
-  referenceUrls: string[];
-  modelId: string | null;
-  likeCount: number;
-  favoriteCount: number;
-  viewCount: number;
-  recreateCount: number;
-  author: {
-    nickname: string;
-    avatarUrl: string | null;
-  };
-  aspectRatio: string | null;
-  width: number | null;
-  height: number | null;
-  tags: string[];
-  createdAt: string | null;
-};
-
-export type ExploreFeedResult = {
-  items: ExploreFeedItem[];
-  nextCursor: string | null;
-  hasMore: boolean;
-};
-
 type CacheEntry = {
   expiresAt: number;
   value: ExploreFeedResult;
@@ -83,6 +60,20 @@ export class ExploreService {
 
   constructor(private readonly config: ConfigService) {}
 
+  sources() {
+    return {
+      items: [
+        {
+          id: "elser",
+          label: "Elser",
+          homepage: "https://elser.ai",
+          media: "mixed" as const,
+        },
+        ...listPromptSources(),
+      ],
+    };
+  }
+
   async feed(params: {
     limit?: number;
     cursor?: string;
@@ -92,11 +83,40 @@ export class ExploreService {
     tag?: string;
     /** 热门模型：对应 Elser model_id */
     modelId?: string;
+    /** 第三方提示词源（与 Elser 互斥） */
+    source?: string;
   }): Promise<ExploreFeedResult> {
+    const limit = Math.max(1, Math.min(Number(params.limit) || 24, 48));
+    const sourceId = params.source?.trim() || "";
+
+    if (sourceId && sourceId !== "elser") {
+      if (!findPromptSource(sourceId)) {
+        throw new ServiceUnavailableException("未知的探索数据源");
+      }
+      const cacheKey = `prompt:${sourceId}:l${limit}:c${params.cursor?.trim() || ""}`;
+      const cached = this.getCache(cacheKey);
+      if (cached) return cached;
+      try {
+        const result = await fetchPromptSourceFeed({
+          sourceId,
+          limit,
+          cursor: params.cursor,
+        });
+        this.setCache(cacheKey, result);
+        return result;
+      } catch (error) {
+        this.logger.error(
+          `Prompt source feed failed (${sourceId}): ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+        throw new ServiceUnavailableException("探索内容暂时不可用，请稍后重试");
+      }
+    }
+
     const base =
       this.config.get<string>("ELSER_FEED_BASE_URL") ??
       "https://api.tool.elser.ai/v1";
-    const limit = Math.max(1, Math.min(Number(params.limit) || 24, 48));
     const url = new URL(`${base.replace(/\/$/, "")}/community/feed`);
     url.searchParams.set("limit", String(limit));
     if (params.cursor?.trim()) {

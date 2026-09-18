@@ -2,11 +2,17 @@
 
 import { useState } from "react";
 import type { CanvasNode } from "@joyai/shared";
-import { useCanvasStore, useIsNodeHighlighted, useIsNodePulsing, useIsNodeSelected } from "../store";
+import {
+  useCanvasStore,
+  useIsNodeHighlighted,
+  useIsNodePulsing,
+  useIsNodeSelected,
+} from "../store";
 import { ImageEditor } from "../image-editor";
 import { NodeRuntimeBadge } from "../node-runtime-badge";
+import { NodeTitleChip } from "../node-title-chip";
 import { dataUrlToFile } from "../lib/data-url-to-file";
-import { nodeChromeClass } from "../lib/node-chrome";
+import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { CanvasIconImage } from "../icons/canvas-icons";
 import { apiUpload } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
@@ -30,9 +36,12 @@ export function ImageNode({
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
   const [applying, setApplying] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const url = String(node.data.url ?? "");
   const status = String(node.data.status ?? "idle");
   const error = String(node.data.error ?? "");
+  const framed = Boolean(url) && !url.startsWith("data:");
+  const title = nodeTitleLabel("image", node.data);
 
   async function applyEdit(dataUrl: string) {
     setApplying(true);
@@ -65,9 +74,12 @@ export function ImageNode({
     <>
       <div
         onPointerDown={onPointerDown}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         className={cn(
-          "absolute cursor-grab overflow-hidden rounded-md border bg-card shadow-lg active:cursor-grabbing",
-          nodeChromeClass({ selected, highlighted, pulsing }),
+          "absolute cursor-grab overflow-visible rounded-md active:cursor-grabbing",
+          !framed && "overflow-hidden",
+          nodeChromeClass({ selected, highlighted, pulsing, framed }),
         )}
         style={{
           left: node.x,
@@ -76,16 +88,27 @@ export function ImageNode({
           height: node.height ?? 180,
         }}
       >
-        {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            <CanvasIconImage className="size-7 opacity-70" />
-            <span className="text-xs">空图像节点</span>
-          </div>
-        )}
-        <NodeRuntimeBadge status={applying ? "running" : status} error={error} />
+        <NodeTitleChip label={title} visible={selected || hovered} />
+        <div
+          className={cn(
+            "relative h-full w-full overflow-hidden rounded-md",
+            framed && "bg-black/5",
+          )}
+        >
+          {url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+              <CanvasIconImage className="size-7 opacity-70" />
+              <span className="text-xs">空图像节点</span>
+            </div>
+          )}
+          <NodeRuntimeBadge
+            status={applying ? "running" : status}
+            error={error}
+          />
+        </div>
       </div>
       {editing && url ? (
         <ImageEditor

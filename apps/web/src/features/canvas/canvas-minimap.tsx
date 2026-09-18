@@ -119,7 +119,9 @@ export function CanvasMinimap({
   return (
     <div
       ref={ref}
-      className="pointer-events-auto absolute bottom-20 left-3.5 z-20 overflow-hidden rounded-xl bg-[#141416f0] shadow-[0_8px_28px_rgba(0,0,0,0.4)] backdrop-blur-md"
+      data-canvas-no-zoom
+      data-canvas-shortcuts-ignore
+      className="joy-canvas-chrome pointer-events-auto absolute bottom-24 left-5 z-20 overflow-hidden rounded-xl"
       style={{ width: MAP_W, height: MAP_H }}
       title="拖拽跳转视口"
       onPointerDown={(e) => {
@@ -136,7 +138,7 @@ export function CanvasMinimap({
       onPointerCancel={() => setDragging(false)}
     >
       <svg width={MAP_W} height={MAP_H} className="block">
-        <rect width={MAP_W} height={MAP_H} fill="#0c0c0e" />
+        <rect width={MAP_W} height={MAP_H} fill="var(--background)" />
         {drawNodes.map((n) => {
           const p = toMinimap(n.x, n.y);
           const w = Math.max((n.width ?? 240) * scale, 3);
@@ -159,8 +161,8 @@ export function CanvasMinimap({
           y={viewRect.y}
           width={viewRect.w}
           height={viewRect.h}
-          fill="rgba(124,92,255,0.12)"
-          stroke="rgba(167,139,250,0.85)"
+          fill="color-mix(in oklab, var(--ring) 15%, transparent)"
+          stroke="var(--ring)"
           strokeWidth={1.25}
           rx={2}
         />

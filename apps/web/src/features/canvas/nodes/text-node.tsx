@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { CanvasNode } from "@joyai/shared";
 import {
   useIsNodeHighlighted,
@@ -7,7 +8,8 @@ import {
   useIsNodeSelected,
   useCanvasStore,
 } from "../store";
-import { nodeChromeClass } from "../lib/node-chrome";
+import { NodeTitleChip } from "../node-title-chip";
+import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -20,13 +22,17 @@ export function TextNode({ node, onPointerDown }: Props) {
   const highlighted = useIsNodeHighlighted(node.id);
   const pulsing = useIsNodePulsing(node.id);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
+  const [hovered, setHovered] = useState(false);
   const text = String(node.data.text ?? "");
+  const title = nodeTitleLabel("text", node.data);
 
   return (
     <div
       onPointerDown={onPointerDown}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       className={cn(
-        "absolute cursor-grab rounded-md border bg-card/95 p-3 shadow-lg active:cursor-grabbing",
+        "absolute cursor-grab overflow-visible rounded-md active:cursor-grabbing",
         nodeChromeClass({ selected, highlighted, pulsing }),
       )}
       style={{
@@ -36,12 +42,15 @@ export function TextNode({ node, onPointerDown }: Props) {
         minHeight: node.height ?? 80,
       }}
     >
-      <textarea
-        className="h-full w-full resize-none bg-transparent text-sm outline-none"
-        value={text}
-        onChange={(e) => updateNodeData(node.id, { text: e.target.value })}
-        onPointerDown={(e) => e.stopPropagation()}
-      />
+      <NodeTitleChip label={title} visible={selected || hovered} />
+      <div className="rounded-md bg-card/95 p-3">
+        <textarea
+          className="h-full w-full resize-none bg-transparent text-sm outline-none"
+          value={text}
+          onChange={(e) => updateNodeData(node.id, { text: e.target.value })}
+          onPointerDown={(e) => e.stopPropagation()}
+        />
+      </div>
     </div>
   );
 }

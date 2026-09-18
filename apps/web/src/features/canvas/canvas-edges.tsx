@@ -110,14 +110,14 @@ export function NodeHandles({ node, onConnectStart }: HandleProps) {
       <span
         title="输入"
         aria-hidden
-        className="pointer-events-none absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#0a0a0a] bg-violet-400/80"
+        className="pointer-events-none absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-violet-400/80"
         style={{ left: node.x, top: node.y + h / 2 }}
       />
       <button
         type="button"
-        title="输出 · 拖到目标节点连线"
+        title="输出 · 拖到目标节点或空白处"
         aria-label="输出连接点"
-        className="absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#0a0a0a] bg-emerald-400/90 shadow hover:scale-125"
+        className="absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-emerald-400/90 shadow hover:scale-125"
         style={{ left: node.x + w, top: node.y + h / 2 }}
         onPointerDown={(e) => {
           e.stopPropagation();

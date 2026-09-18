@@ -51,8 +51,8 @@ function ToolBtn({
       aria-label={title}
       onClick={onClick}
       className={cn(
-        "grid size-8 place-items-center rounded-lg text-white/85 transition hover:bg-white/12 hover:text-white",
-        danger && "hover:bg-red-500/20 hover:text-red-300",
+        "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg transition",
+        danger && "hover:bg-destructive/15 hover:text-destructive",
       )}
     >
       {children}
@@ -159,6 +159,26 @@ export function NodeFloatToolbar({ nodes, viewport, onEditImage }: Props) {
     if (!promptText) return;
     updateNodeData(node.id, { status: "queued", error: "" });
     try {
+      const edges = useCanvasStore.getState().edges;
+      const nodes = useCanvasStore.getState().nodes;
+      const incoming = edges
+        .filter((e) => e.target === node.id)
+        .map((e) => nodes.find((n) => n.id === e.source))
+        .filter((n): n is CanvasNode => n != null && n.type === "image");
+      const edgeAssetIds = incoming
+        .map((n) => String(n.data.assetId ?? ""))
+        .filter(Boolean);
+      const edgeUrls = incoming
+        .map((n) => String(n.data.url ?? ""))
+        .filter((u) => u && !u.startsWith("data:"));
+      const storedIds = Array.isArray(node.data.referenceIds)
+        ? (node.data.referenceIds as string[])
+        : [];
+      const storedUrls = Array.isArray(node.data.referenceUrls)
+        ? (node.data.referenceUrls as string[])
+        : [];
+      const referenceAssetIds = [...new Set([...storedIds, ...edgeAssetIds])];
+      const referenceUrls = [...new Set([...storedUrls, ...edgeUrls])];
       const job = await api<{ id: string }>("/jobs", {
         method: "POST",
         body: {
@@ -169,10 +189,17 @@ export function NodeFloatToolbar({ nodes, viewport, onEditImage }: Props) {
             canvasProjectId: projectId,
             canvasNodeId: node.id,
             operation: String(node.data.operation ?? "generate"),
+            referenceAssetIds,
+            referenceUrls,
           },
         },
       });
-      updateNodeData(node.id, { status: "running", jobId: job.id });
+      updateNodeData(node.id, {
+        status: "running",
+        jobId: job.id,
+        referenceIds: referenceAssetIds,
+        referenceUrls,
+      });
     } catch (e) {
       updateNodeData(node.id, {
         status: "failed",
@@ -289,7 +316,9 @@ export function NodeFloatToolbar({ nodes, viewport, onEditImage }: Props) {
           </ToolBtn>
         );
       case "retry":
-        if (node.type !== "prompt" || status !== "failed") return null;
+        if (node.type !== "prompt") return null;
+        if (status !== "failed" && status !== "succeeded") return null;
+        if (!String(node.data.prompt ?? "").trim()) return null;
         return (
           <ToolBtn
             key={action}
@@ -336,13 +365,18 @@ export function NodeFloatToolbar({ nodes, viewport, onEditImage }: Props) {
 
   return (
     <div
+      data-canvas-no-zoom
+      data-canvas-shortcuts-ignore
       className="pointer-events-auto absolute z-30 -translate-x-1/2 -translate-y-full"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
+      onMouseEnter={() => {
+        /* keep visible while interacting */
+      }}
     >
-      <div className="flex items-center gap-0.5 rounded-xl bg-[#1c1c1ef5] px-1 py-1 shadow-[0_10px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+      <div className="joy-canvas-chrome flex items-center gap-0.5 rounded-xl px-1 py-1">
         {multi ? (
-          <span className="px-2 text-[11px] tabular-nums text-white/55">
+          <span className="joy-canvas-chrome-muted px-2 text-[11px] tabular-nums">
             {nodes.length}
           </span>
         ) : null}

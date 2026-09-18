@@ -48,7 +48,80 @@ export class ApiError extends Error {
 
 type JoyaiRequestConfig = AxiosRequestConfig & {
   token?: string | null;
+  /** 跨路由 / 切页也不取消（默认：非 GET 已保活） */
+  keepalive?: boolean;
 };
+
+/**
+ * 路由切换时仍要跑完的 GET 前缀白名单。
+ * 写操作（POST/PUT/PATCH/DELETE）与 apiUpload 默认保活，不必写在这里。
+ */
+export const KEEPALIVE_GET_PREFIXES = [
+  "/upload/check",
+] as const;
+
+/** 进行中的可取消 GET（路由切换时统一 abort） */
+const pendingGets = new Set<AbortController>();
+
+export function abortPendingGets(reason = "route-change") {
+  for (const controller of pendingGets) {
+    if (!controller.signal.aborted) {
+      controller.abort(reason);
+    }
+  }
+  pendingGets.clear();
+}
+
+function pathOnly(url: string) {
+  const q = url.indexOf("?");
+  return (q >= 0 ? url.slice(0, q) : url).replace(/\/$/, "") || "/";
+}
+
+function isKeepaliveGet(path: string) {
+  const p = pathOnly(path);
+  return KEEPALIVE_GET_PREFIXES.some(
+    (prefix) => p === prefix || p.startsWith(`${prefix}/`),
+  );
+}
+
+function shouldTrackForRouteAbort(
+  method: string,
+  path: string,
+  keepalive?: boolean,
+) {
+  if (keepalive) return false;
+  const m = method.toUpperCase();
+  if (m !== "GET" && m !== "HEAD") return false;
+  if (isKeepaliveGet(path)) return false;
+  return true;
+}
+
+function mergeAbortSignals(
+  a?: AbortSignal | null,
+  b?: AbortSignal | null,
+): AbortSignal | undefined {
+  if (!a && !b) return undefined;
+  if (a && !b) return a;
+  if (!a && b) return b;
+  const anyFn = (
+    AbortSignal as typeof AbortSignal & {
+      any?: (signals: AbortSignal[]) => AbortSignal;
+    }
+  ).any;
+  if (typeof anyFn === "function") return anyFn([a!, b!]);
+
+  const merged = new AbortController();
+  const forward = () => {
+    if (!merged.signal.aborted) merged.abort();
+  };
+  if (a!.aborted || b!.aborted) {
+    forward();
+    return merged.signal;
+  }
+  a!.addEventListener("abort", forward, { once: true });
+  b!.addEventListener("abort", forward, { once: true });
+  return merged.signal;
+}
 
 export const http = axios.create({
   baseURL: API_BASE,
@@ -71,9 +144,22 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
+export function isApiCancelError(error: unknown): boolean {
+  if (isCancel(error)) return true;
+  if (axios.isAxiosError(error) && error.code === "ERR_CANCELED") return true;
+  if (
+    error instanceof ApiError &&
+    (error.body as { code?: string } | undefined)?.code === "CANCELLED"
+  ) {
+    return true;
+  }
+  if (error instanceof DOMException && error.name === "AbortError") return true;
+  return false;
+}
+
 export function toApiError(error: unknown): ApiError {
-  if (isCancel(error)) {
-    return new ApiError("请求已取消", 0);
+  if (isApiCancelError(error)) {
+    return new ApiError("请求已取消", 0, { code: "CANCELLED" });
   }
   if (axios.isAxiosError(error)) {
     if (!error.response) {
@@ -112,20 +198,40 @@ type RequestOptions = {
   token?: string | null;
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /**
+   * 为 true 时不参与「切路由取消」。
+   * 写操作默认已保活；仅特殊长耗时 GET 需要显式打开。
+   */
+  keepalive?: boolean;
 };
 
 export async function api<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { body, token, headers, method = "GET", signal } = options;
+  const {
+    body,
+    token,
+    headers,
+    method = "GET",
+    signal,
+    keepalive,
+  } = options;
+
+  const track = shouldTrackForRouteAbort(method, path, keepalive);
+  const routeController = track ? new AbortController() : null;
+  if (routeController) pendingGets.add(routeController);
+
+  const merged = mergeAbortSignals(signal, routeController?.signal);
+
   try {
     const config: JoyaiRequestConfig = {
       url: path,
       method,
       headers,
-      signal,
+      signal: merged,
       token,
+      keepalive,
     };
     if (body !== undefined) config.data = body;
     const res = await http.request<T>(config);
@@ -133,6 +239,8 @@ export async function api<T = unknown>(
     return res.data;
   } catch (error) {
     throw toApiError(error);
+  } finally {
+    if (routeController) pendingGets.delete(routeController);
   }
 }
 
@@ -151,12 +259,15 @@ export async function apiUpload<T = unknown>(
       method: "POST",
       body: { md5, size: file.size, mimeType: file.type },
       token,
+      keepalive: true,
     });
     if (checked.exists && checked.asset) {
       return checked.asset;
     }
-  } catch {
-    // 预检失败则走正常上传
+  } catch (error) {
+    if (!isApiCancelError(error)) {
+      // 预检失败则走正常上传
+    }
   }
 
   const form = new FormData();
@@ -165,9 +276,11 @@ export async function apiUpload<T = unknown>(
   try {
     const res = await http.post<T>(path, form, {
       token,
+      keepalive: true,
     } as JoyaiRequestConfig);
     return res.data;
   } catch (error) {
+    if (isApiCancelError(error)) throw toApiError(error);
     const err = toApiError(error);
     throw new ApiError(err.message || "上传失败", err.status, err.body);
   }
