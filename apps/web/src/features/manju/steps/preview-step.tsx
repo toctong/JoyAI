@@ -1,40 +1,61 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Pause, Play } from "lucide-react";
+import { Download, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
 import { cn } from "@/shared/lib/utils";
+import { toast } from "@/shared/lib/toast";
 import type { ManjuProjectDraft } from "../manju-types";
 
-export function PreviewStep({ project }: { project: ManjuProjectDraft }) {
-  const clips = useMemo(
-    () => project.shots.filter((s) => s.videoUrl),
-    [project.shots],
-  );
+export function PreviewStep({
+  project,
+  episodeId = null,
+}: {
+  project: ManjuProjectDraft;
+  episodeId?: string | null;
+}) {
+  const clips = useMemo(() => {
+    const pool = episodeId
+      ? project.shots.filter((s) => s.episodeId === episodeId)
+      : project.shots;
+    return pool.filter((s) => s.videoUrl);
+  }, [project.shots, episodeId]);
+
   const [active, setActive] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
 
   const current = clips[active] ?? null;
-  const durationMs = (project.settings.duration || 5) * 1000;
 
   useEffect(() => {
     if (active >= clips.length) setActive(0);
   }, [active, clips.length]);
 
-  useEffect(() => {
-    if (!autoPlay || clips.length === 0) return;
-    const timer = window.setTimeout(() => {
-      setActive((i) => {
-        if (i >= clips.length - 1) {
-          setAutoPlay(false);
-          return i;
-        }
-        return i + 1;
-      });
-    }, durationMs);
-    return () => window.clearTimeout(timer);
-  }, [autoPlay, active, clips.length, durationMs]);
+  const advance = () => {
+    setActive((i) => {
+      if (i >= clips.length - 1) {
+        setAutoPlay(false);
+        toast.message("已播完本集镜头");
+        return i;
+      }
+      return i + 1;
+    });
+  };
+
+  const downloadAll = async () => {
+    if (clips.length === 0) return;
+    toast.message(`开始下载 ${clips.length} 个镜头…`);
+    for (const shot of clips) {
+      if (!shot.videoUrl) continue;
+      const a = document.createElement("a");
+      a.href = shot.videoUrl;
+      a.download = `${project.title || "manju"}_${String(shot.index).padStart(2, "0")}.mp4`;
+      a.target = "_blank";
+      a.rel = "noreferrer";
+      a.click();
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  };
 
   if (clips.length === 0) {
     return (
@@ -53,10 +74,14 @@ export function PreviewStep({ project }: { project: ManjuProjectDraft }) {
         <div className="manju-preview-stage bg-black">
           {current?.videoUrl ? (
             <StudioPlyrPlayer
-              key={current.id}
+              key={`${current.id}-${autoPlay ? "seq" : "manual"}`}
               src={current.videoUrl}
               poster={current.storyboardImageUrl}
               className="max-h-full max-w-full"
+              autoPlay={autoPlay}
+              onEnded={() => {
+                if (autoPlay) advance();
+              }}
             />
           ) : null}
         </div>
@@ -66,9 +91,10 @@ export function PreviewStep({ project }: { project: ManjuProjectDraft }) {
             <span className="ml-2 text-muted-foreground">
               {String(current?.index ?? 0).padStart(2, "0")} /{" "}
               {String(clips.length).padStart(2, "0")}
+              {episodeId ? " · 当前分集" : ""}
             </span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
               variant={autoPlay ? "default" : "outline"}
@@ -90,6 +116,10 @@ export function PreviewStep({ project }: { project: ManjuProjectDraft }) {
               >
                 下载当前镜
               </a>
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => void downloadAll()}>
+              <Download className="h-4 w-4" />
+              打包下载全部
             </Button>
           </div>
         </div>

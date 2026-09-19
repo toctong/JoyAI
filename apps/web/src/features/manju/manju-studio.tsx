@@ -117,7 +117,7 @@ export function ManjuModelBar({ project }: { project: ManjuProjectDraft }) {
                   })
                 }
               >
-                <SelectTrigger className="h-9 w-full bg-background/60">
+                <SelectTrigger className="h-9 w-full">
                   <SelectValue placeholder="渠道默认" />
                 </SelectTrigger>
                 <SelectContent>
@@ -146,15 +146,19 @@ export function ManjuModelBar({ project }: { project: ManjuProjectDraft }) {
 export function ManjuStudioShell({
   project,
   panel,
+  episodeId = null,
   saving,
   onPanel,
+  onEpisode,
   onTitle,
   children,
 }: {
   project: ManjuProjectDraft;
   panel: ManjuPanel;
+  episodeId?: string | null;
   saving: boolean;
   onPanel: (panel: ManjuPanel) => void;
+  onEpisode?: (episodeId: string | null) => void;
   onTitle: (title: string) => void;
   children: ReactNode;
 }) {
@@ -177,7 +181,10 @@ export function ManjuStudioShell({
       setAnalyzing(project.id, true);
       await flushSave(project.id);
       const names = project.assets.map((a) => a.name).join("、");
-      const shotBrief = project.shots
+      const shotBrief = (episodeId
+        ? project.shots.filter((s) => s.episodeId === episodeId)
+        : project.shots
+      )
         .map((s) => {
           const assetNames = project.assets
             .filter((a) => s.assetRefs.includes(a.id))
@@ -186,12 +193,13 @@ export function ManjuStudioShell({
           return `#${s.index} 画面:${s.visual} 对白:${s.dialogue || "无"} 资产:${assetNames || "无"}`;
         })
         .join("\n");
+      const episodes = project.episodes.map((e) => e.title).join("、");
       const prompt =
         next.skill === "analyze_assets"
           ? project.scriptText
           : next.skill === "script_plan"
-            ? `可用资产：${names || "（暂无）"}\n\n原文：\n${project.scriptText}`
-            : `风格：${project.settings.style}\n画幅：${project.settings.ratio}\n\n已锁定镜头：\n${shotBrief}`;
+            ? `可用资产：${names || "（暂无）"}\n分集标题：${episodes || "（未分集）"}\n\n原文：\n${project.scriptText}`
+            : `风格：${project.settings.style}\n画幅：${project.settings.ratio}\n说明：每条镜头的序号必须使用下列全局 #index，不要从 1 重新编号。\n\n已锁定镜头：\n${shotBrief}`;
       await submitManjuAnalyzeJob({
         projectId: project.id,
         scriptText: prompt,
@@ -287,12 +295,27 @@ export function ManjuStudioShell({
               {project.episodes.length > 0 ? (
                 <div className="manju-studio__episodes">
                   <div className="manju-studio__episodes-label">分集</div>
+                  <button
+                    type="button"
+                    className={cn(
+                      "manju-studio__episode",
+                      panel === "timeline" && !episodeId && "is-active",
+                    )}
+                    onClick={() => onEpisode?.(null)}
+                  >
+                    全部镜头
+                  </button>
                   {project.episodes.map((ep, i) => (
                     <button
                       key={ep.id}
                       type="button"
-                      className="manju-studio__episode"
-                      onClick={() => onPanel("timeline")}
+                      className={cn(
+                        "manju-studio__episode",
+                        panel === "timeline" &&
+                          episodeId === ep.id &&
+                          "is-active",
+                      )}
+                      onClick={() => onEpisode?.(ep.id)}
                     >
                       {String(i + 1).padStart(2, "0")} {ep.title}
                     </button>
@@ -348,8 +371,13 @@ export function ManjuStudioShell({
                   variant="outline"
                   onClick={() => {
                     updateProject(project.id, { scriptConfirmed: true });
-                    toast.success("脚本已确认，可以写提示词");
-                    onPanel("prompts");
+                    const needAssets = !project.assets.some((a) => a.imageUrl);
+                    toast.success(
+                      needAssets
+                        ? "脚本已确认，请先生成设定图"
+                        : "脚本已确认，可以写提示词",
+                    );
+                    onPanel(needAssets ? "characters" : "prompts");
                   }}
                 >
                   确认脚本

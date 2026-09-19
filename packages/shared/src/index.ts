@@ -162,6 +162,8 @@ export const ManjuAnalyzeShotSchema = z.object({
   visual: z.string().min(1),
   dialogue: z.string().default(""),
   assetNames: z.array(z.string()).default([]),
+  /** 所属分集标题，须与已登记 episodes.title 一致 */
+  episodeTitle: z.string().default(""),
 });
 export const ManjuAnalyzeResultSchema = z.object({
   overview: z.string().default(""),
@@ -177,12 +179,12 @@ export const ManjuAuthorPromptSchema = z.object({
   shots: z
     .array(
       z.object({
-        index: z.number().int().positive().optional(),
-        imagePrompt: z.string().default(""),
-        videoPrompt: z.string().default(""),
+        index: z.number().int().positive(),
+        imagePrompt: z.string().min(1),
+        videoPrompt: z.string().min(1),
       }),
     )
-    .default([]),
+    .min(1),
 });
 export type ManjuAuthorPromptResult = z.infer<typeof ManjuAuthorPromptSchema>;
 
@@ -234,6 +236,9 @@ export const ManjuShotDraftSchema = z.object({
   imagePrompt: z.string().default(""),
   videoPrompt: z.string().default(""),
   assetRefs: z.array(z.string()).default([]),
+  episodeId: z.string().nullable().default(null),
+  /** 单镜时长秒；null/缺省则用项目 settings.duration */
+  duration: z.number().positive().nullable().default(null),
   storyboardImageUrl: z.string().nullable().default(null),
   storyboardAssetId: z.string().nullable().default(null),
   storyboardJobId: z.string().nullable().default(null),

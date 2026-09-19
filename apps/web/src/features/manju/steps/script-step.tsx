@@ -2,10 +2,11 @@
 
 import { Loader2, Sparkles, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
 import { useManjuStore } from "../manju-store";
 import { submitManjuAnalyzeJob } from "../manju-api";
+import { ManjuMdField } from "../manju-md-field";
 import {
   extractAssetsFromScript,
   parseScriptToShots,
@@ -21,11 +22,25 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
   const setAnalyzing = useManjuStore((s) => s.setAnalyzing);
   const analyzing = useManjuStore((s) => Boolean(s.analyzingIds[project.id]));
 
-  const splitToShots = () => {
+  const splitToShots = async () => {
     const shots = parseScriptToShots(project.scriptText);
     if (shots.length === 0) {
       toast.error("未能从剧本拆出分镜，请检查格式");
       return;
+    }
+    const hasMedia = project.shots.some(
+      (s) => s.storyboardImageUrl || s.videoUrl,
+    );
+    if (hasMedia) {
+      const ok = await confirmDialog({
+        title: "覆盖现有分镜？",
+        description:
+          "当前分镜已有分镜图或视频。拆分会整表替换镜头列表，已有媒体可能丢失。",
+        confirmText: "仍然拆分",
+        cancelText: "取消",
+        destructive: true,
+      });
+      if (!ok) return;
     }
     setShots(project.id, shots);
     autoLinkShotAssets(project.id);
@@ -55,14 +70,13 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     try {
       setAnalyzing(project.id, true);
       await flushSave(project.id);
-      const job = await submitManjuAnalyzeJob({
+      await submitManjuAnalyzeJob({
         projectId: project.id,
         scriptText: project.scriptText,
         purpose: "analyze_assets",
         modelId: project.settings.llmModelId,
       });
-      updateProject(project.id, { lastAnalyzeJobId: job.id });
-      toast.success("已提交 AI 分析（角色/分集/分镜）");
+      toast.success("已提交资产与分集分析（不含分镜）");
     } catch (e) {
       setAnalyzing(project.id, false);
       toast.error(e instanceof Error ? e.message : "提交分析失败");
@@ -76,8 +90,7 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
           <div>
             <div className="manju-card__title">剧本 / 小说原文</div>
             <p className="manju-card__desc">
-              粘贴成品剧本或小说。推荐使用「AI 分析」抽取角色、分集与分镜（需在管理后台启用
-              LLM 模型）；也可本地规则快速拆分。
+              粘贴成品剧本或小说。「AI 分析」只登记角色、场景、道具和分集，分镜要另跑规划。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -85,7 +98,7 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               variant="outline"
               size="sm"
               onClick={extractAssets}
-              disabled={project.scriptText.trim().length < 10 || analyzing}
+              disabled={analyzing}
             >
               <Wand2 className="h-4 w-4" />
               本地提取
@@ -93,15 +106,15 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
             <Button
               variant="outline"
               size="sm"
-              onClick={splitToShots}
-              disabled={project.scriptText.trim().length < 10 || analyzing}
+              onClick={() => void splitToShots()}
+              disabled={analyzing}
             >
               拆分为分镜
             </Button>
             <Button
               size="sm"
               onClick={() => void runAiAnalyze()}
-              disabled={project.scriptText.trim().length < 20 || analyzing}
+              disabled={analyzing}
             >
               {analyzing ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -112,14 +125,13 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
             </Button>
           </div>
         </div>
-        <Textarea
+        <ManjuMdField
           value={project.scriptText}
-          onChange={(e) =>
-            updateProject(project.id, { scriptText: e.target.value })
-          }
+          onChange={(scriptText) => updateProject(project.id, { scriptText })}
           placeholder={`示例：\n\n场景：青石巷口·雨夜\n\n少年：今晚，城门不会为任何人开。\n\n镜头2\n暗色水墨风，镜头缓慢推进巷深。少年握着信笺。`}
-          className="mt-4 min-h-[380px] resize-y text-[13px] leading-relaxed"
-          disabled={analyzing}
+          height={420}
+          preview="edit"
+          className="mt-4"
         />
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{project.scriptText.length} 字</span>

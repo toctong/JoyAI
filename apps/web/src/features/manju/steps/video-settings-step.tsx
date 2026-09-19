@@ -45,7 +45,7 @@ export function VideoSettingsStep({
         <p className="manju-card__desc mb-3">
           {modeLocked
             ? "已进入分镜视频后锁定，避免混用模式。"
-            : "对齐 ArcReel generation_mode：首期默认图生视频。"}
+            : "图生视频用分镜静帧作首帧；全能参考只用资产图，不混首帧。多宫格切块尚未实现。"}
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           {MODE_OPTIONS.map((m) => (

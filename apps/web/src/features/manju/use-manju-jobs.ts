@@ -96,7 +96,6 @@ export function useManjuJobBridge(activeProjectId?: string) {
           purpose === "author_prompts") &&
         manjuProjectId
       ) {
-        setAnalyzing(manjuProjectId, false);
         void loadProject(manjuProjectId)
           .then(() => {
             toast.success(
@@ -109,6 +108,9 @@ export function useManjuJobBridge(activeProjectId?: string) {
           })
           .catch(() => {
             toast.message("分析完成，请刷新项目");
+          })
+          .finally(() => {
+            setAnalyzing(manjuProjectId, false);
           });
         return;
       }

@@ -8,15 +8,17 @@ import {
   Plus,
   Sparkles,
   Trash2,
+  Upload,
   UserRound,
   Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
+import { apiUpload } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { ManjuMdField } from "../manju-md-field";
 import { useManjuStore } from "../manju-store";
 import { submitImageJob } from "../use-manju-jobs";
 import {
@@ -88,6 +90,27 @@ export function AssetsStep({
     }
     for (const asset of targets) {
       await generate(asset);
+    }
+  };
+
+  const uploadRef = async (asset: ManjuAssetDraft, file: File) => {
+    try {
+      updateAsset(project.id, asset.id, { status: "running" });
+      const saved = await apiUpload<{ id: string; url: string }>(
+        "/upload",
+        file,
+      );
+      updateAsset(project.id, asset.id, {
+        imageUrl: saved.url,
+        assetId: saved.id,
+        jobId: null,
+        status: "succeeded",
+      });
+      useManjuStore.getState().markStepComplete(project.id, "assets");
+      toast.success("参考图已上传");
+    } catch (e) {
+      updateAsset(project.id, asset.id, { status: "failed" });
+      toast.error(e instanceof Error ? e.message : "上传失败");
     }
   };
 
@@ -212,12 +235,10 @@ export function AssetsStep({
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-                  <Textarea
+                  <ManjuMdField
                     value={asset.description}
-                    onChange={(e) =>
-                      updateAsset(project.id, asset.id, {
-                        description: e.target.value,
-                      })
+                    onChange={(description) =>
+                      updateAsset(project.id, asset.id, { description })
                     }
                     placeholder={
                       asset.kind === "character"
@@ -226,7 +247,9 @@ export function AssetsStep({
                           ? "地点、光线、氛围…（无人全景）"
                           : "材质、造型、用途…"
                     }
-                    className="mt-2 min-h-[72px] resize-none text-xs"
+                    height={100}
+                    hideToolbar
+                    className="mt-2"
                   />
                   <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">
                     将提交：{buildAssetPrompt(asset, project.settings)}
@@ -241,19 +264,42 @@ export function AssetsStep({
                             ? "排队/生成中"
                             : "未生成"}
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() => void generate(asset)}
-                    >
-                      {busy ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Sparkles className="h-3.5 w-3.5" />
-                      )}
-                      {asset.imageUrl ? "重新生成" : "生成参考图"}
-                    </Button>
+                    <div className="flex gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        asChild
+                      >
+                        <label className="cursor-pointer">
+                          <Upload className="h-3.5 w-3.5" />
+                          上传
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (file) void uploadRef(asset, file);
+                            }}
+                          />
+                        </label>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => void generate(asset)}
+                      >
+                        {busy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3.5 w-3.5" />
+                        )}
+                        {asset.imageUrl ? "重新生成" : "生成参考图"}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </article>

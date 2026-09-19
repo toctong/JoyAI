@@ -634,17 +634,14 @@
   color: var(--muted-foreground);
 }
 
-/* ArcReel-like dark glass studio (workbench only) */
+/* Studio shell — JoyAI theme tokens (light / dark) */
 .manju-studio {
   display: flex;
   height: 100%;
   min-height: 0;
   flex-direction: column;
-  color: #f4f4f5;
-  background:
-    radial-gradient(900px 420px at 10% -10%, rgba(124, 92, 255, 0.18), transparent 60%),
-    radial-gradient(700px 360px at 90% 0%, rgba(80, 120, 255, 0.12), transparent 55%),
-    #0c0c12;
+  color: var(--foreground);
+  background: var(--background);
 }
 
 .manju-studio__header {
@@ -653,10 +650,9 @@
   flex-shrink: 0;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(16, 16, 22, 0.72);
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
   padding: 0 12px;
-  backdrop-filter: blur(12px);
 }
 
 .manju-studio__back {
@@ -665,13 +661,13 @@
   width: 28px;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  color: #a1a1aa;
+  border-radius: calc(var(--radius) - 4px);
+  color: var(--muted-foreground);
 }
 
 .manju-studio__back:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  background: var(--muted);
+  color: var(--foreground);
 }
 
 .manju-studio__title {
@@ -680,7 +676,7 @@
   background: transparent;
   font-size: 14px;
   font-weight: 600;
-  color: #fafafa;
+  color: var(--foreground);
   outline: none;
 }
 
@@ -693,24 +689,24 @@
 }
 
 .manju-studio__phase {
-  border-radius: 999px;
+  border-radius: calc(var(--radius) - 2px);
   padding: 4px 10px;
   font-size: 12px;
-  color: #71717a;
+  color: var(--muted-foreground);
 }
 
 .manju-studio__phase.is-active {
-  background: rgba(167, 139, 250, 0.18);
-  color: #ddd6fe;
+  background: color-mix(in oklab, var(--ring) 22%, transparent);
+  color: var(--foreground);
 }
 
 .manju-studio__phase.is-done {
-  color: #a1a1aa;
+  color: var(--muted-foreground);
 }
 
 .manju-studio__save {
   font-size: 11px;
-  color: #71717a;
+  color: var(--muted-foreground);
 }
 
 .manju-studio__body {
@@ -720,13 +716,13 @@
 }
 
 .manju-studio__resize {
-  width: 8px !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  width: 6px !important;
+  background: var(--border) !important;
 }
 
 .manju-studio__resize:hover,
 .manju-studio__resize[data-resize-handle-active] {
-  background: rgba(167, 139, 250, 0.35) !important;
+  background: color-mix(in oklab, var(--ring) 55%, transparent) !important;
 }
 
 .manju-studio__side,
@@ -734,8 +730,7 @@
   width: 100%;
   flex-shrink: 0;
   overflow: visible;
-  border-color: rgba(255, 255, 255, 0.08);
-  background: transparent;
+  background: var(--card);
   padding: 12px;
 }
 
@@ -757,28 +752,33 @@
   width: 100%;
   align-items: center;
   gap: 8px;
-  border-radius: 8px;
+  border-radius: calc(var(--radius) - 4px);
   padding: 8px 10px;
   text-align: left;
   font-size: 13px;
-  color: #a1a1aa;
+  color: var(--muted-foreground);
 }
 
 .manju-studio__nav.is-active {
-  background: linear-gradient(90deg, rgba(167, 139, 250, 0.22), transparent);
-  color: #f5f3ff;
-  box-shadow: inset 2px 0 0 #a78bfa;
+  background: var(--muted);
+  color: var(--foreground);
+  box-shadow: inset 2px 0 0 color-mix(in oklab, var(--ring) 80%, transparent);
 }
 
 .manju-studio__nav:hover,
 .manju-studio__episode:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: #fafafa;
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.manju-studio__episode.is-active {
+  background: color-mix(in oklab, var(--ring) 18%, transparent);
+  color: var(--foreground);
 }
 
 .manju-studio__episodes {
   margin-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border);
   padding-top: 12px;
 }
 
@@ -787,9 +787,9 @@
   margin-bottom: 6px;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #71717a;
+  color: var(--muted-foreground);
 }
 
 .manju-studio__copilot-title {
@@ -799,7 +799,7 @@
   text-transform: none;
   letter-spacing: 0;
   font-size: 13px;
-  color: #e4e4e7;
+  color: var(--foreground);
 }
 
 .manju-studio__main {
@@ -807,14 +807,15 @@
   flex: 1;
   overflow: auto;
   padding: 20px 24px 40px;
+  background: var(--background);
 }
 
 .manju-studio .manju-card,
 .manju-studio .manju-shot-card,
 .manju-studio .manju-asset-card {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(24, 24, 32, 0.72);
-  color: #f4f4f5;
+  border-color: var(--border);
+  background: var(--card);
+  color: var(--foreground);
 }
 
 @keyframes manju-accordion-down {

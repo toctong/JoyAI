@@ -209,25 +209,33 @@ export function buildStoryboardVideoPrompt(
   options?: {
     slots?: ReferenceSlot[];
     mode?: ManjuGenMode;
+    continuityHint?: string | null;
   },
 ): string {
   const mode = options?.mode ?? project.settings.mode;
   const refs = options?.slots ?? resolveShotReferenceSlots(shot, project);
   const raw = shot.videoPrompt?.trim() || fallbackVideoBody(shot);
   const body = renderReferenceMentions(raw, refs);
-  const duration = project.settings.duration;
+  const duration =
+    shot.duration && shot.duration > 0
+      ? shot.duration
+      : project.settings.duration;
+  const continuity = options?.continuityHint;
 
   const modeHint =
     mode === "ref"
       ? "全能参考：外观以参考图为准，正文不要复述外貌服装，专注动作、运镜与气氛。"
       : mode === "grid"
         ? "多宫格分镜延续：保持相邻格人物造型与光影连续。"
-        : "图生视频：以首帧分镜图为起点，自然演绎镜头内动作，保持人物造型与场景一致。";
+        : continuity
+          ? "图生视频：以首帧分镜为起点，末帧参考上一镜/本镜收束姿态，镜头过渡自然连贯。"
+          : "图生视频：以首帧分镜图为起点，自然演绎镜头内动作，保持人物造型与场景一致。";
 
   return trimJoin([
     `镜头时长约 ${duration} 秒，画幅 ${project.settings.ratio}`,
     styleLine(project.settings),
     modeHint,
+    continuity ?? null,
     mode === "ref" ? referenceDeclaration(refs) : null,
     `动态：${body}`,
     shot.dialogue?.trim()

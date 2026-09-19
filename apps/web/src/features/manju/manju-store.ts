@@ -73,7 +73,11 @@ type ManjuState = {
   ) => void;
   removeAsset: (projectId: string, assetId: string) => void;
 
-  addShot: (projectId: string, afterIndex?: number) => string;
+  addShot: (
+    projectId: string,
+    afterIndex?: number,
+    opts?: { episodeId?: string | null },
+  ) => string;
   updateShot: (
     projectId: string,
     shotId: string,
@@ -81,7 +85,11 @@ type ManjuState = {
   ) => void;
   removeShot: (projectId: string, shotId: string) => void;
   moveShot: (projectId: string, shotId: string, dir: -1 | 1) => void;
-  setShots: (projectId: string, shots: ManjuShotDraft[]) => void;
+  setShots: (
+    projectId: string,
+    shots: ManjuShotDraft[],
+    opts?: { preserveConfirm?: boolean },
+  ) => void;
   mergeExtractedAssets: (
     projectId: string,
     extracted: ManjuAssetDraft[],
@@ -116,6 +124,21 @@ type ManjuState = {
 };
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+/** Bumped when a server reload wins; in-flight PATCH must not overwrite it. */
+const saveEpoch = new Map<string, number>();
+
+function cancelScheduledSave(id: string) {
+  const prev = saveTimers.get(id);
+  if (prev) clearTimeout(prev);
+  saveTimers.delete(id);
+}
+
+function bumpSaveEpoch(id: string) {
+  const next = (saveEpoch.get(id) ?? 0) + 1;
+  saveEpoch.set(id, next);
+  cancelScheduledSave(id);
+  return next;
+}
 
 function reindex(shots: ManjuShotDraft[]): ManjuShotDraft[] {
   return shots.map((s, i) => ({ ...s, index: i + 1 }));
@@ -171,7 +194,10 @@ export const useManjuStore = create<ManjuState>((set, get) => {
     },
 
     loadProject: async (id) => {
+      bumpSaveEpoch(id);
+      const epoch = saveEpoch.get(id) ?? 0;
       const dto = await getManjuProject(id);
+      if ((saveEpoch.get(id) ?? 0) !== epoch) return get().getProject(id) ?? null;
       const project = projectFromDto(dto);
       get().upsertProject(project);
       return project;
@@ -215,15 +241,17 @@ export const useManjuStore = create<ManjuState>((set, get) => {
     },
 
     flushSave: async (id) => {
+      const epoch = saveEpoch.get(id) ?? 0;
       const project = get().getProject(id);
       if (!project) return;
+      if ((saveEpoch.get(id) ?? 0) !== epoch) return;
       set((s) => ({ savingIds: { ...s.savingIds, [id]: true } }));
       try {
         const dto = await updateManjuProject(id, {
           title: project.title,
           draft: draftFromProject(project),
         });
-        // Keep local richer job status; only sync timestamps/title if server ahead
+        if ((saveEpoch.get(id) ?? 0) !== epoch) return;
         set((s) => ({
           projects: s.projects.map((p) =>
             p.id === id
@@ -244,12 +272,13 @@ export const useManjuStore = create<ManjuState>((set, get) => {
     },
 
     scheduleSave: (id) => {
-      const prev = saveTimers.get(id);
-      if (prev) clearTimeout(prev);
+      if (get().analyzingIds[id]) return;
+      cancelScheduledSave(id);
       saveTimers.set(
         id,
         setTimeout(() => {
           saveTimers.delete(id);
+          if (get().analyzingIds[id]) return;
           void get().flushSave(id);
         }, 800),
       );
@@ -300,7 +329,7 @@ export const useManjuStore = create<ManjuState>((set, get) => {
       }));
     },
 
-    addShot: (projectId, afterIndex) => {
+    addShot: (projectId, afterIndex, opts) => {
       let newShotId = "";
       mutate(projectId, (p) => {
         const shots = [...p.shots];
@@ -308,16 +337,22 @@ export const useManjuStore = create<ManjuState>((set, get) => {
           afterIndex == null
             ? shots.length
             : Math.min(shots.length, Math.max(0, afterIndex));
-        const shot = createEmptyShot(insertAt + 1);
+        const shot = {
+          ...createEmptyShot(insertAt + 1),
+          episodeId: opts?.episodeId ?? null,
+        };
         newShotId = shot.id;
         shots.splice(insertAt, 0, shot);
-        return { ...p, shots: reindex(shots) };
+        return { ...p, shots: reindex(shots), scriptConfirmed: false };
       });
       return newShotId;
     },
     updateShot: (projectId, shotId, patch) => {
+      const contentEdited =
+        patch.visual !== undefined || patch.dialogue !== undefined;
       mutate(projectId, (p) => ({
         ...p,
+        scriptConfirmed: contentEdited ? false : p.scriptConfirmed,
         shots: p.shots.map((shot) =>
           shot.id === shotId ? { ...shot, ...patch } : shot,
         ),
@@ -341,8 +376,12 @@ export const useManjuStore = create<ManjuState>((set, get) => {
         return { ...p, shots: reindex(shots) };
       });
     },
-    setShots: (projectId, shots) => {
-      mutate(projectId, (p) => ({ ...p, shots: reindex(shots) }));
+    setShots: (projectId, shots, opts) => {
+      mutate(projectId, (p) => ({
+        ...p,
+        shots: reindex(shots),
+        scriptConfirmed: opts?.preserveConfirm ? p.scriptConfirmed : false,
+      }));
     },
     mergeExtractedAssets: (projectId, extracted) => {
       let added = 0;
@@ -386,14 +425,20 @@ export const useManjuStore = create<ManjuState>((set, get) => {
         videoJobId: jobId,
         videoStatus: status,
       });
+      get().markStepComplete(projectId, "storyboard-video");
     },
     applyJobResult: ({ jobId, status, url, assetId }) => {
+      const touchedIds: string[] = [];
       set((s) => ({
         projects: s.projects.map((p) => {
           let changed = false;
+          let assetHit = false;
+          let storyboardHit = false;
+          let videoHit = false;
           const assets = p.assets.map((a) => {
             if (a.jobId !== jobId) return a;
             changed = true;
+            assetHit = true;
             return {
               ...a,
               status,
@@ -404,6 +449,7 @@ export const useManjuStore = create<ManjuState>((set, get) => {
           const shots = p.shots.map((shot) => {
             if (shot.storyboardJobId === jobId) {
               changed = true;
+              storyboardHit = true;
               return {
                 ...shot,
                 storyboardStatus: status,
@@ -413,6 +459,7 @@ export const useManjuStore = create<ManjuState>((set, get) => {
             }
             if (shot.videoJobId === jobId) {
               changed = true;
+              videoHit = true;
               return {
                 ...shot,
                 videoStatus: status,
@@ -422,28 +469,39 @@ export const useManjuStore = create<ManjuState>((set, get) => {
             }
             return shot;
           });
-          return changed
-            ? { ...p, assets, shots, updatedAt: new Date().toISOString() }
-            : p;
+          if (!changed) return p;
+          touchedIds.push(p.id);
+          const completed = new Set(p.completedSteps);
+          if (status === "succeeded") {
+            if (assetHit) completed.add("assets");
+            if (storyboardHit) completed.add("storyboard-script");
+            if (videoHit) {
+              completed.add("storyboard-video");
+              completed.add("preview");
+            }
+          }
+          return {
+            ...p,
+            assets,
+            shots,
+            completedSteps: [...completed],
+            updatedAt: new Date().toISOString(),
+          };
         }),
       }));
       // Persist media urls after generation settles
       if (status === "succeeded" || status === "failed") {
-        for (const p of get().projects) {
-          const hit =
-            p.assets.some((a) => a.jobId === jobId) ||
-            p.shots.some(
-              (s) =>
-                s.storyboardJobId === jobId || s.videoJobId === jobId,
-            );
-          if (hit) get().scheduleSave(p.id);
+        for (const id of touchedIds) {
+          get().scheduleSave(id);
         }
       }
     },
 
-    setAnalyzing: (id, busy) =>
+    setAnalyzing: (id, busy) => {
+      if (busy) cancelScheduledSave(id);
       set((s) => ({
         analyzingIds: { ...s.analyzingIds, [id]: busy },
-      })),
+      }));
+    },
   };
 });

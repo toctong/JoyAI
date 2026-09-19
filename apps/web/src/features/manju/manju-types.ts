@@ -37,6 +37,10 @@ export type ManjuShotDraft = {
   videoPrompt: string;
   /** 关联角色/场景/道具资产 id */
   assetRefs: string[];
+  /** 所属分集；null 表示未归集 */
+  episodeId: string | null;
+  /** 本镜时长秒；null 则用项目默认 */
+  duration: number | null;
   /** 分镜静帧 */
   storyboardImageUrl: string | null;
   storyboardAssetId: string | null;
@@ -127,7 +131,7 @@ export const MODE_OPTIONS: {
   {
     id: "grid",
     title: "多宫格",
-    desc: "批量宫格出片，适合快剪",
+    desc: "宫格切块尚未实现，暂按图生视频",
   },
 ];
 
@@ -140,6 +144,8 @@ export function createEmptyShot(index: number): ManjuShotDraft {
     imagePrompt: "",
     videoPrompt: "",
     assetRefs: [],
+    episodeId: null,
+    duration: null,
     storyboardImageUrl: null,
     storyboardAssetId: null,
     storyboardJobId: null,
@@ -232,6 +238,9 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
         videoAssetId: s.videoAssetId ?? null,
         videoJobId: s.videoJobId ?? null,
         assetRefs: Array.isArray(s.assetRefs) ? s.assetRefs : [],
+        episodeId: typeof s.episodeId === "string" ? s.episodeId : null,
+        duration:
+          typeof s.duration === "number" && s.duration > 0 ? s.duration : null,
         imagePrompt: typeof s.imagePrompt === "string" ? s.imagePrompt : "",
         videoPrompt: typeof s.videoPrompt === "string" ? s.videoPrompt : "",
       }))
@@ -289,6 +298,15 @@ export function parseScriptToShots(script: string): ManjuShotDraft[] {
   });
 }
 
+export function shotDurationSeconds(
+  shot: ManjuShotDraft,
+  project: ManjuProjectDraft,
+): number {
+  return shot.duration && shot.duration > 0
+    ? shot.duration
+    : project.settings.duration || 5;
+}
+
 export function buildAssetPrompt(
   asset: ManjuAssetDraft,
   settings: ManjuVideoSettings,
@@ -306,8 +324,9 @@ export function buildShotImagePrompt(
 export function buildShotVideoPrompt(
   shot: ManjuShotDraft,
   project: ManjuProjectDraft,
+  options?: { continuityHint?: string | null },
 ): string {
-  return buildStoryboardVideoPrompt(shot, project);
+  return buildStoryboardVideoPrompt(shot, project, options);
 }
 
 export function isBusyStatus(status: ManjuJobStatus): boolean {
@@ -491,6 +510,15 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       detail: "确认后才会写画面/视频提示词，避免改写对白",
     };
   }
+  if (!project.assets.some((a) => a.imageUrl)) {
+    return {
+      stepId: "assets",
+      panel: "characters",
+      skill: null,
+      label: "生成设定图",
+      detail: "先出角色/场景/道具参考图，再写提示词，避免 @[名] 对不上图",
+    };
+  }
   if (
     project.shots.some(
       (s) => !s.imagePrompt?.trim() || !s.videoPrompt?.trim(),
@@ -502,15 +530,6 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       skill: "author_prompts",
       label: "编写提示词",
       detail: "技能 author_prompts：只补画面/视频提示词，不改镜序与对白",
-    };
-  }
-  if (!project.assets.some((a) => a.imageUrl)) {
-    return {
-      stepId: "assets",
-      panel: "characters",
-      skill: null,
-      label: "生成设定图",
-      detail: "用渠道图像模型出角色/场景/道具参考图",
     };
   }
   if (!project.shots.some((s) => s.storyboardImageUrl)) {

@@ -1,0 +1,124 @@
+.manju-md-field {
+  width: 100%;
+}
+
+.manju-md-field__skeleton {
+  width: 100%;
+  min-height: var(--manju-md-height, 160px);
+}
+
+.manju-md-field .w-md-editor {
+  display: flex !important;
+  height: var(--manju-md-height, 200px) !important;
+  min-height: var(--manju-md-height, 200px) !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--background) !important;
+  box-shadow: none !important;
+  color: var(--foreground) !important;
+  --md-editor-font-family: ui-sans-serif, system-ui, sans-serif, "Segoe UI",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  --md-editor-background-color: var(--background);
+}
+
+.manju-md-field .w-md-editor-toolbar {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--muted) !important;
+}
+
+.manju-md-field .w-md-editor-toolbar li > button {
+  color: var(--muted-foreground) !important;
+}
+
+.manju-md-field .w-md-editor-toolbar li > button:hover,
+.manju-md-field .w-md-editor-toolbar li > button:focus {
+  background: var(--accent) !important;
+  color: var(--foreground) !important;
+}
+
+/* flex item with height 0 gets a definite height, so the textarea can fill it */
+.manju-md-field .w-md-editor-content {
+  position: relative !important;
+  display: flex !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  background: var(--background) !important;
+}
+
+.manju-md-field .w-md-editor-show-edit .w-md-editor-input,
+.manju-md-field .w-md-editor-input,
+.manju-md-field .w-md-editor-area {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
+.manju-md-field .w-md-editor-show-edit .w-md-editor-preview {
+  display: none !important;
+}
+
+.manju-md-field .w-md-editor-text {
+  position: absolute !important;
+  inset: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: var(--foreground) !important;
+}
+
+.manju-md-field .w-md-editor-text-input {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 2 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 10px 12px !important;
+  overflow: auto !important;
+  resize: none !important;
+  border: 0 !important;
+  outline: none !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  caret-color: var(--foreground) !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  font-family: var(--md-editor-font-family) !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  pointer-events: auto !important;
+}
+
+.manju-md-field .w-md-editor-text-input::placeholder {
+  color: var(--muted-foreground) !important;
+  -webkit-text-fill-color: var(--muted-foreground) !important;
+  opacity: 1;
+}
+
+.manju-md-field .w-md-editor-preview {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--foreground) !important;
+  background: var(--background) !important;
+}
+
+.manju-md-field .wmde-markdown {
+  background: transparent !important;
+  color: var(--foreground) !important;
+  font-size: 13px;
+}

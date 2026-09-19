@@ -103,6 +103,7 @@ export class ManjuService {
         visual: string;
         dialogue: string;
         assetNames: string[];
+        episodeTitle?: string;
       }>;
     },
     writeShots = false,
@@ -154,36 +155,64 @@ export class ManjuService {
     }
 
     if (analyze.episodes.length > 0) {
-      draft.episodes = analyze.episodes.map((ep) => ({
-        id: newId(),
-        title: ep.title,
-        summary: ep.summary,
-      }));
+      const byTitle = new Map(
+        draft.episodes.map((ep) => [ep.title.trim(), ep] as const),
+      );
+      draft.episodes = analyze.episodes.map((ep) => {
+        const prev = byTitle.get(ep.title.trim());
+        return {
+          id: prev?.id ?? newId(),
+          title: ep.title,
+          summary: ep.summary?.trim() || prev?.summary || "",
+        };
+      });
     }
 
     if (writeShots && analyze.shots.length > 0) {
-      const nameToId = new Map(
-        draft.assets.map((a) => [a.name, a.id] as const),
+      const nameToId = new Map<string, string>();
+      for (const a of draft.assets) {
+        if (!nameToId.has(a.name)) nameToId.set(a.name, a.id);
+        nameToId.set(`${a.kind}:${a.name}`, a.id);
+      }
+      const episodeByTitle = new Map(
+        draft.episodes.map((ep) => [ep.title.trim(), ep.id] as const),
       );
-      draft.shots = analyze.shots.map((shot, i) => ({
-        id: newId(),
-        index: i + 1,
-        visual: shot.visual,
-        dialogue: shot.dialogue ?? "",
-        imagePrompt: "",
-        videoPrompt: "",
-        assetRefs: (shot.assetNames ?? [])
-          .map((n) => nameToId.get(n))
-          .filter((id): id is string => Boolean(id)),
-        storyboardImageUrl: null,
-        storyboardAssetId: null,
-        storyboardJobId: null,
-        storyboardStatus: "idle" as const,
-        videoUrl: null,
-        videoAssetId: null,
-        videoJobId: null,
-        videoStatus: "idle" as const,
-      }));
+      const soleEpisodeId =
+        draft.episodes.length === 1 ? draft.episodes[0]!.id : null;
+      const prevByIndex = new Map(
+        draft.shots.map((s) => [s.index, s] as const),
+      );
+
+      draft.shots = analyze.shots.map((shot, i) => {
+        const index = i + 1;
+        const prev = prevByIndex.get(index);
+        const epTitle = (shot.episodeTitle ?? "").trim();
+        const episodeId =
+          (epTitle && episodeByTitle.get(epTitle)) ||
+          prev?.episodeId ||
+          soleEpisodeId;
+        return {
+          id: prev?.id ?? newId(),
+          index,
+          visual: shot.visual,
+          dialogue: shot.dialogue ?? "",
+          imagePrompt: prev?.imagePrompt ?? "",
+          videoPrompt: prev?.videoPrompt ?? "",
+          duration: prev?.duration ?? null,
+          episodeId: episodeId ?? null,
+          assetRefs: (shot.assetNames ?? [])
+            .map((n) => nameToId.get(n))
+            .filter((id): id is string => Boolean(id)),
+          storyboardImageUrl: prev?.storyboardImageUrl ?? null,
+          storyboardAssetId: prev?.storyboardAssetId ?? null,
+          storyboardJobId: prev?.storyboardJobId ?? null,
+          storyboardStatus: prev?.storyboardStatus ?? ("idle" as const),
+          videoUrl: prev?.videoUrl ?? null,
+          videoAssetId: prev?.videoAssetId ?? null,
+          videoJobId: prev?.videoJobId ?? null,
+          videoStatus: prev?.videoStatus ?? ("idle" as const),
+        };
+      });
       draft.scriptConfirmed = false;
     }
 
@@ -203,6 +232,7 @@ export class ManjuService {
       visual: string;
       dialogue: string;
       assetNames: string[];
+      episodeTitle?: string;
     }>,
   ) {
     return this.applyAnalyzeResult(userId, projectId, jobId, {
@@ -221,7 +251,7 @@ export class ManjuService {
     projectId: string,
     jobId: string,
     prompts: Array<{
-      index?: number;
+      index: number;
       imagePrompt: string;
       videoPrompt: string;
     }>,
@@ -233,18 +263,27 @@ export class ManjuService {
       throw new BadRequestException("漫剧项目不存在，无法回写提示词");
     }
     const draft = normalizeManjuDraft(project.draft);
-    const byIndex = new Map(
-      prompts
-        .filter((p) => p.index != null)
-        .map((p) => [p.index!, p] as const),
+    const byIndex = new Map(prompts.map((p) => [p.index, p] as const));
+    const unknown = prompts
+      .map((p) => p.index)
+      .filter((idx) => !draft.shots.some((s) => s.index === idx));
+    const applied = prompts.filter((p) =>
+      draft.shots.some((s) => s.index === p.index),
     );
-    draft.shots = draft.shots.map((shot, i) => {
-      const hit = byIndex.get(shot.index) ?? prompts[i];
+    if (applied.length === 0) {
+      throw new BadRequestException(
+        unknown.length > 0
+          ? `提示词序号全部无效：${unknown.slice(0, 8).join(", ")}`
+          : "未返回任何提示词",
+      );
+    }
+    draft.shots = draft.shots.map((shot) => {
+      const hit = byIndex.get(shot.index);
       if (!hit) return shot;
       return {
         ...shot,
-        imagePrompt: hit.imagePrompt || shot.imagePrompt,
-        videoPrompt: hit.videoPrompt || shot.videoPrompt,
+        imagePrompt: hit.imagePrompt,
+        videoPrompt: hit.videoPrompt,
       };
     });
     draft.scriptConfirmed = true;

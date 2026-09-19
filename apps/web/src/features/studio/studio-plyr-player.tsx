@@ -8,6 +8,8 @@ type Props = {
   src: string;
   poster?: string | null;
   className?: string;
+  autoPlay?: boolean;
+  onEnded?: () => void;
   /** Fired once when intrinsic video dimensions are known (e.g. adaptive ratio). */
   onNaturalAspect?: (ratio: string) => void;
 };
@@ -26,6 +28,8 @@ export function StudioPlyrPlayer({
   src,
   poster,
   className,
+  autoPlay = false,
+  onEnded,
   onNaturalAspect,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -33,7 +37,9 @@ export function StudioPlyrPlayer({
   const pendingSrcRef = useRef<string | null>(null);
   const appliedSrcRef = useRef(src);
   const onNaturalAspectRef = useRef(onNaturalAspect);
+  const onEndedRef = useRef(onEnded);
   onNaturalAspectRef.current = onNaturalAspect;
+  onEndedRef.current = onEnded;
 
   useEffect(() => {
     const el = videoRef.current;
@@ -51,6 +57,9 @@ export function StudioPlyrPlayer({
     el.addEventListener("loadedmetadata", reportAspect);
     if (el.readyState >= 1) reportAspect();
 
+    const handleEnded = () => onEndedRef.current?.();
+    el.addEventListener("ended", handleEnded);
+
     void import("plyr").then(({ default: Plyr }) => {
       if (destroyed || !videoRef.current) return;
       player = new Plyr(videoRef.current, {
@@ -62,7 +71,7 @@ export function StudioPlyrPlayer({
           "mute",
           "fullscreen",
         ],
-        autoplay: false,
+        autoplay: autoPlay,
         muted: false,
         hideControls: true,
         resetOnEnd: false,
@@ -73,13 +82,19 @@ export function StudioPlyrPlayer({
       }) as unknown as PlyrLike;
       playerRef.current = player;
       appliedSrcRef.current = src;
+      player.on("ended", handleEnded);
       reportAspect();
+      if (autoPlay) {
+        void videoRef.current.play().catch(() => undefined);
+      }
     });
 
     return () => {
       destroyed = true;
       el.removeEventListener("loadedmetadata", reportAspect);
+      el.removeEventListener("ended", handleEnded);
       playerRef.current = null;
+      player?.off("ended", handleEnded);
       player?.destroy();
     };
     // Mount once; src hot-swaps handled below.

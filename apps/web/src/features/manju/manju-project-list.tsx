@@ -9,7 +9,6 @@ import "dayjs/locale/zh-cn";
 import { Button } from "@/components/ui/button";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
-import { MANJU_STEPS } from "./config/manju-steps";
 import { useManjuStore } from "./manju-store";
 import {
   createManjuProject,
@@ -22,14 +21,6 @@ import "./manju-chrome.css";
 
 dayjs.extend(relativeTime);
 dayjs.locale("zh-cn");
-
-function resumeStep(p: {
-  completedSteps: string[];
-}): number {
-  const done = new Set(p.completedSteps);
-  const next = MANJU_STEPS.find((s) => !done.has(s.id));
-  return next?.index ?? 6;
-}
 
 export function ManjuProjectList() {
   const router = useRouter();
@@ -66,7 +57,7 @@ export function ManjuProjectList() {
       const project = await createProject(
         `漫剧 ${dayjs().format("MM-DD HH:mm")}`,
       );
-      router.push(`/manju/${project.id}?step=1`);
+      router.push(`/manju/${project.id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "创建失败");
     }
@@ -111,7 +102,7 @@ export function ManjuProjectList() {
       upsertProject(projectFromDto(dto));
       await loadList();
       toast.success("已导入到服务器");
-      router.push(`/manju/${created.id}?step=1`);
+      router.push(`/manju/${created.id}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "导入失败");
     }
@@ -191,9 +182,7 @@ export function ManjuProjectList() {
         </div>
       ) : (
         <div className="manju-list__grid">
-          {cards.map((p) => {
-            const step = resumeStep(p);
-            return (
+          {cards.map((p) => (
               <div key={p.id} className="manju-list__card group relative">
                 <div className="absolute right-3 top-3 z-10 flex gap-1 opacity-0 transition group-hover:opacity-100">
                   <button
@@ -231,7 +220,7 @@ export function ManjuProjectList() {
                   type="button"
                   className="flex flex-col gap-3 text-left outline-none"
                   onClick={() =>
-                    router.push(`/manju/${p.id}?step=${step}`)
+                    router.push(`/manju/${p.id}`)
                   }
                 >
                   <div className="manju-list__card-cover overflow-hidden">
@@ -250,8 +239,7 @@ export function ManjuProjectList() {
                   </div>
                 </button>
               </div>
-            );
-          })}
+          ))}
         </div>
       )}
     </div>
