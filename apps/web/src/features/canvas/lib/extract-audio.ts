@@ -1,75 +1,141 @@
-import { loadCanvasVideo } from "./load-canvas-video";
+import { fetchRemoteVideoBlob } from "./load-canvas-video";
 
-/** Demux audio from a video URL via captureStream + MediaRecorder. */
-export async function extractAudioFromVideo(url: string): Promise<File> {
-  const { video, revoke } = await loadCanvasVideo(url);
-  video.muted = false;
+export type SeparatedMedia = {
+  audio: File;
+  silentVideo: File;
+};
+
+function stemFromName(name: string) {
+  const base =
+    name.trim().split(/[/\\]/).pop()?.split("?")[0]?.split("#")[0] ?? "";
+  const stem = base.replace(/\.[^.]+$/, "").trim();
+  return stem || "视频";
+}
+
+/**
+ * Split a video into audio WAV + silent video via mediabunny (demux / WebCodecs).
+ * Same approach as infinite-canvas「分离音频」— offline convert, not realtime record.
+ */
+export async function separateAudioFromVideo(
+  url: string,
+  sourceName = "视频",
+): Promise<SeparatedMedia> {
+  const remote = /^https?:/i.test(url);
+  const blob = remote
+    ? await fetchRemoteVideoBlob(url)
+    : await fetch(url).then(async (res) => {
+        if (!res.ok) throw new Error("无法加载视频");
+        return res.blob();
+      });
+
+  const {
+    Input,
+    ALL_FORMATS,
+    BlobSource,
+    Output,
+    WavOutputFormat,
+    Mp4OutputFormat,
+    WebMOutputFormat,
+    BufferTarget,
+    Conversion,
+  } = await import("mediabunny");
+
+  const stem = stemFromName(sourceName);
+  const preferWebm =
+    blob.type.includes("webm") || /\.webm($|\?)/i.test(url);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let audioInput: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let videoInput: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let audioConversion: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let videoConversion: any;
 
   try {
-    const anyVideo = video as HTMLVideoElement & {
-      captureStream?: () => MediaStream;
-      mozCaptureStream?: () => MediaStream;
-    };
-    const stream = anyVideo.captureStream?.() ?? anyVideo.mozCaptureStream?.();
-    if (!stream) {
-      throw new Error("当前浏览器不支持从视频抽取音轨");
+    audioInput = new Input({
+      source: new BlobSource(blob),
+      formats: ALL_FORMATS,
+    });
+    const audioTrack = await audioInput.getPrimaryAudioTrack();
+    if (!audioTrack) throw new Error("该视频没有音轨");
+
+    const audioTarget = new BufferTarget();
+    const audioOutput = new Output({
+      format: new WavOutputFormat(),
+      target: audioTarget,
+    });
+    audioConversion = await Conversion.init({
+      input: audioInput,
+      output: audioOutput,
+      tracks: "primary",
+      video: { discard: true },
+      audio: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        process: (sample: any) => {
+          if (sample.timestamp < 0 && sample.timestamp > -1e-9) {
+            sample.setTimestamp(0);
+          }
+          return sample;
+        },
+      },
+    });
+    if (!audioConversion.isValid) {
+      throw new Error("当前浏览器无法解码该文件的音频");
     }
-
-    const audioTracks = stream.getAudioTracks();
-    if (!audioTracks.length) {
-      stream.getTracks().forEach((t) => t.stop());
-      throw new Error("该视频没有可抽取的音轨");
+    await audioConversion.execute();
+    if (!audioTarget.buffer?.byteLength) {
+      throw new Error("分离音频结果为空");
     }
-
-    const audioStream = new MediaStream(audioTracks);
-    const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-      ? "audio/webm;codecs=opus"
-      : MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : "";
-    if (!mime) {
-      audioTracks.forEach((t) => t.stop());
-      throw new Error("浏览器不支持录音编码");
-    }
-
-    const chunks: BlobPart[] = [];
-    const recorder = new MediaRecorder(audioStream, { mimeType: mime });
-    recorder.ondataavailable = (e) => {
-      if (e.data.size) chunks.push(e.data);
-    };
-
-    const stopped = new Promise<Blob>((resolve, reject) => {
-      recorder.onstop = () => resolve(new Blob(chunks, { type: mime }));
-      recorder.onerror = () => reject(new Error("抽音失败"));
+    const audio = new File([audioTarget.buffer], `${stem}_音频.wav`, {
+      type: "audio/wav",
     });
 
-    video.currentTime = 0;
-    try {
-      await video.play();
-    } catch {
-      audioTracks.forEach((t) => t.stop());
-      throw new Error("无法播放视频以抽取音轨");
-    }
-
-    recorder.start(200);
-    await new Promise<void>((resolve) => {
-      if (video.ended) {
-        resolve();
-        return;
-      }
-      video.addEventListener("ended", () => resolve(), { once: true });
+    videoInput = new Input({
+      source: new BlobSource(blob),
+      formats: ALL_FORMATS,
     });
-    if (recorder.state !== "inactive") recorder.stop();
-    video.pause();
-    audioTracks.forEach((t) => t.stop());
-    stream.getTracks().forEach((t) => t.stop());
+    const videoTrack = await videoInput.getPrimaryVideoTrack();
+    if (!videoTrack) throw new Error("该文件没有视频轨");
 
-    const blob = await stopped;
-    if (!blob.size) throw new Error("抽音结果为空");
-    return new File([blob], `extract-audio-${Date.now()}.webm`, { type: mime });
+    const videoTarget = new BufferTarget();
+    const videoOutput = new Output({
+      format: preferWebm ? new WebMOutputFormat() : new Mp4OutputFormat(),
+      target: videoTarget,
+    });
+    videoConversion = await Conversion.init({
+      input: videoInput,
+      output: videoOutput,
+      tracks: "primary",
+      audio: { discard: true },
+    });
+    if (!videoConversion.isValid) {
+      throw new Error("当前浏览器无法导出无声视频");
+    }
+    await videoConversion.execute();
+    if (!videoTarget.buffer?.byteLength) {
+      throw new Error("无声视频结果为空");
+    }
+    const silentExt = preferWebm ? "webm" : "mp4";
+    const silentType = preferWebm ? "video/webm" : "video/mp4";
+    const silentVideo = new File(
+      [videoTarget.buffer],
+      `${stem}_无声.${silentExt}`,
+      { type: silentType },
+    );
+
+    return { audio, silentVideo };
   } finally {
-    video.removeAttribute("src");
-    video.load();
-    revoke();
+    await audioConversion?.cancel?.().catch(() => undefined);
+    await videoConversion?.cancel?.().catch(() => undefined);
+    audioInput?.dispose?.();
+    videoInput?.dispose?.();
   }
+}
+
+/** @deprecated Prefer separateAudioFromVideo */
+export async function extractAudioFromVideo(url: string): Promise<File> {
+  const { audio } = await separateAudioFromVideo(url);
+  return audio;
 }

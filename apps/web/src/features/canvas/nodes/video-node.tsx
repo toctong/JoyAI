@@ -14,12 +14,14 @@ import { NodeTitleChip } from "../node-title-chip";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import {
   CanvasIconClose,
+  CanvasIconLoader,
   CanvasIconMaximize,
   CanvasIconPause,
   CanvasIconPlay,
   CanvasIconVideo,
 } from "../icons/canvas-icons";
 import { MediaUploadLabel } from "../media-upload-label";
+import { isBusyStatus } from "../node-registry";
 import { setPlaybackTime } from "../lib/playback-clock";
 import { cn } from "@/shared/lib/utils";
 
@@ -54,6 +56,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
   const status = String(node.data.status ?? "idle");
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
+  const busy = isBusyStatus(status);
   const title = nodeTitleLabel("video", node.data);
   const mediaW = Number(node.data.mediaWidth);
   const mediaH = Number(node.data.mediaHeight);
@@ -119,7 +122,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
         nodeId={node.id}
         label={title}
         customTitle={String(node.data.title ?? "")}
-        visible={framed || selected || hovered}
+        visible={framed || busy || selected || hovered}
         icon={<CanvasIconVideo />}
         meta={sizeMeta}
       />
@@ -152,6 +155,11 @@ export function VideoNode({ node, onPointerDown }: Props) {
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
           />
+        ) : busy ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/40 text-sm text-muted-foreground">
+            <CanvasIconLoader className="size-5 animate-spin opacity-80" />
+            <span>分离中…</span>
+          </div>
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="video">
             <CanvasIconVideo className="size-7 opacity-70" />
@@ -222,8 +230,9 @@ export function VideoNode({ node, onPointerDown }: Props) {
           </>
         ) : null}
         <NodeRuntimeBadge
-          status={status}
+          status={busy && !framed ? "idle" : status}
           error={error}
+          busyLabel="分离中…"
           onRetry={
             status === "failed"
               ? () =>

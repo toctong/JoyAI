@@ -94,7 +94,7 @@ import {
   nodeTypeForUpload,
   probeImageUrlType,
 } from "./lib/upload-node-type";
-import { extractAudioFromVideo } from "./lib/extract-audio";
+import { separateAudioToNode } from "./lib/extract-audio-to-node";
 import { frameNodeToMedia } from "./lib/fit-node-size";
 import { getPlaybackTime } from "./lib/playback-clock";
 import "./canvas-chrome.css";
@@ -1540,28 +1540,10 @@ export function CanvasBoard({
     const url = String(node.data.url ?? "");
     if (!url || url.startsWith("data:")) return;
     try {
-      pushHistory();
-      toast.message("正在抽音，请稍候…");
-      const file = await extractAudioFromVideo(url);
-      const asset = await apiUpload<{ id: string; url: string }>(
-        "/upload",
-        file,
-      );
-      const audioId = addNode("audio", {
-        x: node.x + (node.width ?? 280) + 40,
-        y: node.y + 40,
-      });
-      updateNodeData(audioId, {
-        url: asset.url,
-        assetId: asset.id,
-        status: "succeeded",
-        ...mediaNamePatch(file.name),
-        title: "视频音轨",
-      });
-      addEdge(node.id, audioId);
-      toast.success("已抽取音轨到音频节点");
+      await separateAudioToNode(node.id);
+      toast.success("已分离为音频与无声视频");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "抽音失败");
+      toast.error(error instanceof Error ? error.message : "分离音频失败");
     }
   }
 

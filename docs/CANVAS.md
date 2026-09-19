@@ -177,7 +177,7 @@
 
 ### 6.10 Phase 12 — 信息 / 字号 / 截取 / 涂抹
 
-对照 infinite-canvas 的节点信息、文本字号、音频截取和局部遮罩，用本仓栈重写（不引入 mediabunny / Ant Design，不做 AI 超分 / 多角度 / 反推）。
+对照 infinite-canvas 的节点信息、文本字号、音频截取和局部遮罩，用本仓栈重写（分离音频可用 mediabunny；不引入 Ant Design，不做 AI 超分）。
 
 - [x] **节点信息**：单选工具条与右键可看类型、尺寸、状态、文案；JSON 视图省略 data URL
 - [x] **文本字号**：工具条放大 / 缩小，写入 `node.data.fontSize`（10–32）
@@ -186,7 +186,7 @@
 
 ### 6.11 Phase 13 — 连线命中 / 参考条
 
-对照 infinite-canvas 的参考条，只做连线相关的可见与可断开，不引入选择模式、Ant Design、mediabunny。
+对照 infinite-canvas 的参考条，只做连线相关的可见与可断开，不引入选择模式、Ant Design。
 
 - [x] **连线可见**：浅色主题用 `currentColor`，不再用近白描边；命中层覆盖节点包围盒，点线可选中后 Delete
 - [x] **落到最上层节点**：拖线松手按绘制顺序从后往前命中，重叠时不再连到下面那张

@@ -320,7 +320,7 @@ export function CanvasNodeContextMenu({
               onClick={onExtractAudio}
             >
               <CanvasIconAudio className="size-3.5 opacity-70" />
-              抽取音轨
+              分离音频
             </button>
           ) : null}
           {onTrimAudio ? (

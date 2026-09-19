@@ -2,6 +2,7 @@
 
 import {
   CanvasIconAudio,
+  CanvasIconLoader,
 } from "../icons/canvas-icons";
 import { useState } from "react";
 import type { CanvasNode } from "@joyai/shared";
@@ -14,6 +15,7 @@ import {
 import { NodeRuntimeBadge } from "../node-runtime-badge";
 import { NodeTitleChip } from "../node-title-chip";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
+import { isBusyStatus } from "../node-registry";
 import { MediaUploadLabel } from "../media-upload-label";
 import { CanvasAudioPlayer } from "../canvas-audio-player";
 import { cn } from "@/shared/lib/utils";
@@ -33,6 +35,7 @@ export function AudioNode({ node, onPointerDown }: Props) {
   const status = String(node.data.status ?? "idle");
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
+  const busy = isBusyStatus(status);
 
   return (
     <div
@@ -54,31 +57,39 @@ export function AudioNode({ node, onPointerDown }: Props) {
         nodeId={node.id}
         label={nodeTitleLabel("audio", node.data)}
         customTitle={String(node.data.title ?? "")}
-        visible={framed || selected || hovered}
+        visible={framed || busy || selected || hovered}
         icon={<CanvasIconAudio />}
       />
-      <div className="flex h-full flex-col justify-center gap-2 overflow-hidden rounded-md border border-border bg-card p-3">
+      <div className="relative flex h-full flex-col justify-center gap-2 overflow-hidden rounded-md border border-border bg-card p-3">
         {framed ? (
           <CanvasAudioPlayer key={url} src={url} />
+        ) : busy ? (
+          <div className="flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-muted/70 px-4 py-3 text-sm text-muted-foreground">
+            <CanvasIconLoader className="size-4 shrink-0 animate-spin" />
+            <span>分离中…</span>
+          </div>
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="audio">
             <CanvasIconAudio className="size-6 opacity-70" />
           </MediaUploadLabel>
         )}
-        <NodeRuntimeBadge
-          status={status}
-          error={error}
-          onRetry={
-            status === "failed"
-              ? () =>
-                  updateNodeData(node.id, {
-                    status: "idle",
-                    error: "",
-                    jobId: "",
-                  })
-              : undefined
-          }
-        />
+        {busy && !framed ? null : (
+          <NodeRuntimeBadge
+            status={status}
+            error={error}
+            busyLabel="分离中…"
+            onRetry={
+              status === "failed"
+                ? () =>
+                    updateNodeData(node.id, {
+                      status: "idle",
+                      error: "",
+                      jobId: "",
+                    })
+                : undefined
+            }
+          />
+        )}
       </div>
     </div>
   );

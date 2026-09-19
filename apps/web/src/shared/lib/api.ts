@@ -291,3 +291,79 @@ export async function apiUpload<T = unknown>(
     throw new ApiError(err.message || "上传失败", err.status, err.body);
   }
 }
+
+/**
+ * Binary GET via Fetch (not axios XHR). Avoids DevTools/inspector hooks that
+ * crash on XMLHttpRequest.responseText when responseType is "blob".
+ */
+export async function apiFetchBlob(
+  path: string,
+  options: {
+    params?: Record<string, string>;
+    token?: string | null;
+    signal?: AbortSignal;
+    timeoutMs?: number;
+  } = {},
+): Promise<Blob> {
+  const { params, token: explicitToken, signal, timeoutMs = 180_000 } = options;
+  const base = resolveApiBase();
+  const url = new URL(
+    path.startsWith("http")
+      ? path
+      : `${base}${path.startsWith("/") ? path : `/${path}`}`,
+  );
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value != null && value !== "") url.searchParams.set(key, value);
+    }
+  }
+
+  const token =
+    explicitToken !== undefined
+      ? explicitToken
+      : typeof window !== "undefined"
+        ? useAuthStore.getState().token
+        : null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const merged = mergeAbortSignals(signal, controller.signal);
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      signal: merged,
+      credentials: "omit",
+    });
+    const blob = await res.blob();
+    if (!res.ok) {
+      let message = `请求失败 (${res.status})`;
+      if (blob.type.includes("json") || blob.size < 4096) {
+        try {
+          const parsed = JSON.parse(await blob.text()) as {
+            message?: string | string[];
+          };
+          if (parsed.message) {
+            message = Array.isArray(parsed.message)
+              ? parsed.message.join(", ")
+              : parsed.message;
+          }
+        } catch {
+          /* keep status message */
+        }
+      }
+      throw new ApiError(message, res.status);
+    }
+    return blob;
+  } catch (error) {
+    if (isApiCancelError(error)) throw toApiError(error);
+    if (error instanceof ApiError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError("请求超时，请稍后重试", 0);
+    }
+    throw toApiError(error);
+  } finally {
+    clearTimeout(timer);
+  }
+}

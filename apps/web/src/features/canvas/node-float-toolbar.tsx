@@ -43,7 +43,7 @@ import {
   CanvasIconUpload,
 } from "./icons/canvas-icons";
 import { captureVideoFrame } from "./lib/capture-video-frame";
-import { extractAudioFromVideo } from "./lib/extract-audio";
+import { separateAudioToNode } from "./lib/extract-audio-to-node";
 import { videoRefMode } from "./lib/video-ref-mode";
 import { getPlaybackTime } from "./lib/playback-clock";
 import { wrapPanoramaPrompt, flagPanoramaAspect } from "./lib/panorama-prompt";
@@ -372,28 +372,10 @@ export function NodeFloatToolbar({
       return;
     }
     try {
-      pushHistory();
-      toast.success("正在抽音，请稍候…");
-      const file = await extractAudioFromVideo(url);
-      const asset = await apiUpload<{ id: string; url: string }>(
-        "/upload",
-        file,
-      );
-      const audioId = addNode("audio", {
-        x: node.x + (node.width ?? 280) + 40,
-        y: node.y + 40,
-      });
-      updateNodeData(audioId, {
-        url: asset.url,
-        assetId: asset.id,
-        status: "succeeded",
-        ...mediaNamePatch(file.name),
-        title: "视频音轨",
-      });
-      addEdge(node.id, audioId);
-      toast.success("已抽取音轨到音频节点");
+      await separateAudioToNode(node.id);
+      toast.success("已分离为音频与无声视频");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "抽音失败");
+      toast.error(e instanceof Error ? e.message : "分离音频失败");
     }
   }
 
@@ -616,8 +598,8 @@ export function NodeFloatToolbar({
         return (
           <ToolBtn
             key={action}
-            title="抽取音轨"
-            label="抽音轨"
+            title="分离音频"
+            label="分离音频"
             onClick={() => void extractAudio()}
           >
             <CanvasIconAudio className="h-3.5 w-3.5" />

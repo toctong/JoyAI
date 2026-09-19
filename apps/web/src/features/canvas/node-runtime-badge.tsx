@@ -15,6 +15,8 @@ type Props = {
   /** overlay = bottom of media card; inline = flow in prompt card */
   variant?: "overlay" | "inline";
   className?: string;
+  /** Override busy copy (default 排队中… / 生成中…) */
+  busyLabel?: string;
 };
 
 export function NodeRuntimeBadge({
@@ -23,6 +25,7 @@ export function NodeRuntimeBadge({
   onRetry,
   variant = "overlay",
   className,
+  busyLabel,
 }: Props) {
   if (isBusyStatus(status)) {
     return (
@@ -36,7 +39,10 @@ export function NodeRuntimeBadge({
         )}
       >
         <CanvasIconLoader className="h-3 w-3 shrink-0 animate-spin" />
-        <span>{status === "queued" ? "排队中…" : "生成中…"}</span>
+        <span>
+          {busyLabel ??
+            (status === "queued" ? "排队中…" : "生成中…")}
+        </span>
       </div>
     );
   }

@@ -1,15 +1,12 @@
-import axios from "axios";
-import { http, toApiError } from "@/shared/lib/api";
+import { apiFetchBlob, toApiError } from "@/shared/lib/api";
 
 /** Same-origin blob for remote video so decode / captureStream work without TOS CORS. */
 export async function fetchRemoteVideoBlob(src: string) {
   try {
-    const res = await http.get<Blob>("/media/fetch", {
+    const blob = await apiFetchBlob("/media/fetch", {
       params: { url: src, kind: "video" },
-      responseType: "blob",
-      timeout: 180_000,
+      timeoutMs: 180_000,
     });
-    const blob = res.data;
     if (blob.type?.includes("json")) {
       throw new Error(await messageFromJsonBlob(blob));
     }
@@ -22,11 +19,12 @@ export async function fetchRemoteVideoBlob(src: string) {
     }
     return blob;
   } catch (error) {
-    if (error instanceof Error && !axios.isAxiosError(error)) {
+    if (
+      error instanceof Error &&
+      (error.message.startsWith("无法加载视频") ||
+        error.message.includes("不是可读取"))
+    ) {
       throw error;
-    }
-    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
-      throw new Error(await messageFromJsonBlob(error.response.data));
     }
     const apiError = toApiError(error);
     throw new Error(apiError.message || "无法加载视频（可能跨域限制）");
@@ -49,8 +47,7 @@ async function messageFromJsonBlob(blob: Blob) {
 
 /**
  * Load a video element ready for decode / captureStream.
- * Remote URLs always go through `/media/fetch` — TOS has no CORS, so a
- * crossOrigin probe only pollutes the console and then fails.
+ * Remote URLs always go through `/media/fetch` — TOS has no CORS.
  */
 export async function loadCanvasVideo(src: string): Promise<{
   video: HTMLVideoElement;
