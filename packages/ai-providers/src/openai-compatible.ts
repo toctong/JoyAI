@@ -290,29 +290,29 @@ function buildOpenAICompatImageBody(
     fallback: "1024x1024",
   });
 
-  const body: Record<string, unknown> = {
-    model: input.model,
-    prompt: input.prompt,
-    n: input.n ?? 1,
-    size,
-    response_format: "url",
-    watermark: input.watermark ?? false,
-  };
+    const body: Record<string, unknown> = {
+      model: input.model,
+      prompt: input.prompt,
+      n: input.n ?? 1,
+      size,
+      response_format: "url",
+      watermark: input.watermark ?? false,
+    };
 
   if (input.ratio && !/^\d+x\d+$/i.test(size)) {
     body.aspect_ratio = input.ratio;
     body.ratio = input.ratio;
   }
 
-  if (input.negativePrompt) {
-    body.negative_prompt = input.negativePrompt;
-  }
-  if (input.referenceUrls?.length) {
-    body.image = input.referenceUrls[0];
-    if (input.referenceUrls.length > 1) {
-      body.images = input.referenceUrls;
+    if (input.negativePrompt) {
+      body.negative_prompt = input.negativePrompt;
     }
-  }
+    if (input.referenceUrls?.length) {
+      body.image = input.referenceUrls[0];
+      if (input.referenceUrls.length > 1) {
+        body.images = input.referenceUrls;
+      }
+    }
 
   return body;
 }
@@ -700,10 +700,10 @@ function buildToapisVideoBody(input: VideoSubmitInput): Record<string, unknown> 
   const model = normalizeToapisVideoModelId(input.model);
   const refs = (input.referenceUrls ?? []).filter(Boolean);
   const resolution = normalizeVideoResolution(input.resolution);
-  const body: Record<string, unknown> = {
+    const body: Record<string, unknown> = {
     model,
-    prompt: input.prompt,
-  };
+      prompt: input.prompt,
+    };
   if (input.duration != null) body.duration = input.duration;
   // Safe to send even for Kling Turbo i2v (upstream ignores; follows first frame).
   if (input.ratio) body.aspect_ratio = input.ratio;
@@ -1307,7 +1307,7 @@ function buildApiMartVideoBody(input: VideoSubmitInput): Record<string, unknown>
       if (roles.length) body.image_with_roles = roles;
     } else {
       if (input.ratio) {
-        body.size = input.ratio;
+      body.size = input.ratio;
         delete body.aspect_ratio;
       }
       if (partitioned.images.length) {
@@ -1824,9 +1824,9 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
         ? [`${base}/videos/generations`, `${base}/videos`]
         : [
             `${base}/videos/generations`,
-            `${base}/videos`,
-            `${base}/video/generations`,
-          ];
+      `${base}/videos`,
+      `${base}/video/generations`,
+    ];
 
     let lastError = "Video submit failed";
     for (const url of paths) {
@@ -1906,8 +1906,8 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
         const videoUrl = extractVideoUrl(data);
         if (SUCCESS_STATUSES.has(st)) {
           if (videoUrl) {
-            return { status: "succeeded", videoUrl, raw: data };
-          }
+          return { status: "succeeded", videoUrl, raw: data };
+        }
           return {
             status: "failed",
             error: "任务已完成但未返回视频 URL",

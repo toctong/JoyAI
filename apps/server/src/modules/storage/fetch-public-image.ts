@@ -5,8 +5,9 @@ import { isIP } from "node:net";
 
 const MAX_IMAGE_BYTES = 40 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 120 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 80 * 1024 * 1024;
 
-export type PublicMediaKind = "image" | "video";
+export type PublicMediaKind = "image" | "video" | "audio";
 
 /** Pull public media server-side so the browser can decode without TOS CORS. */
 export async function fetchPublicMedia(
@@ -14,12 +15,18 @@ export async function fetchPublicMedia(
   prefer: PublicMediaKind | "auto" = "auto",
 ) {
   const url = await assertPublicUrl(rawUrl);
-  const maxBytes = prefer === "image" ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES;
+  const maxBytes =
+    prefer === "image"
+      ? MAX_IMAGE_BYTES
+      : prefer === "audio"
+        ? MAX_AUDIO_BYTES
+        : MAX_VIDEO_BYTES;
   let response;
   try {
     response = await axios.get<ArrayBuffer>(url, {
       responseType: "arraybuffer",
-      timeout: prefer === "video" || prefer === "auto" ? 180_000 : 25_000,
+      timeout:
+        prefer === "image" ? 25_000 : prefer === "audio" ? 120_000 : 180_000,
       maxContentLength: maxBytes,
       maxBodyLength: maxBytes,
       maxRedirects: 3,
@@ -46,12 +53,15 @@ export async function fetchPublicMedia(
     ?.trim()
     .toLowerCase();
   const sniffed = sniffMedia(buffer, headerType);
-  if (!sniffed) throw new BadRequestException("不是可读取的图片或视频");
+  if (!sniffed) throw new BadRequestException("不是可读取的媒体文件");
   if (prefer === "image" && sniffed.kind !== "image") {
     throw new BadRequestException("不是可读取的图片");
   }
   if (prefer === "video" && sniffed.kind !== "video") {
     throw new BadRequestException("不是可读取的视频");
+  }
+  if (prefer === "audio" && sniffed.kind !== "audio") {
+    throw new BadRequestException("不是可读取的音频");
   }
   return { buffer, contentType: sniffed.contentType, kind: sniffed.kind };
 }
@@ -132,10 +142,15 @@ function isPrivateIp(address: string) {
 function sniffMedia(buffer: Buffer, headerType?: string) {
   const image = sniffImage(buffer);
   if (image) return { kind: "image" as const, contentType: image };
+  const audio = sniffAudio(buffer, headerType);
+  if (audio) return { kind: "audio" as const, contentType: audio };
   const video = sniffVideo(buffer, headerType);
   if (video) return { kind: "video" as const, contentType: video };
   if (headerType?.startsWith("image/")) {
     return { kind: "image" as const, contentType: headerType };
+  }
+  if (headerType?.startsWith("audio/")) {
+    return { kind: "audio" as const, contentType: headerType };
   }
   if (headerType?.startsWith("video/")) {
     return { kind: "video" as const, contentType: headerType };
@@ -197,5 +212,39 @@ function sniffVideo(buffer: Buffer, headerType?: string) {
     return "video/x-msvideo";
   }
   if (headerType?.startsWith("video/")) return headerType;
+  return null;
+}
+
+function sniffAudio(buffer: Buffer, headerType?: string) {
+  if (
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "WAVE"
+  ) {
+    return "audio/wav";
+  }
+  if (buffer.length >= 3 && buffer.toString("ascii", 0, 3) === "ID3") {
+    return "audio/mpeg";
+  }
+  if (buffer.length >= 2 && buffer[0] === 0xff && (buffer[1] & 0xe0) === 0xe0) {
+    return "audio/mpeg";
+  }
+  if (
+    buffer.length >= 4 &&
+    buffer.toString("ascii", 0, 4) === "OggS"
+  ) {
+    return "audio/ogg";
+  }
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3 &&
+    headerType?.startsWith("audio/")
+  ) {
+    return headerType;
+  }
+  if (headerType?.startsWith("audio/")) return headerType;
   return null;
 }

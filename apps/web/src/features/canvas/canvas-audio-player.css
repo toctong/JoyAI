@@ -1,50 +1,91 @@
 .joy-canvas-audio {
+  display: flex;
   width: 100%;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #f4f4f5;
 }
 
-.joy-canvas-audio .plyr {
-  --plyr-color-main: #18181b;
-  --plyr-audio-controls-background: #f4f4f5;
-  --plyr-audio-control-background-hover: rgba(24, 24, 27, 0.06);
-  --plyr-audio-control-color: #18181b;
-  --plyr-audio-control-color-hover: #09090b;
-  --plyr-range-fill-background: #18181b;
-  --plyr-audio-progress-buffered-background: rgba(24, 24, 27, 0.16);
-  --plyr-range-thumb-background: #18181b;
-  --plyr-range-thumb-shadow: none;
-  --plyr-range-track-height: 3px;
-  --plyr-range-thumb-height: 10px;
-  --plyr-control-icon-size: 15px;
-  --plyr-control-spacing: 6px;
-  --plyr-font-size-time: 11px;
-  --plyr-font-size-menu: 12px;
-  width: 100%;
-  min-width: 0;
-  border-radius: 999px;
+.dark .joy-canvas-audio {
+  background: #141416;
 }
 
-.dark .joy-canvas-audio .plyr {
-  --plyr-color-main: #fafafa;
-  --plyr-audio-controls-background: #27272a;
-  --plyr-audio-control-background-hover: rgba(255, 255, 255, 0.08);
-  --plyr-audio-control-color: #fafafa;
-  --plyr-audio-control-color-hover: #ffffff;
-  --plyr-range-fill-background: #fafafa;
-  --plyr-audio-progress-buffered-background: rgba(255, 255, 255, 0.2);
-  --plyr-range-thumb-background: #fafafa;
-}
-
-.joy-canvas-audio .plyr--audio .plyr__controls {
-  border-radius: 999px;
-  padding: 4px 8px 4px 4px;
-}
-
-.joy-canvas-audio .plyr__time {
-  font-variant-numeric: tabular-nums;
-}
-
-.joy-canvas-audio .plyr__progress__container {
+.joy-canvas-audio-wave {
   flex: 1 1 auto;
-  min-width: 48px;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.joy-canvas-audio-wave,
+.joy-canvas-audio-wave * {
+  pointer-events: none;
+}
+
+.joy-canvas-audio-wave > div,
+.joy-canvas-audio-wave wave {
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+}
+
+.joy-canvas-audio-wave canvas {
+  display: block;
+}
+
+.joy-canvas-audio-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 10px;
+}
+
+.joy-canvas-audio-time {
+  font-size: 11px;
+  line-height: 1;
+  color: #3f3f46;
+}
+
+.dark .joy-canvas-audio-time {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.joy-canvas-audio-play {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(24, 24, 27, 0.16);
+  background: #fff;
+  color: #18181b;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.joy-canvas-audio-play:hover:not(:disabled) {
+  background: #e4e4e7;
+}
+
+.dark .joy-canvas-audio-play {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.dark .joy-canvas-audio-play:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.joy-canvas-audio-play:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

@@ -55,7 +55,7 @@ export class UploadController {
 
   /** Same-origin media bytes for canvas crop / frame / extract-audio (remote hosts often omit CORS). */
   @ApiQuery({ name: "url", required: true })
-  @ApiQuery({ name: "kind", required: false, enum: ["auto", "image", "video"] })
+  @ApiQuery({ name: "kind", required: false, enum: ["auto", "image", "video", "audio"] })
   @Get("media/fetch")
   async fetchMedia(
     @Query("url") url?: string,
@@ -64,7 +64,9 @@ export class UploadController {
     const trimmed = String(url ?? "").trim();
     if (!trimmed) throw new BadRequestException("缺少媒体地址");
     const prefer =
-      kind === "image" || kind === "video" ? kind : ("auto" as const);
+      kind === "image" || kind === "video" || kind === "audio"
+        ? kind
+        : ("auto" as const);
     const media = await fetchPublicMedia(trimmed, prefer);
     return new StreamableFile(media.buffer, { type: media.contentType });
   }

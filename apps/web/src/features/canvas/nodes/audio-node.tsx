@@ -44,13 +44,18 @@ export function AudioNode({ node, onPointerDown }: Props) {
       onMouseLeave={() => setHovered(false)}
       className={cn(
         "absolute cursor-grab overflow-visible rounded-md active:cursor-grabbing",
-        nodeChromeClass({ selected, highlighted, pulsing }),
+        nodeChromeClass({
+          selected,
+          highlighted,
+          pulsing,
+          framed,
+        }),
       )}
       style={{
         left: node.x,
         top: node.y,
-        width: node.width ?? 320,
-        height: node.height ?? 120,
+        width: node.width ?? 380,
+        height: node.height ?? 200,
       }}
     >
       <NodeTitleChip
@@ -60,11 +65,18 @@ export function AudioNode({ node, onPointerDown }: Props) {
         visible={framed || busy || selected || hovered}
         icon={<CanvasIconAudio />}
       />
-      <div className="relative flex h-full flex-col justify-center gap-2 overflow-hidden rounded-md border border-border bg-card p-3">
+      <div
+        className={cn(
+          "relative h-full w-full overflow-hidden rounded-md",
+          framed
+            ? "border border-zinc-300/90 bg-[#f4f4f5] shadow-[0_1px_2px_rgba(15,23,42,0.06),0_10px_28px_rgba(15,23,42,0.1)] dark:border-zinc-800/80 dark:bg-[#141416] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+            : "border border-border bg-card p-2.5",
+        )}
+      >
         {framed ? (
-          <CanvasAudioPlayer key={url} src={url} />
+          <CanvasAudioPlayer key={url} src={url} className="h-full" />
         ) : busy ? (
-          <div className="flex min-h-[44px] items-center justify-center gap-2 rounded-full bg-muted/70 px-4 py-3 text-sm text-muted-foreground">
+          <div className="flex h-full min-h-[120px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-muted/70 px-4 text-sm text-muted-foreground">
             <CanvasIconLoader className="size-4 shrink-0 animate-spin" />
             <span>分离中…</span>
           </div>

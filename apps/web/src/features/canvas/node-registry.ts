@@ -151,8 +151,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   audio: {
     type: "audio",
     label: "音频",
-    defaultWidth: 320,
-    defaultHeight: 120,
+    defaultWidth: 380,
+    defaultHeight: 200,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
     toolbar: [
       "upload",
