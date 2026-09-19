@@ -10,10 +10,11 @@ export function nodeChromeClass(opts: {
   framed?: boolean;
 }) {
   return cn(
+    "joy-node-chrome transition-[box-shadow,border-color] duration-150",
     opts.framed
       ? "border border-transparent bg-transparent shadow-none"
-      : "border border-zinc-300 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.06),0_10px_28px_rgba(15,23,42,0.1)] dark:border-border dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]",
-    opts.selected && "border-primary ring-2 ring-primary/45",
+      : "border border-zinc-300/90 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.06),0_10px_28px_rgba(15,23,42,0.1)] dark:border-border dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]",
+    opts.selected && "is-selected",
     !opts.selected &&
       opts.highlighted &&
       "border-amber-400/80 ring-2 ring-amber-400/35",

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CanvasEdge, CanvasNode } from "@joyai/shared";
 import { cn } from "@/shared/lib/utils";
 import { nodeBox } from "./lib/node-box";
+import type { CanvasEdgeVisibility } from "./lib/canvas-prefs";
 
 function nodeCenterRight(node: CanvasNode) {
   const box = nodeBox(node);
@@ -39,6 +40,8 @@ type Props = {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
   selectedEdgeId: string | null;
+  selectedNodeIds?: string[];
+  edgeVisibility?: CanvasEdgeVisibility;
   draft?: { sourceId: string; x: number; y: number } | null;
   onSelectEdge: (id: string | null) => void;
   onCutEdge: (id: string) => void;
@@ -48,12 +51,15 @@ export function CanvasEdges({
   nodes,
   edges,
   selectedEdgeId,
+  selectedNodeIds = [],
+  edgeVisibility = "all",
   draft,
   onSelectEdge,
   onCutEdge,
 }: Props) {
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const byId = new Map(nodes.map((n) => [n.id, n]));
+  const focusIds = new Set(selectedNodeIds);
   const pad = 2400;
   let minX = 0;
   let minY = 0;
@@ -71,13 +77,22 @@ export function CanvasEdges({
   const width = Math.max(1, maxX - minX + pad * 2);
   const height = Math.max(1, maxY - minY + pad * 2);
 
+  const visibleEdges =
+    edgeVisibility === "focus"
+      ? focusIds.size
+        ? edges.filter(
+            (edge) => focusIds.has(edge.source) || focusIds.has(edge.target),
+          )
+        : []
+      : edges;
+
   return (
     <svg
-      className="pointer-events-none absolute overflow-visible text-foreground/45"
+      className="pointer-events-none absolute overflow-visible text-foreground/40"
       style={{ left, top, width, height }}
     >
       <g transform={`translate(${-left} ${-top})`}>
-        {edges.map((edge) => {
+        {visibleEdges.map((edge) => {
           const source = byId.get(edge.source);
           const target = byId.get(edge.target);
           if (!source || !target) return null;
@@ -85,7 +100,9 @@ export function CanvasEdges({
           const b = nodeCenterLeft(target);
           const selected = selectedEdgeId === edge.id;
           const hovered = hoveredEdgeId === edge.id;
-          const active = selected || hovered;
+          const related =
+            focusIds.has(edge.source) || focusIds.has(edge.target);
+          const active = selected || hovered || related;
           const mid = bezierMid(a.x, a.y, b.x, b.y);
           const d = bezierPath(a.x, a.y, b.x, b.y);
           return (
@@ -112,13 +129,16 @@ export function CanvasEdges({
                 d={d}
                 fill="none"
                 stroke="currentColor"
-                strokeWidth={selected ? 2.5 : hovered ? 2.1 : 1.75}
+                strokeWidth={selected ? 2.6 : active ? 2.15 : 1.7}
+                strokeLinecap="round"
                 className={cn(
-                  "pointer-events-none",
-                  (selected || hovered) && "text-primary",
+                  "pointer-events-none transition-[stroke-width,opacity] duration-200",
+                  active ? "text-foreground/80" : "text-foreground/35",
+                  (selected || related) && "joy-canvas-edge-flow text-primary",
+                  hovered && !selected && "text-primary/80",
                 )}
               />
-              {active ? (
+              {selected || hovered ? (
                 <foreignObject
                   x={mid.x - 14}
                   y={mid.y - 14}
@@ -171,9 +191,9 @@ export function CanvasEdges({
                   d={bezierPath(a.x, a.y, draft.x, draft.y)}
                   fill="none"
                   stroke="currentColor"
-                  className="text-primary"
+                  className="joy-canvas-edge-flow text-primary"
                   strokeWidth={2}
-                  strokeDasharray="6 4"
+                  strokeLinecap="round"
                 />
               );
             })()
@@ -185,11 +205,16 @@ export function CanvasEdges({
 
 type HandleProps = {
   node: CanvasNode;
+  visible: boolean;
   onConnectStart: (nodeId: string, e: React.PointerEvent) => void;
 };
 
-/** Output handle only — drop onto any node body to complete the edge. */
-export function NodeHandles({ node, onConnectStart }: HandleProps) {
+/** Ports only show when the node is selected or hovered. */
+export function NodeHandles({
+  node,
+  visible,
+  onConnectStart,
+}: HandleProps) {
   const box = nodeBox(node);
 
   return (
@@ -197,16 +222,24 @@ export function NodeHandles({ node, onConnectStart }: HandleProps) {
       <span
         title="输入"
         aria-hidden
-        className="pointer-events-none absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-violet-400/80"
+        className={cn(
+          "joy-canvas-port absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-violet-400 shadow-sm",
+          visible && "is-visible",
+        )}
         style={{ left: node.x, top: node.y + box.height / 2 }}
       />
       <button
         type="button"
         title="输出 · 拖到目标节点或空白处"
         aria-label="输出连接点"
-        className="absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-emerald-400/90 shadow hover:scale-125"
+        tabIndex={visible ? 0 : -1}
+        className={cn(
+          "joy-canvas-port absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-emerald-400 shadow-sm hover:scale-125",
+          visible && "is-visible",
+        )}
         style={{ left: node.x + box.width, top: node.y + box.height / 2 }}
         onPointerDown={(e) => {
+          if (!visible) return;
           e.stopPropagation();
           onConnectStart(node.id, e);
         }}

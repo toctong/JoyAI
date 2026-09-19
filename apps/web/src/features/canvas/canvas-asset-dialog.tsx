@@ -18,6 +18,8 @@ type AssetRow = {
   createdAt?: string;
   jobId?: string | null;
   job?: { prompt?: string | null } | null;
+  meta?: Record<string, unknown> | null;
+  originalName?: string | null;
 };
 
 type MainTab = "assets" | "subject";
@@ -36,7 +38,15 @@ function isUpload(asset: AssetRow) {
 type Props = {
   open: boolean;
   onClose: () => void;
-  onConfirm: (assets: { id: string; url: string; kind: string }[]) => void;
+  onConfirm: (
+    assets: {
+      id: string;
+      url: string;
+      kind: string;
+      meta?: Record<string, unknown> | null;
+      originalName?: string | null;
+    }[],
+  ) => void;
 };
 
 /** Asset picker. Contents match the assets page, not canvas nodes or explore prompts. */
@@ -113,6 +123,8 @@ export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
         id: asset.id,
         url: asset.url,
         kind: asset.kind,
+        meta: asset.meta,
+        originalName: asset.originalName,
       })),
     );
   }

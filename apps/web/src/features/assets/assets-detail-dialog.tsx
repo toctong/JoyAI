@@ -37,6 +37,8 @@ export type AssetsPreviewItem = {
   createdAt: string;
   mimeType?: string | null;
   jobId?: string | null;
+  meta?: Record<string, unknown> | null;
+  originalName?: string | null;
   job?: {
     id: string;
     canvasProjectId?: string | null;
@@ -108,7 +110,13 @@ export function AssetsDetailDialog({
   async function onDownload() {
     if (!asset?.url) return;
     try {
-      await downloadAsset(asset.url, asset.kind);
+      const name =
+        typeof asset.originalName === "string"
+          ? asset.originalName
+          : typeof asset.meta?.originalName === "string"
+            ? asset.meta.originalName
+            : undefined;
+      await downloadAsset(asset.url, asset.kind, name);
       toast.success("已开始下载");
     } catch {
       toast.error("下载失败");

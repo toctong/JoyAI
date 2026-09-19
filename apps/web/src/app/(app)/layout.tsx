@@ -28,6 +28,8 @@ export default function AppShellLayout({
   const logout = useAuthStore((s) => s.logout);
   const hydrated = useAuthHydrated();
   const isCanvasEditor = /^\/canvas\/[^/]+$/.test(pathname);
+  /** 漫剧六步工作台自管全高布局（对照制作大片 / namistory） */
+  const isManjuWorkbench = /^\/manju\/[^/]+$/.test(pathname);
   const isAdmin =
     pathname === "/admin" || pathname.startsWith("/admin/");
   /** Wallpaper plugin only paints the inspire home (updream-style). */
@@ -103,7 +105,11 @@ export default function AppShellLayout({
       >
         <AppSidebar />
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-          {isCanvasEditor || isAdmin || isInspireHome || isExplore ? (
+          {isCanvasEditor ||
+          isManjuWorkbench ||
+          isAdmin ||
+          isInspireHome ||
+          isExplore ? (
             children
           ) : (
             <ScrollArea className="h-full" type="hover">

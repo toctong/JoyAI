@@ -1,12 +1,21 @@
 /** Trigger a file download for a remote asset URL. */
-export async function downloadAsset(url: string, kind?: string) {
+export async function downloadAsset(
+  url: string,
+  kind?: string,
+  fileName?: string,
+) {
   try {
     const res = await fetch(url);
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = objectUrl;
-    a.download = `joyai-${Date.now()}.${extForAsset(url, blob.type, kind)}`;
+    const ext = extForAsset(url, blob.type, kind);
+    const preferred = String(fileName ?? "").trim();
+    a.download =
+      preferred && !/\.[a-z0-9]{2,5}$/i.test(preferred)
+        ? `${preferred}.${ext}`
+        : preferred || `joyai-${Date.now()}.${ext}`;
     a.click();
     URL.revokeObjectURL(objectUrl);
   } catch {

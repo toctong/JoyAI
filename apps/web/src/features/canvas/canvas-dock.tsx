@@ -2,19 +2,23 @@
 
 import {
   CanvasIconFit,
+  CanvasIconLink,
   CanvasIconMinimap,
   CanvasIconShortcuts,
 } from "./icons/canvas-icons";
 import { cn } from "@/shared/lib/utils";
+import type { CanvasEdgeVisibility } from "./lib/canvas-prefs";
 
 type Props = {
   zoom: number;
   miniMapOpen: boolean;
   shortcutsOpen: boolean;
+  edgeVisibility: CanvasEdgeVisibility;
   onZoomChange: (zoom: number) => void;
   onFit: () => void;
   onToggleMiniMap: () => void;
   onToggleShortcuts: () => void;
+  onToggleEdgeVisibility: () => void;
 };
 
 function ChipBtn({
@@ -49,11 +53,14 @@ export function CanvasDock({
   zoom,
   miniMapOpen,
   shortcutsOpen,
+  edgeVisibility,
   onZoomChange,
   onFit,
   onToggleMiniMap,
   onToggleShortcuts,
+  onToggleEdgeVisibility,
 }: Props) {
+  const focusEdges = edgeVisibility === "focus";
   return (
     <div
       data-canvas-no-zoom
@@ -70,6 +77,17 @@ export function CanvasDock({
       </ChipBtn>
       <ChipBtn title="适应内容 0" onClick={onFit}>
         <CanvasIconFit className="size-4" />
+      </ChipBtn>
+      <ChipBtn
+        title={
+          focusEdges
+            ? "连线聚焦：已开启（点击节点只显示相关连线）"
+            : "连线聚焦：关闭（显示全部连线）"
+        }
+        active={focusEdges}
+        onClick={onToggleEdgeVisibility}
+      >
+        <CanvasIconLink className="size-4" />
       </ChipBtn>
       <input
         type="range"

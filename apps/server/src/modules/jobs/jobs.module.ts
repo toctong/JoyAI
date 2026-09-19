@@ -10,12 +10,14 @@ import { ImageProcessor } from "./processors/image.processor";
 import { VideoSubmitProcessor } from "./processors/video-submit.processor";
 import { VideoPollProcessor } from "./processors/video-poll.processor";
 import { AssetMirrorProcessor } from "./processors/asset-mirror.processor";
+import { LlmProcessor } from "./processors/llm.processor";
 import { JobTimeoutSweeper } from "./job-timeout.sweeper";
 import { ChannelsModule } from "../channels/channels.module";
 import { AssetsModule } from "../assets/assets.module";
 import { StorageModule } from "../storage/storage.module";
 import { RealtimeModule } from "../realtime/realtime.module";
 import { CanvasModule } from "../canvas/canvas.module";
+import { ManjuModule } from "../manju/manju.module";
 
 @Module({
   imports: [
@@ -25,12 +27,14 @@ import { CanvasModule } from "../canvas/canvas.module";
       { name: QUEUE.VIDEO_SUBMIT },
       { name: QUEUE.VIDEO_POLL },
       { name: QUEUE.ASSET_MIRROR },
+      { name: QUEUE.LLM },
     ),
     ChannelsModule,
     AssetsModule,
     StorageModule,
     RealtimeModule,
     CanvasModule,
+    ManjuModule,
   ],
   controllers: [JobsController],
   providers: [
@@ -39,6 +43,7 @@ import { CanvasModule } from "../canvas/canvas.module";
     VideoSubmitProcessor,
     VideoPollProcessor,
     AssetMirrorProcessor,
+    LlmProcessor,
     JobTimeoutSweeper,
   ],
   exports: [JobsService],

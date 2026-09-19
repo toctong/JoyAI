@@ -118,7 +118,7 @@ export class ModelsService {
     const rows = await this.models.find({
       where: {
         enabled: true,
-        kind: In([JobKind.image, JobKind.video]),
+        kind: In([JobKind.image, JobKind.video, JobKind.llm]),
         channel: { enabled: true },
       },
       relations: ["channel"],
@@ -129,7 +129,7 @@ export class ModelsService {
       const caps = (m.capabilities ?? null) as ModelCapabilities | null;
       let adapterId: string | null = null;
       try {
-        if (m.kind === "image" || m.kind === "video") {
+        if (m.kind === "image" || m.kind === "video" || m.kind === "llm") {
           adapterId = resolveAdapterId({
             platform: m.channel.platform,
             kind: m.kind,

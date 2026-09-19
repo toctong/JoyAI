@@ -49,6 +49,7 @@ import { getPlaybackTime } from "./lib/playback-clock";
 import { wrapPanoramaPrompt, flagPanoramaAspect } from "./lib/panorama-prompt";
 import { convertImagePanoramaType } from "./lib/convert-media-type";
 import { frameNodeToMedia } from "./lib/fit-node-size";
+import { mediaNamePatch } from "./lib/node-title";
 import {
   collectIncomingMediaFromEdges,
 } from "./lib/canvas-media-refs";
@@ -255,6 +256,7 @@ export function NodeFloatToolbar({
       assetId: asset.id,
       status: "succeeded",
       error: "",
+      ...mediaNamePatch(file.name),
       ...(node.type === "panorama" ? { projection: "equirectangular" } : {}),
     });
     if (node.type === "panorama") {
@@ -273,6 +275,7 @@ export function NodeFloatToolbar({
       const blob = await res.blob();
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
+      const preferred = String(node?.data.fileName ?? "").trim();
       const fromMime =
         blob.type === "image/png"
           ? "png"
@@ -296,7 +299,10 @@ export function NodeFloatToolbar({
           : node.type === "audio"
             ? "webm"
             : "png");
-      a.download = `joyai-${node.type}-${node.id.slice(0, 6)}.${ext}`;
+      a.download =
+        preferred && !/\.[a-z0-9]{2,5}$/i.test(preferred)
+          ? `${preferred}.${ext}`
+          : preferred || `joyai-${node.type}-${node.id.slice(0, 6)}.${ext}`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {
@@ -351,6 +357,7 @@ export function NodeFloatToolbar({
         url: asset.url,
         assetId: asset.id,
         status: "succeeded",
+        ...mediaNamePatch(file.name),
         title: "视频截帧",
       });
       addEdge(node.id, imageId);
@@ -380,6 +387,7 @@ export function NodeFloatToolbar({
         url: asset.url,
         assetId: asset.id,
         status: "succeeded",
+        ...mediaNamePatch(file.name),
         title: "视频音轨",
       });
       addEdge(node.id, audioId);

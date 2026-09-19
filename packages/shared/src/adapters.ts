@@ -6,6 +6,7 @@
 export const AdapterId = {
   OPENAI_IMAGES: "openai-images",
   OPENAI_VIDEOS: "openai-videos",
+  OPENAI_CHAT: "openai-chat",
   ARK_IMAGES: "ark-images",
   ARK_VIDEO: "ark-video",
   DASHSCOPE_IMAGES: "dashscope-images",
@@ -25,8 +26,20 @@ export function defaultAdapterId(
   platform: string,
   kind: "image" | "video" | "llm",
 ): AdapterIdValue | null {
-  if (kind === "llm") return null;
   const p = platform.trim().toLowerCase();
+  if (kind === "llm") {
+    // Most channels expose OpenAI-compatible /v1/chat/completions
+    if (
+      p === "apimart" ||
+      p === "toapis" ||
+      p === "openai-compatible" ||
+      p === "volcengine" ||
+      p === "dashscope"
+    ) {
+      return AdapterId.OPENAI_CHAT;
+    }
+    return AdapterId.OPENAI_CHAT;
+  }
   if (kind === "image") {
     if (p === "volcengine") return AdapterId.ARK_IMAGES;
     if (p === "dashscope") return AdapterId.DASHSCOPE_IMAGES;

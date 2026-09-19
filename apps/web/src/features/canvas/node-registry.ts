@@ -45,8 +45,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   text: {
     type: "text",
     label: "文本",
-    defaultWidth: 240,
-    defaultHeight: 80,
+    defaultWidth: 360,
+    defaultHeight: 160,
     defaultData: () => ({ text: "双击编辑文本" }),
     toolbar: [
       "font-down",

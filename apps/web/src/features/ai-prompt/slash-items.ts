@@ -3,7 +3,7 @@ export type SlashCommand = {
   label: string;
   description: string;
   insert?: string;
-  kind?: "image" | "video";
+  kind?: "image" | "video" | "text";
 };
 
 export const SLASH_COMMANDS: SlashCommand[] = [
@@ -18,6 +18,12 @@ export const SLASH_COMMANDS: SlashCommand[] = [
     label: "/视频",
     description: "切换到视频生成",
     kind: "video",
+  },
+  {
+    id: "text",
+    label: "/文本",
+    description: "切换到文本 / LLM",
+    kind: "text",
   },
   {
     id: "cinematic",

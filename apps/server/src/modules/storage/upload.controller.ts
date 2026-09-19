@@ -18,6 +18,10 @@ import { CurrentUser, AuthUser } from "../../common/current-user.decorator";
 import { StorageService } from "./storage.service";
 import { AssetsService } from "../assets/assets.service";
 import { fetchPublicImage } from "./fetch-public-image";
+import {
+  originalNameFromMeta,
+  sanitizeOriginalName,
+} from "./original-name";
 
 class CheckDto {
   @IsString()
@@ -32,6 +36,11 @@ class CheckDto {
   @IsOptional()
   @IsString()
   mimeType?: string;
+
+  /** Client original filename — stored when the existing asset has none. */
+  @IsOptional()
+  @IsString()
+  originalName?: string;
 }
 
 @ApiTags("upload")
@@ -63,10 +72,14 @@ export class UploadController {
     if (dto.size != null && existing.size != null && existing.size !== dto.size) {
       return { exists: false as const };
     }
+    const asset = await this.ensureOriginalName(
+      existing,
+      sanitizeOriginalName(dto.originalName),
+    );
     return {
       exists: true as const,
       deduplicated: true as const,
-      asset: existing,
+      asset,
     };
   }
 
@@ -82,14 +95,16 @@ export class UploadController {
     }
     const buffer = Buffer.concat(chunks);
     const md5 = this.storage.md5(buffer);
+    const originalName = sanitizeOriginalName(file.filename);
 
     const existing = await this.assets.findByMd5(user.id, md5);
     if (existing) {
-      return { ...existing, deduplicated: true };
+      const asset = await this.ensureOriginalName(existing, originalName);
+      return { ...asset, deduplicated: true };
     }
 
     const ext =
-      file.filename?.split(".").pop()?.toLowerCase() ||
+      originalName?.split(".").pop()?.toLowerCase() ||
       file.mimetype?.split("/")[1] ||
       "bin";
 
@@ -113,9 +128,25 @@ export class UploadController {
         sha256: put.sha256,
         storageKey: put.key,
         tosDeduplicated: put.deduplicated,
+        ...(originalName ? { originalName } : {}),
       },
     });
 
     return { ...asset, deduplicated: put.deduplicated };
+  }
+
+  /** Fill meta.originalName once when an older hash-only asset is reused. */
+  private async ensureOriginalName(
+    asset: {
+      id: string;
+      meta: Record<string, unknown> | null;
+    },
+    next?: string,
+  ) {
+    if (!next || originalNameFromMeta(asset.meta)) return asset;
+    const patched = await this.assets.patchMeta(asset.id, {
+      originalName: next,
+    });
+    return patched ?? asset;
   }
 }

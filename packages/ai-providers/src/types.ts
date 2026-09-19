@@ -65,6 +65,30 @@ export type VideoPollResult =
   | { status: "succeeded"; videoUrl: string; raw?: unknown }
   | { status: "failed"; error: string; raw?: unknown };
 
+/** OpenAI-compatible multimodal content parts (vision). */
+export type LlmContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type LlmChatMessage = {
+  role: "system" | "user" | "assistant";
+  content: string | LlmContentPart[];
+};
+
+export type LlmChatInput = {
+  model: string;
+  apiKey: string;
+  baseUrl: string;
+  messages: LlmChatMessage[];
+  temperature?: number;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type LlmChatResult = {
+  text: string;
+  raw?: unknown;
+};
+
 export interface ImageProvider {
   /** Protocol adapter id (openai-images / ark-images / …) */
   readonly adapterId: string;
@@ -84,4 +108,10 @@ export interface VideoProvider {
     baseUrl: string;
     metadata?: Record<string, unknown> | null;
   }): Promise<VideoPollResult>;
+}
+
+export interface LlmProvider {
+  readonly adapterId: string;
+  readonly platform: string;
+  chat(input: LlmChatInput): Promise<LlmChatResult>;
 }

@@ -1,5 +1,5 @@
 import { AdapterId, ProviderPlatform, resolveAdapterId } from "@joyai/shared";
-import type { ImageProvider, VideoProvider } from "./types";
+import type { ImageProvider, LlmProvider, VideoProvider } from "./types";
 import {
   VolcengineImageProvider,
   VolcengineVideoProvider,
@@ -8,6 +8,7 @@ import {
   OpenAICompatibleImageProvider,
   OpenAICompatibleVideoProvider,
 } from "./openai-compatible";
+import { OpenAICompatibleLlmProvider } from "./openai-chat";
 import { DashscopeVideoProvider } from "./dashscope-video";
 import { DashscopeImageProvider } from "./dashscope-image";
 
@@ -19,6 +20,7 @@ export * from "./param-map";
 export * from "./prompt-mentions";
 export * from "./volcengine";
 export * from "./openai-compatible";
+export * from "./openai-chat";
 export * from "./dashscope-video";
 export * from "./dashscope-image";
 
@@ -29,6 +31,7 @@ const dashscopeVideo = new DashscopeVideoProvider();
 
 const openaiImageCache = new Map<string, ImageProvider>();
 const openaiVideoCache = new Map<string, VideoProvider>();
+const openaiLlmCache = new Map<string, LlmProvider>();
 
 function openaiImagesFor(platform: string): ImageProvider {
   const key = platform || "openai-compatible";
@@ -46,6 +49,16 @@ function openaiVideosFor(platform: string): VideoProvider {
   if (!hit) {
     hit = new OpenAICompatibleVideoProvider(key);
     openaiVideoCache.set(key, hit);
+  }
+  return hit;
+}
+
+function openaiLlmFor(platform: string): LlmProvider {
+  const key = platform || "openai-compatible";
+  let hit = openaiLlmCache.get(key);
+  if (!hit) {
+    hit = new OpenAICompatibleLlmProvider(key);
+    openaiLlmCache.set(key, hit);
   }
   return hit;
 }
@@ -93,6 +106,23 @@ export function resolveVideoProvider(opts: {
   throw new Error(`Unknown video adapter: ${id}`);
 }
 
+export function resolveLlmProvider(opts: {
+  platform: string;
+  adapterId?: string | null;
+  capabilities?: { adapterId?: unknown } | null;
+}): LlmProvider {
+  const id = resolveAdapterId({
+    platform: opts.platform,
+    kind: "llm",
+    adapterId: opts.adapterId,
+    capabilities: opts.capabilities,
+  });
+  if (id === AdapterId.OPENAI_CHAT) {
+    return openaiLlmFor(opts.platform);
+  }
+  throw new Error(`Unknown llm adapter: ${id}`);
+}
+
 /** Look up by adapter id only (OpenAI family uses generic dialect). */
 export function getImageProvider(adapterId: string): ImageProvider {
   if (adapterId === AdapterId.OPENAI_IMAGES) {
@@ -110,6 +140,13 @@ export function getVideoProvider(adapterId: string): VideoProvider {
   if (adapterId === AdapterId.ARK_VIDEO) return arkVideo;
   if (adapterId === AdapterId.DASHSCOPE_VIDEO) return dashscopeVideo;
   throw new Error(`Unknown video adapter: ${adapterId}`);
+}
+
+export function getLlmProvider(adapterId: string): LlmProvider {
+  if (adapterId === AdapterId.OPENAI_CHAT) {
+    return openaiLlmFor("openai-compatible");
+  }
+  throw new Error(`Unknown llm adapter: ${adapterId}`);
 }
 
 /** @deprecated Use resolveImageProvider */

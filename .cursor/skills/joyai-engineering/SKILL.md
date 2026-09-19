@@ -31,7 +31,7 @@ src/
 - Forms: react-hook-form + zod (schemas from `@joyai/shared` when shared).
 - UI: official shadcn + Radix under `components/ui/` (`components.json` configured). Prefer `npx shadcn@latest add <name>`; do not hand-roll Radix-less fakes.
 - Theme: `next-themes` light / dark / system; tokens in `globals.css` (`:root` + `.dark`).
-- Web IA: left icon rail — 灵感 `/inspire` · 创作 `/studio` · 画布 `/canvas` · 资产 `/assets`.
+- Web IA: left icon rail — 灵感 `/inspire` · 创作 `/studio` · 画布 `/canvas` · 漫剧 `/manju` · 资产 `/assets`.
 - Ops UI lives under `/admin` (role `admin` only); no separate `apps/admin`.
 - Imports: external → `@joyai/*` → `@/` aliases; no deep relative `../../../`.
 

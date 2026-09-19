@@ -32,6 +32,7 @@ export class JobsService {
     private readonly assets: AssetsService,
     @InjectQueue(QUEUE.IMAGE) private readonly imageQueue: Queue,
     @InjectQueue(QUEUE.VIDEO_SUBMIT) private readonly videoSubmitQueue: Queue,
+    @InjectQueue(QUEUE.LLM) private readonly llmQueue: Queue,
   ) {}
 
   async create(userId: string, body: unknown) {
@@ -42,7 +43,12 @@ export class JobsService {
     const { kind, input } = parsed.data;
 
     const model = await this.channels.resolveForKind(kind, input.modelId);
-    const queue = kind === "image" ? this.imageQueue : this.videoSubmitQueue;
+    const queue =
+      kind === "image"
+        ? this.imageQueue
+        : kind === "llm"
+          ? this.llmQueue
+          : this.videoSubmitQueue;
 
     // Probe Redis before writing the job row — avoid orphan "执行中" records.
     await this.assertQueueAvailable(queue);
@@ -61,14 +67,22 @@ export class JobsService {
         channelId: model.channelId,
         channelName: model.channel.name,
         platform: model.channel.platform,
-        canvasProjectId: input.canvasProjectId ?? null,
-        canvasNodeId: input.canvasNodeId ?? null,
+        canvasProjectId:
+          "canvasProjectId" in input ? (input.canvasProjectId ?? null) : null,
+        canvasNodeId:
+          "canvasNodeId" in input ? (input.canvasNodeId ?? null) : null,
       }),
     );
 
     try {
       if (kind === "image") {
         await this.imageQueue.add(
+          "generate",
+          { jobId: job.id },
+          { removeOnComplete: 100, removeOnFail: 200 },
+        );
+      } else if (kind === "llm") {
+        await this.llmQueue.add(
           "generate",
           { jobId: job.id },
           { removeOnComplete: 100, removeOnFail: 200 },

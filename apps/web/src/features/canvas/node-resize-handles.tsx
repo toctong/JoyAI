@@ -140,7 +140,7 @@ export function NodeResizeHandles({ node, zoom, onResizingChange }: Props) {
           type="button"
           aria-label={`缩放 ${corner}`}
           className={cn(
-            "pointer-events-auto absolute z-30 size-3 rounded-sm border-2 border-primary bg-background shadow-sm",
+            "pointer-events-auto absolute z-30 size-2.5 rounded-full border border-foreground/80 bg-background",
             posClass[corner],
           )}
           onPointerDown={(e) => start(e, corner)}

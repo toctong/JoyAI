@@ -10,6 +10,7 @@ import {
   PANORAMA_NODE_SIZE,
 } from "./lib/panorama-prompt";
 import { frameNodeToMedia } from "./lib/fit-node-size";
+import { mediaNamePatch } from "./lib/node-title";
 
 type Kind = "image" | "video" | "panorama" | "audio";
 
@@ -60,14 +61,12 @@ export function MediaUploadLabel({
         "/upload",
         file,
       );
-      const stem = file.name.replace(/\.[^.]+$/, "").trim();
       updateNodeData(nodeId, {
         url: asset.url,
         assetId: asset.id,
         status: "succeeded",
         error: "",
-        fileName: file.name,
-        ...(stem ? { title: stem.slice(0, 80) } : {}),
+        ...mediaNamePatch(file.name),
         ...(kind === "panorama" ? { projection: "equirectangular" } : {}),
       });
       if (kind === "panorama") {

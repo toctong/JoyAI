@@ -2,6 +2,7 @@ import type { CanvasNode } from "@joyai/shared";
 import type { RasterPiece } from "./image-raster";
 import { useCanvasStore } from "../store";
 import { apiUpload } from "@/shared/lib/api";
+import { mediaNamePatch } from "./node-title";
 
 /** Upload raster pieces as Assets and place image nodes to the right of the source. */
 export async function commitImagePieces(
@@ -30,6 +31,7 @@ export async function commitImagePieces(
       url: asset.url,
       assetId: asset.id,
       status: "succeeded",
+      ...mediaNamePatch(piece.name),
       title: piece.title,
       prompt: String(source.data.prompt ?? "").trim() || undefined,
     });

@@ -5,9 +5,10 @@ import {
   CanvasIconImage,
   CanvasIconLoader,
   CanvasIconPanorama,
+  CanvasIconText,
 } from "../icons/canvas-icons";
+import { Maximize2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import type { Editor } from "@tiptap/core";
 import type { CanvasNode } from "@joyai/shared";
 import {
   useCanvasStore,
@@ -16,6 +17,7 @@ import {
   useIsNodeSelected,
 } from "../store";
 import { NodeRuntimeBadge } from "../node-runtime-badge";
+import { MarkdownEditorDialog } from "../markdown-editor-dialog";
 import { nodeChromeClass } from "../lib/node-chrome";
 import { NodeRefBar } from "../node-ref-bar";
 import { useSyncNodeHeight } from "../lib/use-sync-node-height";
@@ -31,10 +33,10 @@ import {
 import { api } from "@/shared/lib/api";
 import { Button } from "@/components/ui/button";
 import {
-  AiPromptEditor,
-  getGeneratePayload,
+  plainTextToDoc,
+  serializeForGenerate,
   type PromptGeneratePayload,
-} from "@/features/ai-prompt";
+} from "@/features/ai-prompt/serialize";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -42,11 +44,11 @@ type Props = {
   onPointerDown: (e: React.PointerEvent) => void;
 };
 
-type OutputKind = "image" | "video" | "panorama";
+type OutputKind = "image" | "video" | "panorama" | "text";
 
 function parseOutputKind(raw: unknown): OutputKind {
   const v = String(raw ?? "image");
-  if (v === "video" || v === "panorama") return v;
+  if (v === "video" || v === "panorama" || v === "text") return v;
   return "image";
 }
 
@@ -57,8 +59,9 @@ export function PromptNode({ node, onPointerDown }: Props) {
   const pulsing = useIsNodePulsing(node.id);
   const nodes = useCanvasStore((s) => s.nodes);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
+  const pushHistory = useCanvasStore((s) => s.pushHistory);
   const [busy, setBusy] = useState(false);
-  const editorRef = useRef<Editor | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const prompt = String(node.data.prompt ?? "");
   const status = String(node.data.status ?? "idle");
   const error = String(node.data.error ?? "");
@@ -113,8 +116,18 @@ export function PromptNode({ node, onPointerDown }: Props) {
     });
   }
 
+  function payloadFromText(text: string): PromptGeneratePayload {
+    return serializeForGenerate(plainTextToDoc(text, mentionItems));
+  }
+
+  function savePrompt(next: string) {
+    if (next === prompt) return;
+    pushHistory();
+    syncRefs(payloadFromText(next), next);
+  }
+
   async function submit() {
-    const payload = getGeneratePayload(editorRef.current);
+    const payload = payloadFromText(prompt);
     const promptText = payload.prompt.trim() || prompt.trim();
     if (!projectId || !promptText) return;
     const edges = useCanvasStore.getState().edges;
@@ -141,7 +154,23 @@ export function PromptNode({ node, onPointerDown }: Props) {
       referenceUrls,
     });
     try {
-      if (outputKind === "video") {
+      if (outputKind === "text") {
+        const job = await api<{ id: string }>("/jobs", {
+          method: "POST",
+          body: {
+            kind: "llm",
+            input: {
+              purpose: "chat",
+              prompt: promptText,
+              canvasProjectId: projectId,
+              canvasNodeId: node.id,
+              referenceAssetIds,
+              referenceUrls,
+            },
+          },
+        });
+        updateNodeData(node.id, { status: "running", jobId: job.id });
+      } else if (outputKind === "video") {
         const job = await api<{ id: string }>("/jobs", {
           method: "POST",
           body: {
@@ -203,9 +232,12 @@ export function PromptNode({ node, onPointerDown }: Props) {
           ? "生成视频"
           : outputKind === "panorama"
             ? "生成全景"
-            : "生成图像";
+            : outputKind === "text"
+              ? "生成文本"
+              : "生成图像";
 
   return (
+    <>
     <div
       onPointerDown={onPointerDown}
       className={cn(
@@ -220,7 +252,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
     >
       <div
         ref={bodyRef}
-        className="overflow-hidden rounded-md border border-border bg-card/95 p-3 shadow-lg"
+        className="overflow-hidden rounded-xl border border-border/70 bg-card/90 p-3"
       >
         <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
           <CanvasIconSparkles className="size-3.5 text-primary" />
@@ -241,6 +273,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
               { id: "image" as const, label: "图像", Icon: CanvasIconImage },
               { id: "panorama" as const, label: "全景", Icon: CanvasIconPanorama },
               { id: "video" as const, label: "视频", Icon: CanvasIconDirector },
+              { id: "text" as const, label: "文本", Icon: CanvasIconText },
             ] as const
           ).map(({ id, label, Icon }) => (
             <button
@@ -260,21 +293,31 @@ export function PromptNode({ node, onPointerDown }: Props) {
           ))}
         </div>
         <div
+          className="group relative mb-2 min-h-[72px] cursor-text rounded-lg bg-muted/40 px-2.5 py-2"
           data-canvas-no-zoom
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => {
+            event.stopPropagation();
+            setEditorOpen(true);
+          }}
         >
-          <AiPromptEditor
-            editorRef={editorRef}
-            initialText={prompt}
-            mentionItems={mentionItems}
-            placeholder="输入提示词，/ 指令 · @ 引用图/视频/音频"
-            onPlainChange={(text) => {
-              const payload = getGeneratePayload(editorRef.current);
-              syncRefs(payload, text);
-            }}
-            onPayloadChange={(payload) => syncRefs(payload)}
-            className="rounded-md border border-border/60 bg-background/60 px-2 py-1"
-          />
+          <button
+            type="button"
+            className="absolute right-1.5 top-1.5 grid size-6 place-items-center rounded-md text-muted-foreground opacity-0 transition hover:bg-background hover:text-foreground group-hover:opacity-100"
+            title="打开 Markdown 编辑器"
+            onClick={() => setEditorOpen(true)}
+          >
+            <Maximize2 className="size-3.5" />
+          </button>
+          {prompt.trim() ? (
+            <p className="line-clamp-6 whitespace-pre-wrap break-words pr-6 text-sm leading-relaxed">
+              {prompt}
+            </p>
+          ) : (
+            <p className="pr-6 text-sm text-muted-foreground">
+              双击编写提示词，支持 Markdown
+            </p>
+          )}
         </div>
         <Button
           className="mt-2 w-full"
@@ -301,5 +344,14 @@ export function PromptNode({ node, onPointerDown }: Props) {
         />
       </div>
     </div>
+    <MarkdownEditorDialog
+      open={editorOpen}
+      title="编辑提示词"
+      value={prompt}
+      placeholder="描述画面。可用 Markdown，@ 引用画布上的图片。"
+      onOpenChange={setEditorOpen}
+      onSave={savePrompt}
+    />
+    </>
   );
 }

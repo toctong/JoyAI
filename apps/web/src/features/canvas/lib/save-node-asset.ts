@@ -70,6 +70,10 @@ export async function saveNodeAsset(nodeId: string) {
           source: "canvas",
           nodeId: node.id,
           prompt: String(node.data.prompt ?? "").trim() || undefined,
+          originalName:
+            String(node.data.fileName ?? "").trim() ||
+            String(node.data.title ?? "").trim() ||
+            undefined,
         },
       },
     });

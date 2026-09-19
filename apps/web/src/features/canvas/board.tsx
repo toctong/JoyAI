@@ -52,8 +52,11 @@ import {
 import { copiedGroupId, prepareCopiedData } from "./lib/copy-node";
 import {
   isCanvasOverlayTarget,
+  readEdgeVisibilityPreference,
   readGridModePreference,
+  writeEdgeVisibilityPreference,
   writeGridModePreference,
+  type CanvasEdgeVisibility,
   type CanvasGridMode,
 } from "./lib/canvas-prefs";
 import {
@@ -62,7 +65,11 @@ import {
 } from "./lib/capture-video-frame";
 import { api, apiUpload } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
-import { titleFromPrompt, fileNameFromUrl } from "./lib/node-title";
+import {
+  titleFromPrompt,
+  mediaNamePatch,
+  originalNameFromAsset,
+} from "./lib/node-title";
 import { toast } from "@/shared/lib/toast";
 import { DirectorDesk } from "./director-desk";
 import { ImageToolDialog, type ImageToolMode } from "./image-tool-dialog";
@@ -175,6 +182,8 @@ export function CanvasBoard({
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   const [gridMode, setGridMode] = useState<CanvasGridMode>("dots");
+  const [edgeVisibility, setEdgeVisibility] =
+    useState<CanvasEdgeVisibility>("all");
   const [editingImageId, setEditingImageId] = useState<string | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1, height: 1 });
   const [createMenu, setCreateMenu] = useState<CanvasCreateMenuState | null>(
@@ -291,6 +300,7 @@ export function CanvasBoard({
     setMiniMapOpen(readMinimapOpenPreference(true));
     setSnapToGrid(readSnapPreference(true));
     setGridMode(readGridModePreference("dots"));
+    setEdgeVisibility(readEdgeVisibilityPreference("all"));
   }, [setSnapToGrid]);
 
   useEffect(() => {
@@ -364,7 +374,62 @@ export function CanvasBoard({
     const onCompleted = (payload: {
       jobId: string;
       assets?: { id: string; url: string }[];
+      result?: { text?: string };
     }) => {
+      const llmText = String(payload.result?.text ?? "").trim();
+      if (llmText) {
+        const matches = useCanvasStore
+          .getState()
+          .nodes.filter((node) => node.data.jobId === payload.jobId);
+        if (matches.length) {
+          useCanvasStore.getState().pushHistory();
+          for (const node of matches) {
+            if (node.type === "text") {
+              updateNodeData(node.id, {
+                text: llmText,
+                status: "succeeded",
+                error: "",
+              });
+              continue;
+            }
+            if (node.type === "prompt") {
+              updateNodeData(node.id, { status: "succeeded", error: "" });
+              const live = useCanvasStore.getState();
+              const outgoing = live.edges
+                .filter((edge) => edge.source === node.id)
+                .map((edge) => live.nodes.find((item) => item.id === edge.target))
+                .filter((item) => item?.type === "text");
+              const empty = outgoing.find(
+                (item) => !String(item?.data.text ?? "").trim(),
+              );
+              if (empty) {
+                updateNodeData(empty.id, {
+                  text: llmText,
+                  status: "succeeded",
+                  error: "",
+                  title: String(empty.data.title ?? "").trim() || "生成文本",
+                });
+              } else {
+                const box = nodeBox(node);
+                const textId = live.addNode("text", {
+                  x: box.x + box.width + 40,
+                  y: box.y,
+                });
+                live.updateNode(textId, { width: 360, height: 160 });
+                live.updateNodeData(textId, {
+                  text: llmText,
+                  status: "succeeded",
+                  title: titleFromPrompt(llmText) || "生成文本",
+                  fontSize: 14,
+                });
+                live.addEdge(node.id, textId);
+              }
+            }
+          }
+          return;
+        }
+      }
+
       const asset = payload.assets?.[0];
       if (!asset) return;
       const matches = useCanvasStore
@@ -395,7 +460,6 @@ export function CanvasBoard({
             .filter((n): n is CanvasNode => n != null && n.type === outputKind);
           const emptyTarget = outgoing.find(isEmptyMediaNode);
           const named = titleFromPrompt(String(node.data.prompt ?? ""));
-          const fileName = fileNameFromUrl(asset.url);
           if (emptyTarget) {
             updateNodeData(emptyTarget.id, {
               url: asset.url,
@@ -403,7 +467,6 @@ export function CanvasBoard({
               status: "succeeded",
               error: "",
               prompt: String(node.data.prompt ?? ""),
-              ...(fileName ? { fileName } : {}),
               ...(named && !String(emptyTarget.data.title ?? "").trim()
                 ? { title: named }
                 : {}),
@@ -427,7 +490,6 @@ export function CanvasBoard({
               assetId: asset.id,
               status: "succeeded",
               prompt: String(node.data.prompt ?? ""),
-              ...(fileName ? { fileName } : {}),
               ...(named ? { title: named } : {}),
               ...(outputKind === "panorama"
                 ? { projection: "equirectangular" }
@@ -449,9 +511,6 @@ export function CanvasBoard({
             error: "",
             ...(selfNamed && !String(node.data.title ?? "").trim()
               ? { title: selfNamed }
-              : {}),
-            ...(fileNameFromUrl(asset.url)
-              ? { fileName: fileNameFromUrl(asset.url) }
               : {}),
             ...(node.type === "panorama"
               ? { projection: "equirectangular" }
@@ -532,6 +591,7 @@ export function CanvasBoard({
           url: asset.url,
           assetId: asset.id,
           status: "succeeded",
+          ...mediaNamePatch(file.name),
           ...(type === "panorama" ? { projection: "equirectangular" } : {}),
         });
         if (type === "panorama") notePanoramaAspect(id, asset.url);
@@ -1339,7 +1399,13 @@ export function CanvasBoard({
   }
 
   async function insertAssetAtCenter(
-    asset: { id: string; url: string; kind: string },
+    asset: {
+      id: string;
+      url: string;
+      kind: string;
+      meta?: Record<string, unknown> | null;
+      originalName?: string | null;
+    },
     opts?: { offset?: number; history?: boolean },
   ) {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -1357,10 +1423,12 @@ export function CanvasBoard({
       type = await probeImageUrlType(asset.url);
     }
     const id = addNode(type, at);
+    const fromAsset = originalNameFromAsset(asset);
     updateNodeData(id, {
       url: asset.url,
       assetId: asset.id,
       status: "succeeded",
+      ...mediaNamePatch(fromAsset),
       ...(type === "panorama" ? { projection: "equirectangular" } : {}),
     });
     if (type === "panorama") notePanoramaAspect(id, asset.url);
@@ -1372,7 +1440,13 @@ export function CanvasBoard({
   }
 
   async function insertPickedAssets(
-    assets: { id: string; url: string; kind: string }[],
+    assets: {
+      id: string;
+      url: string;
+      kind: string;
+      meta?: Record<string, unknown> | null;
+      originalName?: string | null;
+    }[],
   ) {
     if (!assets.length) return;
     pushHistory();
@@ -1417,6 +1491,7 @@ export function CanvasBoard({
         url: asset.url,
         assetId: asset.id,
         status: "succeeded",
+        ...mediaNamePatch(file.name),
         title:
           at === "first" ? "首帧" : at === "last" ? "尾帧" : "当前帧",
       });
@@ -1480,6 +1555,7 @@ export function CanvasBoard({
         url: asset.url,
         assetId: asset.id,
         status: "succeeded",
+        ...mediaNamePatch(file.name),
         title: "视频音轨",
       });
       addEdge(node.id, audioId);
@@ -1744,10 +1820,18 @@ export function CanvasBoard({
         zoom={viewport.zoom}
         miniMapOpen={miniMapOpen}
         shortcutsOpen={shortcutsOpen}
+        edgeVisibility={edgeVisibility}
         onZoomChange={(z) => zoomAt(Math.min(5, Math.max(0.05, z)))}
         onFit={fitToContent}
         onToggleMiniMap={toggleMiniMap}
         onToggleShortcuts={() => setShortcutsOpen((v) => !v)}
+        onToggleEdgeVisibility={() => {
+          setEdgeVisibility((prev) => {
+            const next = prev === "all" ? "focus" : "all";
+            writeEdgeVisibilityPreference(next);
+            return next;
+          });
+        }}
       />
 
       <CanvasShortcutsHelp
@@ -1870,6 +1954,8 @@ export function CanvasBoard({
             nodes={nodes}
             edges={edges}
             selectedEdgeId={selectedEdgeId}
+            selectedNodeIds={selectedIds}
+            edgeVisibility={edgeVisibility}
             draft={connectDraft}
             onSelectEdge={(id) => {
               selectEdge(id);
@@ -1881,6 +1967,7 @@ export function CanvasBoard({
           />
           {nodes.map((node, index) => {
             const selected = selectedIds.includes(node.id);
+            const hovered = hoveredNodeId === node.id;
             return (
               <div
                 key={node.id}
@@ -1905,7 +1992,11 @@ export function CanvasBoard({
                   }
                   onOpenDirector={(id) => setDirectorId(id)}
                 />
-                <NodeHandles node={node} onConnectStart={onConnectStart} />
+                <NodeHandles
+                  node={node}
+                  visible={selected || hovered || connectDraft?.sourceId === node.id}
+                  onConnectStart={onConnectStart}
+                />
               </div>
             );
           })}

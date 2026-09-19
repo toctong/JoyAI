@@ -8,6 +8,7 @@ import { In, Repository } from "typeorm";
 import { Asset } from "../../database/entities/asset.entity";
 import { StorageService } from "../storage/storage.service";
 import { fetchPublicImage } from "../storage/fetch-public-image";
+import { sanitizeOriginalName } from "../storage/original-name";
 
 @Injectable()
 export class AssetsService {
@@ -58,10 +59,18 @@ export class AssetsService {
       meta?: Record<string, unknown> | null;
     },
   ) {
+    const originalName = sanitizeOriginalName(
+      typeof data.meta?.originalName === "string"
+        ? data.meta.originalName
+        : undefined,
+    );
+    const restMeta = { ...(data.meta ?? {}) };
+    delete restMeta.originalName;
     const stamp = {
       savedFromCanvas: true,
       savedAt: new Date().toISOString(),
-      ...(data.meta ?? {}),
+      ...restMeta,
+      ...(originalName ? { originalName } : {}),
     };
 
     if (data.assetId?.trim()) {

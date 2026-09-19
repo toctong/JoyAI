@@ -4,6 +4,7 @@ import { useCanvasStore } from "../store";
 import { copyUpstreamPrompt } from "./image-node-actions";
 import { mediaRefFromNode } from "./canvas-media-refs";
 
+/** Same instruction as infinite-canvas `IMAGE_PROMPT_REVERSE_PRESET`. */
 export const IMAGE_PROMPT_REVERSE_PRESET = `请根据参考图片反推一段适合用于 AI 生图的提示词。
 
 要求：
@@ -51,7 +52,8 @@ async function resolveKnownPrompt(nodeId: string): Promise<string> {
 
 /**
  * Reverse / extract prompt beside an image node.
- * Prefer known generation prompts; otherwise spawn a reverse-instruction graph.
+ * Known prompts are copied. Otherwise a text node keeps the built-in
+ * instruction and an LLM job writes the result into a sibling text node.
  */
 export async function spawnReversePrompt(nodeId: string) {
   const store = useCanvasStore.getState();
@@ -77,10 +79,12 @@ export async function spawnReversePrompt(nodeId: string) {
       x: node.x + width + gap,
       y: node.y,
     });
+    store.updateNode(textId, { width: 360, height: 160 });
     store.updateNodeData(textId, {
       text: known,
       title: "提取的提示词",
       fontSize: 14,
+      status: "succeeded",
     });
     store.addEdge(node.id, textId);
     store.setSelection([textId]);
@@ -88,33 +92,66 @@ export async function spawnReversePrompt(nodeId: string) {
     return;
   }
 
+  const projectId = store.projectId;
+  if (!projectId) {
+    toast.error("画布未就绪");
+    return;
+  }
+
   const textId = store.addNode("text", {
     x: node.x + width + gap,
     y: node.y,
   });
+  store.updateNode(textId, { width: 360, height: 160 });
   store.updateNodeData(textId, {
     text: IMAGE_PROMPT_REVERSE_PRESET,
     title: "反推提示词",
     fontSize: 14,
+    status: "succeeded",
+  });
+
+  const resultId = store.addNode("text", {
+    x: node.x + width + gap + 360 + gap,
+    y: node.y,
+  });
+  store.updateNode(resultId, { width: 360, height: 160 });
+  store.updateNodeData(resultId, {
+    text: "",
+    title: "反推结果",
+    fontSize: 14,
+    status: "queued",
   });
   store.addEdge(node.id, textId);
+  store.addEdge(node.id, resultId);
+  store.addEdge(textId, resultId);
+  store.setSelection([resultId]);
 
   const refs = mediaRefFromNode(node);
-  const promptId = store.addNode("prompt", {
-    x: node.x + width + gap,
-    y: node.y + 120,
-  });
-  store.updateNodeData(promptId, {
-    prompt: IMAGE_PROMPT_REVERSE_PRESET,
-    operation: "generate",
-    outputKind: "image",
-    title: "反推提示词",
-    ...refs,
-  });
-  store.addEdge(node.id, promptId);
-  store.addEdge(textId, promptId);
-  store.setSelection([promptId]);
-  toast.message("已创建反推节点：运行后可把结果复制到文本");
+  const assetId = String(node.data.assetId ?? "").trim();
+  try {
+    const job = await api<{ id: string }>("/jobs", {
+      method: "POST",
+      body: {
+        kind: "llm",
+        input: {
+          purpose: "reverse_prompt",
+          prompt: IMAGE_PROMPT_REVERSE_PRESET,
+          canvasProjectId: projectId,
+          canvasNodeId: resultId,
+          referenceAssetIds: assetId ? [assetId] : undefined,
+          referenceUrls: refs.referenceUrls,
+        },
+      },
+    });
+    store.updateNodeData(resultId, { status: "running", jobId: job.id });
+    toast.success("已提交反推，结果会写到右侧文本");
+  } catch (error) {
+    store.updateNodeData(resultId, {
+      status: "failed",
+      error: error instanceof Error ? error.message : "反推失败",
+    });
+    toast.error(error instanceof Error ? error.message : "反推失败");
+  }
 }
 
 /** Copy prompt when available; otherwise open reverse workflow. */

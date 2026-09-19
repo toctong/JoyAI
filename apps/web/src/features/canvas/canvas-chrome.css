@@ -107,3 +107,51 @@
   -webkit-user-drag: none;
   user-select: none;
 }
+
+/* Selection — single thin ring, no stacked outline/glow */
+.joy-node-chrome.is-selected,
+.joy-node-selected {
+  border-color: var(--foreground) !important;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+.dark .joy-node-chrome.is-selected,
+.dark .joy-node-selected {
+  border-color: #fff !important;
+  box-shadow: 0 0 0 2px color-mix(in oklab, #fff 22%, transparent);
+}
+
+/* Edge flow dash */
+.joy-canvas-edge-flow {
+  stroke-dasharray: 8 10;
+  animation: joy-edge-flow 0.9s linear infinite;
+}
+
+@keyframes joy-edge-flow {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joy-canvas-edge-flow {
+    animation: none;
+    stroke-dasharray: none;
+  }
+}
+
+.joy-canvas-port {
+  opacity: 0;
+  scale: 0.72;
+  transition:
+    opacity 0.16s ease,
+    scale 0.16s ease;
+  pointer-events: none;
+}
+
+.joy-canvas-port.is-visible {
+  opacity: 1;
+  scale: 1;
+  pointer-events: auto;
+}

@@ -58,7 +58,7 @@ type Props = {
   className?: string;
   onPlainChange?: (text: string) => void;
   onPayloadChange?: (payload: PromptGeneratePayload) => void;
-  onKindCommand?: (kind: "image" | "video") => void;
+  onKindCommand?: (kind: "image" | "video" | "text") => void;
   editorRef?: MutableRefObject<Editor | null>;
 };
 

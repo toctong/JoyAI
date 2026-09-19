@@ -16,6 +16,7 @@ import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { CanvasIconImage } from "../icons/canvas-icons";
 import { MediaUploadLabel } from "../media-upload-label";
 import { apiUpload } from "@/shared/lib/api";
+import { mediaNamePatch } from "../lib/node-title";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -68,6 +69,7 @@ export function ImageNode({
         assetId: asset.id,
         status: "succeeded",
         error: "",
+        ...mediaNamePatch(file.name),
       });
       onEditingChange?.(false);
     } catch (e) {

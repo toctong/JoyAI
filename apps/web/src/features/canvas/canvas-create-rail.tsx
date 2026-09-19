@@ -14,6 +14,7 @@ import {
 import { nodeTypeForUpload } from "./lib/upload-node-type";
 import { flagPanoramaAspect } from "./lib/panorama-prompt";
 import { frameNodeToMedia } from "./lib/fit-node-size";
+import { mediaNamePatch } from "./lib/node-title";
 import { useCanvasStore } from "./store";
 import { apiUpload } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
@@ -109,13 +110,11 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
     );
     const type = await nodeTypeForUpload(file, asset.kind);
     const id = addNode(type);
-    const stem = file.name.replace(/\.[^.]+$/, "").trim();
     updateNodeData(id, {
       url: asset.url,
       assetId: asset.id,
       status: "succeeded",
-      fileName: file.name,
-      ...(stem ? { title: stem.slice(0, 80) } : {}),
+      ...mediaNamePatch(file.name),
       ...(type === "panorama" ? { projection: "equirectangular" } : {}),
     });
     if (type === "panorama") {

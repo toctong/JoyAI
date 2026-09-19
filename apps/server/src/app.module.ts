@@ -12,6 +12,7 @@ import { JobsModule } from "./modules/jobs/jobs.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { AssetsModule } from "./modules/assets/assets.module";
 import { CanvasModule } from "./modules/canvas/canvas.module";
+import { ManjuModule } from "./modules/manju/manju.module";
 import { SettingsModule } from "./modules/settings/settings.module";
 import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { AdminModule } from "./modules/admin/admin.module";
@@ -48,6 +49,7 @@ import { BootstrapService } from "./common/bootstrap.service";
     StorageModule,
     AssetsModule,
     CanvasModule,
+    ManjuModule,
     SettingsModule,
     RealtimeModule,
     AdminModule,

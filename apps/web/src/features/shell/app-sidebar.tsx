@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Compass, LogOut, Shield, type LucideIcon } from "lucide-react";
+import {
+  Clapperboard,
+  Compass,
+  LogOut,
+  Shield,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/lib/auth-store";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
@@ -45,6 +51,12 @@ const nav: NavItem[] = [
     href: "/canvas",
     label: "画布",
     icon: JOYAI_BRAND.nav.canvas,
+    beta: true,
+  },
+  {
+    href: "/manju",
+    label: "漫剧",
+    Lucide: Clapperboard,
     beta: true,
   },
   {

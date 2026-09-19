@@ -5,6 +5,7 @@ import { Job } from "./job.entity";
 import { Asset } from "./asset.entity";
 import { CanvasFolder } from "./canvas-folder.entity";
 import { CanvasProject } from "./canvas-project.entity";
+import { ManjuProject } from "./manju-project.entity";
 import { AppSetting } from "./app-setting.entity";
 import { AuditLog } from "./audit-log.entity";
 
@@ -16,6 +17,7 @@ export const ENTITIES = [
   Asset,
   CanvasFolder,
   CanvasProject,
+  ManjuProject,
   AppSetting,
   AuditLog,
 ] as const;
@@ -28,6 +30,7 @@ export {
   Asset,
   CanvasFolder,
   CanvasProject,
+  ManjuProject,
   AppSetting,
   AuditLog,
 };

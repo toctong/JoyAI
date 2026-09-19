@@ -1,0 +1,40 @@
+.joy-md-editor {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.joy-md-editor .w-md-editor {
+  display: flex !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.joy-md-editor .w-md-editor-toolbar {
+  flex-shrink: 0;
+}
+
+.joy-md-editor .w-md-editor-content {
+  display: flex !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
+  height: auto !important;
+}
+
+.joy-md-editor .w-md-editor-input,
+.joy-md-editor .w-md-editor-preview,
+.joy-md-editor .w-md-editor-text,
+.joy-md-editor .w-md-editor-text-pre,
+.joy-md-editor .w-md-editor-text-input {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.joy-md-editor .w-md-editor-text-input {
+  overflow: auto !important;
+}

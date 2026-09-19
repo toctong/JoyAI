@@ -4,6 +4,7 @@ import {
   CanvasIconDirector,
   CanvasIconImage,
   CanvasIconLoader,
+  CanvasIconText,
 } from "./icons/canvas-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -57,10 +58,12 @@ type Props = {
   onClose?: () => void;
 };
 
+type GenKind = "image" | "video" | "text";
+
 type PublicModel = {
   id: string;
   name: string;
-  kind: "image" | "video";
+  kind: "image" | "video" | "llm";
   remoteId?: string;
   capabilities?: ModelCapabilities | null;
   channel?: { name?: string };
@@ -79,10 +82,12 @@ function panelAnchor(node: CanvasNode, viewport: Viewport) {
 
 function pickModelId(
   models: PublicModel[],
-  kind: "image" | "video",
+  kind: GenKind,
   preferred?: string,
 ) {
-  const list = models.filter((item) => item.kind === kind);
+  const list = models.filter((item) =>
+    kind === "text" ? item.kind === "llm" : item.kind === kind,
+  );
   if (!list.length) return "";
   if (preferred && list.some((item) => item.id === preferred)) return preferred;
   return list[0]!.id;
@@ -113,12 +118,14 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
   );
   const [busy, setBusy] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
-  const [kind, setKind] = useState<"image" | "video">(() =>
+  const [kind, setKind] = useState<GenKind>(() =>
     node.type === "video"
       ? "video"
       : String(node.data.genKind ?? "") === "video"
         ? "video"
-        : "image",
+        : String(node.data.genKind ?? "") === "text"
+          ? "text"
+          : "image",
   );
   const [models, setModels] = useState<PublicModel[]>([]);
   const [modelId, setModelId] = useState(() =>
@@ -135,7 +142,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
     return Number.isFinite(n) && n > 0 ? n : 5;
   });
 
-  const output: "image" | "video" = panorama ? "image" : kind;
+  const output: GenKind = panorama ? "image" : kind;
   const mentionItems = useMemo(() => buildCanvasMentionItems(nodes), [nodes]);
 
   useEffect(() => {
@@ -145,7 +152,9 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
         ? "video"
         : String(node.data.genKind ?? "") === "video"
           ? "video"
-          : "image",
+          : String(node.data.genKind ?? "") === "text"
+            ? "text"
+            : "image",
     );
     setModelId(String(node.data.genModelId ?? ""));
     setRatio(panorama ? "2:1" : String(node.data.genRatio ?? "auto"));
@@ -162,7 +171,12 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
       .then((list) => {
         if (!alive) return;
         setModels(
-          list.filter((item) => item.kind === "image" || item.kind === "video"),
+          list.filter(
+            (item) =>
+              item.kind === "image" ||
+              item.kind === "video" ||
+              item.kind === "llm",
+          ),
         );
       })
       .catch(() => {
@@ -174,7 +188,10 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
   }, []);
 
   const kindModels = useMemo(
-    () => models.filter((item) => item.kind === output),
+    () =>
+      models.filter((item) =>
+        output === "text" ? item.kind === "llm" : item.kind === output,
+      ),
     [models, output],
   );
 
@@ -188,7 +205,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
     () =>
       layoutControlsFromCapabilities(
         selectedModel?.capabilities ?? null,
-        output,
+        output === "video" ? "video" : "image",
       ),
     [selectedModel, output],
   );
@@ -236,16 +253,17 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
   );
 
   const canShowParams =
-    (!panorama && layout.showRatio && layout.aspects.length > 0) ||
-    (layout.showResolution && layout.resolutions.length > 0) ||
-    (output === "video" && layout.showDuration && durations.length > 0);
+    output !== "text" &&
+    ((!panorama && layout.showRatio && layout.aspects.length > 0) ||
+      (layout.showResolution && layout.resolutions.length > 0) ||
+      (output === "video" && layout.showDuration && durations.length > 0));
 
   function writeDraft(next: string) {
     setPrompt(next);
     updateNodeData(node.id, { genDraft: next });
   }
 
-  function writeKind(next: "image" | "video") {
+  function writeKind(next: GenKind) {
     if (panorama) return;
     setKind(next);
     updateNodeData(node.id, { genKind: next });
@@ -338,6 +356,38 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           },
         });
         updateNodeData(targetId, { status: "running", jobId: job.id });
+      } else if (output === "text") {
+        targetId = addNode("text", {
+          x: node.x + (node.width ?? 240) + 40,
+          y: node.y,
+        });
+        addEdge(node.id, targetId);
+        createdTarget = true;
+        useCanvasStore.getState().updateNode(targetId, { width: 360, height: 160 });
+        const named = titleFromPrompt(text);
+        updateNodeData(targetId, {
+          status: "queued",
+          error: "",
+          text: "",
+          fontSize: 14,
+          ...(named ? { title: named } : { title: "生成文本" }),
+        });
+        const job = await api<{ id: string }>("/jobs", {
+          method: "POST",
+          body: {
+            kind: "llm",
+            input: {
+              purpose: "chat",
+              prompt: text,
+              modelId,
+              canvasProjectId: projectId,
+              canvasNodeId: targetId,
+              referenceAssetIds,
+              referenceUrls,
+            },
+          },
+        });
+        updateNodeData(targetId, { status: "running", jobId: job.id });
       } else {
         if (node.type !== "video" || hasMedia) {
           targetId = addNode("video", {
@@ -389,7 +439,9 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           ? "已提交全景任务"
           : kind === "video"
             ? "已提交视频任务"
-            : "已提交图像任务",
+            : kind === "text"
+              ? "已提交文本任务"
+              : "已提交图像任务",
       );
     } catch (e) {
       const message = e instanceof Error ? e.message : "提交失败";
@@ -416,13 +468,17 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
 
   const placeholder = panorama
     ? "描述全景场景，将按 2:1 等距圆柱生成… / 指令 · @ 引用"
-    : hasMedia
-      ? kind === "video"
-        ? "描述运动与镜头…（当前媒体作参考）"
-        : "描述画面…（当前媒体作参考）"
-      : kind === "video"
-        ? "描述要生成的视频… / 指令 · @ 引用"
-        : "描述要生成的图像… / 指令 · @ 引用";
+    : kind === "text"
+      ? hasMedia
+        ? "让模型读这张图并写正文… /文本 · @ 引用"
+        : "写下要生成的文本… /文本 · @ 引用"
+      : hasMedia
+        ? kind === "video"
+          ? "描述运动与镜头…（当前媒体作参考）"
+          : "描述画面…（当前媒体作参考）"
+        : kind === "video"
+          ? "描述要生成的视频… / 指令 · @ 引用"
+          : "描述要生成的图像… / 指令 · @ 引用";
 
   return (
     <div
@@ -496,10 +552,12 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                   <button type="button" className="joy-chip joy-chip-kind">
                     {kind === "image" ? (
                       <CanvasIconImage className="size-4" />
+                    ) : kind === "text" ? (
+                      <CanvasIconText className="size-4" />
                     ) : (
                       <CanvasIconDirector className="size-4" />
                     )}
-                    {kind === "image" ? "图片" : "视频"}
+                    {kind === "image" ? "图片" : kind === "text" ? "文本" : "视频"}
                     <ChevronDown className="size-3.5 opacity-60" />
                   </button>
                 </DropdownMenuTrigger>
@@ -521,6 +579,13 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                   >
                     <CanvasIconDirector className="size-4" />
                     视频生成
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="gap-2"
+                    onClick={() => writeKind("text")}
+                  >
+                    <CanvasIconText className="size-4" />
+                    文本生成
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

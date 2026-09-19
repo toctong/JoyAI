@@ -257,7 +257,12 @@ export async function apiUpload<T = unknown>(
       asset?: T;
     }>("/upload/check", {
       method: "POST",
-      body: { md5, size: file.size, mimeType: file.type },
+      body: {
+        md5,
+        size: file.size,
+        mimeType: file.type,
+        originalName: file.name || undefined,
+      },
       token,
       keepalive: true,
     });
