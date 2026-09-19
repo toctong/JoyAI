@@ -69,7 +69,7 @@ export function AudioNode({ node, onPointerDown }: Props) {
         className={cn(
           "relative h-full w-full overflow-hidden rounded-md",
           framed
-            ? "border border-zinc-300/90 bg-[#f4f4f5] shadow-[0_1px_2px_rgba(15,23,42,0.06),0_10px_28px_rgba(15,23,42,0.1)] dark:border-zinc-800/80 dark:bg-[#141416] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
+            ? "overflow-hidden border border-zinc-300/90 bg-[#f4f4f5] shadow-[0_1px_2px_rgba(15,23,42,0.06),0_10px_28px_rgba(15,23,42,0.1)] dark:border-zinc-800/80 dark:bg-[#141416] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
             : "border border-border bg-card p-2.5",
         )}
       >
