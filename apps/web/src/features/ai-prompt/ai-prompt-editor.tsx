@@ -395,7 +395,7 @@ export function AiPromptEditor({
         >
           {mentionMenuItems.length === 0 ? (
             <div className="px-3 py-2 text-xs text-muted-foreground">
-              暂无可引用素材，先上传参考图
+              暂无可引用内容，先放入图片、视频、音频或文本
             </div>
           ) : (
             mentionMenuItems.map((item, i) => (
@@ -436,7 +436,9 @@ export function AiPromptEditor({
                       ? "视频"
                       : item.mediaKind === "audio"
                         ? "音频"
-                        : "图片"}
+                        : item.mediaKind === "text"
+                          ? "文本"
+                          : "图片"}
                   </span>
                 </div>
               </button>

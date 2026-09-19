@@ -28,6 +28,7 @@ import {
   buildCanvasMentionItems,
   collectIncomingMediaFromEdges,
   mergeJobReferences,
+  appendTextRefs,
   resolveMentionedNodeIds,
 } from "../lib/canvas-media-refs";
 import { api } from "@/shared/lib/api";
@@ -128,10 +129,8 @@ export function PromptNode({ node, onPointerDown }: Props) {
 
   async function submit() {
     const payload = payloadFromText(prompt);
-    const promptText = payload.prompt.trim() || prompt.trim();
-    if (!projectId || !promptText) return;
     const edges = useCanvasStore.getState().edges;
-    const { edgeAssetIds, edgeUrls } = collectIncomingMediaFromEdges(
+    const { edgeAssetIds, edgeUrls, texts } = collectIncomingMediaFromEdges(
       nodes,
       edges,
       node.id,
@@ -144,6 +143,11 @@ export function PromptNode({ node, onPointerDown }: Props) {
       includeAv,
     );
     const nodeIds = resolveMentionedNodeIds(nodes, payload);
+    const promptText = appendTextRefs(
+      payload.prompt.trim() || prompt.trim(),
+      texts,
+    );
+    if (!projectId || !promptText) return;
     setBusy(true);
     updateNodeData(node.id, {
       status: "queued",

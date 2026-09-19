@@ -3,39 +3,63 @@ import axios from "axios";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
-const MAX_BYTES = 40 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 40 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 120 * 1024 * 1024;
 
-/** Pull a public image server-side so the browser can read pixels (TOS often has no CORS). */
-export async function fetchPublicImage(rawUrl: string) {
+export type PublicMediaKind = "image" | "video";
+
+/** Pull public media server-side so the browser can decode without TOS CORS. */
+export async function fetchPublicMedia(
+  rawUrl: string,
+  prefer: PublicMediaKind | "auto" = "auto",
+) {
   const url = await assertPublicUrl(rawUrl);
+  const maxBytes = prefer === "image" ? MAX_IMAGE_BYTES : MAX_VIDEO_BYTES;
   let response;
   try {
     response = await axios.get<ArrayBuffer>(url, {
       responseType: "arraybuffer",
-      timeout: 25_000,
-      maxContentLength: MAX_BYTES,
-      maxBodyLength: MAX_BYTES,
+      timeout: prefer === "video" || prefer === "auto" ? 180_000 : 25_000,
+      maxContentLength: maxBytes,
+      maxBodyLength: maxBytes,
       maxRedirects: 3,
       validateStatus: (status) => status >= 200 && status < 300,
       beforeRedirect: (options) => {
         const host = String(options.hostname ?? "");
         if (isBlockedHost(host) || (isIP(host) && isPrivateIp(host))) {
-          throw new BadRequestException("不允许的图片地址");
+          throw new BadRequestException("不允许的媒体地址");
         }
       },
     });
   } catch (error) {
     if (error instanceof BadRequestException) throw error;
-    throw new BadRequestException("无法下载图片");
+    throw new BadRequestException("无法下载媒体");
   }
 
   const buffer = Buffer.from(response.data);
-  if (!buffer.length || buffer.length > MAX_BYTES) {
-    throw new BadRequestException("图片过大或为空");
+  if (!buffer.length || buffer.length > maxBytes) {
+    throw new BadRequestException("文件过大或为空");
   }
-  const contentType = sniffImage(buffer);
-  if (!contentType) throw new BadRequestException("不是可读取的图片");
-  return { buffer, contentType };
+
+  const headerType = String(response.headers["content-type"] ?? "")
+    .split(";")[0]
+    ?.trim()
+    .toLowerCase();
+  const sniffed = sniffMedia(buffer, headerType);
+  if (!sniffed) throw new BadRequestException("不是可读取的图片或视频");
+  if (prefer === "image" && sniffed.kind !== "image") {
+    throw new BadRequestException("不是可读取的图片");
+  }
+  if (prefer === "video" && sniffed.kind !== "video") {
+    throw new BadRequestException("不是可读取的视频");
+  }
+  return { buffer, contentType: sniffed.contentType, kind: sniffed.kind };
+}
+
+/** Pull a public image server-side so the browser can read pixels. */
+export async function fetchPublicImage(rawUrl: string) {
+  const media = await fetchPublicMedia(rawUrl, "image");
+  return { buffer: media.buffer, contentType: media.contentType };
 }
 
 async function assertPublicUrl(rawUrl: string) {
@@ -43,25 +67,25 @@ async function assertPublicUrl(rawUrl: string) {
   try {
     parsed = new URL(rawUrl);
   } catch {
-    throw new BadRequestException("无效图片地址");
+    throw new BadRequestException("无效媒体地址");
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new BadRequestException("仅支持 http(s) 图片");
+    throw new BadRequestException("仅支持 http(s) 地址");
   }
   const host = parsed.hostname.replace(/^\[|\]$/g, "");
-  if (isBlockedHost(host)) throw new BadRequestException("不允许的图片地址");
+  if (isBlockedHost(host)) throw new BadRequestException("不允许的媒体地址");
   if (isIP(host)) {
-    if (isPrivateIp(host)) throw new BadRequestException("不允许的图片地址");
+    if (isPrivateIp(host)) throw new BadRequestException("不允许的媒体地址");
     return parsed.toString();
   }
   let records: { address: string }[] = [];
   try {
     records = await lookup(host, { all: true, verbatim: true });
   } catch {
-    throw new BadRequestException("无法解析图片地址");
+    throw new BadRequestException("无法解析媒体地址");
   }
   if (!records.length || records.some((item) => isPrivateIp(item.address))) {
-    throw new BadRequestException("不允许的图片地址");
+    throw new BadRequestException("不允许的媒体地址");
   }
   return parsed.toString();
 }
@@ -83,7 +107,13 @@ function isBlockedHost(host: string) {
 
 function isPrivateIp(address: string) {
   const ip = address.toLowerCase();
-  if (ip === "::1" || ip === "0.0.0.0" || ip.startsWith("fe80:") || ip.startsWith("fc") || ip.startsWith("fd")) {
+  if (
+    ip === "::1" ||
+    ip === "0.0.0.0" ||
+    ip.startsWith("fe80:") ||
+    ip.startsWith("fc") ||
+    ip.startsWith("fd")
+  ) {
     return true;
   }
   const v4 = ip.startsWith("::ffff:") ? ip.slice(7) : ip;
@@ -99,11 +129,34 @@ function isPrivateIp(address: string) {
   return false;
 }
 
+function sniffMedia(buffer: Buffer, headerType?: string) {
+  const image = sniffImage(buffer);
+  if (image) return { kind: "image" as const, contentType: image };
+  const video = sniffVideo(buffer, headerType);
+  if (video) return { kind: "video" as const, contentType: video };
+  if (headerType?.startsWith("image/")) {
+    return { kind: "image" as const, contentType: headerType };
+  }
+  if (headerType?.startsWith("video/")) {
+    return { kind: "video" as const, contentType: headerType };
+  }
+  return null;
+}
+
 function sniffImage(buffer: Buffer) {
-  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+  if (
+    buffer.length >= 3 &&
+    buffer[0] === 0xff &&
+    buffer[1] === 0xd8 &&
+    buffer[2] === 0xff
+  ) {
     return "image/jpeg";
   }
-  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer.toString("ascii", 1, 4) === "PNG") {
+  if (
+    buffer.length >= 8 &&
+    buffer[0] === 0x89 &&
+    buffer.toString("ascii", 1, 4) === "PNG"
+  ) {
     return "image/png";
   }
   if (
@@ -120,5 +173,29 @@ function sniffImage(buffer: Buffer) {
   ) {
     return "image/webp";
   }
+  return null;
+}
+
+function sniffVideo(buffer: Buffer, headerType?: string) {
+  if (buffer.length >= 12 && buffer.toString("ascii", 4, 8) === "ftyp") {
+    return "video/mp4";
+  }
+  if (
+    buffer.length >= 4 &&
+    buffer[0] === 0x1a &&
+    buffer[1] === 0x45 &&
+    buffer[2] === 0xdf &&
+    buffer[3] === 0xa3
+  ) {
+    return "video/webm";
+  }
+  if (
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 0, 4) === "RIFF" &&
+    buffer.toString("ascii", 8, 12) === "AVI "
+  ) {
+    return "video/x-msvideo";
+  }
+  if (headerType?.startsWith("video/")) return headerType;
   return null;
 }

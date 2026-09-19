@@ -35,6 +35,10 @@
   flex-shrink: 0;
   width: 60px;
   height: 80px;
+}
+
+.joy-node-gen-ref .joy-ref-hover-thumb {
+  position: relative;
   overflow: hidden;
   border-radius: 10px;
   background: color-mix(in oklab, var(--muted) 70%, transparent);

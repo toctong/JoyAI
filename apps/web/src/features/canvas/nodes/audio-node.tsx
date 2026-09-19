@@ -15,6 +15,7 @@ import { NodeRuntimeBadge } from "../node-runtime-badge";
 import { NodeTitleChip } from "../node-title-chip";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { MediaUploadLabel } from "../media-upload-label";
+import { CanvasAudioPlayer } from "../canvas-audio-player";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -58,15 +59,7 @@ export function AudioNode({ node, onPointerDown }: Props) {
       />
       <div className="flex h-full flex-col justify-center gap-2 overflow-hidden rounded-md border border-border bg-card p-3">
         {framed ? (
-          <audio
-            src={url}
-            controls
-            draggable={false}
-            className="w-full"
-            data-canvas-no-zoom
-            onDragStart={(event) => event.preventDefault()}
-            onPointerDown={(e) => e.stopPropagation()}
-          />
+          <CanvasAudioPlayer key={url} src={url} />
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="audio">
             <CanvasIconAudio className="size-6 opacity-70" />

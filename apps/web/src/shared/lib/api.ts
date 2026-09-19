@@ -58,6 +58,7 @@ type JoyaiRequestConfig = AxiosRequestConfig & {
  */
 export const KEEPALIVE_GET_PREFIXES = [
   "/upload/check",
+  "/media/fetch",
 ] as const;
 
 /** 进行中的可取消 GET（路由切换时统一 abort） */

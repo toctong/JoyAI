@@ -1,15 +1,11 @@
 "use client";
 
-import {
-  CanvasIconAudio,
-  CanvasIconClose,
-  CanvasIconFile,
-  CanvasIconImage,
-  CanvasIconVideo,
-} from "./icons/canvas-icons";
+import { CanvasIconClose } from "./icons/canvas-icons";
 import type { CanvasNode } from "@joyai/shared";
 import { useCanvasStore } from "./store";
 import { nodeTitleLabel } from "./lib/node-chrome";
+import { CanvasRefThumb } from "./canvas-ref-thumb";
+import { CanvasRefHoverPreview } from "./canvas-ref-preview";
 
 type Props = {
   nodeId: string;
@@ -48,51 +44,38 @@ export function NodeRefBar({ nodeId }: Props) {
     >
       {incoming.map(({ edge, node }) => {
         const url = String(node.data.url ?? "");
-        const showThumb =
-          (node.type === "image" || node.type === "panorama") &&
-          url &&
-          !url.startsWith("data:");
+        const canPreview =
+          node.type === "image" ||
+          node.type === "panorama" ||
+          node.type === "video";
         return (
-          <div
+          <CanvasRefHoverPreview
             key={edge.id}
-            className="group relative size-10 shrink-0 overflow-hidden rounded-md border bg-muted"
-            title={nodeTitleLabel(node.type, node.data)}
+            kind={node.type}
+            url={url}
+            className="group relative size-10 shrink-0"
+            thumbClassName="size-10 overflow-hidden rounded-md border bg-muted"
+            preview={canPreview}
           >
-            {showThumb ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={url}
-                alt=""
-                draggable={false}
-                className="pointer-events-none size-full select-none object-cover"
-                onDragStart={(event) => event.preventDefault()}
-              />
-            ) : (
-              <span className="grid size-full place-items-center text-muted-foreground">
-                {node.type === "video" ? (
-                  <CanvasIconVideo className="size-3.5" />
-                ) : node.type === "audio" ? (
-                  <CanvasIconAudio className="size-3.5" />
-                ) : node.type === "image" || node.type === "panorama" ? (
-                  <CanvasIconImage className="size-3.5" />
-                ) : (
-                  <CanvasIconFile className="size-3.5" />
-                )}
-              </span>
-            )}
-            <button
-              type="button"
-              title="断开参考"
-              aria-label="断开参考"
-              className="absolute right-0 top-0 grid size-4 place-items-center rounded-bl bg-background/90 opacity-0 transition group-hover:opacity-100"
-              onClick={() => {
-                pushHistory();
-                removeEdge(edge.id);
-              }}
+            <div
+              className="relative size-full"
+              title={nodeTitleLabel(node.type, node.data)}
             >
-              <CanvasIconClose className="size-3" />
-            </button>
-          </div>
+              <CanvasRefThumb kind={node.type} url={url} />
+              <button
+                type="button"
+                title="断开参考"
+                aria-label="断开参考"
+                className="absolute right-0 top-0 z-[1] grid size-4 place-items-center rounded-bl bg-background/90 opacity-0 transition group-hover:opacity-100"
+                onClick={() => {
+                  pushHistory();
+                  removeEdge(edge.id);
+                }}
+              >
+                <CanvasIconClose className="size-3" />
+              </button>
+            </div>
+          </CanvasRefHoverPreview>
         );
       })}
     </div>

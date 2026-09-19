@@ -28,10 +28,13 @@ import {
   buildCanvasMentionItems,
   collectIncomingMediaFromEdges,
   mergeJobReferences,
+  appendTextRefs,
 } from "./lib/canvas-media-refs";
 import { nodeBox } from "./lib/node-box";
 import { titleFromPrompt } from "./lib/node-title";
 import { NodeRefBar } from "./node-ref-bar";
+import { CanvasRefThumb } from "./canvas-ref-thumb";
+import { CanvasRefHoverPreview } from "./canvas-ref-preview";
 import {
   durationsFromCapabilities,
   layoutControlsFromCapabilities,
@@ -280,7 +283,10 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
 
   async function submit() {
     const payload = getGeneratePayload(editorRef.current);
-    const text = (payload.prompt.trim() || prompt.trim()).trim();
+    const text = appendTextRefs(
+      (payload.prompt.trim() || prompt.trim()).trim(),
+      edgeRefs.texts,
+    );
     if (!projectId || !text || running) return;
     if (!modelId) {
       toast.message("请先选择模型");
@@ -513,11 +519,14 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
 
         <div className="joy-node-gen-body">
           {hasMedia ? (
-            <div className="joy-node-gen-ref" title="当前节点作参考">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" draggable={false} />
+            <CanvasRefHoverPreview
+              kind={node.type}
+              url={url}
+              className="joy-node-gen-ref"
+            >
+              <CanvasRefThumb kind={node.type} url={url} />
               <span className="joy-node-gen-ref-caption">参考</span>
-            </div>
+            </CanvasRefHoverPreview>
           ) : null}
 
           <div className="joy-node-gen-main">

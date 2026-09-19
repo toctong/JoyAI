@@ -68,6 +68,7 @@ import {
   type VideoRefModeId,
 } from "./model-options";
 import "./creation-composer.css";
+import { CanvasRefHoverPreview } from "@/features/canvas/canvas-ref-preview";
 
 type RefMode = VideoRefModeId;
 
@@ -1258,13 +1259,19 @@ export function CreationComposer({
                         .filter((r) => r.mediaKind === ref.mediaKind).length;
                     const label = refLabel(ref.mediaKind, typeIndex);
                     return (
-                      <div
+                      <CanvasRefHoverPreview
                         key={ref.localId}
+                        kind={ref.mediaKind}
+                        url={ref.url}
                         className={cn(
                           "joy-composer-ref-card",
                           `is-${ref.mediaKind}`,
                           i % 2 === 0 ? "is-tilt-a" : "is-tilt-b",
                         )}
+                        thumbClassName="size-full"
+                        preview={
+                          ref.mediaKind === "image" || ref.mediaKind === "video"
+                        }
                         style={
                           {
                             ["--ref-i"]: String(i),
@@ -1301,7 +1308,7 @@ export function CreationComposer({
                             ? ` · ${Math.round(ref.durationSec)}s`
                             : ""}
                         </span>
-                      </div>
+                      </CanvasRefHoverPreview>
                     );
                   })}
                 </div>

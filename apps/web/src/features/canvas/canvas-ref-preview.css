@@ -1,0 +1,44 @@
+.joy-ref-hover {
+  display: block;
+  min-width: 0;
+}
+
+.joy-ref-hover-thumb {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.joy-ref-hover-portal {
+  position: fixed;
+  z-index: 120;
+  pointer-events: auto;
+  transform: translate(-50%, calc(-100% - 10px));
+}
+
+.joy-ref-hover-card {
+  overflow: hidden;
+  width: min(220px, 42vw);
+  max-height: min(320px, 48vh);
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: color-mix(in oklab, var(--card) 96%, transparent);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 18px 48px -20px rgba(0, 0, 0, 0.55);
+}
+
+.dark .joy-ref-hover-card {
+  background: rgba(24, 24, 27, 0.96);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.joy-ref-hover-media {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(320px, 48vh);
+  object-fit: contain;
+  background: #0a0a0a;
+  vertical-align: middle;
+}

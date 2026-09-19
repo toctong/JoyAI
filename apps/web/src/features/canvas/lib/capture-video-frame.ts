@@ -1,31 +1,8 @@
+import { loadCanvasVideo } from "./load-canvas-video";
+
 /** Capture a frame from a video URL into a PNG File for Asset upload. */
 
 export type VideoFrameAt = "first" | "last" | "current";
-
-function loadVideo(url: string): Promise<HTMLVideoElement> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = "auto";
-    const onError = () => {
-      cleanup();
-      reject(new Error("无法加载视频帧"));
-    };
-    const onReady = () => {
-      cleanup();
-      resolve(video);
-    };
-    function cleanup() {
-      video.removeEventListener("loadeddata", onReady);
-      video.removeEventListener("error", onError);
-    }
-    video.addEventListener("loadeddata", onReady);
-    video.addEventListener("error", onError);
-    video.src = url;
-  });
-}
 
 function seek(video: HTMLVideoElement, time: number): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -58,7 +35,7 @@ export async function captureVideoFrame(
   at: VideoFrameAt,
   currentTime = 0,
 ): Promise<File> {
-  const video = await loadVideo(url);
+  const { video, revoke } = await loadCanvasVideo(url);
   try {
     if (at === "first") await seek(video, 0);
     else if (at === "last") {
@@ -89,5 +66,6 @@ export async function captureVideoFrame(
   } finally {
     video.removeAttribute("src");
     video.load();
+    revoke();
   }
 }

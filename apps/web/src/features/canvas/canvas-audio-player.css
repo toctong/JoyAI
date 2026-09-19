@@ -1,0 +1,50 @@
+.joy-canvas-audio {
+  width: 100%;
+  min-width: 0;
+}
+
+.joy-canvas-audio .plyr {
+  --plyr-color-main: #18181b;
+  --plyr-audio-controls-background: #f4f4f5;
+  --plyr-audio-control-background-hover: rgba(24, 24, 27, 0.06);
+  --plyr-audio-control-color: #18181b;
+  --plyr-audio-control-color-hover: #09090b;
+  --plyr-range-fill-background: #18181b;
+  --plyr-audio-progress-buffered-background: rgba(24, 24, 27, 0.16);
+  --plyr-range-thumb-background: #18181b;
+  --plyr-range-thumb-shadow: none;
+  --plyr-range-track-height: 3px;
+  --plyr-range-thumb-height: 10px;
+  --plyr-control-icon-size: 15px;
+  --plyr-control-spacing: 6px;
+  --plyr-font-size-time: 11px;
+  --plyr-font-size-menu: 12px;
+  width: 100%;
+  min-width: 0;
+  border-radius: 999px;
+}
+
+.dark .joy-canvas-audio .plyr {
+  --plyr-color-main: #fafafa;
+  --plyr-audio-controls-background: #27272a;
+  --plyr-audio-control-background-hover: rgba(255, 255, 255, 0.08);
+  --plyr-audio-control-color: #fafafa;
+  --plyr-audio-control-color-hover: #ffffff;
+  --plyr-range-fill-background: #fafafa;
+  --plyr-audio-progress-buffered-background: rgba(255, 255, 255, 0.2);
+  --plyr-range-thumb-background: #fafafa;
+}
+
+.joy-canvas-audio .plyr--audio .plyr__controls {
+  border-radius: 999px;
+  padding: 4px 8px 4px 4px;
+}
+
+.joy-canvas-audio .plyr__time {
+  font-variant-numeric: tabular-nums;
+}
+
+.joy-canvas-audio .plyr__progress__container {
+  flex: 1 1 auto;
+  min-width: 48px;
+}

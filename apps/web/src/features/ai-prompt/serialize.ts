@@ -43,6 +43,7 @@ export function mentionExpandText(
 ): string {
   if (mediaKind === "video") return `@视频${index1}`;
   if (mediaKind === "audio") return `@音频${index1}`;
+  if (mediaKind === "text") return `@文本${index1}`;
   return `@图片${index1}`;
 }
 
@@ -105,11 +106,7 @@ function poolMax(
   kind: "image" | "video" | "audio",
 ): number {
   if (!items?.length) return 0;
-  return items.filter((i) =>
-    kind === "image"
-      ? i.mediaKind === "image" || i.mediaKind === "text"
-      : i.mediaKind === kind,
-  ).length;
+  return items.filter((i) => i.mediaKind === kind).length;
 }
 
 function resolveMention(
@@ -117,11 +114,7 @@ function resolveMention(
   kind: "image" | "video" | "audio",
   index1: number,
 ): MentionResolveItem | null {
-  const pool = items.filter((i) =>
-    kind === "image"
-      ? i.mediaKind === "image" || i.mediaKind === "text"
-      : i.mediaKind === kind,
-  );
+  const pool = items.filter((i) => i.mediaKind === kind);
   return pool[index1 - 1] ?? null;
 }
 

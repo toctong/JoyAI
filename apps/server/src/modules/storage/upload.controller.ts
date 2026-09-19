@@ -17,7 +17,7 @@ import { JwtAuthGuard } from "../../common/guards";
 import { CurrentUser, AuthUser } from "../../common/current-user.decorator";
 import { StorageService } from "./storage.service";
 import { AssetsService } from "../assets/assets.service";
-import { fetchPublicImage } from "./fetch-public-image";
+import { fetchPublicMedia } from "./fetch-public-image";
 import {
   originalNameFromMeta,
   sanitizeOriginalName,
@@ -53,14 +53,20 @@ export class UploadController {
     private readonly assets: AssetsService,
   ) {}
 
-  /** Same-origin image bytes for canvas crop / split / upscale (remote hosts often omit CORS). */
+  /** Same-origin media bytes for canvas crop / frame / extract-audio (remote hosts often omit CORS). */
   @ApiQuery({ name: "url", required: true })
+  @ApiQuery({ name: "kind", required: false, enum: ["auto", "image", "video"] })
   @Get("media/fetch")
-  async fetchMedia(@Query("url") url?: string) {
+  async fetchMedia(
+    @Query("url") url?: string,
+    @Query("kind") kind?: string,
+  ) {
     const trimmed = String(url ?? "").trim();
-    if (!trimmed) throw new BadRequestException("缺少图片地址");
-    const image = await fetchPublicImage(trimmed);
-    return new StreamableFile(image.buffer, { type: image.contentType });
+    if (!trimmed) throw new BadRequestException("缺少媒体地址");
+    const prefer =
+      kind === "image" || kind === "video" ? kind : ("auto" as const);
+    const media = await fetchPublicMedia(trimmed, prefer);
+    return new StreamableFile(media.buffer, { type: media.contentType });
   }
 
   /** 前端预检：同用户同 MD5 已有资产则直接复用，免传文件 */

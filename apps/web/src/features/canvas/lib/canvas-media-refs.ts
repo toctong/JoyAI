@@ -2,34 +2,49 @@ import type { CanvasNode } from "@joyai/shared";
 import type { PromptGeneratePayload } from "@/features/ai-prompt";
 import { mentionExpandText } from "@/features/ai-prompt";
 
-const MEDIA_TYPES = new Set(["image", "video", "panorama", "audio"]);
+const MEDIA_TYPES = new Set(["image", "video", "panorama", "audio", "text"]);
 
 export type CanvasMentionItem = {
   id: string;
   label: string;
   url: string;
-  mediaKind: "image" | "video" | "audio";
+  mediaKind: "image" | "video" | "audio" | "text";
   expandText: string;
 };
 
 function mediaKindOf(
   type: CanvasNode["type"],
-): "image" | "video" | "audio" | null {
+): "image" | "video" | "audio" | "text" | null {
   if (type === "image" || type === "panorama") return "image";
   if (type === "video") return "video";
   if (type === "audio") return "audio";
+  if (type === "text") return "text";
   return null;
 }
 
-/** Build @-mention items from canvas media nodes (image/panorama/video/audio). */
+/** Build @-mention items from canvas nodes (image / video / audio / text). */
 export function buildCanvasMentionItems(
   nodes: CanvasNode[],
 ): CanvasMentionItem[] {
-  const counters = { image: 0, video: 0, audio: 0 };
+  const counters = { image: 0, video: 0, audio: 0, text: 0 };
   const out: CanvasMentionItem[] = [];
   for (const n of nodes) {
     const kind = mediaKindOf(n.type);
     if (!kind) continue;
+    if (kind === "text") {
+      const text = String(n.data.text ?? "").trim();
+      if (!text || text === "双击编辑文本") continue;
+      counters.text += 1;
+      const index1 = counters.text;
+      out.push({
+        id: n.id,
+        label: `@文本${index1}`,
+        url: "",
+        mediaKind: "text",
+        expandText: text.slice(0, 2000),
+      });
+      continue;
+    }
     const url = String(n.data.url ?? n.data.src ?? "");
     if (!url || url.startsWith("data:")) continue;
     const assetId = String(n.data.assetId ?? "");
@@ -60,12 +75,18 @@ export function collectIncomingMediaFromEdges(
       (n): n is CanvasNode => n != null && MEDIA_TYPES.has(n.type),
     );
   const edgeAssetIds = incoming
+    .filter((n) => n.type !== "text")
     .map((n) => String(n.data.assetId ?? ""))
     .filter(Boolean);
   const edgeUrls = incoming
+    .filter((n) => n.type !== "text")
     .map((n) => String(n.data.url ?? ""))
     .filter((u) => u && !u.startsWith("data:"));
-  return { edgeAssetIds, edgeUrls, incoming };
+  const texts = incoming
+    .filter((n) => n.type === "text")
+    .map((n) => String(n.data.text ?? "").trim())
+    .filter((text) => text && text !== "双击编辑文本");
+  return { edgeAssetIds, edgeUrls, incoming, texts };
 }
 
 /** Merge editor payload + edge refs into job reference lists (Studio parity). */
@@ -86,6 +107,19 @@ export function mergeJobReferences(
   );
   const nodeIds = [] as string[];
   return { referenceAssetIds, referenceUrls, nodeIds };
+}
+
+/** Append connected text nodes that are not already in the prompt. */
+export function appendTextRefs(prompt: string, texts: string[]) {
+  const base = prompt.trim();
+  const extra = texts
+    .map((text) => text.trim())
+    .filter((text) => text && !base.includes(text));
+  if (!extra.length) return base;
+  const blocks = extra
+    .map((text, index) => `【文本${index + 1}】\n${text}`)
+    .join("\n\n");
+  return base ? `${base}\n\n${blocks}` : blocks;
 }
 
 export function resolveMentionedNodeIds(

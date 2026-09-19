@@ -30,6 +30,10 @@ packages/ai-providers  Provider 适配器（首期 volcengine）
 - Board = pan/zoom + React 绝对节点（默认路径）；`@xyflow/react` 见 [ADR-001-xyflow.md](./ADR-001-xyflow.md)
 - 参考源与体验规格：[CANVAS.md](./CANVAS.md)（不以 `ai-comic-drama` 为标杆）
 
+## 漫剧
+
+独立项目，当前不和画布互写。阶段、技能与配置见 [MANJU.md](./MANJU.md)。
+
 ## 核心 TypeORM 实体
 
 User · Channel · Model · Job · Asset · CanvasProject · CanvasFolder · AppSetting · AuditLog
