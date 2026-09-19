@@ -65,7 +65,7 @@ export function StoryboardVideoStep({
         referenceAssetIds = fromAssets.referenceAssetIds;
         referenceUrls = fromAssets.referenceUrls;
       } else {
-        // i2v / grid: first = 上一镜分镜（连贯起幅）, last = 本镜分镜（落幅）
+        // i2v / grid: 首帧 = 上一镜分镜（没有则本镜），末帧 = 本镜分镜
         const pushRef = (
           assetId: string | null | undefined,
           url: string | null | undefined,
@@ -75,10 +75,11 @@ export function StoryboardVideoStep({
         };
         const prevAsset = prev?.storyboardAssetId;
         const prevUrl = prev?.storyboardImageUrl;
-        if (
-          (prevAsset && prevAsset !== shot.storyboardAssetId) ||
-          (prevUrl && prevUrl !== shot.storyboardImageUrl)
-        ) {
+        const hasPrevFrame = Boolean(prevAsset || prevUrl);
+        const sameAsCurrent =
+          (prevAsset && prevAsset === shot.storyboardAssetId) ||
+          (prevUrl && prevUrl === shot.storyboardImageUrl);
+        if (hasPrevFrame && !sameAsCurrent) {
           pushRef(prevAsset, prevUrl);
           continuityHint =
             "首帧承接上一镜分镜静帧，末帧落到本镜构图，动作连续过渡，不要硬切。";
@@ -96,7 +97,10 @@ export function StoryboardVideoStep({
 
       const duration = shotDurationSeconds(shot, project);
       const job = await submitVideoJob({
-        prompt: buildShotVideoPrompt(shot, project, { continuityHint }),
+        prompt: buildShotVideoPrompt(shot, project, {
+          continuityHint,
+          mode: mode === "grid" ? "i2v" : mode,
+        }),
         duration,
         ratio: project.settings.ratio,
         referenceAssetIds: referenceAssetIds.length
@@ -104,7 +108,7 @@ export function StoryboardVideoStep({
           : undefined,
         referenceUrls: referenceUrls.length ? referenceUrls : undefined,
         refMode: mode === "ref" ? "omni" : "first_last",
-        modelId: project.settings.videoModelId,
+        modelId: project.settings.videoModelId || undefined,
       });
       bindJobToShotVideo(project.id, shot.id, job.id, "queued");
       toast.success(`镜头 ${String(shot.index).padStart(2, "0")} 已提交生视频`);
@@ -117,12 +121,28 @@ export function StoryboardVideoStep({
   const generateAll = async () => {
     const targets = visibleShots.filter(
       (s) =>
-        !s.videoUrl &&
+        (!s.videoUrl || s.videoStale) &&
         (s.visual.trim() || s.storyboardImageUrl || s.videoPrompt?.trim()) &&
         !isBusyStatus(s.videoStatus),
     );
     if (targets.length === 0) {
-      toast.message("没有待生成的镜头（已跳过有成片的）");
+      toast.message("没有待生成的镜头（已跳过未过期成片）");
+      return;
+    }
+    for (const shot of targets) {
+      await generateVideo(shot);
+    }
+  };
+
+  const generateStaleOnly = async () => {
+    const targets = visibleShots.filter(
+      (s) =>
+        s.videoStale &&
+        (s.visual.trim() || s.storyboardImageUrl || s.videoPrompt?.trim()) &&
+        !isBusyStatus(s.videoStatus),
+    );
+    if (targets.length === 0) {
+      toast.message("没有标记为过期的视频");
       return;
     }
     for (const shot of targets) {
@@ -154,12 +174,24 @@ export function StoryboardVideoStep({
               : project.settings.mode === "ref"
                 ? "全能参考"
                 : "多宫格"}
-            · 批量跳过已有成片
+            · 批量会重做过期项
           </p>
-          <Button size="sm" onClick={() => void generateAll()}>
-            <Sparkles className="h-4 w-4" />
-            全部生成视频
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void generateAll()}>
+              <Sparkles className="h-4 w-4" />
+              全部生成视频
+            </Button>
+            {visibleShots.some((s) => s.videoStale) ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void generateStaleOnly()}
+              >
+                重做过期视频 (
+                {visibleShots.filter((s) => s.videoStale).length})
+              </Button>
+            ) : null}
+          </div>
         </div>
 
         <div className="manju-shot-grid">
@@ -172,6 +204,11 @@ export function StoryboardVideoStep({
                   <span className="manju-shot-card__index !mb-0">
                     {String(shot.index).padStart(2, "0")}
                   </span>
+                  {shot.videoStale ? (
+                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">
+                      视频需重做
+                    </span>
+                  ) : null}
                   <Button
                     variant="outline"
                     size="sm"
@@ -183,7 +220,11 @@ export function StoryboardVideoStep({
                     ) : (
                       <Video className="h-3.5 w-3.5" />
                     )}
-                    {shot.videoUrl ? "重生成" : "生成"}
+                    {shot.videoUrl
+                      ? shot.videoStale
+                        ? "重做过期"
+                        : "重生成"
+                      : "生成"}
                   </Button>
                 </div>
 

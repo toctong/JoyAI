@@ -16,8 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { copyText } from "@/shared/lib/clipboard";
 import { toast } from "@/shared/lib/toast";
-import { submitManjuAnalyzeJob } from "../manju-api";
-import { ManjuMdField } from "../manju-md-field";
+import { submitWorkflowSkill } from "../lib/workflow-skill";
+import { ManjuPromptField } from "../manju-prompt-field";
 import { useManjuStore } from "../manju-store";
 import {
   buildShotImagePrompt,
@@ -76,20 +76,10 @@ export function PromptsStep({
     try {
       setAnalyzing(project.id, true);
       await flushSave(project.id);
-      const shotBrief = visibleShots
-        .map((s) => {
-          const names = project.assets
-            .filter((a) => s.assetRefs.includes(a.id))
-            .map((a) => a.name)
-            .join("、");
-          return `#${s.index} 画面:${s.visual} 对白:${s.dialogue || "无"} 资产:${names || "无"}`;
-        })
-        .join("\n");
-      await submitManjuAnalyzeJob({
-        projectId: project.id,
-        scriptText: `风格：${project.settings.style}\n画幅：${project.settings.ratio}\n说明：每条镜头的序号必须使用下列全局 #index，不要从 1 重新编号。\n\n已锁定镜头：\n${shotBrief}`,
-        purpose: "author_prompts",
-        modelId: project.settings.llmModelId,
+      await submitWorkflowSkill({
+        project,
+        skill: "author_prompts",
+        episodeId,
       });
       toast.success("已提交编写提示词任务");
     } catch (e) {
@@ -218,29 +208,29 @@ export function PromptsStep({
                   </Button>
                 </div>
                 <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  画面提示词 imagePrompt（可用 @[角色名]）
+                  画面提示词 imagePrompt（键入 @ 引用资产）
                 </label>
-                <ManjuMdField
+                <ManjuPromptField
                   value={shot.imagePrompt ?? ""}
                   onChange={(imagePrompt) =>
                     updateShot(project.id, shot.id, { imagePrompt })
                   }
+                  assets={project.assets}
+                  preferredAssetIds={shot.assetRefs}
                   placeholder="例：@[小美] 站在 @[雨巷] 灯下回望，中景，冷色雨雾…"
-                  height={120}
-                  hideToolbar
                 />
 
                 <label className="mb-1 mt-3 block text-[11px] font-medium text-muted-foreground">
                   视频提示词 videoPrompt
                 </label>
-                <ManjuMdField
+                <ManjuPromptField
                   value={shot.videoPrompt ?? ""}
                   onChange={(videoPrompt) =>
                     updateShot(project.id, shot.id, { videoPrompt })
                   }
+                  assets={project.assets}
+                  preferredAssetIds={shot.assetRefs}
                   placeholder="例：@[小美] 缓步走近，镜头缓慢推进…"
-                  height={100}
-                  hideToolbar
                   className="mb-1"
                 />
 

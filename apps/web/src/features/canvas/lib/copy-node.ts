@@ -17,7 +17,10 @@ export function prepareCopiedData(
     next.error = "";
   }
   if (groupId) next.groupId = groupId;
-  else delete next.groupId;
+  else {
+    delete next.groupId;
+    delete next.groupName;
+  }
   return next;
 }
 

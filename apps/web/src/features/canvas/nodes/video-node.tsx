@@ -14,13 +14,16 @@ import { NodeTitleChip } from "../node-title-chip";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import {
   CanvasIconClose,
-  CanvasIconLoader,
   CanvasIconMaximize,
   CanvasIconPause,
   CanvasIconPlay,
   CanvasIconVideo,
 } from "../icons/canvas-icons";
-import { MediaUploadLabel } from "../media-upload-label";
+import {
+  MediaBusyState,
+  MediaUploadLabel,
+  mediaBusyLabel,
+} from "../media-upload-label";
 import { isBusyStatus } from "../node-registry";
 import { setPlaybackTime } from "../lib/playback-clock";
 import { cn } from "@/shared/lib/utils";
@@ -101,9 +104,30 @@ export function VideoNode({ node, onPointerDown }: Props) {
     setPreview(true);
   }
 
+  function seekToClientX(clientX: number, track: HTMLElement) {
+    if (duration <= 0) return;
+    const rect = track.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const next = duration * ratio;
+    const video = videoRef.current;
+    if (!video || !Number.isFinite(next)) return;
+    video.currentTime = next;
+    setTime(next);
+    setPlaybackTime(node.id, next);
+  }
+
+  const progress = duration > 0 ? Math.min(time / duration, 1) : 0;
+
   return (
     <div
-      onPointerDown={onPointerDown}
+      onPointerDown={(event) => {
+        if ((event.target as HTMLElement).closest("[data-video-controls]")) {
+          event.stopPropagation();
+          return;
+        }
+        onPointerDown(event);
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={cn(
@@ -156,15 +180,15 @@ export function VideoNode({ node, onPointerDown }: Props) {
             onPause={() => setPlaying(false)}
           />
         ) : busy ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 bg-muted/40 text-sm text-muted-foreground">
-            <CanvasIconLoader className="size-5 animate-spin opacity-80" />
-            <span>分离中…</span>
-          </div>
+          <MediaBusyState label={mediaBusyLabel(node.data)} />
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="video">
             <CanvasIconVideo className="size-7 opacity-70" />
           </MediaUploadLabel>
         )}
+        {framed && busy ? (
+          <MediaBusyState overlay label={mediaBusyLabel(node.data)} />
+        ) : null}
         {showControls && duration > 0 ? (
           <span className="pointer-events-none absolute left-2 top-2 z-20 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white">
             {formatClock(duration)}
@@ -174,6 +198,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
           <>
             <button
               type="button"
+              data-video-controls
               title={playing ? "暂停" : "播放"}
               aria-label={playing ? "暂停" : "播放"}
               className="absolute bottom-2 left-2 z-20 flex size-7 items-center justify-center rounded-md bg-black/55 text-white hover:bg-black/75"
@@ -191,6 +216,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
             </button>
             <button
               type="button"
+              data-video-controls
               title="放大预览"
               aria-label="放大预览"
               className="absolute bottom-2 right-2 z-20 flex size-7 items-center justify-center rounded-md bg-black/55 text-white hover:bg-black/75"
@@ -203,36 +229,49 @@ export function VideoNode({ node, onPointerDown }: Props) {
               <CanvasIconMaximize className="size-3.5" />
             </button>
             <div
-              className="absolute bottom-2 left-11 right-11 z-20 flex h-7 items-center"
-              onPointerDown={(event) => event.stopPropagation()}
+              data-video-controls
+              role="slider"
+              aria-label="视频进度"
+              aria-valuemin={0}
+              aria-valuemax={duration || 0}
+              aria-valuenow={Math.min(time, duration || 0)}
+              className="absolute bottom-2 left-11 right-11 z-20 flex h-7 cursor-pointer items-center"
+              style={{ touchAction: "none" }}
+              onPointerDown={(event) => {
+                if (event.button !== 0 || duration <= 0) return;
+                event.stopPropagation();
+                event.preventDefault();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                seekToClientX(event.clientX, event.currentTarget);
+              }}
+              onPointerMove={(event) => {
+                if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                event.stopPropagation();
+                seekToClientX(event.clientX, event.currentTarget);
+              }}
+              onPointerUp={(event) => {
+                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+                }
+              }}
             >
-              <input
-                type="range"
-                min={0}
-                max={duration || 0}
-                step={0.01}
-                value={Math.min(time, duration || 0)}
-                disabled={duration <= 0}
-                aria-label="视频进度"
-                className="pointer-events-auto block h-1 w-full cursor-pointer appearance-none rounded-full [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white"
-                style={{
-                  background: `linear-gradient(to right, #fff ${duration > 0 ? Math.min(time / duration, 1) * 100 : 0}%, rgba(255,255,255,0.35) 0)`,
-                }}
-                onChange={(event) => {
-                  const next = event.currentTarget.valueAsNumber;
-                  if (!videoRef.current || !Number.isFinite(next)) return;
-                  videoRef.current.currentTime = next;
-                  setTime(next);
-                  setPlaybackTime(node.id, next);
-                }}
-              />
+              <div className="pointer-events-none relative h-1 w-full rounded-full bg-white/35">
+                <div
+                  className="absolute inset-y-0 left-0 rounded-full bg-white"
+                  style={{ width: `${progress * 100}%` }}
+                />
+                <div
+                  className="absolute top-1/2 size-3 -translate-y-1/2 rounded-full bg-white"
+                  style={{ left: `calc(${progress * 100}% - 6px)` }}
+                />
+              </div>
             </div>
           </>
         ) : null}
         <NodeRuntimeBadge
-          status={busy && !framed ? "idle" : status}
+          status={busy ? "idle" : status}
           error={error}
-          busyLabel="分离中…"
+          busyLabel={mediaBusyLabel(node.data)}
           onRetry={
             status === "failed"
               ? () =>
@@ -240,6 +279,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
                     status: "idle",
                     error: "",
                     jobId: "",
+                    busyLabel: "",
                   })
               : undefined
           }

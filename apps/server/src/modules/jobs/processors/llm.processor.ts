@@ -7,6 +7,8 @@ import { resolveLlmProvider } from "@joyai/ai-providers";
 import {
   ManjuAnalyzeResultSchema,
   ManjuAuthorPromptSchema,
+  ManjuEpisodePlanResultSchema,
+  ManjuSeriesMemoryResultSchema,
   QUEUE,
   type LlmJobInput,
   type ManjuAnalyzeResult,
@@ -21,8 +23,10 @@ import {
   ANALYZE_ASSETS_SYSTEM,
   AUTHOR_PROMPTS_SYSTEM,
   CANVAS_TEXT_SYSTEM,
+  PLAN_EPISODES_SYSTEM,
   REVERSE_PROMPT_SYSTEM,
   SCRIPT_PLAN_SYSTEM,
+  SERIES_MEMORY_SYSTEM,
 } from "../llm-prompts";
 
 function resolveLlmConcurrency(): number {
@@ -100,7 +104,11 @@ export class LlmProcessor extends WorkerHost {
             ? SCRIPT_PLAN_SYSTEM
             : purpose === "author_prompts"
               ? AUTHOR_PROMPTS_SYSTEM
-              : purpose === "reverse_prompt"
+              : purpose === "series_memory"
+                ? SERIES_MEMORY_SYSTEM
+                : purpose === "plan_episodes"
+                  ? PLAN_EPISODES_SYSTEM
+                  : purpose === "reverse_prompt"
                 ? REVERSE_PROMPT_SYSTEM
                 : input.canvasProjectId
                   ? CANVAS_TEXT_SYSTEM
@@ -177,6 +185,9 @@ export class LlmProcessor extends WorkerHost {
             jobId,
             analyze,
             purpose !== "analyze_assets",
+            purpose === "script_plan" || purpose === "split_shots"
+              ? input.manjuEpisodeId
+              : undefined,
           );
         }
       } else if (purpose === "author_prompts" && input.manjuProjectId) {
@@ -192,6 +203,30 @@ export class LlmProcessor extends WorkerHost {
           input.manjuProjectId,
           jobId,
           parsed.data.shots,
+        );
+      } else if (purpose === "series_memory" && input.manjuProjectId) {
+        const raw = extractJsonObject(result.text);
+        const parsed = ManjuSeriesMemoryResultSchema.safeParse(raw);
+        if (!parsed.success) {
+          throw new Error(`连载记忆 JSON 不符合约定: ${parsed.error.message}`);
+        }
+        await this.manju.applySeriesMemory(
+          job.userId,
+          input.manjuProjectId,
+          jobId,
+          parsed.data,
+        );
+      } else if (purpose === "plan_episodes" && input.manjuProjectId) {
+        const raw = extractJsonObject(result.text);
+        const parsed = ManjuEpisodePlanResultSchema.safeParse(raw);
+        if (!parsed.success) {
+          throw new Error(`分集 JSON 不符合约定: ${parsed.error.message}`);
+        }
+        await this.manju.applyEpisodePlan(
+          job.userId,
+          input.manjuProjectId,
+          jobId,
+          parsed.data.episodes,
         );
       }
 

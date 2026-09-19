@@ -33,8 +33,7 @@
 
 .joy-canvas-audio-wave canvas {
   display: block;
-  width: 100% !important;
-  height: 100% !important;
+  max-width: 100%;
 }
 
 .joy-canvas-audio-bar {

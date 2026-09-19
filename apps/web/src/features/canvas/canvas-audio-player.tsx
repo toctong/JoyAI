@@ -12,25 +12,58 @@ type Props = {
   className?: string;
 };
 
+type WaveSurferLike = {
+  destroy: () => void;
+  playPause: () => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  setTime: (time: number) => void;
+  setOptions: (opts: Record<string, unknown>) => void;
+  on: (event: string, cb: () => void) => void;
+};
+
+/** Keep blob URLs across remounts so drag / raiseNodes doesn't blank the wave. */
+const playableCache = new Map<string, { url: string; refs: number }>();
+
+async function acquirePlayable(src: string) {
+  if (!/^https?:/i.test(src)) {
+    return { url: src, release: () => {} };
+  }
+  const hit = playableCache.get(src);
+  if (hit) {
+    hit.refs += 1;
+    return {
+      url: hit.url,
+      release: () => releasePlayable(src),
+    };
+  }
+  const blob = await apiFetchBlob("/media/fetch", {
+    params: { url: src, kind: "audio" },
+    timeoutMs: 120_000,
+  });
+  const objectUrl = URL.createObjectURL(blob);
+  playableCache.set(src, { url: objectUrl, refs: 1 });
+  return {
+    url: objectUrl,
+    release: () => releasePlayable(src),
+  };
+}
+
+function releasePlayable(src: string) {
+  const hit = playableCache.get(src);
+  if (!hit) return;
+  hit.refs -= 1;
+  if (hit.refs > 0) return;
+  playableCache.delete(src);
+  URL.revokeObjectURL(hit.url);
+}
+
 function formatClock(seconds: number) {
   if (!Number.isFinite(seconds) || seconds < 0) return "00:00";
   const total = Math.floor(seconds);
   const m = Math.floor(total / 60);
   const s = total % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-async function resolvePlayableSrc(src: string) {
-  if (!/^https?:/i.test(src)) return { url: src, revoke: () => {} };
-  const blob = await apiFetchBlob("/media/fetch", {
-    params: { url: src, kind: "audio" },
-    timeoutMs: 120_000,
-  });
-  const objectUrl = URL.createObjectURL(blob);
-  return {
-    url: objectUrl,
-    revoke: () => URL.revokeObjectURL(objectUrl),
-  };
 }
 
 function waveColors(dark: boolean) {
@@ -49,20 +82,14 @@ function waveColors(dark: boolean) {
 
 /**
  * Canvas audio node player — Wavesurfer bar waveform.
- * Colors follow light / dark theme (next-themes `.dark`).
+ * Avoid setOptions(height) on resize: canvas scale + raiseNodes was blanking the wave.
  */
 export function CanvasAudioPlayer({ src, className }: Props) {
   const { resolvedTheme } = useTheme();
   const dark = resolvedTheme === "dark";
+  const rootRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  const wavesurferRef = useRef<{
-    destroy: () => void;
-    playPause: () => void;
-    getCurrentTime: () => number;
-    getDuration: () => number;
-    setTime: (time: number) => void;
-    setOptions: (opts: Record<string, unknown>) => void;
-  } | null>(null);
+  const wavesurferRef = useRef<WaveSurferLike | null>(null);
   const [ready, setReady] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
@@ -73,36 +100,32 @@ export function CanvasAudioPlayer({ src, className }: Props) {
     if (!host || !src) return;
 
     let destroyed = false;
-    let revoke = () => {};
-    let resizeObserver: ResizeObserver | null = null;
+    let release = () => {};
     setReady(false);
     setPlaying(false);
     setCurrent(0);
     setDuration(0);
+    host.replaceChildren();
 
     void (async () => {
       try {
         const [{ default: WaveSurfer }, playable] = await Promise.all([
           import("wavesurfer.js"),
-          resolvePlayableSrc(src),
+          acquirePlayable(src),
         ]);
         if (destroyed || !hostRef.current) {
-          playable.revoke();
+          playable.release();
           return;
         }
-        revoke = playable.revoke;
-
-        const measure = () =>
-          Math.max(88, Math.floor(hostRef.current?.clientHeight || 120));
+        release = playable.release;
 
         const ws = WaveSurfer.create({
           container: hostRef.current,
           url: playable.url,
-          height: measure(),
+          height: "auto",
           barWidth: 1,
           barGap: 0,
           barRadius: 0,
-          barAlign: "center",
           cursorWidth: 1,
           ...waveColors(document.documentElement.classList.contains("dark")),
           normalize: true,
@@ -110,26 +133,31 @@ export function CanvasAudioPlayer({ src, className }: Props) {
           dragToSeek: false,
           hideScrollbar: true,
           fillParent: true,
-        });
+        }) as WaveSurferLike;
+
+        if (destroyed) {
+          ws.destroy();
+          release();
+          return;
+        }
 
         wavesurferRef.current = ws;
 
-        resizeObserver = new ResizeObserver(() => {
-          if (destroyed || !wavesurferRef.current) return;
-          wavesurferRef.current.setOptions({ height: measure() });
-        });
-        resizeObserver.observe(hostRef.current);
-
         const syncTime = () => {
-          setCurrent(ws.getCurrentTime());
-          setDuration(ws.getDuration());
+          const nextDuration = ws.getDuration();
+          const nextCurrent = ws.getCurrentTime();
+          if (Number.isFinite(nextDuration) && nextDuration > 0) {
+            setDuration(nextDuration);
+          }
+          if (Number.isFinite(nextCurrent)) {
+            setCurrent(nextCurrent);
+          }
         };
 
         ws.on("ready", () => {
           if (destroyed) return;
           setReady(true);
           syncTime();
-          ws.setOptions({ height: measure() });
         });
         ws.on("audioprocess", syncTime);
         ws.on("seeking", syncTime);
@@ -147,16 +175,47 @@ export function CanvasAudioPlayer({ src, className }: Props) {
 
     return () => {
       destroyed = true;
-      resizeObserver?.disconnect();
       wavesurferRef.current?.destroy();
       wavesurferRef.current = null;
-      revoke();
+      release();
+      host.replaceChildren();
     };
   }, [src]);
 
   useEffect(() => {
+    if (!ready) return;
     wavesurferRef.current?.setOptions(waveColors(dark));
-  }, [dark]);
+  }, [dark, ready]);
+
+  /** After canvas drag / zoom, recover if WaveSurfer left an empty host. */
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    let timer = 0;
+    const recover = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const host = hostRef.current;
+        const ws = wavesurferRef.current;
+        if (!host || !ws || !ready) return;
+        if (host.querySelector("canvas")) return;
+        ws.setOptions({});
+      }, 40);
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) recover();
+      },
+      { threshold: 0.05 },
+    );
+    observer.observe(root);
+    window.addEventListener("pointerup", recover);
+    return () => {
+      window.clearTimeout(timer);
+      observer.disconnect();
+      window.removeEventListener("pointerup", recover);
+    };
+  }, [ready, src]);
 
   const pressRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -175,6 +234,7 @@ export function CanvasAudioPlayer({ src, className }: Props) {
 
   return (
     <div
+      ref={rootRef}
       className={cn("joy-canvas-audio", className)}
       data-canvas-shortcuts-ignore
       onDragStart={(event) => event.preventDefault()}

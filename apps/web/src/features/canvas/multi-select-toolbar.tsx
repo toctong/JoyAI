@@ -1,29 +1,31 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
-  CanvasIconAlignBottom,
-  CanvasIconAlignCenterH,
-  CanvasIconAlignCenterV,
-  CanvasIconAlignLeft,
-  CanvasIconAlignRight,
-  CanvasIconAlignTop,
   CanvasIconCopy,
-  CanvasIconDistributeH,
-  CanvasIconDistributeV,
   CanvasIconGroup,
   CanvasIconTrash,
   CanvasIconUngroup,
 } from "./icons/canvas-icons";
+import { ChevronDown, LayoutGrid, Waypoints } from "lucide-react";
 import type { CanvasNode } from "@joyai/shared";
 import type { Viewport } from "./store";
 import { useCanvasStore } from "./store";
-import { groupIdOf, selectionBounds } from "./lib/align";
-import { SELECTION_PAD } from "./group-bounds-overlay";
+import { groupIdOf, selectionBounds, type LayoutMode } from "./lib/align";
+import { SELECTION_PAD, GROUP_PAD } from "./group-bounds-overlay";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
   nodes: CanvasNode[];
   viewport: Viewport;
+  /** Board chrome size for clamping the bar. */
+  viewportSize?: { width: number; height: number };
 };
 
 function ToolBtn({
@@ -60,26 +62,51 @@ function Sep() {
   return <span className="joy-canvas-chrome-sep mx-0.5 h-4 w-px" aria-hidden />;
 }
 
-export function MultiSelectToolbar({ nodes, viewport }: Props) {
+const LAYOUT_ITEMS: {
+  mode: LayoutMode;
+  label: string;
+  Icon: (props: { className?: string }) => React.ReactNode;
+}[] = [
+  { mode: "grid", label: "宫格布局", Icon: LayoutGrid },
+  { mode: "smart", label: "智能布局", Icon: Waypoints },
+];
+
+const BAR_W = 240;
+const BAR_H = 40;
+
+export function MultiSelectToolbar({ nodes, viewport, viewportSize }: Props) {
   const pushHistory = useCanvasStore((s) => s.pushHistory);
   const removeNodes = useCanvasStore((s) => s.removeNodes);
   const duplicateNodes = useCanvasStore((s) => s.duplicateNodes);
-  const alignSelection = useCanvasStore((s) => s.alignSelection);
-  const distributeSelection = useCanvasStore((s) => s.distributeSelection);
+  const layoutSelection = useCanvasStore((s) => s.layoutSelection);
   const groupSelection = useCanvasStore((s) => s.groupSelection);
   const ungroupSelection = useCanvasStore((s) => s.ungroupSelection);
+  const [layoutOpen, setLayoutOpen] = useState(false);
 
-  if (nodes.length < 2) return null;
+  const bounds = useMemo(() => selectionBounds(nodes), [nodes]);
 
-  const bounds = selectionBounds(nodes);
-  if (!bounds) return null;
-  const left =
-    viewport.x + ((bounds.x + bounds.w / 2) ) * viewport.zoom;
-  const top =
-    viewport.y + (bounds.y - SELECTION_PAD) * viewport.zoom - 12;
+  if (nodes.length < 2 || !bounds) return null;
 
-  const hasGroup = nodes.some((n) => groupIdOf(n));
-  const canDistribute = nodes.length >= 3;
+  const alreadyGrouped =
+    nodes.every((n) => groupIdOf(n)) &&
+    new Set(nodes.map((n) => groupIdOf(n)).filter(Boolean)).size === 1;
+
+  const centerX = viewport.x + (bounds.x + bounds.w / 2) * viewport.zoom;
+  const labelLift = alreadyGrouped ? GROUP_PAD + 22 : 0;
+  const aboveY =
+    viewport.y +
+    (bounds.y - SELECTION_PAD - labelLift) * viewport.zoom -
+    BAR_H -
+    8;
+  const hostW = viewportSize?.width ?? 1200;
+  const hostH = viewportSize?.height ?? 800;
+  const left = Math.min(
+    Math.max(BAR_W / 2 + 8, centerX),
+    Math.max(BAR_W / 2 + 8, hostW - BAR_W / 2 - 8),
+  );
+  const top = Math.min(Math.max(8, aboveY), Math.max(8, hostH - BAR_H - 8));
+
+  const canLayout = nodes.length >= 2;
 
   function run(action: () => void) {
     pushHistory();
@@ -90,84 +117,67 @@ export function MultiSelectToolbar({ nodes, viewport }: Props) {
     <div
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className="pointer-events-auto absolute z-30 -translate-x-1/2 -translate-y-full"
+      className="pointer-events-auto absolute z-[60] -translate-x-1/2"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="joy-canvas-chrome flex max-w-[min(92vw,520px)] flex-wrap items-center justify-center gap-0.5 rounded-xl px-1 py-1">
-        <span className="joy-canvas-chrome-muted px-2 text-[11px] tabular-nums">
-          {nodes.length}
-        </span>
+      <div className="joy-canvas-chrome flex items-center gap-0.5 rounded-xl px-1 py-1">
+        {alreadyGrouped ? (
+          <ToolBtn
+            title="解组 ⇧⌘G"
+            onClick={() => run(() => ungroupSelection())}
+          >
+            <CanvasIconUngroup className="h-3.5 w-3.5" />
+          </ToolBtn>
+        ) : (
+          <ToolBtn title="成组 ⌘G" onClick={() => run(() => groupSelection())}>
+            <CanvasIconGroup className="h-3.5 w-3.5" />
+          </ToolBtn>
+        )}
         <Sep />
-        <ToolBtn title="成组 ⌘G" onClick={() => run(() => groupSelection())}>
-          <CanvasIconGroup className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn
-          title="解组 ⇧⌘G"
-          disabled={!hasGroup}
-          onClick={() => run(() => ungroupSelection())}
-        >
-          <CanvasIconUngroup className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <Sep />
-        <ToolBtn
-          title="左对齐"
-          onClick={() => run(() => alignSelection("left"))}
-        >
-          <CanvasIconAlignLeft className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn
-          title="水平居中"
-          onClick={() => run(() => alignSelection("center-x"))}
-        >
-          <CanvasIconAlignCenterH className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn
-          title="右对齐"
-          onClick={() => run(() => alignSelection("right"))}
-        >
-          <CanvasIconAlignRight className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <Sep />
-        <ToolBtn
-          title="顶对齐"
-          onClick={() => run(() => alignSelection("top"))}
-        >
-          <CanvasIconAlignTop className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn
-          title="垂直居中"
-          onClick={() => run(() => alignSelection("center-y"))}
-        >
-          <CanvasIconAlignCenterV className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn
-          title="底对齐"
-          onClick={() => run(() => alignSelection("bottom"))}
-        >
-          <CanvasIconAlignBottom className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <Sep />
-        <ToolBtn
-          title="水平分布"
-          disabled={!canDistribute}
-          onClick={() => run(() => distributeSelection("horizontal"))}
-        >
-          <CanvasIconDistributeH className="h-3.5 w-3.5" />
-        </ToolBtn>
-        <ToolBtn
-          title="垂直分布"
-          disabled={!canDistribute}
-          onClick={() => run(() => distributeSelection("vertical"))}
-        >
-          <CanvasIconDistributeV className="h-3.5 w-3.5" />
-        </ToolBtn>
+        <DropdownMenu open={layoutOpen} onOpenChange={setLayoutOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              title="布局"
+              aria-label="布局"
+              className="joy-canvas-chrome-btn inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-medium"
+            >
+              <LayoutGrid className="size-3.5 opacity-80" />
+              布局
+              <ChevronDown className="size-3 opacity-60" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="center"
+            sideOffset={8}
+            className="z-[80] min-w-[148px]"
+            data-canvas-shortcuts-ignore
+            onPointerDown={(e) => e.stopPropagation()}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
+            {LAYOUT_ITEMS.map((item) => (
+              <DropdownMenuItem
+                key={item.mode}
+                className="gap-2"
+                disabled={!canLayout}
+                onSelect={(event) => {
+                  event.preventDefault();
+                  if (!canLayout) return;
+                  run(() => layoutSelection(item.mode));
+                  setLayoutOpen(false);
+                }}
+              >
+                <item.Icon className="size-3.5 opacity-80" />
+                {item.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Sep />
         <ToolBtn
           title={`复制 ${nodes.length} 个`}
-          onClick={() =>
-            run(() => duplicateNodes(nodes.map((n) => n.id)))
-          }
+          onClick={() => run(() => duplicateNodes(nodes.map((n) => n.id)))}
         >
           <CanvasIconCopy className="h-3.5 w-3.5" />
         </ToolBtn>

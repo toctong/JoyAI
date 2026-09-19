@@ -1,16 +1,20 @@
 "use client";
 
-import { Loader2, Sparkles, Wand2 } from "lucide-react";
+import { Loader2, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
 import { useManjuStore } from "../manju-store";
 import { submitManjuAnalyzeJob } from "../manju-api";
+import { submitEpisodePlan, submitSeriesMemory } from "../lib/workflow-skill";
 import { ManjuMdField } from "../manju-md-field";
 import {
+  EMPTY_SERIES,
   extractAssetsFromScript,
   parseScriptToShots,
   type ManjuProjectDraft,
+  type ManjuSeries,
 } from "../manju-types";
 
 export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
@@ -83,6 +87,44 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     }
   };
 
+  const series = project.series ?? EMPTY_SERIES;
+
+  const patchSeries = (next: ManjuSeries) => {
+    updateProject(project.id, { series: next });
+  };
+
+  const runSeriesMemory = async () => {
+    if (project.scriptText.trim().length < 20) {
+      toast.error("请先粘贴更完整的剧本再整理连载记忆");
+      return;
+    }
+    try {
+      setAnalyzing(project.id, true);
+      await flushSave(project.id);
+      await submitSeriesMemory(project);
+      toast.success("已提交连载记忆（不改对白和镜头）");
+    } catch (e) {
+      setAnalyzing(project.id, false);
+      toast.error(e instanceof Error ? e.message : "提交失败");
+    }
+  };
+
+  const runEpisodePlan = async () => {
+    if (project.scriptText.trim().length < 40) {
+      toast.error("原文太短，先写完整一点再规划分集");
+      return;
+    }
+    try {
+      setAnalyzing(project.id, true);
+      await flushSave(project.id);
+      await submitEpisodePlan(project);
+      toast.success("已提交分集规划（不改镜头和对白）");
+    } catch (e) {
+      setAnalyzing(project.id, false);
+      toast.error(e instanceof Error ? e.message : "提交失败");
+    }
+  };
+
   return (
     <div className="manju-panel">
       <div className="manju-card">
@@ -110,6 +152,14 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               disabled={analyzing}
             >
               拆分为分镜
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void runEpisodePlan()}
+              disabled={analyzing}
+            >
+              规划分集
             </Button>
             <Button
               size="sm"
@@ -145,24 +195,217 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
             <span>资产 {project.assets.length}</span>
           ) : null}
         </div>
+      </div>
+
+      <div className="manju-card">
+        <div className="manju-card__title">故事梗概</div>
+        <p className="manju-card__desc">
+          AI 分析会写入这里，也可手工改。不影响已确认的对白与媒体。
+        </p>
+        <ManjuMdField
+          value={project.overview}
+          onChange={(overview) => updateProject(project.id, { overview })}
+          placeholder="一两段概括剧情、人物关系与基调…"
+          height={160}
+          preview="edit"
+          className="mt-3"
+        />
         {project.episodes.length > 0 ? (
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <div className="mt-4 space-y-3">
             {project.episodes.map((ep, i) => (
               <div
                 key={ep.id}
-                className="rounded-lg border border-border bg-muted/40 px-3 py-2"
+                className="rounded-lg border border-border bg-muted/30 p-3"
               >
-                <div className="text-xs font-semibold">
-                  {String(i + 1).padStart(2, "0")} {ep.title}
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <Input
+                    value={ep.title}
+                    onChange={(e) =>
+                      updateProject(project.id, {
+                        episodes: project.episodes.map((item) =>
+                          item.id === ep.id
+                            ? { ...item, title: e.target.value }
+                            : item,
+                        ),
+                      })
+                    }
+                    className="h-8 text-sm font-medium"
+                    placeholder="分集标题"
+                  />
                 </div>
-                {ep.summary ? (
-                  <p className="mt-1 text-xs text-muted-foreground line-clamp-3">
-                    {ep.summary}
-                  </p>
-                ) : null}
+                <Input
+                  value={ep.hook ?? ""}
+                  onChange={(e) =>
+                    updateProject(project.id, {
+                      episodes: project.episodes.map((item) =>
+                        item.id === ep.id
+                          ? { ...item, hook: e.target.value }
+                          : item,
+                      ),
+                    })
+                  }
+                  className="mb-2 h-8 text-xs"
+                  placeholder="本集钩子（可选）"
+                />
+                <ManjuMdField
+                  value={ep.summary ?? ""}
+                  onChange={(summary) =>
+                    updateProject(project.id, {
+                      episodes: project.episodes.map((item) =>
+                        item.id === ep.id ? { ...item, summary } : item,
+                      ),
+                    })
+                  }
+                  placeholder="本集摘要"
+                  height={72}
+                  hideToolbar
+                />
+                <ManjuMdField
+                  value={ep.sourceText ?? ""}
+                  onChange={(sourceText) =>
+                    updateProject(project.id, {
+                      episodes: project.episodes.map((item) =>
+                        item.id === ep.id ? { ...item, sourceText } : item,
+                      ),
+                    })
+                  }
+                  placeholder="本集原文片段（规划本集分镜时优先用这段）"
+                  height={120}
+                  hideToolbar
+                  className="mt-2"
+                />
               </div>
             ))}
           </div>
+        ) : null}
+      </div>
+
+      <div className="manju-card">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="manju-card__title">连载记忆</div>
+            <p className="manju-card__desc">
+              世界观、角色小传、未回收伏笔。不参与生图，也不改已确认的对白和镜头。
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={analyzing}
+            onClick={() => void runSeriesMemory()}
+          >
+            {analyzing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            整理连载记忆
+          </Button>
+        </div>
+        <ManjuMdField
+          value={series.world}
+          onChange={(world) => patchSeries({ ...series, world })}
+          placeholder="时代、规则、世界观…"
+          height={120}
+          hideToolbar
+          className="mt-3"
+        />
+        <div className="mt-4 space-y-3">
+          {series.bios.map((bio, index) => (
+            <div key={`${bio.name}-${index}`} className="rounded-lg border border-border p-3">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={bio.name}
+                  className="h-8 text-sm"
+                  onChange={(e) => {
+                    const bios = series.bios.map((item, i) =>
+                      i === index ? { ...item, name: e.target.value } : item,
+                    );
+                    patchSeries({ ...series, bios });
+                  }}
+                />
+                <button
+                  type="button"
+                  className="manju-icon-btn"
+                  aria-label="删除小传"
+                  onClick={() =>
+                    patchSeries({
+                      ...series,
+                      bios: series.bios.filter((_, i) => i !== index),
+                    })
+                  }
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              <ManjuMdField
+                value={bio.bio}
+                onChange={(text) => {
+                  const bios = series.bios.map((item, i) =>
+                    i === index ? { ...item, bio: text } : item,
+                  );
+                  patchSeries({ ...series, bios });
+                }}
+                placeholder="身份、关系、已知经历"
+                height={80}
+                hideToolbar
+                className="mt-2"
+              />
+            </div>
+          ))}
+        </div>
+        {series.hooks.length > 0 ? (
+          <ul className="mt-4 space-y-2">
+            {series.hooks.map((hook, index) => (
+              <li
+                key={`${hook.text}-${index}`}
+                className="flex items-start justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+              >
+                <span className={hook.status === "paid" ? "text-muted-foreground line-through" : ""}>
+                  {hook.text}
+                </span>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const hooks = series.hooks.map((item, i) =>
+                        i === index
+                          ? {
+                              ...item,
+                              status:
+                                item.status === "paid"
+                                  ? ("open" as const)
+                                  : ("paid" as const),
+                            }
+                          : item,
+                      );
+                      patchSeries({ ...series, hooks });
+                    }}
+                  >
+                    {hook.status === "paid" ? "标为未回收" : "已回收"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      patchSeries({
+                        ...series,
+                        hooks: series.hooks.filter((_, i) => i !== index),
+                      })
+                    }
+                  >
+                    删除
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : null}
       </div>
     </div>

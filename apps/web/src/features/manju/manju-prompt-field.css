@@ -1,0 +1,17 @@
+.manju-prompt-field {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--background);
+  padding: 0.5rem 0.65rem;
+}
+
+.manju-prompt-field:focus-within {
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+}
+
+.manju-prompt-field .joy-ai-prompt .ProseMirror {
+  min-height: 72px;
+  max-height: 160px;
+  font-size: 13px;
+  line-height: 1.5;
+}

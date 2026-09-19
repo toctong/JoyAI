@@ -46,14 +46,13 @@ import { captureVideoFrame } from "./lib/capture-video-frame";
 import { separateAudioToNode } from "./lib/extract-audio-to-node";
 import { videoRefMode } from "./lib/video-ref-mode";
 import { getPlaybackTime } from "./lib/playback-clock";
-import { wrapPanoramaPrompt, flagPanoramaAspect } from "./lib/panorama-prompt";
+import { wrapPanoramaPrompt } from "./lib/panorama-prompt";
 import { convertImagePanoramaType } from "./lib/convert-media-type";
-import { frameNodeToMedia } from "./lib/fit-node-size";
-import { mediaNamePatch } from "./lib/node-title";
 import {
   collectIncomingMediaFromEdges,
 } from "./lib/canvas-media-refs";
-import { api, apiUpload } from "@/shared/lib/api";
+import { uploadFileIntoNode, uploadFileToNewNode } from "./lib/upload-to-node";
+import { api } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 import type { ImageToolMode } from "./image-tool-dialog";
@@ -246,25 +245,10 @@ export function NodeFloatToolbar({
 
   async function onUpload(file: File) {
     if (!node) return;
-    pushHistory();
-    const asset = await apiUpload<{ id: string; url: string; kind: string }>(
-      "/upload",
-      file,
-    );
-    updateNodeData(node.id, {
-      url: asset.url,
-      assetId: asset.id,
-      status: "succeeded",
-      error: "",
-      ...mediaNamePatch(file.name),
-      ...(node.type === "panorama" ? { projection: "equirectangular" } : {}),
-    });
-    if (node.type === "panorama") {
-      flagPanoramaAspect(asset.url, (aspectHint) =>
-        useCanvasStore.getState().updateNodeData(node.id, { aspectHint }),
-      );
-    } else if (node.type === "image" || node.type === "video") {
-      void frameNodeToMedia(node.id, file, node.type);
+    try {
+      await uploadFileIntoNode(node.id, file);
+    } catch {
+      /* node already shows failed state */
     }
   }
 
@@ -345,21 +329,18 @@ export function NodeFloatToolbar({
         "current",
         getPlaybackTime(node.id),
       );
-      const asset = await apiUpload<{ id: string; url: string }>(
-        "/upload",
+      const imageId = await uploadFileToNewNode(
         file,
+        {
+          x: node.x + (node.width ?? 280) + 40,
+          y: node.y,
+        },
+        {
+          history: false,
+          preferredType: "image",
+          title: "视频截帧",
+        },
       );
-      const imageId = addNode("image", {
-        x: node.x + (node.width ?? 280) + 40,
-        y: node.y,
-      });
-      updateNodeData(imageId, {
-        url: asset.url,
-        assetId: asset.id,
-        status: "succeeded",
-        ...mediaNamePatch(file.name),
-        title: "视频截帧",
-      });
       addEdge(node.id, imageId);
       toast.success("已截取当前帧");
     } catch (e) {

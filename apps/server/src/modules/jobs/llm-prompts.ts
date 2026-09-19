@@ -8,7 +8,7 @@ export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文
 只输出 JSON，不要解释、不要代码围栏。
 {
   "overview": "一两句故事梗概",
-  "characters": [{ "name": "角色名", "description": "外貌服饰一句，不要编造原文没有的设定" }],
+  "characters": [{ "name": "角色名", "description": "外貌服饰一句，不要编造原文没有的设定", "aliases": ["别名"] }],
   "scenes": [{ "name": "场景名", "description": "地点氛围一句" }],
   "props": [{ "name": "道具名", "description": "外观一句" }],
   "episodes": [{ "title": "分集标题", "summary": "本集发生什么" }]
@@ -17,6 +17,7 @@ export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文
 - 成品剧本：提取已有人名与外形，不要发明新角色
 - 小说：只登记有名字、会出场的人
 - 每类不超过 20 个，名称唯一、简短
+- 角色可给 aliases（称呼、外号），没有就空数组
 - 分集 1～8 个；短篇可以只有 1 集
 - 不要输出分镜、对白或画面提示词`;
 
@@ -36,7 +37,8 @@ export const SCRIPT_PLAN_SYSTEM = `你是剧本编辑，不是摄影师。把原
 - 对白尽量沿用原文措辞，不要改写台词
 - assetNames 只能使用用户消息里列出的资产名
 - episodeTitle 只能使用用户消息里列出的分集标题；若只有一集，全部镜头用该标题
-- 不要写 image_prompt / video_prompt，不要加删角色设定`;
+- 不要写 image_prompt / video_prompt，不要加删角色设定
+- 不要自己编镜号。若用户消息给出了已有全局 #index，输出必须带相同 index，禁止从 1 重编或跳号`;
 
 /** create-episode-script：只补画面与视频提示词，不改对白和镜序 */
 export const AUTHOR_PROMPTS_SYSTEM = `你是分镜摄影师。输入是已锁定的镜头列表（含序号、画面、对白、出场资产）。
@@ -50,8 +52,10 @@ export const AUTHOR_PROMPTS_SYSTEM = `你是分镜摄影师。输入是已锁定
   }]
 }
 规则：
+- 镜号是项目全局 #index，不是分集内从 1 起的局部序号。分集重跑时也必须沿用用户消息里的全局 #index
 - 每条输入镜头都必须有对应输出，index 必须与输入的全局镜号完全一致（例如输入是 #5/#6，输出也必须是 5/6，禁止从 1 重编）
 - 若用户只给了部分镜头，只为这些 index 输出，不要发明其它镜号
+- 序号对不上的条目会被服务端丢弃，不会按数组位置套到别的镜头上
 - imagePrompt：叙事中文，写清主体、构图景别、光线、氛围；出场资产用 @[登记名] 指认（生成端会换成「图N」并挂参考图），不要英文关键词堆砌；不要字幕、水印、对话框
 - videoPrompt：写清镜头内动作、运镜、环境动态；同样可用 @[登记名]；不要「改成/删除/延长」类修图指令；不要配乐、BGM、字幕说明
 - 风格与画幅以用户消息为准，可融入提示词，但不要写成参数表
@@ -59,6 +63,39 @@ export const AUTHOR_PROMPTS_SYSTEM = `你是分镜摄影师。输入是已锁定
 - 有参考图时不要在提示词里重复描写外貌服装细节，交给参考图`;
 
 export const SPLIT_SHOTS_SYSTEM = SCRIPT_PLAN_SYSTEM;
+
+/** plan-episodes：只切分集，不写镜头、不改资产图 */
+export const PLAN_EPISODES_SYSTEM = `你是分集编辑。把原文切成可独立拍摄的短集。
+只输出 JSON，不要解释、不要代码围栏，不要输出分镜或对白稿。
+{
+  "episodes": [{
+    "title": "分集标题，简短",
+    "summary": "本集发生什么，两句以内",
+    "hook": "本集结尾钩子，一句；没有就空字符串",
+    "startQuote": "本集在原文中的起始句，必须是原文逐字片段，10～40字",
+    "endQuote": "本集在原文中的结束句，必须是原文逐字片段，10～40字"
+  }]
+}
+规则：
+- 1～12 集；短篇可以 1 集
+- startQuote / endQuote 必须能在原文里原样找到，禁止改写、省略号或概括
+- 集与集按叙事顺序，不要重叠大段
+- 不要发明原文没有的情节
+- 若用户消息列出已有分集标题，优先沿用这些标题，只补钩子和引文`;
+
+/** series-memory：只记世界观、角色小传、未回收伏笔，不改剧本正文 */
+export const SERIES_MEMORY_SYSTEM = `你是连载记忆编辑。只根据原文和已有记忆，整理后续写作要用的设定备忘。
+只输出 JSON，不要解释、不要代码围栏，不要输出分镜、对白或提示词。
+{
+  "world": "世界观与时代规则，两三句，没有就空字符串",
+  "bios": [{ "name": "角色名", "bio": "小传：身份、关系、已知经历，不要编造原文没有的结局" }],
+  "hooks": ["仍未回收的伏笔，一句一条"]
+}
+规则：
+- 不要改写或引用大段对白
+- bios 只收录有名字的角色，名称与已有资产名对齐
+- hooks 只列尚未兑现的伏笔；用户消息里标记为已回收的，不要再输出
+- 没有新内容就返回空数组和空字符串，不要凑数`;
 
 /**
  * Canvas text jobs — same role as infinite-canvas `systemPrompts.text`.

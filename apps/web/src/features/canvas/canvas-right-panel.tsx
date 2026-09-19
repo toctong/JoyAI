@@ -15,13 +15,15 @@ import {
   CanvasIconText,
   CanvasIconVideo,
 } from "./icons/canvas-icons";
-import { groupIdOf } from "./lib/align";
+import { groupIdOf, groupLabels } from "./lib/align";
 import { nodeTitleLabel } from "./lib/node-chrome";
 import { NODE_REGISTRY } from "./node-registry";
+import { CanvasRefThumb } from "./canvas-ref-thumb";
 import {
   useCanvasRightPanelStore,
   type CanvasRightPanelMode,
 } from "./right-panel-store";
+import { Crosshair } from "lucide-react";
 import { api } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { cn } from "@/shared/lib/utils";
@@ -111,6 +113,7 @@ type Props = {
   nodes: CanvasNode[];
   selectedIds: string[];
   onFocusNode: (id: string) => void;
+  onFocusGroup?: (memberIds: string[]) => void;
   onFocusJob: (opts: {
     jobId?: string | null;
     assetId?: string | null;
@@ -118,12 +121,13 @@ type Props = {
   }) => void;
 };
 
-/** Right docked utility panel — node search + generation history (not a popover). */
+/** Floating right utility panel — node search + history (not full-height). */
 export function CanvasRightPanel({
   projectId,
   nodes,
   selectedIds,
   onFocusNode,
+  onFocusGroup,
   onFocusJob,
 }: Props) {
   const mode = useCanvasRightPanelStore((s) => s.mode);
@@ -135,7 +139,7 @@ export function CanvasRightPanel({
     <aside
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className="joy-canvas-chrome absolute bottom-4 right-4 top-16 z-40 flex w-[320px] flex-col overflow-hidden rounded-2xl border border-border"
+      className="joy-canvas-chrome absolute right-4 top-16 z-40 flex h-[min(560px,calc(100%-7.5rem))] w-[320px] flex-col overflow-hidden rounded-2xl border border-border shadow-lg"
       onPointerDown={(e) => e.stopPropagation()}
     >
       {mode === "nodes" ? (
@@ -143,6 +147,7 @@ export function CanvasRightPanel({
           nodes={nodes}
           selectedIds={selectedIds}
           onFocusNode={onFocusNode}
+          onFocusGroup={onFocusGroup}
           onClose={close}
         />
       ) : (
@@ -191,7 +196,7 @@ function TabRow<T extends string>({
   onChange: (id: T) => void;
 }) {
   return (
-    <div className="flex gap-3 overflow-x-auto px-4 pb-2 pt-1">
+    <div className="flex gap-3.5 overflow-x-auto px-4 pb-2.5 pt-1">
       {tabs.map((tab) => {
         const active = value === tab.id;
         const count = counts?.[tab.id];
@@ -201,10 +206,10 @@ function TabRow<T extends string>({
             type="button"
             onClick={() => onChange(tab.id)}
             className={cn(
-              "shrink-0 border-b-2 pb-1.5 text-[12px] font-medium transition",
+              "shrink-0 text-[12px] font-medium transition",
               active
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                ? "text-foreground"
+                : "text-muted-foreground hover:text-foreground/80",
             )}
           >
             {tab.label}
@@ -222,11 +227,13 @@ function NodesPane({
   nodes,
   selectedIds,
   onFocusNode,
+  onFocusGroup,
   onClose,
 }: {
   nodes: CanvasNode[];
   selectedIds: string[];
   onFocusNode: (id: string) => void;
+  onFocusGroup?: (memberIds: string[]) => void;
   onClose: () => void;
 }) {
   const [keyword, setKeyword] = useState("");
@@ -267,23 +274,20 @@ function NodesPane({
     });
 
     const seenGroups = new Set<string>();
+    const labels = groupLabels(nodes);
     const out: ListRow[] = [];
-    let groupIndex = 0;
     for (const node of visible) {
       const gid = groupIdOf(node);
-      if (gid && !seenGroups.has(gid)) {
+      if (gid && !seenGroups.has(gid) && labels.has(gid)) {
         const members = nodes.filter((n) => groupIdOf(n) === gid);
-        if (members.length >= 2) {
-          seenGroups.add(gid);
-          groupIndex += 1;
-          out.push({
-            kind: "group",
-            id: `group:${gid}`,
-            title: `编组 ${groupIndex}`,
-            subtitle: "组",
-            memberIds: members.map((m) => m.id),
-          });
-        }
+        seenGroups.add(gid);
+        out.push({
+          kind: "group",
+          id: `group:${gid}`,
+          title: labels.get(gid) ?? "编组",
+          subtitle: "组",
+          memberIds: members.map((m) => m.id),
+        });
       }
       out.push({
         kind: "node",
@@ -298,14 +302,14 @@ function NodesPane({
 
   return (
     <>
-      <div className="flex items-center justify-between px-4 pb-1 pt-3">
+      <div className="flex items-center gap-2 px-3 pb-1 pt-3">
         <div className="relative min-w-0 flex-1">
-          <CanvasIconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <CanvasIconSearch className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
             placeholder="搜索节点..."
-            className="h-9 pl-8 text-sm"
+            className="h-9 rounded-full border-border/70 bg-muted/40 pl-9 text-sm shadow-none"
             autoFocus
           />
         </div>
@@ -314,7 +318,7 @@ function NodesPane({
           title="关闭"
           aria-label="关闭"
           onClick={onClose}
-          className="joy-canvas-chrome-btn ml-2 grid size-8 shrink-0 place-items-center rounded-lg"
+          className="joy-canvas-chrome-btn grid size-8 shrink-0 place-items-center rounded-full"
         >
           <CanvasIconClose className="size-3.5" />
         </button>
@@ -335,24 +339,29 @@ function NodesPane({
                     key={row.id}
                     type="button"
                     onClick={() => {
-                      const first = row.memberIds[0];
-                      if (first) onFocusNode(first);
+                      if (onFocusGroup) onFocusGroup(row.memberIds);
+                      else {
+                        const first = row.memberIds[0];
+                        if (first) onFocusNode(first);
+                      }
                     }}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition",
+                      "group/row flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition",
                       active ? "bg-muted" : "hover:bg-muted/60",
                     )}
                   >
                     <span
                       className={cn(
-                        "relative grid size-11 shrink-0 place-items-center rounded-xl",
-                        active ? "bg-sky-500/90 text-white" : "bg-muted",
+                        "relative grid size-10 shrink-0 place-items-center rounded-lg",
+                        active
+                          ? "bg-sky-500/90 text-white"
+                          : "bg-sky-500/15 text-sky-600 dark:text-sky-300",
                       )}
                     >
                       <span className="absolute left-1 top-0.5 text-[9px] font-medium opacity-70">
                         {index + 1}
                       </span>
-                      <CanvasIconGroup className="size-5" />
+                      <CanvasIconGroup className="size-4" />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">
@@ -362,6 +371,7 @@ function NodesPane({
                         {row.subtitle}
                       </span>
                     </span>
+                    <Crosshair className="size-3.5 shrink-0 text-muted-foreground opacity-50 transition group-hover/row:opacity-90" />
                   </button>
                 );
               }
@@ -371,8 +381,10 @@ function NodesPane({
               const url = String(node.data.url ?? "");
               const active = selected.has(node.id);
               const showThumb =
-                (node.type === "image" || node.type === "panorama") &&
-                url &&
+                (node.type === "image" ||
+                  node.type === "panorama" ||
+                  node.type === "video") &&
+                Boolean(url) &&
                 !url.startsWith("data:");
 
               return (
@@ -381,23 +393,18 @@ function NodesPane({
                   type="button"
                   onClick={() => onFocusNode(node.id)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition",
+                    "group/row flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition",
                     active ? "bg-muted" : "hover:bg-muted/60",
                   )}
                 >
-                  <span className="relative grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-muted">
+                  <span className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted">
                     <span className="absolute left-1 top-0.5 z-[1] text-[9px] font-medium text-muted-foreground">
                       {index + 1}
                     </span>
                     {showThumb ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={url}
-                        alt=""
-                        className="size-full object-cover"
-                      />
+                      <CanvasRefThumb kind={node.type} url={url} />
                     ) : (
-                      <Icon className="size-5 text-muted-foreground" />
+                      <Icon className="size-4 text-muted-foreground" />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -408,6 +415,7 @@ function NodesPane({
                       {row.subtitle}
                     </span>
                   </span>
+                  <Crosshair className="size-3.5 shrink-0 text-muted-foreground opacity-50 transition group-hover/row:opacity-90" />
                 </button>
               );
             })}
@@ -515,9 +523,9 @@ function HistoryPane({
                       nodeId,
                     })
                   }
-                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-muted/60"
+                  className="group/row flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-muted/60"
                 >
-                  <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-muted">
+                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted">
                     {thumb ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -526,7 +534,7 @@ function HistoryPane({
                         className="size-full object-cover"
                       />
                     ) : (
-                      <Icon className="size-5 text-muted-foreground" />
+                      <Icon className="size-4 text-muted-foreground" />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -538,6 +546,7 @@ function HistoryPane({
                       {job.error ? ` · ${job.error}` : ""}
                     </span>
                   </span>
+                  <Crosshair className="size-3.5 shrink-0 text-muted-foreground opacity-50 transition group-hover/row:opacity-90" />
                 </button>
               );
             })}

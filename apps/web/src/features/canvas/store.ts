@@ -16,8 +16,14 @@ import {
   alignNodes,
   distributeNodes,
   groupIdOf,
+  isCompleteGroupSelection,
+  layoutNodes,
+  nextGroupLabel,
+  packNodes,
+  withoutGroup,
   type AlignMode,
   type DistributeMode,
+  type LayoutMode,
 } from "./lib/align";
 
 function uid(prefix = "n") {
@@ -76,8 +82,11 @@ type CanvasState = {
   removeSelectedEdge: () => void;
   alignSelection: (mode: AlignMode) => void;
   distributeSelection: (mode: DistributeMode) => void;
+  packSelection: (mode: DistributeMode) => void;
+  layoutSelection: (mode: LayoutMode) => void;
   groupSelection: () => string | null;
   ungroupSelection: () => void;
+  renameGroup: (gid: string, name: string) => void;
   expandSelectionWithGroup: (seedIds: string[]) => string[];
   focusNode: (
     id: string,
@@ -449,6 +458,26 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     }));
   },
 
+  packSelection: (mode) => {
+    const ids = get().expandSelectionWithGroup(get().selectedIds);
+    if (ids.length < 2) return;
+    set((s) => ({
+      selectedIds: ids,
+      nodes: packNodes(s.nodes, ids, mode),
+      dirty: true,
+    }));
+  },
+
+  layoutSelection: (mode) => {
+    const ids = get().expandSelectionWithGroup(get().selectedIds);
+    if (ids.length < 2) return;
+    set((s) => ({
+      selectedIds: ids,
+      nodes: layoutNodes(s.nodes, ids, mode),
+      dirty: true,
+    }));
+  },
+
   groupSelection: () => {
     const ids = get().expandSelectionWithGroup(get().selectedIds);
     if (ids.length < 2) return null;
@@ -471,12 +500,13 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       return first;
     }
     const gid = uid("g");
+    const groupName = nextGroupLabel(nodes);
     const idSet = new Set(ids);
     set((s) => ({
       selectedIds: ids,
       nodes: s.nodes.map((n) =>
         idSet.has(n.id)
-          ? { ...n, data: { ...n.data, groupId: gid } }
+          ? { ...n, data: { ...n.data, groupId: gid, groupName } }
           : n,
       ),
       dirty: true,
@@ -500,8 +530,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       set((s) => ({
         nodes: s.nodes.map((n) => {
           if (!idSet.has(n.id) || !groupIdOf(n)) return n;
-          const { groupId: _drop, ...rest } = n.data;
-          return { ...n, data: rest };
+          return { ...n, data: withoutGroup(n.data) };
         }),
         dirty: true,
       }));
@@ -511,9 +540,19 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       nodes: s.nodes.map((n) => {
         const g = groupIdOf(n);
         if (!g || !groupIds.has(g)) return n;
-        const { groupId: _drop, ...rest } = n.data;
-        return { ...n, data: rest };
+        return { ...n, data: withoutGroup(n.data) };
       }),
+      dirty: true,
+    }));
+  },
+
+  renameGroup: (gid, name) => {
+    const next = name.trim().slice(0, 40);
+    if (!gid || !next) return;
+    set((s) => ({
+      nodes: s.nodes.map((n) =>
+        groupIdOf(n) === gid ? { ...n, data: { ...n.data, groupName: next } } : n,
+      ),
       dirty: true,
     }));
   },
@@ -598,8 +637,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 }));
 
+/** Individual node chrome — false when the whole group is the selection unit. */
 export function useIsNodeSelected(id: string) {
-  return useCanvasStore((s) => s.selectedIds.includes(id));
+  return useCanvasStore((s) => {
+    if (!s.selectedIds.includes(id)) return false;
+    return !isCompleteGroupSelection(s.nodes, s.selectedIds);
+  });
 }
 
 export function useIsNodeHighlighted(id: string) {

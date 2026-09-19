@@ -127,6 +127,8 @@ export const LlmJobPurposeSchema = z.enum([
   "split_shots",
   "script_plan",
   "author_prompts",
+  "series_memory",
+  "plan_episodes",
   "reverse_prompt",
   "chat",
 ]);
@@ -141,6 +143,8 @@ export const LlmJobInputSchema = z.object({
   modelId: z.string().optional(),
   /** 关联漫剧项目：完成后可回写 draft */
   manjuProjectId: z.string().optional(),
+  /** 分集内规划：只合并该集镜头，保留其他集 */
+  manjuEpisodeId: z.string().optional(),
   /** 画布回写 */
   canvasProjectId: z.string().optional(),
   canvasNodeId: z.string().optional(),
@@ -153,12 +157,15 @@ export type LlmJobInput = z.infer<typeof LlmJobInputSchema>;
 export const ManjuAnalyzeAssetItemSchema = z.object({
   name: z.string().min(1),
   description: z.string().default(""),
+  aliases: z.array(z.string()).default([]),
 });
 export const ManjuAnalyzeEpisodeSchema = z.object({
   title: z.string().min(1),
   summary: z.string().default(""),
 });
 export const ManjuAnalyzeShotSchema = z.object({
+  /** 全局镜号。缺省时服务端按数组顺序从 1 编号；已有镜头时乱编号会被拒绝 */
+  index: z.number().int().positive().optional(),
   visual: z.string().min(1),
   dialogue: z.string().default(""),
   assetNames: z.array(z.string()).default([]),
@@ -187,6 +194,54 @@ export const ManjuAuthorPromptSchema = z.object({
     .min(1),
 });
 export type ManjuAuthorPromptResult = z.infer<typeof ManjuAuthorPromptSchema>;
+
+/** 分集规划：只切集，不写镜头 */
+export const ManjuEpisodePlanResultSchema = z.object({
+  episodes: z
+    .array(
+      z.object({
+        title: z.string().min(1),
+        summary: z.string().default(""),
+        hook: z.string().default(""),
+        startQuote: z.string().default(""),
+        endQuote: z.string().default(""),
+      }),
+    )
+    .min(1),
+});
+export type ManjuEpisodePlanResult = z.infer<typeof ManjuEpisodePlanResultSchema>;
+
+/** 连载记忆技能的 JSON。不写镜头、对白或提示词 */
+export const ManjuSeriesMemoryResultSchema = z.object({
+  world: z.string().default(""),
+  bios: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        bio: z.string().default(""),
+      }),
+    )
+    .default([]),
+  hooks: z.array(z.string().min(1)).default([]),
+});
+export type ManjuSeriesMemoryResult = z.infer<
+  typeof ManjuSeriesMemoryResultSchema
+>;
+
+export const ManjuSeriesBioSchema = z.object({
+  name: z.string(),
+  bio: z.string().default(""),
+});
+export const ManjuSeriesHookSchema = z.object({
+  text: z.string(),
+  status: z.enum(["open", "paid"]).default("open"),
+});
+export const ManjuSeriesSchema = z.object({
+  world: z.string().default(""),
+  bios: z.array(ManjuSeriesBioSchema).default([]),
+  hooks: z.array(ManjuSeriesHookSchema).default([]),
+});
+export type ManjuSeries = z.infer<typeof ManjuSeriesSchema>;
 
 export const ManjuStepIdSchema = z.enum([
   "script",
@@ -222,6 +277,7 @@ export const ManjuAssetDraftSchema = z.object({
   kind: z.enum(["character", "scene", "prop"]),
   name: z.string(),
   description: z.string().default(""),
+  aliases: z.array(z.string()).default([]),
   imageUrl: z.string().nullable().default(null),
   assetId: z.string().nullable().default(null),
   jobId: z.string().nullable().default(null),
@@ -247,12 +303,19 @@ export const ManjuShotDraftSchema = z.object({
   videoAssetId: z.string().nullable().default(null),
   videoJobId: z.string().nullable().default(null),
   videoStatus: ManjuJobStatusSchema.default("idle"),
+  /** 画面/对白改过、已有图需要重做 */
+  storyboardStale: z.boolean().default(false),
+  /** 画面/对白改过、已有视频需要重做 */
+  videoStale: z.boolean().default(false),
 });
 
 export const ManjuEpisodeDraftSchema = z.object({
   id: z.string(),
   title: z.string(),
   summary: z.string().default(""),
+  hook: z.string().default(""),
+  /** 从原文按首尾引文切出的本集片段，可空 */
+  sourceText: z.string().default(""),
 });
 
 export const ManjuDraftSchema = z.object({
@@ -265,6 +328,8 @@ export const ManjuDraftSchema = z.object({
   assets: z.array(ManjuAssetDraftSchema).default([]),
   shots: z.array(ManjuShotDraftSchema).default([]),
   episodes: z.array(ManjuEpisodeDraftSchema).default([]),
+  /** 连载记忆：不参与生图，也不改已确认对白 */
+  series: ManjuSeriesSchema.default({}),
   completedSteps: z.array(ManjuStepIdSchema).default([]),
   lastAnalyzeJobId: z.string().nullable().optional(),
 });

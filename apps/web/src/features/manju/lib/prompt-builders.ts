@@ -228,7 +228,7 @@ export function buildStoryboardVideoPrompt(
       : mode === "grid"
         ? "多宫格分镜延续：保持相邻格人物造型与光影连续。"
         : continuity
-          ? "图生视频：以首帧分镜为起点，末帧参考上一镜/本镜收束姿态，镜头过渡自然连贯。"
+          ? null
           : "图生视频：以首帧分镜图为起点，自然演绎镜头内动作，保持人物造型与场景一致。";
 
   return trimJoin([

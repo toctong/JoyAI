@@ -33,8 +33,6 @@ import {
 import { nodeBox } from "./lib/node-box";
 import { titleFromPrompt } from "./lib/node-title";
 import { NodeRefBar } from "./node-ref-bar";
-import { CanvasRefThumb } from "./canvas-ref-thumb";
-import { CanvasRefHoverPreview } from "./canvas-ref-preview";
 import {
   durationsFromCapabilities,
   layoutControlsFromCapabilities,
@@ -518,17 +516,6 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
         ) : null}
 
         <div className="joy-node-gen-body">
-          {hasMedia ? (
-            <CanvasRefHoverPreview
-              kind={node.type}
-              url={url}
-              className="joy-node-gen-ref"
-            >
-              <CanvasRefThumb kind={node.type} url={url} />
-              <span className="joy-node-gen-ref-caption">参考</span>
-            </CanvasRefHoverPreview>
-          ) : null}
-
           <div className="joy-node-gen-main">
             <NodeRefBar nodeId={node.id} />
             <AiPromptEditor

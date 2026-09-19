@@ -19,7 +19,12 @@ import {
 import { NodeRuntimeBadge } from "../node-runtime-badge";
 import { NodeTitleChip } from "../node-title-chip";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
-import { MediaUploadLabel } from "../media-upload-label";
+import {
+  MediaBusyState,
+  MediaUploadLabel,
+  mediaBusyLabel,
+} from "../media-upload-label";
+import { isBusyStatus } from "../node-registry";
 import {
   PanoramaViewer,
   canvasToPngFile,
@@ -27,7 +32,7 @@ import {
   type PanoramaView,
 } from "../panorama-viewer";
 import { nodeBox } from "../lib/node-box";
-import { apiUpload } from "@/shared/lib/api";
+import { uploadFileToNewNode } from "../lib/upload-to-node";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 
@@ -76,7 +81,6 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
   const highlighted = useIsNodeHighlighted(node.id);
   const pulsing = useIsNodePulsing(node.id);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
-  const addNode = useCanvasStore((s) => s.addNode);
   const addEdge = useCanvasStore((s) => s.addEdge);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
   const [immersive, setImmersive] = useState(false);
@@ -90,6 +94,7 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
   const status = String(node.data.status ?? "idle");
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
+  const busy = isBusyStatus(status);
   const wantLive = framed && (selected || hovered || immersive);
   /** Immersive owns its own WebGL; the node shows the sphere, not the flat source. */
   const showNodeViewer = livePreview && !immersive;
@@ -160,21 +165,19 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
         canvas,
         `panorama-view-${node.id.slice(0, 6)}.png`,
       );
-      const asset = await apiUpload<{ id: string; url: string }>(
-        "/upload",
-        file,
-      );
       const box = nodeBox(node);
-      const imageId = addNode("image", {
-        x: box.x + box.width + 40,
-        y: box.y,
-      });
-      updateNodeData(imageId, {
-        url: asset.url,
-        assetId: asset.id,
-        status: "succeeded",
-        title: "全景截帧",
-      });
+      const imageId = await uploadFileToNewNode(
+        file,
+        {
+          x: box.x + box.width + 40,
+          y: box.y,
+        },
+        {
+          history: false,
+          preferredType: "image",
+          title: "全景截帧",
+        },
+      );
       addEdge(node.id, imageId);
       const view = api?.getView();
       if (view) {
@@ -229,7 +232,7 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
           nodeId={node.id}
           label={nodeTitleLabel("panorama", node.data)}
           customTitle={String(node.data.title ?? "")}
-          visible={framed || selected || hovered}
+          visible={framed || busy || selected || hovered}
           icon={<CanvasIconPanorama />}
         />
         <div className="relative h-full w-full overflow-hidden rounded-md bg-black/80">
@@ -254,11 +257,16 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
                 />
               </div>
             )
+          ) : busy ? (
+            <MediaBusyState label={mediaBusyLabel(node.data)} />
           ) : (
             <MediaUploadLabel nodeId={node.id} kind="panorama">
               <CanvasIconPanorama className="size-7 opacity-70" />
             </MediaUploadLabel>
           )}
+          {framed && busy ? (
+            <MediaBusyState overlay label={mediaBusyLabel(node.data)} />
+          ) : null}
           {framed && String(node.data.aspectHint ?? "") === "non-2:1" ? (
             <div className="pointer-events-none absolute left-2 top-2 rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] text-black">
               建议 2:1 全景图
@@ -302,8 +310,9 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
             </div>
           ) : null}
           <NodeRuntimeBadge
-            status={status}
+            status={busy ? "idle" : status}
             error={error}
+            busyLabel={mediaBusyLabel(node.data)}
             onRetry={
               status === "failed"
                 ? () =>
@@ -311,6 +320,7 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
                       status: "idle",
                       error: "",
                       jobId: "",
+                      busyLabel: "",
                     })
                 : undefined
             }

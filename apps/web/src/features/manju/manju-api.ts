@@ -33,6 +33,7 @@ export function draftFromProject(p: ManjuProjectDraft): ManjuDraft {
     assets: p.assets,
     shots: p.shots,
     episodes: p.episodes ?? [],
+    series: p.series ?? { world: "", bios: [], hooks: [] },
     completedSteps: p.completedSteps,
     lastAnalyzeJobId: p.lastAnalyzeJobId ?? null,
   };
@@ -57,7 +58,20 @@ export function projectFromDto(dto: ManjuProjectDto): ManjuProjectDraft {
       id: e.id,
       title: e.title,
       summary: e.summary ?? "",
+      hook: e.hook ?? "",
+      sourceText: e.sourceText ?? "",
     })),
+    series: {
+      world: dto.draft.series?.world ?? "",
+      bios: (dto.draft.series?.bios ?? []).map((b) => ({
+        name: b.name,
+        bio: b.bio ?? "",
+      })),
+      hooks: (dto.draft.series?.hooks ?? []).map((h) => ({
+        text: h.text,
+        status: h.status === "paid" ? "paid" : "open",
+      })),
+    },
     completedSteps:
       (dto.draft.completedSteps as ManjuProjectDraft["completedSteps"]) ?? [],
     lastAnalyzeJobId: dto.draft.lastAnalyzeJobId ?? null,
@@ -107,7 +121,14 @@ export async function submitManjuAnalyzeJob(input: {
   projectId: string;
   scriptText: string;
   modelId?: string;
-  purpose?: "analyze_assets" | "split_shots" | "script_plan" | "author_prompts";
+  episodeId?: string | null;
+  purpose?:
+    | "analyze_assets"
+    | "split_shots"
+    | "script_plan"
+    | "author_prompts"
+    | "series_memory"
+    | "plan_episodes";
 }) {
   return api<{ id: string }>("/jobs", {
     method: "POST",
@@ -117,7 +138,8 @@ export async function submitManjuAnalyzeJob(input: {
         purpose: input.purpose ?? "analyze_assets",
         prompt: input.scriptText,
         manjuProjectId: input.projectId,
-        modelId: input.modelId,
+        manjuEpisodeId: input.episodeId?.trim() || undefined,
+        modelId: input.modelId?.trim() || undefined,
       },
     },
   });

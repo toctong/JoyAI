@@ -33,9 +33,10 @@ export function CanvasRefThumb({ kind, url, className }: Props) {
   }
 
   if (kind === "video" && visual) {
+    const frame = src.includes("#") ? src : `${src}#t=0.1`;
     return (
       <video
-        src={src}
+        src={frame}
         muted
         playsInline
         preload="metadata"

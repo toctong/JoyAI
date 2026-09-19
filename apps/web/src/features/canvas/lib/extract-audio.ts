@@ -12,6 +12,10 @@ function stemFromName(name: string) {
   return stem || "视频";
 }
 
+type MediaBunny = typeof import("mediabunny");
+type MediaInput = InstanceType<MediaBunny["Input"]>;
+type MediaConversion = Awaited<ReturnType<MediaBunny["Conversion"]["init"]>>;
+
 /**
  * Split a video into audio WAV + silent video via mediabunny (demux / WebCodecs).
  * Same approach as infinite-canvas「分离音频」— offline convert, not realtime record.
@@ -44,14 +48,10 @@ export async function separateAudioFromVideo(
   const preferWebm =
     blob.type.includes("webm") || /\.webm($|\?)/i.test(url);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let audioInput: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let videoInput: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let audioConversion: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let videoConversion: any;
+  let audioInput: MediaInput | undefined;
+  let videoInput: MediaInput | undefined;
+  let audioConversion: MediaConversion | undefined;
+  let videoConversion: MediaConversion | undefined;
 
   try {
     audioInput = new Input({
@@ -72,8 +72,7 @@ export async function separateAudioFromVideo(
       tracks: "primary",
       video: { discard: true },
       audio: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        process: (sample: any) => {
+        process: (sample) => {
           if (sample.timestamp < 0 && sample.timestamp > -1e-9) {
             sample.setTimestamp(0);
           }

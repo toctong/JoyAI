@@ -56,6 +56,7 @@ type ManjuState = {
         | "assets"
         | "shots"
         | "episodes"
+        | "series"
         | "completedSteps"
         | "lastAnalyzeJobId"
       >
@@ -353,9 +354,18 @@ export const useManjuStore = create<ManjuState>((set, get) => {
       mutate(projectId, (p) => ({
         ...p,
         scriptConfirmed: contentEdited ? false : p.scriptConfirmed,
-        shots: p.shots.map((shot) =>
-          shot.id === shotId ? { ...shot, ...patch } : shot,
-        ),
+        shots: p.shots.map((shot) => {
+          if (shot.id !== shotId) return shot;
+          const next = { ...shot, ...patch };
+          if (!contentEdited) return next;
+          if (shot.storyboardImageUrl || shot.storyboardAssetId) {
+            next.storyboardStale = true;
+          }
+          if (shot.videoUrl || shot.videoAssetId) {
+            next.videoStale = true;
+          }
+          return next;
+        }),
       }));
     },
     removeShot: (projectId, shotId) => {
@@ -455,6 +465,8 @@ export const useManjuStore = create<ManjuState>((set, get) => {
                 storyboardStatus: status,
                 storyboardImageUrl: url ?? shot.storyboardImageUrl,
                 storyboardAssetId: assetId ?? shot.storyboardAssetId,
+                storyboardStale:
+                  status === "succeeded" && url ? false : shot.storyboardStale,
               };
             }
             if (shot.videoJobId === jobId) {
@@ -465,6 +477,7 @@ export const useManjuStore = create<ManjuState>((set, get) => {
                 videoStatus: status,
                 videoUrl: url ?? shot.videoUrl,
                 videoAssetId: assetId ?? shot.videoAssetId,
+                videoStale: status === "succeeded" && url ? false : shot.videoStale,
               };
             }
             return shot;

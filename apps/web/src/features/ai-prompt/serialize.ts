@@ -56,7 +56,7 @@ export function mentionLabel(
 
 /** Detect whether wire text still contains raw mention tokens. */
 export function hasMentionWireToken(text: string): boolean {
-  return /@(?:图片|视频|音频|图)\d|\{\{(?:Image|Video|Audio)\s+\d+\}\}|<<<(?:image|video|element)_\d+>>>/i.test(
+  return /@(?:图片|视频|音频|图)\d|\{\{(?:Image|Video|Audio)\s+\d+\}\}|<<<(?:image|video|element)_\d+>>>|@\[[^\]]+\]/i.test(
     String(text ?? ""),
   );
 }
@@ -124,7 +124,46 @@ type ParsedMention = {
   kind: "image" | "video" | "audio";
   index1: number;
   token: string;
+  /** 漫剧 @[登记名] */
+  assetName?: string;
 };
+
+function scanBracketMentions(line: string): ParsedMention[] {
+  const out: ParsedMention[] = [];
+  const re = /@\[([^\]]+)\]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(line))) {
+    const name = String(m[1] ?? "").trim();
+    if (!name) continue;
+    out.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      kind: "image",
+      index1: 0,
+      token: m[0],
+      assetName: name,
+    });
+  }
+  return out;
+}
+
+function resolveMentionByName(
+  items: MentionResolveItem[],
+  name: string,
+): MentionResolveItem | null {
+  const n = name.trim();
+  if (!n) return null;
+  return (
+    items.find((item) => {
+      const expand = String(item.expandText || "").trim();
+      if (expand === `@[${n}]`) return true;
+      const label = String(item.label || "")
+        .trim()
+        .replace(/^@/, "");
+      return label === n || label.endsWith(`·${n}`);
+    }) ?? null
+  );
+}
 
 function scanMentions(
   line: string,
@@ -348,20 +387,56 @@ function lineToInlineContent(
     return [{ type: "text", text: line }];
   }
 
-  const mentions = scanMentions(line, maxByKind);
+  const mentions = [
+    ...scanMentions(line, maxByKind),
+    ...scanBracketMentions(line),
+  ].sort((a, b) => a.start - b.start);
   if (!mentions.length) return [{ type: "text", text: line }];
 
   const out: JSONContent[] = [];
   let last = 0;
   for (const m of mentions) {
+    if (m.start < last) continue;
     if (m.start > last) {
       out.push({ type: "text", text: line.slice(last, m.start) });
     }
-    const item =
-      mentionItems?.length && m.index1 > 0
-        ? resolveMention(mentionItems, m.kind, m.index1)
+    if (m.assetName) {
+      const item = mentionItems?.length
+        ? resolveMentionByName(mentionItems, m.assetName)
         : null;
-    out.push(mentionNode(m.kind, m.index1, item));
+      if (item) {
+        out.push({
+          type: "mentionTag",
+          attrs: {
+            label: item.label.startsWith("@")
+              ? item.label
+              : `@${item.label}`,
+            mentionId: item.id,
+            expandText: item.expandText || `@[${m.assetName}]`,
+            url: item.url,
+            mediaKind:
+              item.mediaKind === "text" ? "image" : item.mediaKind || "image",
+          },
+        });
+      } else {
+        out.push({
+          type: "mentionTag",
+          attrs: {
+            label: `@${m.assetName}`,
+            mentionId: "",
+            expandText: `@[${m.assetName}]`,
+            url: "",
+            mediaKind: "image",
+          },
+        });
+      }
+    } else {
+      const item =
+        mentionItems?.length && m.index1 > 0
+          ? resolveMention(mentionItems, m.kind, m.index1)
+          : null;
+      out.push(mentionNode(m.kind, m.index1, item));
+    }
     last = m.end;
   }
   if (last < line.length) {

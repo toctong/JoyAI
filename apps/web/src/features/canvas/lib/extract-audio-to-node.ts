@@ -42,6 +42,7 @@ export async function separateAudioToNode(sourceNodeId: string) {
   updateNodeData(audioId, {
     status: "running",
     error: "",
+    busyLabel: "分离中…",
     title: `${stem}_音频`,
     titleManual: true,
     fileName: `${stem}_音频.wav`,
@@ -59,6 +60,7 @@ export async function separateAudioToNode(sourceNodeId: string) {
   updateNodeData(silentId, {
     status: "running",
     error: "",
+    busyLabel: "分离中…",
     title: `${stem}_无声`,
     titleManual: true,
     fileName: `${stem}_无声.mp4`,
@@ -81,6 +83,7 @@ export async function separateAudioToNode(sourceNodeId: string) {
       assetId: audioAsset.id,
       status: "succeeded",
       error: "",
+      busyLabel: "",
       ...mediaNamePatch(audio.name),
       title: `${stem}_音频`,
       titleManual: true,
@@ -91,6 +94,7 @@ export async function separateAudioToNode(sourceNodeId: string) {
       assetId: videoAsset.id,
       status: "succeeded",
       error: "",
+      busyLabel: "",
       ...mediaNamePatch(silentVideo.name),
       title: `${stem}_无声`,
       titleManual: true,
@@ -101,10 +105,18 @@ export async function separateAudioToNode(sourceNodeId: string) {
     const message = error instanceof Error ? error.message : "分离音频失败";
     const nodes = useCanvasStore.getState().nodes;
     if (nodes.some((item) => item.id === audioId)) {
-      updateNodeData(audioId, { status: "failed", error: message });
+      updateNodeData(audioId, {
+        status: "failed",
+        error: message,
+        busyLabel: "",
+      });
     }
     if (nodes.some((item) => item.id === silentId)) {
-      updateNodeData(silentId, { status: "failed", error: message });
+      updateNodeData(silentId, {
+        status: "failed",
+        error: message,
+        busyLabel: "",
+      });
     }
     throw error instanceof Error ? error : new Error(message);
   } finally {

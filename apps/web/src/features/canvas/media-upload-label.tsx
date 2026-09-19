@@ -2,15 +2,8 @@
 
 import { useRef } from "react";
 import type { CanvasNode } from "@joyai/shared";
-import { useCanvasStore } from "./store";
-import { apiUpload } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
-import {
-  flagPanoramaAspect,
-  PANORAMA_NODE_SIZE,
-} from "./lib/panorama-prompt";
-import { frameNodeToMedia } from "./lib/fit-node-size";
-import { mediaNamePatch } from "./lib/node-title";
+import { uploadFileIntoNode } from "./lib/upload-to-node";
 
 type Kind = "image" | "video" | "panorama" | "audio";
 
@@ -37,6 +30,52 @@ type Props = {
   children: React.ReactNode;
 };
 
+/** Centered loading surface while a media node is uploading or separating. */
+export function MediaBusyState({
+  label = "上传中…",
+  className,
+  overlay = false,
+}: {
+  label?: string;
+  className?: string;
+  /** Cover existing media during replace uploads. */
+  overlay?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "joy-media-busy",
+        overlay && "is-overlay absolute inset-0 z-[2]",
+        className,
+      )}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="joy-media-busy-sheen" aria-hidden />
+      <div className="joy-media-busy-core">
+        <span className="joy-media-busy-ring" aria-hidden>
+          <svg viewBox="0 0 36 36">
+            <circle className="track" cx="18" cy="18" r="14" />
+            <circle className="arc" cx="18" cy="18" r="14" />
+          </svg>
+        </span>
+        <span className="joy-media-busy-label">{label}</span>
+        <span className="joy-media-busy-bar" aria-hidden>
+          <span />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function mediaBusyLabel(
+  data: Record<string, unknown>,
+  fallback = "生成中…",
+) {
+  const label = String(data.busyLabel ?? "").trim();
+  return label || fallback;
+}
+
 /**
  * Empty-state upload. Pointerdown bubbles so the node can be dragged.
  * The file picker opens only on a click that did not move.
@@ -47,46 +86,8 @@ export function MediaUploadLabel({
   className,
   children,
 }: Props) {
-  const updateNodeData = useCanvasStore((s) => s.updateNodeData);
-  const updateNode = useCanvasStore((s) => s.updateNode);
-  const pushHistory = useCanvasStore((s) => s.pushHistory);
   const inputRef = useRef<HTMLInputElement>(null);
   const draggedRef = useRef(false);
-
-  async function onFile(file: File) {
-    pushHistory();
-    updateNodeData(nodeId, { status: "running", error: "" });
-    try {
-      const asset = await apiUpload<{ id: string; url: string }>(
-        "/upload",
-        file,
-      );
-      updateNodeData(nodeId, {
-        url: asset.url,
-        assetId: asset.id,
-        status: "succeeded",
-        error: "",
-        ...mediaNamePatch(file.name),
-        ...(kind === "panorama" ? { projection: "equirectangular" } : {}),
-      });
-      if (kind === "panorama") {
-        updateNode(nodeId, {
-          width: PANORAMA_NODE_SIZE.width,
-          height: PANORAMA_NODE_SIZE.height,
-        });
-        flagPanoramaAspect(asset.url, (aspectHint) =>
-          updateNodeData(nodeId, { aspectHint }),
-        );
-      } else if (kind === "image" || kind === "video") {
-        void frameNodeToMedia(nodeId, file, kind);
-      }
-    } catch (e) {
-      updateNodeData(nodeId, {
-        status: "failed",
-        error: e instanceof Error ? e.message : "上传失败",
-      });
-    }
-  }
 
   return (
     <div
@@ -130,7 +131,7 @@ export function MediaUploadLabel({
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) void onFile(file);
+          if (file) void uploadFileIntoNode(nodeId, file).catch(() => undefined);
           e.target.value = "";
         }}
       />

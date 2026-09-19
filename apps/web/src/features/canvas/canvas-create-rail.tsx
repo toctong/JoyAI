@@ -11,12 +11,7 @@ import {
   CanvasIconUpload,
   CanvasIconVideo,
 } from "./icons/canvas-icons";
-import { nodeTypeForUpload } from "./lib/upload-node-type";
-import { flagPanoramaAspect } from "./lib/panorama-prompt";
-import { frameNodeToMedia } from "./lib/fit-node-size";
-import { mediaNamePatch } from "./lib/node-title";
-import { useCanvasStore } from "./store";
-import { apiUpload } from "@/shared/lib/api";
+import { uploadFileToNewNode } from "./lib/upload-to-node";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -96,35 +91,8 @@ const SECONDARY = TOOLS.filter((tool) => tool.id === "assets" || tool.id === "up
  * Hover reveals labels beside the icons, not by widening the chrome card.
  */
 export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
-  const pushHistory = useCanvasStore((s) => s.pushHistory);
-  const addNode = useCanvasStore((s) => s.addNode);
-  const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const fileRef = useRef<HTMLInputElement>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
-
-  async function onUpload(file: File) {
-    pushHistory();
-    const asset = await apiUpload<{ id: string; url: string; kind: string }>(
-      "/upload",
-      file,
-    );
-    const type = await nodeTypeForUpload(file, asset.kind);
-    const id = addNode(type);
-    updateNodeData(id, {
-      url: asset.url,
-      assetId: asset.id,
-      status: "succeeded",
-      ...mediaNamePatch(file.name),
-      ...(type === "panorama" ? { projection: "equirectangular" } : {}),
-    });
-    if (type === "panorama") {
-      flagPanoramaAspect(asset.url, (aspectHint) =>
-        useCanvasStore.getState().updateNodeData(id, { aspectHint }),
-      );
-    } else if (type === "image" || type === "video") {
-      void frameNodeToMedia(id, file, type);
-    }
-  }
 
   function runTool(tool: (typeof TOOLS)[number]) {
     tool.run({
@@ -197,7 +165,7 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
-          if (file) void onUpload(file);
+          if (file) void uploadFileToNewNode(file).catch(() => undefined);
           e.target.value = "";
         }}
       />

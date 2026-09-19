@@ -18,6 +18,7 @@ import {
 } from "./config/manju-steps";
 import { stepCanAdvance, getWorkflowNextAction, type ManjuPanel } from "./manju-types";
 import { submitWorkflowSkill } from "./lib/workflow-skill";
+import { draftFromProject } from "./manju-api";
 import { ScriptStep } from "./steps/script-step";
 import { VideoSettingsStep } from "./steps/video-settings-step";
 import { AssetsStep } from "./steps/assets-step";
@@ -158,7 +159,11 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
 
   const exportJson = useCallback(() => {
     if (!project) return;
-    const blob = new Blob([JSON.stringify(project, null, 2)], {
+    const payload = {
+      title: project.title,
+      draft: draftFromProject(project),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
@@ -213,6 +218,8 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
         go("storyboard-script", { view: "prompts" });
       } else if (suggested.skill === "script_plan") {
         go("storyboard-script");
+      } else if (suggested.skill === "plan_episodes") {
+        go("script");
       } else {
         go("assets");
       }
@@ -257,6 +264,7 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
         completed={completed}
         onProjectTitleChange={(title) => updateProject(projectId, { title })}
         onSelect={(id) => go(id)}
+        onSuggested={() => void runSuggested()}
       />
       <section className="manju-main">
         <header className="manju-main__header">

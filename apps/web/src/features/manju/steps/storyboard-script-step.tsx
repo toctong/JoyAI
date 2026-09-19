@@ -103,6 +103,11 @@ function SortableShotCard({
           <span className="manju-shot-card__index !mb-0">
             {String(shot.index).padStart(2, "0")}
           </span>
+          {shot.storyboardStale ? (
+            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">
+              图需重做
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-0.5">
           <button
@@ -322,14 +327,23 @@ export function StoryboardScriptStep({
       toast.error("请先在剧本编辑里写好原文");
       return;
     }
-    const hasMedia = project.shots.some(
-      (s) => s.storyboardImageUrl || s.videoUrl,
-    );
+    if (episodeId) {
+      const ep = project.episodes.find((e) => e.id === episodeId);
+      if (!ep?.sourceText?.trim() && !project.scriptText.trim()) {
+        toast.error("本集还没有原文片段，请先在剧本页规划分集");
+        return;
+      }
+    }
+    const scoped = episodeId
+      ? project.shots.filter((s) => s.episodeId === episodeId)
+      : project.shots;
+    const hasMedia = scoped.some((s) => s.storyboardImageUrl || s.videoUrl);
     if (hasMedia) {
       const ok = await confirmDialog({
-        title: "重新规划分镜？",
-        description:
-          "规划会按镜号合并画面和对白，已有分镜图和视频会尽量保留。",
+        title: episodeId ? "重新规划本集分镜？" : "重新规划分镜？",
+        description: episodeId
+          ? "只会合并当前分集的镜头，其他集的图和视频会保留。"
+          : "规划会按镜号合并画面和对白，已有分镜图和视频会尽量保留。",
         confirmText: "继续规划",
         cancelText: "取消",
       });
@@ -343,7 +357,7 @@ export function StoryboardScriptStep({
         skill: "script_plan",
         episodeId,
       });
-      toast.success("已提交分镜规划");
+      toast.success(episodeId ? "已提交本集分镜规划" : "已提交分镜规划");
     } catch (e) {
       setAnalyzing(project.id, false);
       toast.error(e instanceof Error ? e.message : "提交失败");
@@ -386,12 +400,28 @@ export function StoryboardScriptStep({
   const generateAll = async () => {
     const targets = visibleShots.filter(
       (s) =>
-        !s.storyboardImageUrl &&
+        (!s.storyboardImageUrl || s.storyboardStale) &&
         (s.visual.trim() || s.imagePrompt?.trim()) &&
         !isBusyStatus(s.storyboardStatus),
     );
     if (targets.length === 0) {
-      toast.message("没有待生成的分镜（已跳过有图的）");
+      toast.message("没有待生成的分镜（已跳过未过期的图）");
+      return;
+    }
+    for (const shot of targets) {
+      await generateStoryboard(shot);
+    }
+  };
+
+  const generateStaleOnly = async () => {
+    const targets = visibleShots.filter(
+      (s) =>
+        s.storyboardStale &&
+        (s.visual.trim() || s.imagePrompt?.trim()) &&
+        !isBusyStatus(s.storyboardStatus),
+    );
+    if (targets.length === 0) {
+      toast.message("没有标记为过期的分镜图");
       return;
     }
     for (const shot of targets) {
@@ -482,7 +512,7 @@ export function StoryboardScriptStep({
               ) : (
                 <Sparkles className="h-4 w-4" />
               )}
-              AI 规划分镜
+              AI {episodeId ? "规划本集" : "规划分镜"}
             </Button>
             {project.shots.length > 0 && !project.scriptConfirmed ? (
               <Button variant="outline" size="sm" onClick={confirmScript}>
@@ -516,6 +546,16 @@ export function StoryboardScriptStep({
               <Sparkles className="h-4 w-4" />
               全部生成分镜图
             </Button>
+            {visibleShots.some((s) => s.storyboardStale) ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void generateStaleOnly()}
+              >
+                重做过期图 (
+                {visibleShots.filter((s) => s.storyboardStale).length})
+              </Button>
+            ) : null}
             <Button
               size="sm"
               onClick={() => {
@@ -549,7 +589,7 @@ export function StoryboardScriptStep({
                 ) : (
                   <Sparkles className="h-4 w-4" />
                 )}
-                AI 规划分镜
+                AI {episodeId ? "规划本集" : "规划分镜"}
               </Button>
             {!episodeId ? (
               <Button size="sm" onClick={() => addShot(project.id)}>

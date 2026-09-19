@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  CanvasIconAudio,
-  CanvasIconLoader,
-} from "../icons/canvas-icons";
+import { CanvasIconAudio } from "../icons/canvas-icons";
 import { useState } from "react";
 import type { CanvasNode } from "@joyai/shared";
 import {
@@ -16,7 +13,11 @@ import { NodeRuntimeBadge } from "../node-runtime-badge";
 import { NodeTitleChip } from "../node-title-chip";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { isBusyStatus } from "../node-registry";
-import { MediaUploadLabel } from "../media-upload-label";
+import {
+  MediaBusyState,
+  MediaUploadLabel,
+  mediaBusyLabel,
+} from "../media-upload-label";
 import { CanvasAudioPlayer } from "../canvas-audio-player";
 import { cn } from "@/shared/lib/utils";
 
@@ -70,26 +71,28 @@ export function AudioNode({ node, onPointerDown }: Props) {
           "relative h-full w-full overflow-hidden rounded-md",
           framed
             ? "overflow-hidden border border-zinc-300/90 bg-[#f4f4f5] shadow-[0_1px_2px_rgba(15,23,42,0.06),0_10px_28px_rgba(15,23,42,0.1)] dark:border-zinc-800/80 dark:bg-[#141416] dark:shadow-[0_8px_24px_rgba(0,0,0,0.35)]"
-            : "border border-border bg-card p-2.5",
+            : busy
+              ? "bg-card"
+              : "border border-border bg-card p-2.5",
         )}
       >
         {framed ? (
           <CanvasAudioPlayer key={url} src={url} className="h-full" />
         ) : busy ? (
-          <div className="flex h-full min-h-[120px] flex-1 items-center justify-center gap-2 rounded-[10px] bg-muted/70 px-4 text-sm text-muted-foreground">
-            <CanvasIconLoader className="size-4 shrink-0 animate-spin" />
-            <span>分离中…</span>
-          </div>
+          <MediaBusyState label={mediaBusyLabel(node.data)} />
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="audio">
             <CanvasIconAudio className="size-6 opacity-70" />
           </MediaUploadLabel>
         )}
-        {busy && !framed ? null : (
+        {framed && busy ? (
+          <MediaBusyState overlay label={mediaBusyLabel(node.data)} />
+        ) : null}
+        {busy ? null : (
           <NodeRuntimeBadge
             status={status}
             error={error}
-            busyLabel="分离中…"
+            busyLabel={mediaBusyLabel(node.data)}
             onRetry={
               status === "failed"
                 ? () =>
@@ -97,6 +100,7 @@ export function AudioNode({ node, onPointerDown }: Props) {
                       status: "idle",
                       error: "",
                       jobId: "",
+                      busyLabel: "",
                     })
                 : undefined
             }

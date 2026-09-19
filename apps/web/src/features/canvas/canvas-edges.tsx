@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import type { CanvasEdge, CanvasNode } from "@joyai/shared";
 import { cn } from "@/shared/lib/utils";
 import { nodeBox } from "./lib/node-box";
@@ -88,7 +89,7 @@ export function CanvasEdges({
 
   return (
     <svg
-      className="pointer-events-none absolute overflow-visible text-foreground/40"
+      className="pointer-events-none absolute z-[1] overflow-visible text-foreground/40"
       style={{ left, top, width, height }}
     >
       <g transform={`translate(${-left} ${-top})`}>
@@ -210,40 +211,47 @@ type HandleProps = {
 };
 
 /** Ports only show when the node is selected or hovered. */
+const PORT_GAP = 6;
+
 export function NodeHandles({
   node,
   visible,
   onConnectStart,
 }: HandleProps) {
   const box = nodeBox(node);
+  const portClass = cn(
+    "joy-canvas-port absolute z-[2] grid size-5 -translate-y-1/2 place-items-center rounded-full border border-foreground/75 bg-background text-foreground shadow-sm",
+    visible && "is-visible",
+  );
 
   return (
     <>
       <span
         title="输入"
         aria-hidden
-        className={cn(
-          "joy-canvas-port absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-violet-400 shadow-sm",
-          visible && "is-visible",
-        )}
+        className={cn(portClass, "-translate-x-[calc(100%+6px)]")}
         style={{ left: node.x, top: node.y + box.height / 2 }}
-      />
+      >
+        <Plus className="size-3" strokeWidth={2.25} />
+      </span>
       <button
         type="button"
         title="输出 · 拖到目标节点或空白处"
         aria-label="输出连接点"
         tabIndex={visible ? 0 : -1}
-        className={cn(
-          "joy-canvas-port absolute z-[2] size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-emerald-400 shadow-sm hover:scale-125",
-          visible && "is-visible",
-        )}
-        style={{ left: node.x + box.width, top: node.y + box.height / 2 }}
+        className={cn(portClass, "hover:scale-110")}
+        style={{
+          left: node.x + box.width + PORT_GAP,
+          top: node.y + box.height / 2,
+        }}
         onPointerDown={(e) => {
           if (!visible) return;
           e.stopPropagation();
           onConnectStart(node.id, e);
         }}
-      />
+      >
+        <Plus className="size-3" strokeWidth={2.25} />
+      </button>
     </>
   );
 }

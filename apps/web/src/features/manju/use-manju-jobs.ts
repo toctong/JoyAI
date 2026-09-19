@@ -93,7 +93,9 @@ export function useManjuJobBridge(activeProjectId?: string) {
         (purpose === "analyze_assets" ||
           purpose === "split_shots" ||
           purpose === "script_plan" ||
-          purpose === "author_prompts") &&
+          purpose === "author_prompts" ||
+          purpose === "series_memory" ||
+          purpose === "plan_episodes") &&
         manjuProjectId
       ) {
         void loadProject(manjuProjectId)
@@ -103,7 +105,11 @@ export function useManjuJobBridge(activeProjectId?: string) {
                 ? "提示词已写回镜头"
                 : purpose === "script_plan" || purpose === "split_shots"
                   ? "分镜规划已写入"
-                  : "资产与分集已写入",
+                  : purpose === "series_memory"
+                    ? "连载记忆已写入"
+                    : purpose === "plan_episodes"
+                      ? "分集规划已写入"
+                      : "资产与分集已写入",
             );
           })
           .catch(() => {

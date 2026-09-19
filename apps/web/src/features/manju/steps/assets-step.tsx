@@ -8,7 +8,6 @@ import {
   Plus,
   Sparkles,
   Trash2,
-  Upload,
   UserRound,
   Wand2,
 } from "lucide-react";
@@ -18,6 +17,7 @@ import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import { apiUpload } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { AssetRefUpload } from "../asset-ref-upload";
 import { ManjuMdField } from "../manju-md-field";
 import { useManjuStore } from "../manju-store";
 import { submitImageJob } from "../use-manju-jobs";
@@ -251,6 +251,21 @@ export function AssetsStep({
                     hideToolbar
                     className="mt-2"
                   />
+                  {asset.kind === "character" ? (
+                    <Input
+                      value={(asset.aliases ?? []).join("、")}
+                      onChange={(e) =>
+                        updateAsset(project.id, asset.id, {
+                          aliases: e.target.value
+                            .split(/[、,，]/)
+                            .map((s) => s.trim())
+                            .filter(Boolean),
+                        })
+                      }
+                      placeholder="别名 / 外号，顿号分隔"
+                      className="mt-2 h-8 text-xs"
+                    />
+                  ) : null}
                   <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">
                     将提交：{buildAssetPrompt(asset, project.settings)}
                   </p>
@@ -265,27 +280,10 @@ export function AssetsStep({
                             : "未生成"}
                     </span>
                     <div className="flex gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
+                      <AssetRefUpload
                         disabled={busy}
-                        asChild
-                      >
-                        <label className="cursor-pointer">
-                          <Upload className="h-3.5 w-3.5" />
-                          上传
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              e.target.value = "";
-                              if (file) void uploadRef(asset, file);
-                            }}
-                          />
-                        </label>
-                      </Button>
+                        onFile={(file) => void uploadRef(asset, file)}
+                      />
                       <Button
                         variant="outline"
                         size="sm"

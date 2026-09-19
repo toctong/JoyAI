@@ -85,12 +85,14 @@ export function ManjuStepNav({
   completed,
   onProjectTitleChange,
   onSelect,
+  onSuggested,
 }: {
   project: ManjuProjectDraft;
   currentId: ManjuStepId;
   completed: Set<ManjuStepId>;
   onProjectTitleChange: (title: string) => void;
   onSelect: (id: ManjuStepId) => void;
+  onSuggested?: () => void;
 }) {
   const nextAction = useMemo(
     () => getWorkflowNextAction(project),
@@ -162,7 +164,10 @@ export function ManjuStepNav({
         <button
           type="button"
           className="manju-nav__next-text w-full text-left hover:underline"
-          onClick={() => onSelect(nextAction.stepId)}
+          onClick={() => {
+            if (onSuggested) onSuggested();
+            else onSelect(nextAction.stepId);
+          }}
         >
           <span className="font-medium">{nextAction.label}</span>
           <span className="mt-0.5 block text-muted-foreground">

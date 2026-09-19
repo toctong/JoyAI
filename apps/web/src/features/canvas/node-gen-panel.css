@@ -25,58 +25,11 @@
 }
 
 .joy-node-gen-body {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.joy-node-gen-ref {
-  position: relative;
-  flex-shrink: 0;
-  width: 60px;
-  height: 80px;
-}
-
-.joy-node-gen-ref .joy-ref-hover-thumb {
-  position: relative;
-  overflow: hidden;
-  border-radius: 10px;
-  background: color-mix(in oklab, var(--muted) 70%, transparent);
-}
-
-.joy-node-gen-ref img,
-.joy-node-gen-ref video {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
-}
-
-.joy-node-gen-ref-caption {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 18px;
-  background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.72),
-    rgba(0, 0, 0, 0.35) 70%,
-    transparent
-  );
-  color: #fff;
-  font-size: 10px;
-  font-weight: 500;
-  pointer-events: none;
 }
 
 .joy-node-gen-main {
   min-width: 0;
-  flex: 1;
   padding-right: 22px;
 }
 

@@ -51,6 +51,8 @@ export type ManjuShotDraft = {
   videoAssetId: string | null;
   videoJobId: string | null;
   videoStatus: ManjuJobStatus;
+  storyboardStale: boolean;
+  videoStale: boolean;
 };
 
 export type ManjuAssetDraft = {
@@ -58,6 +60,7 @@ export type ManjuAssetDraft = {
   kind: "character" | "scene" | "prop";
   name: string;
   description: string;
+  aliases: string[];
   imageUrl: string | null;
   assetId: string | null;
   jobId: string | null;
@@ -68,6 +71,20 @@ export type ManjuEpisodeDraft = {
   id: string;
   title: string;
   summary: string;
+  hook: string;
+  sourceText: string;
+};
+
+export type ManjuSeries = {
+  world: string;
+  bios: Array<{ name: string; bio: string }>;
+  hooks: Array<{ text: string; status: "open" | "paid" }>;
+};
+
+export const EMPTY_SERIES: ManjuSeries = {
+  world: "",
+  bios: [],
+  hooks: [],
 };
 
 export type ManjuProjectDraft = {
@@ -82,6 +99,7 @@ export type ManjuProjectDraft = {
   assets: ManjuAssetDraft[];
   shots: ManjuShotDraft[];
   episodes: ManjuEpisodeDraft[];
+  series: ManjuSeries;
   completedSteps: ManjuStepId[];
   lastAnalyzeJobId?: string | null;
   createdAt: string;
@@ -154,6 +172,8 @@ export function createEmptyShot(index: number): ManjuShotDraft {
     videoAssetId: null,
     videoJobId: null,
     videoStatus: "idle",
+    storyboardStale: false,
+    videoStale: false,
   };
 }
 
@@ -166,6 +186,7 @@ export function createEmptyAsset(
     kind,
     name: name || (kind === "character" ? "新角色" : kind === "scene" ? "新场景" : "新道具"),
     description: "",
+    aliases: [],
     imageUrl: null,
     assetId: null,
     jobId: null,
@@ -185,6 +206,7 @@ export function createEmptyProject(title = "未命名漫剧"): ManjuProjectDraft
     assets: [],
     shots: [],
     episodes: [],
+    series: { ...EMPTY_SERIES, bios: [], hooks: [] },
     completedSteps: [],
     lastAnalyzeJobId: null,
     createdAt: now,
@@ -195,8 +217,25 @@ export function createEmptyProject(title = "未命名漫剧"): ManjuProjectDraft
 /** 将旧 persist 数据规范到当前结构 */
 export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
   if (!raw || typeof raw !== "object") return null;
-  const p = raw as Record<string, unknown>;
-  if (typeof p.id !== "string" || typeof p.title !== "string") return null;
+  const root = raw as Record<string, unknown>;
+
+  // Export shape: { title, draft } or nested draft with optional id
+  let p: Record<string, unknown> = root;
+  if (
+    root.draft &&
+    typeof root.draft === "object" &&
+    typeof root.title === "string"
+  ) {
+    p = {
+      ...(root.draft as Record<string, unknown>),
+      id: typeof root.id === "string" ? root.id : "import",
+      title: root.title,
+    };
+  }
+
+  if (typeof p.title !== "string") return null;
+  const title = p.title;
+  const id = typeof p.id === "string" ? p.id : "import";
 
   const settingsRaw = p.settings as Partial<ManjuVideoSettings> | undefined;
   const summary =
@@ -222,6 +261,7 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
         imageUrl: a.imageUrl ?? null,
         assetId: a.assetId ?? null,
         jobId: a.jobId ?? null,
+        aliases: Array.isArray(a.aliases) ? a.aliases.filter(Boolean) : [],
       }))
     : [];
 
@@ -243,12 +283,14 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
           typeof s.duration === "number" && s.duration > 0 ? s.duration : null,
         imagePrompt: typeof s.imagePrompt === "string" ? s.imagePrompt : "",
         videoPrompt: typeof s.videoPrompt === "string" ? s.videoPrompt : "",
+        storyboardStale: s.storyboardStale === true,
+        videoStale: s.videoStale === true,
       }))
     : [];
 
   return {
-    id: p.id,
-    title: p.title,
+    id,
+    title,
     scriptText: typeof p.scriptText === "string" ? p.scriptText : "",
     overview: typeof p.overview === "string" ? p.overview : "",
     scriptConfirmed: p.scriptConfirmed === true,
@@ -256,8 +298,15 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
     assets,
     shots,
     episodes: Array.isArray(p.episodes)
-      ? (p.episodes as ManjuEpisodeDraft[])
+      ? (p.episodes as ManjuEpisodeDraft[]).map((e) => ({
+          id: e.id,
+          title: e.title,
+          summary: e.summary ?? "",
+          hook: e.hook ?? "",
+          sourceText: e.sourceText ?? "",
+        }))
       : [],
+    series: readSeries(p.series),
     completedSteps: Array.isArray(p.completedSteps)
       ? (p.completedSteps as ManjuStepId[])
       : [],
@@ -267,6 +316,46 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
       typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString(),
     updatedAt:
       typeof p.updatedAt === "string" ? p.updatedAt : new Date().toISOString(),
+  };
+}
+
+function readSeries(raw: unknown): ManjuSeries {
+  if (!raw || typeof raw !== "object") {
+    return { world: "", bios: [], hooks: [] };
+  }
+  const s = raw as Record<string, unknown>;
+  const bios = Array.isArray(s.bios)
+    ? s.bios
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const b = item as Record<string, unknown>;
+          const name = typeof b.name === "string" ? b.name.trim() : "";
+          if (!name) return null;
+          return {
+            name,
+            bio: typeof b.bio === "string" ? b.bio : "",
+          };
+        })
+        .filter((b): b is ManjuSeries["bios"][number] => Boolean(b))
+    : [];
+  const hooks = Array.isArray(s.hooks)
+    ? s.hooks
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const h = item as Record<string, unknown>;
+          const text = typeof h.text === "string" ? h.text.trim() : "";
+          if (!text) return null;
+          return {
+            text,
+            status: h.status === "paid" ? ("paid" as const) : ("open" as const),
+          };
+        })
+        .filter((h): h is ManjuSeries["hooks"][number] => Boolean(h))
+    : [];
+  return {
+    world: typeof s.world === "string" ? s.world : "",
+    bios,
+    hooks,
   };
 }
 
@@ -324,7 +413,10 @@ export function buildShotImagePrompt(
 export function buildShotVideoPrompt(
   shot: ManjuShotDraft,
   project: ManjuProjectDraft,
-  options?: { continuityHint?: string | null },
+  options?: {
+    continuityHint?: string | null;
+    mode?: ManjuGenMode;
+  },
 ): string {
   return buildStoryboardVideoPrompt(shot, project, options);
 }
@@ -464,6 +556,7 @@ export type ManjuSkill =
   | "analyze_assets"
   | "script_plan"
   | "author_prompts"
+  | "plan_episodes"
   | null;
 
 /** ArcReel 式「下一步该做什么」 */
@@ -490,6 +583,18 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       skill: "analyze_assets",
       label: "分析资产",
       detail: "技能 analyze_assets：抽取角色、场景、道具和分集",
+    };
+  }
+  if (
+    project.scriptText.trim().length >= 400 &&
+    project.episodes.length === 0
+  ) {
+    return {
+      stepId: "script",
+      panel: "overview",
+      skill: "plan_episodes",
+      label: "规划分集",
+      detail: "技能 plan_episodes：切出标题、钩子和原文片段，长文先分集再规划分镜",
     };
   }
   if (project.shots.length === 0) {

@@ -977,9 +977,13 @@ export function CreationComposer({
   }
 
   function applySkill(cmd: (typeof SLASH_COMMANDS)[number]) {
-    if (cmd.kind) {
+    if (cmd.kind === "image" || cmd.kind === "video") {
       applyKind(cmd.kind);
       toast.message(cmd.kind === "image" ? "已切换图片生成" : "已切换视频生成");
+      return;
+    }
+    if (cmd.kind === "text") {
+      toast.message("创作台暂不支持文本生成，请在画布中使用");
       return;
     }
     if (!cmd.insert) return;
@@ -1331,7 +1335,9 @@ export function CreationComposer({
                 mentionItems={mentionItems}
                 placeholder={placeholder}
                 onPlainChange={setPrompt}
-                onKindCommand={applyKind}
+                onKindCommand={(next) => {
+                  if (next === "image" || next === "video") applyKind(next);
+                }}
               />
             </div>
           </div>

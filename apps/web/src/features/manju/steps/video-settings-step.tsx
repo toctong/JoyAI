@@ -17,7 +17,7 @@ export function VideoSettingsStep({
 }) {
   const patchSettings = useManjuStore((s) => s.patchSettings);
   const { settings } = project;
-  const modeLocked = project.completedSteps.includes("storyboard-video");
+  const modeLocked = project.shots.some((s) => Boolean(s.videoJobId || s.videoUrl));
 
   return (
     <div className="manju-panel max-w-3xl">
@@ -44,8 +44,8 @@ export function VideoSettingsStep({
         <div className="manju-card__title">生成模式</div>
         <p className="manju-card__desc mb-3">
           {modeLocked
-            ? "已进入分镜视频后锁定，避免混用模式。"
-            : "图生视频用分镜静帧作首帧；全能参考只用资产图，不混首帧。多宫格切块尚未实现。"}
+            ? "已提交过分镜视频，模式已锁定，避免同一项目混用首帧与参考。"
+            : "图生视频用分镜静帧作首帧；全能参考只用资产图，不混首帧。多宫格切块尚未实现。首次提交视频后锁定。"}
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
           {MODE_OPTIONS.map((m) => (

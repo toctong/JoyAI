@@ -14,9 +14,13 @@ import { NodeTitleChip } from "../node-title-chip";
 import { dataUrlToFile } from "../lib/data-url-to-file";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { CanvasIconImage } from "../icons/canvas-icons";
-import { MediaUploadLabel } from "../media-upload-label";
-import { apiUpload } from "@/shared/lib/api";
-import { mediaNamePatch } from "../lib/node-title";
+import {
+  MediaBusyState,
+  MediaUploadLabel,
+  mediaBusyLabel,
+} from "../media-upload-label";
+import { uploadFileIntoNode } from "../lib/upload-to-node";
+import { isBusyStatus } from "../node-registry";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -36,13 +40,13 @@ export function ImageNode({
   const highlighted = useIsNodeHighlighted(node.id);
   const pulsing = useIsNodePulsing(node.id);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
-  const pushHistory = useCanvasStore((s) => s.pushHistory);
   const [applying, setApplying] = useState(false);
   const [hovered, setHovered] = useState(false);
   const url = String(node.data.url ?? "");
   const status = String(node.data.status ?? "idle");
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
+  const busy = applying || isBusyStatus(status);
   const title = nodeTitleLabel("image", node.data);
   const mediaW = Number(node.data.mediaWidth);
   const mediaH = Number(node.data.mediaHeight);
@@ -56,27 +60,12 @@ export function ImageNode({
 
   async function applyEdit(dataUrl: string) {
     setApplying(true);
-    updateNodeData(node.id, { status: "running", error: "" });
     try {
-      pushHistory();
       const file = await dataUrlToFile(dataUrl, `edit-${node.id.slice(0, 8)}`);
-      const asset = await apiUpload<{ id: string; url: string }>(
-        "/upload",
-        file,
-      );
-      updateNodeData(node.id, {
-        url: asset.url,
-        assetId: asset.id,
-        status: "succeeded",
-        error: "",
-        ...mediaNamePatch(file.name),
-      });
+      await uploadFileIntoNode(node.id, file);
       onEditingChange?.(false);
-    } catch (e) {
-      updateNodeData(node.id, {
-        status: "failed",
-        error: e instanceof Error ? e.message : "上传失败",
-      });
+    } catch {
+      /* node already shows failed state */
     } finally {
       setApplying(false);
     }
@@ -104,7 +93,7 @@ export function ImageNode({
           nodeId={node.id}
           label={title}
           customTitle={String(node.data.title ?? "")}
-          visible={framed || selected || hovered}
+          visible={framed || busy || selected || hovered}
           icon={<CanvasIconImage />}
           meta={sizeMeta}
         />
@@ -126,14 +115,20 @@ export function ImageNode({
               )}
               onDragStart={(event) => event.preventDefault()}
             />
+          ) : busy ? (
+            <MediaBusyState label={mediaBusyLabel(node.data)} />
           ) : (
             <MediaUploadLabel nodeId={node.id} kind="image">
               <CanvasIconImage className="size-7 opacity-70" />
             </MediaUploadLabel>
           )}
+          {framed && busy ? (
+            <MediaBusyState overlay label={mediaBusyLabel(node.data)} />
+          ) : null}
           <NodeRuntimeBadge
-            status={applying ? "running" : status}
+            status={busy ? "idle" : status}
             error={error}
+            busyLabel={mediaBusyLabel(node.data)}
             onRetry={
               status === "failed"
                 ? () =>
@@ -141,6 +136,7 @@ export function ImageNode({
                       status: "idle",
                       error: "",
                       jobId: "",
+                      busyLabel: "",
                     })
                 : undefined
             }

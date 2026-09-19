@@ -11,7 +11,7 @@ import type {
 } from "./director-types";
 import { dataUrlToFile } from "./lib/data-url-to-file";
 import { nodeBox } from "./lib/node-box";
-import { apiUpload } from "@/shared/lib/api";
+import { uploadFileToNewNode } from "./lib/upload-to-node";
 import { toast } from "@/shared/lib/toast";
 
 type Props = {
@@ -53,7 +53,6 @@ export function DirectorDesk({ nodeId, onClose }: Props) {
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
-  const addNode = useCanvasStore((s) => s.addNode);
   const addEdge = useCanvasStore((s) => s.addEdge);
   const removeEdge = useCanvasStore((s) => s.removeEdge);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
@@ -141,20 +140,19 @@ export function DirectorDesk({ nodeId, onClose }: Props) {
             capture.dataUrl,
             capture.fileName || `导演台截图-${index + 1}.png`,
           );
-          const asset = await apiUpload<{ id: string; url: string }>(
-            "/upload",
+          const imageId = await uploadFileToNewNode(
             file,
+            {
+              x: box.x + box.width + 48,
+              y,
+            },
+            {
+              history: false,
+              preferredType: "image",
+              title:
+                capture.fileName.replace(/\.[^.]+$/, "") || "导演台截帧",
+            },
           );
-          const imageId = addNode("image", {
-            x: box.x + box.width + 48,
-            y,
-          });
-          updateNodeData(imageId, {
-            url: asset.url,
-            assetId: asset.id,
-            status: "succeeded",
-            title: capture.fileName.replace(/\.[^.]+$/, "") || "导演台截帧",
-          });
           addEdge(host.id, imageId);
           y += 180 + 36;
         }
@@ -186,7 +184,7 @@ export function DirectorDesk({ nodeId, onClose }: Props) {
         });
       }
     },
-    [addEdge, addNode, pushHistory, updateNodeData],
+    [addEdge, pushHistory, updateNodeData],
   );
 
   const onVideoSent = useCallback(
@@ -201,22 +199,22 @@ export function DirectorDesk({ nodeId, onClose }: Props) {
         const file = new File([output.blob], output.fileName, {
           type: output.blob.type || "video/mp4",
         });
-        const asset = await apiUpload<{ id: string; url: string }>(
-          "/upload",
-          file,
-        );
         const state = useCanvasStore.getState();
         const y = nextOutputY(host, state.nodes, state.edges);
         const box = nodeBox(host);
-        const videoId = addNode("video", {
-          x: box.x + box.width + 48,
-          y,
-        });
+        const videoId = await uploadFileToNewNode(
+          file,
+          {
+            x: box.x + box.width + 48,
+            y,
+          },
+          {
+            history: false,
+            preferredType: "video",
+            title: output.fileName.replace(/\.[^.]+$/, "") || "导演台视频",
+          },
+        );
         updateNodeData(videoId, {
-          url: asset.url,
-          assetId: asset.id,
-          status: "succeeded",
-          title: output.fileName.replace(/\.[^.]+$/, "") || "导演台视频",
           width: output.width,
           height: output.height,
           durationSeconds: output.durationSeconds,
@@ -229,7 +227,7 @@ export function DirectorDesk({ nodeId, onClose }: Props) {
         });
       }
     },
-    [addEdge, addNode, pushHistory, updateNodeData],
+    [addEdge, pushHistory, updateNodeData],
   );
 
   useEffect(() => {
