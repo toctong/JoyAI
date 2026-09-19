@@ -198,7 +198,7 @@ export function ImageToolDialog({ mode, url, onClose, onCommit }: Props) {
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             {mode === "upscale"
-              ? "本地插值放大，结果上传为新的图像节点。不是 AI 超分。"
+              ? "本地插值放大（1K / 2K / 4K），结果上传为新图像节点。不是模型 AI 超分。"
               : mode === "view"
                 ? meta
                   ? `${meta.width} × ${meta.height} px`

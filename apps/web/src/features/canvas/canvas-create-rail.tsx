@@ -109,10 +109,13 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
     );
     const type = await nodeTypeForUpload(file, asset.kind);
     const id = addNode(type);
+    const stem = file.name.replace(/\.[^.]+$/, "").trim();
     updateNodeData(id, {
       url: asset.url,
       assetId: asset.id,
       status: "succeeded",
+      fileName: file.name,
+      ...(stem ? { title: stem.slice(0, 80) } : {}),
       ...(type === "panorama" ? { projection: "equirectangular" } : {}),
     });
     if (type === "panorama") {
@@ -171,7 +174,7 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
     <div
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className="pointer-events-none absolute bottom-24 left-5 top-20 z-20 flex items-start"
+      className="pointer-events-none absolute left-5 top-1/2 z-20 -translate-y-1/2"
     >
       <div
         className={cn(

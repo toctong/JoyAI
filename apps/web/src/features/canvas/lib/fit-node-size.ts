@@ -93,4 +93,8 @@ export async function frameNodeToMedia(
     x: node.x + boxW / 2 - fitted.width / 2,
     y: node.y + boxH / 2 - fitted.height / 2,
   });
+  state.updateNodeData(nodeId, {
+    mediaWidth: natural.width,
+    mediaHeight: natural.height,
+  });
 }

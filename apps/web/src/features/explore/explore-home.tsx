@@ -292,7 +292,11 @@ export function ExploreHome() {
                   <img
                     src={icon}
                     alt=""
-                    className="joy-explore-tab-model-icon"
+                    className={cn(
+                      "joy-explore-tab-model-icon",
+                      (family.id === "midjourney" || family.id === "grok") &&
+                        "is-mono",
+                    )}
                   />
                 ) : null}
                 <span>{family.label}</span>

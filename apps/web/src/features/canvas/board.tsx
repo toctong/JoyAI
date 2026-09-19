@@ -62,9 +62,11 @@ import {
 } from "./lib/capture-video-frame";
 import { api, apiUpload } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
+import { titleFromPrompt, fileNameFromUrl } from "./lib/node-title";
 import { toast } from "@/shared/lib/toast";
 import { DirectorDesk } from "./director-desk";
 import { ImageToolDialog, type ImageToolMode } from "./image-tool-dialog";
+import { ImageAngleDialog } from "./image-angle-dialog";
 import { NodeInfoDialog } from "./node-info-dialog";
 import { AudioTrimDialog } from "./audio-trim-dialog";
 import { MaskEditDialog } from "./mask-edit-dialog";
@@ -76,6 +78,9 @@ import {
   copyUpstreamPrompt,
   toggleFreeResize,
 } from "./lib/image-node-actions";
+import { canSaveNodeAsset, saveNodeAsset } from "./lib/save-node-asset";
+import { spawnReversePrompt } from "./lib/reverse-prompt";
+import { spawnAnglePrompt } from "./lib/spawn-angle-prompt";
 import type { RasterPiece } from "./lib/image-raster";
 import {
   nodeTypeForAssetKind,
@@ -183,6 +188,7 @@ export function CanvasBoard({
     url: string;
     mode: ImageToolMode;
   } | null>(null);
+  const [angleNodeId, setAngleNodeId] = useState<string | null>(null);
   const [infoNodeId, setInfoNodeId] = useState<string | null>(null);
   const [audioTrim, setAudioTrim] = useState<{
     nodeId: string;
@@ -196,6 +202,7 @@ export function CanvasBoard({
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [projectReady, setProjectReady] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [toolbarPinned, setToolbarPinned] = useState(false);
   const [connectDraft, setConnectDraft] = useState<{
     sourceId: string;
     x: number;
@@ -387,12 +394,19 @@ export function CanvasBoard({
             .map((e) => live.nodes.find((n) => n.id === e.target))
             .filter((n): n is CanvasNode => n != null && n.type === outputKind);
           const emptyTarget = outgoing.find(isEmptyMediaNode);
+          const named = titleFromPrompt(String(node.data.prompt ?? ""));
+          const fileName = fileNameFromUrl(asset.url);
           if (emptyTarget) {
             updateNodeData(emptyTarget.id, {
               url: asset.url,
               assetId: asset.id,
               status: "succeeded",
               error: "",
+              prompt: String(node.data.prompt ?? ""),
+              ...(fileName ? { fileName } : {}),
+              ...(named && !String(emptyTarget.data.title ?? "").trim()
+                ? { title: named }
+                : {}),
               ...(outputKind === "panorama"
                 ? { projection: "equirectangular" }
                 : {}),
@@ -412,6 +426,9 @@ export function CanvasBoard({
               url: asset.url,
               assetId: asset.id,
               status: "succeeded",
+              prompt: String(node.data.prompt ?? ""),
+              ...(fileName ? { fileName } : {}),
+              ...(named ? { title: named } : {}),
               ...(outputKind === "panorama"
                 ? { projection: "equirectangular" }
                 : {}),
@@ -424,11 +441,18 @@ export function CanvasBoard({
             addedNode = true;
           }
         } else {
+          const selfNamed = titleFromPrompt(String(node.data.prompt ?? ""));
           updateNodeData(node.id, {
             url: asset.url,
             assetId: asset.id,
             status: "succeeded",
             error: "",
+            ...(selfNamed && !String(node.data.title ?? "").trim()
+              ? { title: selfNamed }
+              : {}),
+            ...(fileNameFromUrl(asset.url)
+              ? { fileName: fileNameFromUrl(asset.url) }
+              : {}),
             ...(node.type === "panorama"
               ? { projection: "equirectangular" }
               : {}),
@@ -1307,6 +1331,7 @@ export function CanvasBoard({
   }
 
   function onNodeHoverLeave() {
+    if (toolbarPinned) return;
     clearHoverLeaveTimer();
     hoverLeaveTimer.current = setTimeout(() => {
       setHoveredNodeId(null);
@@ -1766,6 +1791,10 @@ export function CanvasBoard({
               const id = floatToolbarNodes[0]?.id;
               if (id) openImageTool(id, mode);
             }}
+            onOpenAngle={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) setAngleNodeId(id);
+            }}
             onOpenInfo={() => {
               const id = floatToolbarNodes[0]?.id;
               if (id) openInfo(id);
@@ -1778,12 +1807,17 @@ export function CanvasBoard({
               const id = floatToolbarNodes[0]?.id;
               if (id) openMask(id);
             }}
+            onPinToolbar={setToolbarPinned}
           />
         </div>
       ) : null}
 
       {showGenPanel && selectedNodes[0] ? (
-        <NodeGenPanel node={selectedNodes[0]} viewport={viewport} />
+        <NodeGenPanel
+          node={selectedNodes[0]}
+          viewport={viewport}
+          onClose={() => setGenPanelOpen(false)}
+        />
       ) : null}
 
       <div
@@ -2007,6 +2041,39 @@ export function CanvasBoard({
                 }
               : undefined
           }
+          onReversePrompt={
+            nodeMenu.hasMedia &&
+            (nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama")
+              ? () => {
+                  const id = nodeMenu.nodeId;
+                  setNodeMenu(null);
+                  void spawnReversePrompt(id);
+                }
+              : undefined
+          }
+          onSaveAsset={
+            canSaveNodeAsset(
+              useCanvasStore
+                .getState()
+                .nodes.find((item) => item.id === nodeMenu.nodeId),
+            )
+              ? () => {
+                  const id = nodeMenu.nodeId;
+                  setNodeMenu(null);
+                  void saveNodeAsset(id);
+                }
+              : undefined
+          }
+          onOpenAngle={
+            nodeMenu.hasMedia &&
+            (nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama")
+              ? () => {
+                  const id = nodeMenu.nodeId;
+                  setNodeMenu(null);
+                  setAngleNodeId(id);
+                }
+              : undefined
+          }
           onToggleFreeResize={
             nodeMenu.nodeType === "image" ||
             nodeMenu.nodeType === "panorama" ||
@@ -2041,6 +2108,19 @@ export function CanvasBoard({
         url={imageTool?.url ?? ""}
         onClose={() => setImageTool(null)}
         onCommit={commitImageTool}
+      />
+
+      <ImageAngleDialog
+        open={Boolean(angleNodeId)}
+        url={String(
+          nodes.find((item) => item.id === angleNodeId)?.data.url ?? "",
+        )}
+        onClose={() => setAngleNodeId(null)}
+        onConfirm={(params) => {
+          const id = angleNodeId;
+          setAngleNodeId(null);
+          if (id) spawnAnglePrompt(id, params);
+        }}
       />
 
       <NodeInfoDialog

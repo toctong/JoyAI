@@ -53,7 +53,8 @@ export function AudioNode({ node, onPointerDown }: Props) {
         nodeId={node.id}
         label={nodeTitleLabel("audio", node.data)}
         customTitle={String(node.data.title ?? "")}
-        visible={selected || hovered}
+        visible={framed || selected || hovered}
+        icon={<CanvasIconAudio />}
       />
       <div className="flex h-full flex-col justify-center gap-2 overflow-hidden rounded-md border border-border bg-card p-3">
         {framed ? (

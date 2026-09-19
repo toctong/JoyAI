@@ -33,21 +33,10 @@ function readBox(value: unknown): Box | null {
   };
 }
 
-/** 2:1 stage centered on the previous box. */
-function panoramaStage(from: Box): Box {
-  const width = Math.max(320, from.width);
-  const height = Math.round(width / 2);
-  return {
-    width,
-    height,
-    x: from.x + from.width / 2 - width / 2,
-    y: from.y + from.height / 2 - height / 2,
-  };
-}
-
 /**
  * Switch image ↔ panorama.
- * Panorama opens as a 2:1 window. The image box is restored on the way back.
+ * Keep the current node box when entering panorama so portrait media
+ * is not forced into a landscape 2:1 frame. Restoring image uses imageBox.
  */
 export function convertImagePanoramaType(
   nodeId: string,
@@ -67,6 +56,7 @@ export function convertImagePanoramaType(
     data.projection = "equirectangular";
     delete data.aspectHint;
     if (!readBox(data.imageBox)) data.imageBox = current;
+    // Preserve portrait/square footprint; only normalize already-wide nodes to 2:1.
     next = panoramaStage(current);
   } else {
     const saved = readBox(data.imageBox);
@@ -106,4 +96,19 @@ export function convertImagePanoramaType(
   }
 
   toast.success(to === "panorama" ? "已转为全景节点" : "已转为图像节点");
+}
+
+/** Prefer keeping the source box; only force 2:1 when already landscape-wide. */
+function panoramaStage(from: Box): Box {
+  if (from.width < from.height * 1.4) {
+    return { ...from };
+  }
+  const width = Math.max(320, from.width);
+  const height = Math.round(width / 2);
+  return {
+    width,
+    height,
+    x: from.x + from.width / 2 - width / 2,
+    y: from.y + from.height / 2 - height / 2,
+  };
 }

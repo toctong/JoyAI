@@ -60,11 +60,14 @@ export function MediaUploadLabel({
         "/upload",
         file,
       );
+      const stem = file.name.replace(/\.[^.]+$/, "").trim();
       updateNodeData(nodeId, {
         url: asset.url,
         assetId: asset.id,
         status: "succeeded",
         error: "",
+        fileName: file.name,
+        ...(stem ? { title: stem.slice(0, 80) } : {}),
         ...(kind === "panorama" ? { projection: "equirectangular" } : {}),
       });
       if (kind === "panorama") {

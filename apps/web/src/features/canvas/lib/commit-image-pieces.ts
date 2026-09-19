@@ -31,6 +31,7 @@ export async function commitImagePieces(
       assetId: asset.id,
       status: "succeeded",
       title: piece.title,
+      prompt: String(source.data.prompt ?? "").trim() || undefined,
     });
     store.addEdge(source.id, id);
     ids.push(id);

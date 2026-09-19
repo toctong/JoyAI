@@ -5,6 +5,7 @@ export type NodeToolbarAction =
   | "edit-image"
   | "upload"
   | "download"
+  | "save-asset"
   | "spawn-prompt"
   | "spawn-video"
   | "outpaint"
@@ -14,8 +15,10 @@ export type NodeToolbarAction =
   | "crop"
   | "split"
   | "upscale"
+  | "angle"
   | "view-image"
   | "copy-prompt"
+  | "reverse-prompt"
   | "toggle-resize"
   | "to-panorama"
   | "to-image"
@@ -45,7 +48,14 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
     defaultWidth: 240,
     defaultHeight: 80,
     defaultData: () => ({ text: "双击编辑文本" }),
-    toolbar: ["font-down", "font-up", "text-to-prompt", "duplicate", "delete"],
+    toolbar: [
+      "font-down",
+      "font-up",
+      "text-to-prompt",
+      "save-asset",
+      "duplicate",
+      "delete",
+    ],
   },
   image: {
     type: "image",
@@ -64,9 +74,12 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       "crop",
       "split",
       "upscale",
+      "angle",
       "view-image",
       "copy-prompt",
+      "reverse-prompt",
       "toggle-resize",
+      "save-asset",
       "download",
       "duplicate",
       "delete",
@@ -85,6 +98,7 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       "trim-audio",
       "toggle-resize",
       "spawn-prompt",
+      "save-asset",
       "download",
       "duplicate",
       "delete",
@@ -122,10 +136,13 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       "crop",
       "split",
       "upscale",
+      "angle",
       "view-image",
       "copy-prompt",
+      "reverse-prompt",
       "toggle-resize",
       "to-image",
+      "save-asset",
       "download",
       "duplicate",
       "delete",
@@ -141,6 +158,7 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       "upload",
       "trim-audio",
       "spawn-prompt",
+      "save-asset",
       "download",
       "duplicate",
       "delete",

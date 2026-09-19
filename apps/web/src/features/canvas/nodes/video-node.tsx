@@ -55,6 +55,15 @@ export function VideoNode({ node, onPointerDown }: Props) {
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
   const title = nodeTitleLabel("video", node.data);
+  const mediaW = Number(node.data.mediaWidth);
+  const mediaH = Number(node.data.mediaHeight);
+  const sizeMeta =
+    Number.isFinite(mediaW) &&
+    Number.isFinite(mediaH) &&
+    mediaW > 0 &&
+    mediaH > 0
+      ? `${Math.round(mediaW)} × ${Math.round(mediaH)}`
+      : undefined;
   const showControls = framed && (selected || hovered);
 
   useEffect(() => {
@@ -110,7 +119,9 @@ export function VideoNode({ node, onPointerDown }: Props) {
         nodeId={node.id}
         label={title}
         customTitle={String(node.data.title ?? "")}
-        visible={selected || hovered}
+        visible={framed || selected || hovered}
+        icon={<CanvasIconVideo />}
+        meta={sizeMeta}
       />
       <div
         className={cn(

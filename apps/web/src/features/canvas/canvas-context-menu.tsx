@@ -10,6 +10,7 @@ import {
   CanvasIconDirector,
   CanvasIconFile,
   CanvasIconFolder,
+  CanvasIconFolderPlus,
   CanvasIconFrame,
   CanvasIconGrid,
   CanvasIconGroup,
@@ -17,6 +18,7 @@ import {
   CanvasIconInfo,
   CanvasIconLock,
   CanvasIconMaximize,
+  CanvasIconMessage,
   CanvasIconPanorama,
   CanvasIconScissors,
   CanvasIconSparkles,
@@ -26,6 +28,7 @@ import {
   CanvasIconUnlock,
   CanvasIconUpload,
   CanvasIconVideo,
+  CanvasIconWand,
   CanvasIconZoomIn,
 } from "./icons/canvas-icons";
 import { NODE_TYPE_LIST } from "./node-registry";
@@ -223,6 +226,9 @@ type NodeMenuProps = {
   onConvertType?: (to: "image" | "panorama") => void;
   onImageTool?: (mode: ImageToolMode) => void;
   onCopyPrompt?: () => void;
+  onReversePrompt?: () => void;
+  onSaveAsset?: () => void;
+  onOpenAngle?: () => void;
   onToggleFreeResize?: () => void;
   freeResize?: boolean;
   onInfo?: () => void;
@@ -243,6 +249,9 @@ export function CanvasNodeContextMenu({
   onConvertType,
   onImageTool,
   onCopyPrompt,
+  onReversePrompt,
+  onSaveAsset,
+  onOpenAngle,
   onToggleFreeResize,
   freeResize,
   onInfo,
@@ -380,8 +389,18 @@ export function CanvasNodeContextMenu({
             onClick={() => onImageTool("upscale")}
           >
             <CanvasIconZoomIn className="size-3.5 opacity-70" />
-            放大
+            本地放大
           </button>
+          {onOpenAngle ? (
+            <button
+              type="button"
+              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
+              onClick={onOpenAngle}
+            >
+              <CanvasIconWand className="size-3.5 opacity-70" />
+              多角度
+            </button>
+          ) : null}
           <button
             type="button"
             className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
@@ -398,6 +417,16 @@ export function CanvasNodeContextMenu({
             >
               <CanvasIconBrush className="size-3.5 opacity-70" />
               局部涂抹
+            </button>
+          ) : null}
+          {onReversePrompt ? (
+            <button
+              type="button"
+              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
+              onClick={onReversePrompt}
+            >
+              <CanvasIconMessage className="size-3.5 opacity-70" />
+              反推提示词
             </button>
           ) : null}
           {onCopyPrompt ? (
@@ -475,6 +504,16 @@ export function CanvasNodeContextMenu({
         >
           <CanvasIconUngroup className="size-3.5 opacity-70" />
           解组
+        </button>
+      ) : null}
+      {onSaveAsset ? (
+        <button
+          type="button"
+          className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
+          onClick={onSaveAsset}
+        >
+          <CanvasIconFolderPlus className="size-3.5 opacity-70" />
+          存素材
         </button>
       ) : null}
       {onInfo ? (

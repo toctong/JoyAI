@@ -1,0 +1,171 @@
+/* Canvas node generate panel — compact Jimeng-like shell */
+
+.joy-node-gen {
+  --jng-radius: 22px;
+  position: relative;
+  box-sizing: border-box;
+  width: min(600px, calc(100vw - 24px));
+  padding: 16px 16px 14px;
+  border-radius: var(--jng-radius);
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  background: color-mix(in oklab, var(--card) 94%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 18px 48px -28px rgba(0, 0, 0, 0.45);
+  color: var(--foreground);
+}
+
+.dark .joy-node-gen {
+  background: rgba(32, 32, 36, 0.94);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 22px 56px -24px rgba(0, 0, 0, 0.7);
+}
+
+.joy-node-gen-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.joy-node-gen-ref {
+  position: relative;
+  flex-shrink: 0;
+  width: 60px;
+  height: 80px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+}
+
+.joy-node-gen-ref img,
+.joy-node-gen-ref video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.joy-node-gen-ref-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.72),
+    rgba(0, 0, 0, 0.35) 70%,
+    transparent
+  );
+  color: #fff;
+  font-size: 10px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.joy-node-gen-main {
+  min-width: 0;
+  flex: 1;
+  padding-right: 22px;
+}
+
+.joy-node-gen-clear {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: inline-flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.joy-node-gen-clear:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.joy-node-gen .joy-ai-prompt .ProseMirror {
+  min-height: 92px;
+  max-height: 200px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.joy-node-gen-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 2px;
+}
+
+.joy-node-gen-toolbar-left {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.joy-node-gen-toolbar-left::-webkit-scrollbar {
+  display: none;
+}
+
+.joy-node-gen-send {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--muted) 90%, var(--foreground) 4%);
+  color: color-mix(in oklab, var(--muted-foreground) 80%, transparent);
+  cursor: not-allowed;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform 0.15s;
+}
+
+.joy-node-gen-send.is-ready {
+  background: var(--foreground);
+  color: var(--background);
+  cursor: pointer;
+}
+
+.joy-node-gen-send.is-ready:hover {
+  transform: translateY(-1px);
+}
+
+.joy-node-gen-send:disabled {
+  opacity: 0.75;
+}
+
+.joy-node-gen .joy-chip-model {
+  max-width: min(240px, 42vw);
+}
+
+.joy-node-gen-error {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--destructive);
+}

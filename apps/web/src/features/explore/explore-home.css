@@ -121,6 +121,11 @@
   flex-shrink: 0;
 }
 
+/* Midjourney / Grok are black currentColor marks; <img> cannot inherit theme color. */
+.dark .joy-explore-tab-model-icon.is-mono {
+  filter: invert(1);
+}
+
 .joy-explore-desc {
   margin: 0;
   font-size: 13px;

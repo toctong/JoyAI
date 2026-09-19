@@ -229,7 +229,8 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
           nodeId={node.id}
           label={nodeTitleLabel("panorama", node.data)}
           customTitle={String(node.data.title ?? "")}
-          visible={selected || hovered}
+          visible={framed || selected || hovered}
+          icon={<CanvasIconPanorama />}
         />
         <div className="relative h-full w-full overflow-hidden rounded-md bg-black/80">
           {framed ? (
