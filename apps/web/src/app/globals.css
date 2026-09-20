@@ -221,9 +221,13 @@ body {
   font-weight: 500;
 }
 
-/* Inspire page forces dark shell — keep rail readable even without wallpaper */
+/* Inspire page forces dark shell — glass rail always (wallpaper optional) */
 [data-inspire-home].dark .joy-sidebar {
   color: #f4f4f5;
+}
+
+[data-inspire-home] {
+  background: transparent;
 }
 
 @keyframes accordion-down {

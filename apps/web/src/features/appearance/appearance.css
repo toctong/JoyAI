@@ -60,7 +60,8 @@ html.joy-appearance-active [data-inspire-home] .joy-sidebar {
   color: #f4f4f5;
 }
 
-html.joy-appearance-active .joy-home {
+html.joy-appearance-active .joy-home,
+html.joy-appearance-active .joy-inspire {
   background: transparent;
 }
 

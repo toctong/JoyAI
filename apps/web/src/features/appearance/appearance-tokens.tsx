@@ -1,16 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { useActiveWallpaper } from "./appearance-store";
 import { DEFAULT_APPEARANCE_KNOBS } from "./types";
 
-/** Applies fixed glass tokens and toggles `joy-appearance-active`. */
+/** Applies glass chrome tokens on inspire (`joy-appearance-active`). */
 export function AppearanceTokens({ disabled = false }: { disabled?: boolean }) {
-  const wallpaper = useActiveWallpaper();
-
   useEffect(() => {
     const root = document.documentElement;
-    const active = Boolean(wallpaper) && !disabled;
+    /** Inspire always gets glass chrome; wallpaper is optional media behind it. */
+    const active = !disabled;
 
     root.classList.toggle("joy-appearance-active", active);
     root.style.setProperty(
@@ -33,7 +31,7 @@ export function AppearanceTokens({ disabled = false }: { disabled?: boolean }) {
     return () => {
       root.classList.remove("joy-appearance-active");
     };
-  }, [wallpaper, disabled]);
+  }, [disabled]);
 
   return null;
 }

@@ -42,7 +42,6 @@ import {
   normalizeOmniWireMentions,
   setEditorPlainText,
 } from "@/features/ai-prompt";
-import { SLASH_COMMANDS } from "@/features/ai-prompt/slash-items";
 import { cn } from "@/shared/lib/utils";
 import { ComposerRipple } from "./composer-ripple";
 import { DurationSlider } from "./duration-slider";
@@ -976,23 +975,6 @@ export function CreationComposer({
     editor.chain().focus().insertContent("@").run();
   }
 
-  function applySkill(cmd: (typeof SLASH_COMMANDS)[number]) {
-    if (cmd.kind === "image" || cmd.kind === "video") {
-      applyKind(cmd.kind);
-      toast.message(cmd.kind === "image" ? "已切换图片生成" : "已切换视频生成");
-      return;
-    }
-    if (cmd.kind === "text") {
-      toast.message("创作台暂不支持文本生成，请在画布中使用");
-      return;
-    }
-    if (!cmd.insert) return;
-    const editor = editorRef.current;
-    if (!editor) return;
-    editor.chain().focus().insertContent(cmd.insert).run();
-    setPrompt(editor.getText());
-  }
-
   async function submit() {
     const payload = getGeneratePayload(editorRef.current);
     const promptText = normalizeOmniWireMentions(
@@ -1149,10 +1131,6 @@ export function CreationComposer({
   }
 
   const cost = kind === "image" ? n : Math.max(1, Math.round(duration / 2));
-  const skillChips = SLASH_COMMANDS.filter((c) => c.insert || c.kind).slice(
-    0,
-    5,
-  );
   const rippleIdle =
     !prompt.trim() &&
     refs.length === 0 &&
@@ -1701,31 +1679,6 @@ export function CreationComposer({
           </div>
         </div>
       </div>
-
-      {variant === "hero" ? (
-        <div className="joy-composer-skills">
-          {skillChips.map((cmd) => (
-            <button
-              key={cmd.id}
-              type="button"
-              className="joy-composer-skill"
-              onClick={() => applySkill(cmd)}
-            >
-              {cmd.label}
-              {cmd.id === "cinematic" || cmd.id === "portrait" ? (
-                <span
-                  className={cn(
-                    "joy-composer-skill-badge",
-                    cmd.id === "portrait" && "is-hot",
-                  )}
-                >
-                  {cmd.id === "portrait" ? "Hot" : "New"}
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
