@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { TosClient } from "@volcengine/tos-sdk";
+import axios from "axios";
 import * as crypto from "crypto";
 
 export interface StoragePutResult {
@@ -128,23 +129,71 @@ export class StorageService {
     opts?: { timeoutMs?: number },
   ): Promise<StoragePutResult> {
     const timeoutMs = opts?.timeoutMs ?? 180_000;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, { signal: controller.signal });
-      if (!res.ok) throw new Error(`Failed to download asset: ${res.status}`);
-      const arrayBuf = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuf);
-      const contentType = res.headers.get("content-type") ?? undefined;
-      return this.putObject(buffer, { contentType, ext });
-    } catch (error) {
-      if (controller.signal.aborted) {
-        throw new Error(`Download asset timed out after ${timeoutMs}ms`);
+    const buffer = await this.downloadUrl(url, timeoutMs);
+    const contentType = buffer.contentType;
+    return this.putObject(buffer.body, { contentType, ext });
+  }
+
+  /**
+   * Provider CDNs (ToAPIs / Qiniu) often reset undici `fetch` mid-body on
+   * multi-megabyte files. Axios completes those downloads; retry transients.
+   */
+  private async downloadUrl(url: string, timeoutMs: number) {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await axios.get<ArrayBuffer>(url, {
+          responseType: "arraybuffer",
+          timeout: timeoutMs,
+          maxContentLength: 200 * 1024 * 1024,
+          maxBodyLength: 200 * 1024 * 1024,
+          maxRedirects: 3,
+          headers: { "Accept-Encoding": "identity" },
+          validateStatus: () => true,
+        });
+        if (res.status < 200 || res.status >= 300) {
+          const error = new Error(`Failed to download asset: ${res.status}`);
+          if (res.status >= 500 || res.status === 429) throw error;
+          throw Object.assign(error, { permanent: true });
+        }
+        const body = Buffer.from(res.data);
+        if (!body.length) throw new Error("Failed to download asset: empty body");
+        const rawType = res.headers["content-type"];
+        const contentType =
+          typeof rawType === "string" ? rawType.split(";")[0]?.trim() : undefined;
+        return { body, contentType };
+      } catch (error) {
+        lastError = error;
+        if (
+          error &&
+          typeof error === "object" &&
+          "permanent" in error &&
+          (error as { permanent?: boolean }).permanent
+        ) {
+          throw error instanceof Error ? error : new Error(String(error));
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        const code =
+          axios.isAxiosError(error) && error.code ? error.code : "";
+        const transient =
+          code === "ECONNABORTED" ||
+          code === "ECONNRESET" ||
+          code === "ETIMEDOUT" ||
+          /terminated|socket|aborted|ECONNRESET|Failed to download asset: 5|Failed to download asset: 429|empty body/i.test(
+            message,
+          );
+        if (!transient || attempt === 2) {
+          if (code === "ECONNABORTED") {
+            throw new Error(`Download asset timed out after ${timeoutMs}ms`);
+          }
+          throw error instanceof Error ? error : new Error(message);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
       }
-      throw error;
-    } finally {
-      clearTimeout(timer);
     }
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(String(lastError));
   }
 
   publicUrl(key: string) {
