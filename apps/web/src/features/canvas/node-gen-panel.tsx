@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  CanvasIconDirector,
-  CanvasIconImage,
-  CanvasIconLoader,
-  CanvasIconText,
-} from "./icons/canvas-icons";
+import { CanvasIconLoader } from "./icons/canvas-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUp,
@@ -25,6 +20,18 @@ import { BrandAvatar } from "@/components/admin/brand-avatar";
 import { videoRefMode } from "./lib/video-ref-mode";
 import { wrapPanoramaPrompt } from "./lib/panorama-prompt";
 import {
+  applyCameraPrompt,
+  parseCameraControl,
+  type CameraControlOptions,
+} from "./lib/camera-control";
+import {
+  collectVideoFrameCandidates,
+  orderVideoImageRefs,
+  resolveVideoFrameSlots,
+} from "./lib/video-frame-slots";
+import { CanvasCameraControl } from "./canvas-camera-control";
+import { CanvasRefThumb } from "./canvas-ref-thumb";
+import {
   buildCanvasMentionItems,
   collectIncomingMediaFromEdges,
   mergeJobReferences,
@@ -37,6 +44,7 @@ import {
   durationsFromCapabilities,
   layoutControlsFromCapabilities,
 } from "@/features/studio/model-options";
+import { DurationSlider } from "@/features/studio/duration-slider";
 import {
   AiPromptEditor,
   getGeneratePayload,
@@ -50,6 +58,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
+import { isBusyStatus } from "./node-registry";
 import "@/features/studio/creation-composer.css";
 import "./node-gen-panel.css";
 
@@ -59,16 +68,34 @@ type Props = {
   onClose?: () => void;
 };
 
-type GenKind = "image" | "video" | "text";
+type GenKind = "image" | "video" | "text" | "audio";
 
 type PublicModel = {
   id: string;
   name: string;
-  kind: "image" | "video" | "llm";
+  kind: "image" | "video" | "llm" | "audio";
   remoteId?: string;
   capabilities?: ModelCapabilities | null;
   channel?: { name?: string };
 };
+
+const DEFAULT_TTS_VOICES = [
+  "alloy",
+  "echo",
+  "fable",
+  "onyx",
+  "nova",
+  "shimmer",
+] as const;
+
+const DEFAULT_TTS_FORMATS = [
+  "mp3",
+  "wav",
+  "opus",
+  "aac",
+  "flac",
+  "pcm",
+] as const;
 
 function modelBrandIcon(m: PublicModel) {
   return modelIconSrc({ remoteId: m.remoteId, name: m.name });
@@ -94,6 +121,19 @@ function pickModelId(
   return list[0]!.id;
 }
 
+function kindForNode(node: CanvasNode): GenKind {
+  if (node.type === "video") return "video";
+  if (node.type === "audio") return "audio";
+  return "image";
+}
+
+/** Prefer in-progress draft; fall back to last submitted prompt when draft was cleared. */
+function resolveGenText(data: CanvasNode["data"]): string {
+  const draft = String(data.genDraft ?? "").trim();
+  if (draft) return String(data.genDraft ?? "");
+  return String(data.prompt ?? "");
+}
+
 /**
  * Below-node generate panel — studio-like shell + AI rich prompt.
  */
@@ -114,20 +154,9 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
   const status = String(node.data.status ?? "idle");
   const nodeError = String(node.data.error ?? "").trim();
 
-  const [prompt, setPrompt] = useState(() =>
-    String(node.data.genDraft ?? node.data.prompt ?? ""),
-  );
+  const [prompt, setPrompt] = useState(() => resolveGenText(node.data));
   const [busy, setBusy] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
-  const [kind, setKind] = useState<GenKind>(() =>
-    node.type === "video"
-      ? "video"
-      : String(node.data.genKind ?? "") === "video"
-        ? "video"
-        : String(node.data.genKind ?? "") === "text"
-          ? "text"
-          : "image",
-  );
   const [models, setModels] = useState<PublicModel[]>([]);
   const [modelId, setModelId] = useState(() =>
     String(node.data.genModelId ?? ""),
@@ -142,26 +171,56 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
     const n = Number(node.data.genDuration);
     return Number.isFinite(n) && n > 0 ? n : 5;
   });
+  const [imageCount, setImageCount] = useState(() => {
+    const n = Number(node.data.genCount);
+    return Number.isFinite(n) ? Math.min(4, Math.max(1, Math.floor(n))) : 1;
+  });
+  const [voice, setVoice] = useState(() =>
+    String(node.data.genVoice ?? "alloy"),
+  );
+  const [audioFormat, setAudioFormat] = useState(() =>
+    String(node.data.genAudioFormat ?? "mp3"),
+  );
+  const [audioSpeed, setAudioSpeed] = useState(() => {
+    const n = Number(node.data.genAudioSpeed);
+    return Number.isFinite(n) ? Math.min(4, Math.max(0.25, n)) : 1;
+  });
+  const [cameraControl, setCameraControl] = useState<CameraControlOptions>(() =>
+    parseCameraControl(node.data.cameraControl),
+  );
+  const [firstFrameNodeId, setFirstFrameNodeId] = useState(
+    () => String(node.data.firstFrameNodeId ?? "") || "",
+  );
+  const [lastFrameNodeId, setLastFrameNodeId] = useState(
+    () => String(node.data.lastFrameNodeId ?? "") || "",
+  );
 
-  const output: GenKind = panorama ? "image" : kind;
-  const mentionItems = useMemo(() => buildCanvasMentionItems(nodes), [nodes]);
+  const output: GenKind = kindForNode(node);
+  const mentionItems = useMemo(() => {
+    const { incoming } = collectIncomingMediaFromEdges(nodes, edges, node.id);
+    return buildCanvasMentionItems(incoming);
+  }, [nodes, edges, node.id]);
 
   useEffect(() => {
-    setPrompt(String(node.data.genDraft ?? node.data.prompt ?? ""));
-    setKind(
-      node.type === "video"
-        ? "video"
-        : String(node.data.genKind ?? "") === "video"
-          ? "video"
-          : String(node.data.genKind ?? "") === "text"
-            ? "text"
-            : "image",
-    );
+    setPrompt(resolveGenText(node.data));
     setModelId(String(node.data.genModelId ?? ""));
     setRatio(panorama ? "2:1" : String(node.data.genRatio ?? "auto"));
     setResolution(String(node.data.genResolution ?? ""));
     const n = Number(node.data.genDuration);
     setDuration(Number.isFinite(n) && n > 0 ? n : 5);
+    const count = Number(node.data.genCount);
+    setImageCount(
+      Number.isFinite(count) ? Math.min(4, Math.max(1, Math.floor(count))) : 1,
+    );
+    setVoice(String(node.data.genVoice ?? "alloy"));
+    setAudioFormat(String(node.data.genAudioFormat ?? "mp3"));
+    const speed = Number(node.data.genAudioSpeed);
+    setAudioSpeed(
+      Number.isFinite(speed) ? Math.min(4, Math.max(0.25, speed)) : 1,
+    );
+    setCameraControl(parseCameraControl(node.data.cameraControl));
+    setFirstFrameNodeId(String(node.data.firstFrameNodeId ?? "") || "");
+    setLastFrameNodeId(String(node.data.lastFrameNodeId ?? "") || "");
     setBusy(false);
     setParamsOpen(false);
   }, [node.id, panorama]);
@@ -176,7 +235,8 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
             (item) =>
               item.kind === "image" ||
               item.kind === "video" ||
-              item.kind === "llm",
+              item.kind === "llm" ||
+              item.kind === "audio",
           ),
         );
       })
@@ -210,6 +270,15 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
       ),
     [selectedModel, output],
   );
+  const voiceOptions = useMemo(() => {
+    const fromCaps = selectedModel?.capabilities?.voices?.filter(Boolean);
+    return fromCaps?.length ? fromCaps : [...DEFAULT_TTS_VOICES];
+  }, [selectedModel]);
+  const formatOptions = useMemo(() => {
+    const fromCaps =
+      selectedModel?.capabilities?.audioFormats?.filter(Boolean);
+    return fromCaps?.length ? fromCaps : [...DEFAULT_TTS_FORMATS];
+  }, [selectedModel]);
   const durations = useMemo(
     () => durationsFromCapabilities(selectedModel?.capabilities ?? null),
     [selectedModel],
@@ -247,27 +316,38 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
     [node, viewport],
   );
 
-  const running = status === "queued" || status === "running" || busy;
+  const running = isBusyStatus(status) || busy;
   const edgeRefs = useMemo(
     () => collectIncomingMediaFromEdges(nodes, edges, node.id),
     [edges, node.id, nodes],
   );
 
+  const frameCandidates = useMemo(
+    () => collectVideoFrameCandidates(nodes, edges, node),
+    [edges, node, nodes],
+  );
+  const frameSlots = useMemo(
+    () =>
+      resolveVideoFrameSlots({
+        candidates: frameCandidates,
+        firstFrameNodeId,
+        lastFrameNodeId,
+      }),
+    [frameCandidates, firstFrameNodeId, lastFrameNodeId],
+  );
+
   const canShowParams =
-    output !== "text" &&
-    ((!panorama && layout.showRatio && layout.aspects.length > 0) ||
-      (layout.showResolution && layout.resolutions.length > 0) ||
-      (output === "video" && layout.showDuration && durations.length > 0));
+    output === "audio" ||
+    output === "image" ||
+    output === "video" ||
+    (output !== "text" &&
+      ((!panorama && layout.showRatio && layout.aspects.length > 0) ||
+        (layout.showResolution && layout.resolutions.length > 0) ||
+        (output === "video" && layout.showDuration && durations.length > 0)));
 
   function writeDraft(next: string) {
     setPrompt(next);
     updateNodeData(node.id, { genDraft: next });
-  }
-
-  function writeKind(next: GenKind) {
-    if (panorama) return;
-    setKind(next);
-    updateNodeData(node.id, { genKind: next });
   }
 
   function persistParams(patch: Record<string, unknown>) {
@@ -321,9 +401,12 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           addEdge(node.id, targetId);
           createdTarget = true;
         }
-        const promptText = panorama
-          ? wrapPanoramaPrompt(text, { hasReference: hasMedia })
-          : text;
+        const promptText = applyCameraPrompt(
+          panorama
+            ? wrapPanoramaPrompt(text, { hasReference: hasMedia })
+            : text,
+          panorama ? null : cameraControl,
+        );
         const aspect = layout.aspects.find((item) => item.id === ratio);
         const named = titleFromPrompt(text);
         const keepTitle = Boolean(
@@ -336,6 +419,8 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           status: "queued",
           error: "",
           prompt: text,
+          genDraft: text,
+          cameraControl,
           ...(named && !keepTitle ? { title: named } : {}),
         });
         const job = await api<{ id: string }>("/jobs", {
@@ -344,13 +429,19 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
             kind: "image",
             input: {
               prompt: promptText,
-              n: 1,
+              n: Math.min(4, Math.max(1, imageCount)),
               modelId,
               ratio: panorama ? "2:1" : layout.showRatio ? ratio : undefined,
               resolution:
                 layout.showResolution && resolution ? resolution : undefined,
-              width: aspect && !aspect.flexible ? aspect.width : undefined,
-              height: aspect && !aspect.flexible ? aspect.height : undefined,
+              width:
+                panorama || !aspect || aspect.flexible
+                  ? undefined
+                  : aspect.width,
+              height:
+                panorama || !aspect || aspect.flexible
+                  ? undefined
+                  : aspect.height,
               canvasProjectId: projectId,
               canvasNodeId: targetId,
               referenceAssetIds,
@@ -360,6 +451,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           },
         });
         updateNodeData(targetId, { status: "running", jobId: job.id });
+        persistParams({ genCount: imageCount, cameraControl });
       } else if (output === "text") {
         targetId = addNode("text", {
           x: node.x + (node.width ?? 240) + 40,
@@ -392,9 +484,9 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           },
         });
         updateNodeData(targetId, { status: "running", jobId: job.id });
-      } else {
-        if (node.type !== "video" || hasMedia) {
-          targetId = addNode("video", {
+      } else if (output === "audio") {
+        if (node.type !== "audio" || hasMedia) {
+          targetId = addNode("audio", {
             x: node.x + (node.width ?? 240) + 40,
             y: node.y,
           });
@@ -412,6 +504,61 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           status: "queued",
           error: "",
           prompt: text,
+          genDraft: text,
+          ...(named && !keepTitle ? { title: named } : {}),
+        });
+        const job = await api<{ id: string }>("/jobs", {
+          method: "POST",
+          body: {
+            kind: "audio",
+            input: {
+              prompt: text,
+              modelId,
+              voice,
+              format: audioFormat,
+              speed: audioSpeed,
+              canvasProjectId: projectId,
+              canvasNodeId: targetId,
+            },
+          },
+        });
+        updateNodeData(targetId, { status: "running", jobId: job.id });
+        persistParams({
+          genVoice: voice,
+          genAudioFormat: audioFormat,
+          genAudioSpeed: audioSpeed,
+        });
+      } else {
+        if (node.type !== "video" || hasMedia) {
+          targetId = addNode("video", {
+            x: node.x + (node.width ?? 240) + 40,
+            y: node.y,
+          });
+          addEdge(node.id, targetId);
+          createdTarget = true;
+        }
+        const named = titleFromPrompt(text);
+        const keepTitle = Boolean(
+          String(
+            useCanvasStore.getState().nodes.find((item) => item.id === targetId)
+              ?.data.title ?? "",
+          ).trim(),
+        );
+        const ordered = orderVideoImageRefs({
+          first: frameSlots.first,
+          last: frameSlots.last,
+          otherAssetIds: referenceAssetIds,
+          otherUrls: referenceUrls,
+        });
+        const videoPrompt = applyCameraPrompt(text, cameraControl);
+        updateNodeData(targetId, {
+          status: "queued",
+          error: "",
+          prompt: text,
+          genDraft: text,
+          cameraControl,
+          firstFrameNodeId: frameSlots.first?.nodeId ?? "",
+          lastFrameNodeId: frameSlots.last?.nodeId ?? "",
           ...(named && !keepTitle ? { title: named } : {}),
         });
         const job = await api<{ id: string }>("/jobs", {
@@ -419,7 +566,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           body: {
             kind: "video",
             input: {
-              prompt: text,
+              prompt: videoPrompt,
               modelId,
               duration: layout.showDuration ? duration : undefined,
               ratio: layout.showRatio ? ratio : undefined,
@@ -427,24 +574,36 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                 layout.showResolution && resolution ? resolution : undefined,
               canvasProjectId: projectId,
               canvasNodeId: targetId,
-              referenceAssetIds,
-              referenceUrls,
-              refMode: videoRefMode(
-                Math.max(referenceAssetIds.length, referenceUrls.length),
-              ),
+              referenceAssetIds: ordered.referenceAssetIds,
+              referenceUrls: ordered.referenceUrls,
+              refMode:
+                ordered.refMode ??
+                videoRefMode(
+                  Math.max(
+                    ordered.referenceAssetIds.length,
+                    ordered.referenceUrls.length,
+                  ),
+                ),
             },
           },
         });
         updateNodeData(targetId, { status: "running", jobId: job.id });
+        persistParams({
+          cameraControl,
+          firstFrameNodeId: frameSlots.first?.nodeId ?? "",
+          lastFrameNodeId: frameSlots.last?.nodeId ?? "",
+        });
       }
-      clearPrompt();
+      // Keep the prompt in the editor so reopening the panel still shows
+      // what produced this node (draft may have been wiped by older clients).
+      writeDraft(text);
       toast.success(
         panorama
           ? "已提交全景任务"
-          : kind === "video"
+          : output === "video"
             ? "已提交视频任务"
-            : kind === "text"
-              ? "已提交文本任务"
+            : output === "audio"
+              ? "已提交语音任务"
               : "已提交图像任务",
       );
     } catch (e) {
@@ -472,15 +631,13 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
 
   const placeholder = panorama
     ? "描述全景场景，将按 2:1 等距圆柱生成… / 指令 · @ 引用"
-    : kind === "text"
-      ? hasMedia
-        ? "让模型读这张图并写正文… /文本 · @ 引用"
-        : "写下要生成的文本… /文本 · @ 引用"
+    : output === "audio"
+      ? "输入要朗读的文本… /语音"
       : hasMedia
-        ? kind === "video"
+        ? output === "video"
           ? "描述运动与镜头…（当前媒体作参考）"
           : "描述画面…（当前媒体作参考）"
-        : kind === "video"
+        : output === "video"
           ? "描述要生成的视频… / 指令 · @ 引用"
           : "描述要生成的图像… / 指令 · @ 引用";
 
@@ -518,15 +675,40 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
         <div className="joy-node-gen-body">
           <div className="joy-node-gen-main">
             <NodeRefBar nodeId={node.id} />
+            {output === "video" && frameCandidates.length > 0 ? (
+              <div className="mb-2 flex flex-wrap items-center gap-2 px-0.5">
+                <FrameSlotPicker
+                  label="首帧"
+                  value={frameSlots.first?.nodeId ?? ""}
+                  candidates={frameCandidates}
+                  excludeId={frameSlots.last?.nodeId}
+                  onChange={(id) => {
+                    setFirstFrameNodeId(id);
+                    persistParams({ firstFrameNodeId: id });
+                  }}
+                />
+                <FrameSlotPicker
+                  label="尾帧"
+                  value={frameSlots.last?.nodeId ?? ""}
+                  candidates={frameCandidates}
+                  excludeId={frameSlots.first?.nodeId}
+                  allowEmpty
+                  onChange={(id) => {
+                    setLastFrameNodeId(id);
+                    persistParams({ lastFrameNodeId: id });
+                  }}
+                />
+              </div>
+            ) : null}
             <AiPromptEditor
               key={node.id}
               editorRef={editorRef}
-              initialText={String(node.data.genDraft ?? node.data.prompt ?? "")}
+              initialText={resolveGenText(node.data)}
               mentionItems={mentionItems}
               placeholder={placeholder}
               disabled={running}
+              allowKindSwitch={false}
               onPlainChange={writeDraft}
-              onKindCommand={writeKind}
             />
           </div>
         </div>
@@ -537,56 +719,6 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
 
         <div className="joy-node-gen-toolbar">
           <div className="joy-node-gen-toolbar-left">
-            {panorama ? (
-              <button type="button" className="joy-chip joy-chip-kind" disabled>
-                <CanvasIconImage className="size-4" />
-                全景 2:1
-              </button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button type="button" className="joy-chip joy-chip-kind">
-                    {kind === "image" ? (
-                      <CanvasIconImage className="size-4" />
-                    ) : kind === "text" ? (
-                      <CanvasIconText className="size-4" />
-                    ) : (
-                      <CanvasIconDirector className="size-4" />
-                    )}
-                    {kind === "image" ? "图片" : kind === "text" ? "文本" : "视频"}
-                    <ChevronDown className="size-3.5 opacity-60" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="min-w-[148px]"
-                  data-canvas-shortcuts-ignore
-                >
-                  <DropdownMenuItem
-                    className="gap-2"
-                    onClick={() => writeKind("image")}
-                  >
-                    <CanvasIconImage className="size-4" />
-                    图片生成
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="gap-2"
-                    onClick={() => writeKind("video")}
-                  >
-                    <CanvasIconDirector className="size-4" />
-                    视频生成
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="gap-2"
-                    onClick={() => writeKind("text")}
-                  >
-                    <CanvasIconText className="size-4" />
-                    文本生成
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" className="joy-chip joy-chip-model">
@@ -654,7 +786,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                     className="joy-chip-params-pill"
                     aria-label="生成参数"
                   >
-                    {!panorama && layout.showRatio ? (
+                    {!panorama && layout.showRatio && output !== "audio" ? (
                       <span className="joy-chip-params-seg">
                         <RectangleHorizontal className="size-3.5 opacity-70" />
                         {ratioLabel}
@@ -665,7 +797,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                         2:1
                       </span>
                     ) : null}
-                    {layout.showResolution ? (
+                    {layout.showResolution && output !== "audio" ? (
                       <>
                         {(!panorama && layout.showRatio) || panorama ? (
                           <span className="joy-chip-params-sep" aria-hidden />
@@ -688,15 +820,113 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                         </span>
                       </>
                     ) : null}
+                    {output === "image" ? (
+                      <>
+                        {(!panorama && layout.showRatio) ||
+                        layout.showResolution ||
+                        panorama ? (
+                          <span className="joy-chip-params-sep" aria-hidden />
+                        ) : null}
+                        <span className="joy-chip-params-seg">
+                          {imageCount}张
+                        </span>
+                      </>
+                    ) : null}
+                    {output === "audio" ? (
+                      <>
+                        <span className="joy-chip-params-seg">{voice}</span>
+                        <span className="joy-chip-params-sep" aria-hidden />
+                        <span className="joy-chip-params-seg">
+                          {audioFormat.toUpperCase()}
+                        </span>
+                        <span className="joy-chip-params-sep" aria-hidden />
+                        <span className="joy-chip-params-seg">
+                          {audioSpeed}x
+                        </span>
+                      </>
+                    ) : null}
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="start"
-                  className="p-3 max-w-[min(340px,calc(100vw-48px))]"
+                  className="p-3 w-[min(320px,calc(100vw-48px))]"
                   data-canvas-shortcuts-ignore
                 >
                   <div className="joy-composer-params-panel">
-                    {!panorama && layout.showRatio ? (
+                    {output === "audio" ? (
+                      <>
+                        <div className="joy-composer-params-row">
+                          <span className="joy-composer-params-label">音色</span>
+                          <div className="joy-composer-params-options">
+                            {voiceOptions.map((item) => (
+                              <button
+                                key={item}
+                                type="button"
+                                className={cn(
+                                  "joy-composer-params-option",
+                                  voice === item && "is-on",
+                                )}
+                                onClick={() => {
+                                  setVoice(item);
+                                  persistParams({ genVoice: item });
+                                }}
+                              >
+                                {item}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="joy-composer-params-row">
+                          <span className="joy-composer-params-label">格式</span>
+                          <div className="joy-composer-params-options">
+                            {formatOptions.map((item) => (
+                              <button
+                                key={item}
+                                type="button"
+                                className={cn(
+                                  "joy-composer-params-option",
+                                  audioFormat === item && "is-on",
+                                )}
+                                onClick={() => {
+                                  setAudioFormat(item);
+                                  persistParams({ genAudioFormat: item });
+                                }}
+                              >
+                                {item.toUpperCase()}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="joy-composer-params-row">
+                          <div className="joy-composer-params-label-row">
+                            <span className="joy-composer-params-label">语速</span>
+                            <span className="joy-composer-params-value">
+                              {audioSpeed}x
+                            </span>
+                          </div>
+                          <div className="joy-composer-params-options">
+                            {[0.75, 1, 1.25, 1.5, 2].map((item) => (
+                              <button
+                                key={item}
+                                type="button"
+                                className={cn(
+                                  "joy-composer-params-option",
+                                  audioSpeed === item && "is-on",
+                                )}
+                                onClick={() => {
+                                  setAudioSpeed(item);
+                                  persistParams({ genAudioSpeed: item });
+                                }}
+                              >
+                                {item}x
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : null}
+
+                    {!panorama && layout.showRatio && output !== "audio" ? (
                       <div className="joy-composer-params-row">
                         <span className="joy-composer-params-label">比例</span>
                         <div className="joy-composer-params-options">
@@ -720,7 +950,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                       </div>
                     ) : null}
 
-                    {layout.showResolution ? (
+                    {layout.showResolution && output !== "audio" ? (
                       <div className="joy-composer-params-row">
                         <span className="joy-composer-params-label">清晰度</span>
                         <div className="joy-composer-params-options">
@@ -752,21 +982,41 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                             {duration}s
                           </span>
                         </div>
+                        {durations.length <= 1 ? (
+                          <div className="joy-composer-params-slider-fixed">
+                            {duration}s
+                          </div>
+                        ) : (
+                          <DurationSlider
+                            options={durations}
+                            value={duration}
+                            onChange={(next) => {
+                              setDuration(next);
+                              persistParams({ genDuration: next });
+                            }}
+                          />
+                        )}
+                      </div>
+                    ) : null}
+
+                    {output === "image" ? (
+                      <div className="joy-composer-params-row">
+                        <span className="joy-composer-params-label">数量</span>
                         <div className="joy-composer-params-options">
-                          {durations.map((item) => (
+                          {[1, 2, 3, 4].map((count) => (
                             <button
-                              key={item}
+                              key={count}
                               type="button"
                               className={cn(
                                 "joy-composer-params-option",
-                                duration === item && "is-on",
+                                imageCount === count && "is-on",
                               )}
                               onClick={() => {
-                                setDuration(item);
-                                persistParams({ genDuration: item });
+                                setImageCount(count);
+                                persistParams({ genCount: count });
                               }}
                             >
-                              {item}s
+                              {count}张
                             </button>
                           ))}
                         </div>
@@ -775,6 +1025,16 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                   </div>
                 </DropdownMenuContent>
               </DropdownMenu>
+            ) : null}
+
+            {(output === "image" || output === "video") && !panorama ? (
+              <CanvasCameraControl
+                value={cameraControl}
+                onChange={(next) => {
+                  setCameraControl(next);
+                  persistParams({ cameraControl: next });
+                }}
+              />
             ) : null}
           </div>
 
@@ -785,9 +1045,11 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
             aria-label={
               panorama
                 ? "生成全景"
-                : kind === "video"
+                : output === "video"
                   ? "生成视频"
-                  : "生成图像"
+                  : output === "audio"
+                    ? "生成语音"
+                    : "生成图像"
             }
             onClick={() => void submit()}
           >
@@ -800,5 +1062,70 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
         </div>
       </div>
     </div>
+  );
+}
+
+function FrameSlotPicker({
+  label,
+  value,
+  candidates,
+  excludeId,
+  allowEmpty,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  candidates: ReturnType<typeof collectVideoFrameCandidates>;
+  excludeId?: string;
+  allowEmpty?: boolean;
+  onChange: (nodeId: string) => void;
+}) {
+  const options = candidates.filter((item) => item.nodeId !== excludeId);
+  const selected = options.find((item) => item.nodeId === value) ?? null;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground transition hover:text-foreground"
+        >
+          {selected ? (
+            <CanvasRefThumb
+              kind="image"
+              url={selected.url}
+              className="size-5 rounded-sm"
+            />
+          ) : (
+            <span className="grid size-5 place-items-center rounded-sm bg-muted text-[10px]">
+              —
+            </span>
+          )}
+          <span>
+            {label}
+            {selected ? ` · ${selected.label}` : " · 未选"}
+          </span>
+          <ChevronDown className="size-3 opacity-60" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" data-canvas-shortcuts-ignore>
+        {allowEmpty ? (
+          <DropdownMenuItem onClick={() => onChange("")}>不使用</DropdownMenuItem>
+        ) : null}
+        {options.map((item) => (
+          <DropdownMenuItem
+            key={item.nodeId}
+            className="gap-2"
+            onClick={() => onChange(item.nodeId)}
+          >
+            <CanvasRefThumb
+              kind="image"
+              url={item.url}
+              className="size-6 rounded-sm"
+            />
+            {item.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -31,17 +31,24 @@ export class JobsController {
     @Query("take") take?: string,
     @Query("before") before?: string,
     @Query("beforeId") beforeId?: string,
+    @Query("scope") scope?: string,
   ) {
     return this.jobs.list(user.id, {
       take: take ? Number(take) : 30,
       before,
       beforeId,
+      scope,
     });
   }
 
   @Get(":id")
   get(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.jobs.get(user.id, id);
+  }
+
+  @Post(":id/cancel")
+  cancel(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.jobs.cancel(user.id, id);
   }
 
   @Delete(":id")

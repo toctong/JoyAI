@@ -24,6 +24,9 @@ class CreateCanvasDto {
   @ValidateIf((_, v) => v !== null)
   @IsString()
   folderId?: string | null;
+
+  @IsOptional()
+  snapshot?: unknown;
 }
 
 class UpdateCanvasDto {
@@ -140,7 +143,7 @@ export class CanvasController {
 
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateCanvasDto) {
-    return this.canvas.create(user.id, dto.title, dto.folderId);
+    return this.canvas.create(user.id, dto.title, dto.folderId, dto.snapshot);
   }
 
   @Post("batch-move")

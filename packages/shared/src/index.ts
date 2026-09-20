@@ -3,7 +3,7 @@ import { z } from "zod";
 export const UserRoleSchema = z.enum(["admin", "creator"]);
 export type UserRole = z.infer<typeof UserRoleSchema>;
 
-export const JobKindSchema = z.enum(["image", "video", "llm"]);
+export const JobKindSchema = z.enum(["image", "video", "llm", "audio"]);
 export type JobKind = z.infer<typeof JobKindSchema>;
 
 export const JobStatusSchema = z.enum([
@@ -120,6 +120,19 @@ export const VideoJobInputSchema = z.object({
   canvasNodeId: z.string().optional(),
 });
 export type VideoJobInput = z.infer<typeof VideoJobInputSchema>;
+
+/** TTS / speech synthesis */
+export const AudioJobInputSchema = z.object({
+  prompt: z.string().min(1).max(4000),
+  voice: z.string().optional(),
+  format: z.enum(["mp3", "wav", "opus", "aac", "flac", "pcm"]).optional(),
+  speed: z.number().min(0.25).max(4).optional(),
+  instructions: z.string().max(2000).optional(),
+  modelId: z.string().optional(),
+  canvasProjectId: z.string().optional(),
+  canvasNodeId: z.string().optional(),
+});
+export type AudioJobInput = z.infer<typeof AudioJobInputSchema>;
 
 /** LLM 任务用途：漫剧分析 / 画布反推 / 通用聊天 */
 export const LlmJobPurposeSchema = z.enum([
@@ -255,7 +268,13 @@ export const ManjuStepIdSchema = z.enum([
 export const ManjuVideoSettingsSchema = z.object({
   ratio: z.enum(["9:16", "16:9", "1:1", "4:3", "3:4", "21:9"]).default("9:16"),
   mode: z.enum(["i2v", "ref", "grid"]).default("i2v"),
-  style: z.string().default("电影感写实"),
+  /** 宫格布局；仅 mode=grid 时生效 */
+  gridLayout: z.enum(["2x2", "3x3"]).default("2x2"),
+  style: z.string().default(
+    "电影感写实，自然光影，细腻皮肤质感，电影级构图",
+  ),
+  /** 风格模板 id；选模板时写入 style 文案，可再手工改 style */
+  styleId: z.string().optional(),
   duration: z.number().positive().default(5),
   /** 渠道模型 id（管理后台启用的模型） */
   llmModelId: z.string().optional(),
@@ -278,6 +297,8 @@ export const ManjuAssetDraftSchema = z.object({
   name: z.string(),
   description: z.string().default(""),
   aliases: z.array(z.string()).default([]),
+  /** 衍生资产挂在本体上；本体为 null。提及写作 @[本体/衍生] */
+  parentId: z.string().nullable().default(null),
   imageUrl: z.string().nullable().default(null),
   assetId: z.string().nullable().default(null),
   jobId: z.string().nullable().default(null),
@@ -307,6 +328,10 @@ export const ManjuShotDraftSchema = z.object({
   storyboardStale: z.boolean().default(false),
   /** 画面/对白改过、已有视频需要重做 */
   videoStale: z.boolean().default(false),
+  /** 宫格同批 id；同组镜头共享一次宫格生图 */
+  gridGroupId: z.string().nullable().default(null),
+  /** 宫格格号 0-based 行优先 */
+  gridCellIndex: z.number().int().min(0).nullable().default(null),
 });
 
 export const ManjuEpisodeDraftSchema = z.object({
@@ -345,6 +370,7 @@ export const CreateJobSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("image"), input: ImageJobInputSchema }),
   z.object({ kind: z.literal("video"), input: VideoJobInputSchema }),
   z.object({ kind: z.literal("llm"), input: LlmJobInputSchema }),
+  z.object({ kind: z.literal("audio"), input: AudioJobInputSchema }),
 ]);
 export type CreateJobInput = z.infer<typeof CreateJobSchema>;
 
@@ -354,6 +380,7 @@ export const QUEUE = {
   VIDEO_POLL: "video-poll",
   ASSET_MIRROR: "asset-mirror",
   LLM: "llm-generation",
+  AUDIO: "audio-generation",
 } as const;
 
 export * from "./model-meta";

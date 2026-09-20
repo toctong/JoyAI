@@ -1,6 +1,14 @@
 "use client";
 
-import { Loader2, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { useState } from "react";
+import {
+  ClipboardPaste,
+  FileText,
+  Loader2,
+  Sparkles,
+  Trash2,
+  Wand2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { confirmDialog } from "@/shared/lib/confirm";
@@ -9,6 +17,7 @@ import { useManjuStore } from "../manju-store";
 import { submitManjuAnalyzeJob } from "../manju-api";
 import { submitEpisodePlan, submitSeriesMemory } from "../lib/workflow-skill";
 import { ManjuMdField } from "../manju-md-field";
+import { ScriptFileImport } from "../script-file-import";
 import {
   EMPTY_SERIES,
   extractAssetsFromScript,
@@ -16,6 +25,8 @@ import {
   type ManjuProjectDraft,
   type ManjuSeries,
 } from "../manju-types";
+
+type ScriptMode = "choose" | "edit";
 
 export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
   const updateProject = useManjuStore((s) => s.updateProject);
@@ -25,6 +36,9 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
   const flushSave = useManjuStore((s) => s.flushSave);
   const setAnalyzing = useManjuStore((s) => s.setAnalyzing);
   const analyzing = useManjuStore((s) => Boolean(s.analyzingIds[project.id]));
+  const [mode, setMode] = useState<ScriptMode>(
+    project.scriptText.trim() ? "edit" : "choose",
+  );
 
   const splitToShots = async () => {
     const shots = parseScriptToShots(project.scriptText);
@@ -125,6 +139,59 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     }
   };
 
+  const applyImportedText = async (text: string) => {
+    if (project.scriptText.trim()) {
+      const ok = await confirmDialog({
+        title: "覆盖当前原文？",
+        description: project.shots.length
+          ? "导入会替换剧本编辑区。已有分镜/资产不会自动清空，请随后重新「规划分集 / 规划分镜」。"
+          : "导入会替换剧本编辑区内容，不会自动清分镜或资产。",
+        confirmText: "覆盖导入",
+        cancelText: "取消",
+        destructive: true,
+      });
+      if (!ok) return;
+    }
+    updateProject(project.id, { scriptText: text });
+    setMode("edit");
+    if (text.length >= 400) {
+      toast.message("长文已导入：建议先「规划分集」，再按集规划分镜");
+    } else if (project.shots.length > 0) {
+      toast.message("原文已换，建议重新规划分集/分镜");
+    }
+  };
+
+  if (mode === "choose" && !project.scriptText.trim()) {
+    return (
+      <div className="manju-script-choose">
+        <div className="manju-script-choose__hero">
+          <span className="manju-script-choose__hero-icon" aria-hidden>
+            <FileText className="h-8 w-8" />
+          </span>
+          <p>选择一种方式添加剧本</p>
+        </div>
+        <div className="manju-script-choose__cards">
+          <button
+            type="button"
+            className="manju-entry-card"
+            onClick={() => setMode("edit")}
+          >
+            <span className="manju-entry-card__icon" aria-hidden>
+              <ClipboardPaste className="h-8 w-8" />
+            </span>
+            <strong>粘贴剧本</strong>
+            <span>已有内容可直接粘贴修改</span>
+          </button>
+          <ScriptFileImport
+            variant="card"
+            disabled={analyzing}
+            onText={(text) => void applyImportedText(text)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="manju-panel">
       <div className="manju-card">
@@ -132,10 +199,14 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
           <div>
             <div className="manju-card__title">剧本 / 小说原文</div>
             <p className="manju-card__desc">
-              粘贴成品剧本或小说。「AI 分析」只登记角色、场景、道具和分集，分镜要另跑规划。
+              粘贴或导入成品剧本 / 小说。「AI 分析」只登记角色、场景、道具和分集，分镜要另跑规划。
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <ScriptFileImport
+              disabled={analyzing}
+              onText={(text) => void applyImportedText(text)}
+            />
             <Button
               variant="outline"
               size="sm"

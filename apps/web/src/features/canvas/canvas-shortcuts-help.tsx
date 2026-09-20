@@ -34,7 +34,7 @@ const ROWS: { keys: string[]; desc: string }[] = [
   { keys: ["点击编组标题"], desc: "选中整组；拖动可移动编组" },
   { keys: ["Delete / Backspace"], desc: "删除选中" },
   { keys: ["Esc"], desc: "取消选中并关闭浮层" },
-  { keys: ["双击空白"], desc: "添加节点" },
+  { keys: ["双击空白"], desc: "添加节点（与右键相同）" },
   { keys: ["右键空白"], desc: "添加节点 / 上传" },
   { keys: ["拖入图片 / 视频"], desc: "上传到画布" },
   { keys: ["0"], desc: "适应全部节点" },

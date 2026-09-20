@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
+import { SYSTEM, Viewer } from "@photo-sphere-viewer/core";
+import "@photo-sphere-viewer/core/index.css";
 import { cn } from "@/shared/lib/utils";
 import { fetchRemoteImageBlob } from "./lib/load-canvas-image";
 
@@ -13,6 +14,8 @@ export type PanoramaView = {
 
 export type PanoramaViewerApi = {
   canvas: () => HTMLCanvasElement | null;
+  /** Force a paint, wait a frame, then return the WebGL canvas. */
+  captureCanvas: () => Promise<HTMLCanvasElement | null>;
   getView: () => PanoramaView;
   setView: (view: Partial<PanoramaView>) => void;
   resetView: () => void;
@@ -30,11 +33,35 @@ type Props = {
   onViewChange?: (view: PanoramaView) => void;
 };
 
-const DEFAULT_VIEW: PanoramaView = { yaw: 0, pitch: 0, fov: 75 };
+/** Match Photo Sphere Viewer defaultZoomLvl 50 with minFov 25 / maxFov 110. */
+const MIN_FOV = 25;
+const MAX_FOV = 110;
+const DEFAULT_VIEW: PanoramaView = { yaw: 0, pitch: 0, fov: 67.5 };
+
+function clampFov(fov: number) {
+  return Math.max(MIN_FOV, Math.min(MAX_FOV, fov));
+}
+
+function clampPitch(pitch: number) {
+  return Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+}
+
+function waitFrames(count = 2) {
+  return new Promise<void>((resolve) => {
+    const step = (left: number) => {
+      if (left <= 0) {
+        resolve();
+        return;
+      }
+      requestAnimationFrame(() => step(left - 1));
+    };
+    step(count);
+  });
+}
 
 /**
- * Equirectangular panorama via three.js (sphere + Orbit-style look).
- * Not a hand-rolled WebGL shader stack.
+ * Equirectangular panorama via @photo-sphere-viewer/core.
+ * Keeps JoyAI capture / lastView API on top of the plugin.
  */
 export function PanoramaViewer({
   url,
@@ -46,8 +73,11 @@ export function PanoramaViewer({
   onViewChange,
 }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const viewerRef = useRef<Viewer | null>(null);
+  const orbitRef = useRef(orbit);
   const onReadyRef = useRef(onReady);
   const onViewChangeRef = useRef(onViewChange);
+  orbitRef.current = orbit;
   onReadyRef.current = onReady;
   onViewChangeRef.current = onViewChange;
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -57,224 +87,209 @@ export function PanoramaViewer({
     if (!host || !url || !active) return;
 
     setStatus("loading");
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      preserveDrawingBuffer: true,
-      alpha: false,
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setClearColor(0x0a0a0c, 1);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.domElement.style.display = "block";
-    renderer.domElement.style.width = "100%";
-    renderer.domElement.style.height = "100%";
-    renderer.domElement.style.touchAction = orbit ? "none" : "auto";
-    renderer.domElement.style.pointerEvents = orbit ? "auto" : "none";
-    renderer.domElement.style.opacity = "0";
-    renderer.domElement.style.transition = "opacity 160ms ease";
-    host.appendChild(renderer.domElement);
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 2000);
-    const view: PanoramaView = {
-      yaw: initialView?.yaw ?? DEFAULT_VIEW.yaw,
-      pitch: initialView?.pitch ?? DEFAULT_VIEW.pitch,
-      fov: initialView?.fov ?? DEFAULT_VIEW.fov,
-    };
-
-    const geometry = new THREE.SphereGeometry(500, 64, 40);
-    geometry.scale(-1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x1a1a1e });
-    const mesh = new THREE.Mesh(geometry, material);
-    scene.add(mesh);
-
-    const applyCamera = () => {
-      camera.fov = view.fov;
-      camera.updateProjectionMatrix();
-      camera.rotation.order = "YXZ";
-      camera.rotation.y = view.yaw;
-      camera.rotation.x = view.pitch;
-      camera.position.set(0, 0, 0);
-    };
-    applyCamera();
-
-    const resize = () => {
-      const w = Math.max(1, host.clientWidth);
-      const h = Math.max(1, host.clientHeight);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false);
-    };
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(host);
-
     let cancelled = false;
     let objectUrl = "";
-    const loader = new THREE.TextureLoader();
-    const applyTexture = (textureUrl: string) => {
-      loader.load(
-        textureUrl,
-        (texture) => {
-          if (cancelled) {
-            texture.dispose();
-            return;
-          }
-          texture.colorSpace = THREE.SRGBColorSpace;
-          texture.minFilter = THREE.LinearFilter;
-          texture.magFilter = THREE.LinearFilter;
-          material.map = texture;
-          material.color.set(0xffffff);
-          material.needsUpdate = true;
-          renderer.domElement.style.opacity = "1";
-          setStatus("ready");
-        },
-        undefined,
-        () => {
-          if (!cancelled) setStatus("error");
-        },
-      );
+    let viewer: Viewer | null = null;
+
+    const seed: PanoramaView = {
+      yaw: initialView?.yaw ?? DEFAULT_VIEW.yaw,
+      pitch: clampPitch(initialView?.pitch ?? DEFAULT_VIEW.pitch),
+      fov: clampFov(initialView?.fov ?? DEFAULT_VIEW.fov),
     };
+
+    const readView = (): PanoramaView => {
+      if (!viewer) return { ...seed };
+      const pos = viewer.getPosition();
+      return {
+        yaw: pos.yaw,
+        pitch: clampPitch(pos.pitch),
+        fov: clampFov(viewer.dataHelper.zoomLevelToFov(viewer.getZoomLevel())),
+      };
+    };
+
+    const emitView = () => {
+      onViewChangeRef.current?.(readView());
+    };
+
+    const pickCanvas = () =>
+      viewer?.container.querySelector<HTMLCanvasElement>(".psv-canvas") ?? null;
+
+    const onReadyEvt = () => {
+      if (cancelled) return;
+      setStatus("ready");
+    };
+    const onErrorEvt = () => {
+      if (cancelled) return;
+      setStatus("error");
+    };
+    const onPosition = () => emitView();
+    const onZoom = () => emitView();
+
+    const destroyViewer = () => {
+      if (!viewer) return;
+      const current = viewer;
+      viewer = null;
+      viewerRef.current = null;
+      current.removeEventListener("ready", onReadyEvt);
+      current.removeEventListener("panorama-error", onErrorEvt);
+      current.removeEventListener("position-updated", onPosition);
+      current.removeEventListener("zoom-updated", onZoom);
+      const canvas = current.container.querySelector<HTMLCanvasElement>(".psv-canvas");
+      const lose = canvas
+        ?.getContext("webgl2")
+        ?.getExtension("WEBGL_lose_context");
+      try {
+        current.destroy();
+      } finally {
+        lose?.loseContext();
+      }
+    };
+
+    const mount = (panoramaSrc: string) => {
+      if (cancelled || !host) return;
+      try {
+        SYSTEM.load();
+        const zoomLvl = Math.round(
+          ((MAX_FOV - seed.fov) / (MAX_FOV - MIN_FOV)) * 100,
+        );
+        const canOrbit = orbitRef.current;
+        viewer = new Viewer({
+          container: host,
+          panorama: panoramaSrc,
+          navbar: false,
+          loadingTxt: "",
+          canvasBackground: "#0a0a0c",
+          mousewheel: canOrbit,
+          mousemove: canOrbit,
+          touchmoveTwoFingers: false,
+          moveInertia: false,
+          defaultZoomLvl: Math.max(0, Math.min(100, zoomLvl)),
+          defaultYaw: seed.yaw,
+          defaultPitch: seed.pitch,
+          minFov: MIN_FOV,
+          maxFov: MAX_FOV,
+          rendererParameters: {
+            antialias: true,
+            alpha: false,
+            preserveDrawingBuffer: true,
+          },
+        });
+        viewerRef.current = viewer;
+        viewer.addEventListener("ready", onReadyEvt);
+        viewer.addEventListener("panorama-error", onErrorEvt);
+        viewer.addEventListener("position-updated", onPosition);
+        viewer.addEventListener("zoom-updated", onZoom);
+
+        const api: PanoramaViewerApi = {
+          canvas: () => {
+            if (!viewer) return null;
+            viewer.needsUpdate();
+            return pickCanvas();
+          },
+          captureCanvas: async () => {
+            if (!viewer) return null;
+            viewer.needsUpdate();
+            await waitFrames(2);
+            if (!viewer) return null;
+            viewer.needsUpdate();
+            await waitFrames(1);
+            return pickCanvas();
+          },
+          getView: () => readView(),
+          setView: (next) => {
+            if (!viewer) return;
+            const current = readView();
+            const yaw = typeof next.yaw === "number" ? next.yaw : current.yaw;
+            const pitch =
+              typeof next.pitch === "number"
+                ? clampPitch(next.pitch)
+                : current.pitch;
+            const fov =
+              typeof next.fov === "number" ? clampFov(next.fov) : current.fov;
+            viewer.rotate({ yaw, pitch });
+            viewer.zoom(viewer.dataHelper.fovToZoomLevel(fov));
+            emitView();
+          },
+          resetView: () => {
+            if (!viewer) return;
+            viewer.rotate({
+              yaw: DEFAULT_VIEW.yaw,
+              pitch: DEFAULT_VIEW.pitch,
+            });
+            viewer.zoom(viewer.dataHelper.fovToZoomLevel(DEFAULT_VIEW.fov));
+            emitView();
+          },
+        };
+        onReadyRef.current?.(api);
+      } catch {
+        if (!cancelled) setStatus("error");
+        destroyViewer();
+        host.replaceChildren();
+      }
+    };
+
     if (/^https?:/i.test(url)) {
       void fetchRemoteImageBlob(url)
         .then((blob) => {
           if (cancelled) return;
           objectUrl = URL.createObjectURL(blob);
-          applyTexture(objectUrl);
+          mount(objectUrl);
         })
         .catch(() => {
           if (!cancelled) setStatus("error");
         });
     } else {
-      applyTexture(url);
+      mount(url);
     }
-
-    let dragging = false;
-    let lastX = 0;
-    let lastY = 0;
-    const canvas = renderer.domElement;
-
-    const emitView = () => onViewChangeRef.current?.({ ...view });
-
-    const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0) return;
-      dragging = true;
-      lastX = event.clientX;
-      lastY = event.clientY;
-      canvas.setPointerCapture(event.pointerId);
-    };
-    const onPointerMove = (event: PointerEvent) => {
-      if (!dragging) return;
-      const dx = event.clientX - lastX;
-      const dy = event.clientY - lastY;
-      lastX = event.clientX;
-      lastY = event.clientY;
-      view.yaw -= dx * 0.005;
-      view.pitch = Math.max(
-        -1.2,
-        Math.min(1.2, view.pitch + dy * 0.005),
-      );
-      applyCamera();
-      emitView();
-    };
-    const onPointerUp = () => {
-      dragging = false;
-    };
-    const onWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const next = view.fov + event.deltaY * 0.05;
-      view.fov = Math.max(35, Math.min(110, next));
-      applyCamera();
-      emitView();
-    };
-
-    if (orbit) {
-      canvas.addEventListener("pointerdown", onPointerDown);
-      canvas.addEventListener("pointermove", onPointerMove);
-      canvas.addEventListener("pointerup", onPointerUp);
-      canvas.addEventListener("pointercancel", onPointerUp);
-      canvas.addEventListener("wheel", onWheel, { passive: false });
-    }
-
-    let frame = 0;
-    const loop = () => {
-      frame = requestAnimationFrame(loop);
-      renderer.render(scene, camera);
-    };
-    loop();
-
-    const api: PanoramaViewerApi = {
-      canvas: () => {
-        renderer.render(scene, camera);
-        return renderer.domElement;
-      },
-      getView: () => ({ ...view }),
-      setView: (next) => {
-        if (typeof next.yaw === "number") view.yaw = next.yaw;
-        if (typeof next.pitch === "number") {
-          view.pitch = Math.max(-1.2, Math.min(1.2, next.pitch));
-        }
-        if (typeof next.fov === "number") {
-          view.fov = Math.max(35, Math.min(110, next.fov));
-        }
-        applyCamera();
-        emitView();
-      },
-      resetView: () => {
-        view.yaw = DEFAULT_VIEW.yaw;
-        view.pitch = DEFAULT_VIEW.pitch;
-        view.fov = DEFAULT_VIEW.fov;
-        applyCamera();
-        emitView();
-      },
-    };
-    onReadyRef.current?.(api);
 
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
-      cancelAnimationFrame(frame);
-      ro.disconnect();
-      if (orbit) {
-        canvas.removeEventListener("pointerdown", onPointerDown);
-        canvas.removeEventListener("pointermove", onPointerMove);
-        canvas.removeEventListener("pointerup", onPointerUp);
-        canvas.removeEventListener("pointercancel", onPointerUp);
-        canvas.removeEventListener("wheel", onWheel);
-      }
-      material.map?.dispose();
-      material.dispose();
-      geometry.dispose();
-      renderer.dispose();
-      renderer.domElement.remove();
+      destroyViewer();
+      host.replaceChildren();
     };
-    // initialView only seeds the first mount
+    // initialView only seeds the first mount; orbit toggles via setOptions
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, active, orbit]);
+  }, [url, active]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    try {
+      viewer.setOptions({
+        mousemove: orbit,
+        mousewheel: orbit,
+      });
+    } catch {
+      /* viewer may be disposing */
+    }
+  }, [orbit]);
 
   if (!active) {
     return (
       <div
-        className={cn("grid h-full w-full place-items-center bg-black/80", className)}
+        className={cn(
+          "grid h-full w-full place-items-center bg-black/80",
+          className,
+        )}
       />
     );
   }
 
   return (
     <div
-      ref={hostRef}
       className={cn(
-        "relative h-full w-full touch-none",
+        "relative h-full w-full overflow-hidden",
         orbit
-          ? "cursor-grab active:cursor-grabbing"
+          ? "cursor-grab touch-none active:cursor-grabbing"
           : "pointer-events-none",
         className,
       )}
       data-canvas-no-zoom={orbit ? true : undefined}
       onPointerDown={orbit ? (event) => event.stopPropagation() : undefined}
+      onWheel={orbit ? (event) => event.stopPropagation() : undefined}
     >
+      <div ref={hostRef} className="absolute inset-0 joy-psv-host" />
       {status === "loading" ? (
         <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-black/35 text-[11px] text-white/80">
           正在加载全景…

@@ -70,6 +70,7 @@ export function TextNode({ node, onPointerDown }: Props) {
           label={title}
           customTitle={String(node.data.title ?? "")}
           visible={selected || hovered}
+          onDragPointerDown={onPointerDown}
         />
         <div className="relative flex h-full flex-col overflow-hidden rounded-md border border-border/70 bg-card/80">
           <button

@@ -1,18 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, Download, Loader2 } from "lucide-react";
+import { Download, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/shared/lib/toast";
+import { confirmDialog } from "@/shared/lib/confirm";
 import { cn } from "@/shared/lib/utils";
 import { ManjuModelBar } from "./manju-studio";
 import { ManjuStepNav } from "./manju-step-nav";
+import { ManjuGenerateCombo } from "./manju-generate-combo";
+import {
+  ManjuHeaderSlotsProvider,
+  useManjuHeaderSlotView,
+} from "./manju-header-slots";
 import { useManjuStore } from "./manju-store";
 import { useManjuJobBridge } from "./use-manju-jobs";
 import {
   getNextStep,
-  getStepById,
   MANJU_STEPS,
   type ManjuStepId,
 } from "./config/manju-steps";
@@ -51,6 +56,14 @@ function parseStep(raw: string | null, panel: string | null): ManjuStepId {
 }
 
 export function ManjuWorkbench({ projectId }: { projectId: string }) {
+  return (
+    <ManjuHeaderSlotsProvider>
+      <ManjuWorkbenchBody projectId={projectId} />
+    </ManjuHeaderSlotsProvider>
+  );
+}
+
+function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const project = useManjuStore((s) =>
@@ -64,6 +77,11 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
   const saving = useManjuStore((s) => Boolean(s.savingIds[projectId]));
   const analyzing = useManjuStore((s) => Boolean(s.analyzingIds[projectId]));
   const [loading, setLoading] = useState(!project);
+  const { toolbar, generateAction, tools } = useManjuHeaderSlotView();
+  const heldAction = useRef(generateAction);
+  const heldTools = useRef(tools);
+  if (generateAction) heldAction.current = generateAction;
+  if (tools) heldTools.current = tools;
 
   const panel = searchParams.get("panel") as ManjuPanel | null;
   const step = parseStep(searchParams.get("step"), panel);
@@ -141,12 +159,54 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
     [hrefFor, router],
   );
 
-  const advance = useCallback(() => {
+  const advance = useCallback(async () => {
     if (!project) return;
     const gate = stepCanAdvance(step, project);
     if (!gate.ok) {
       toast.error(gate.reason ?? "这一步还没完成");
       return;
+    }
+    if (step === "assets") {
+      const hasShots = project.shots.length > 0;
+      const ok = await confirmDialog({
+        title: hasShots ? "确认重新进入分镜脚本？" : "确认进入分镜脚本？",
+        description: hasShots
+          ? "将根据剧本与资产规划分镜。已有镜头文案可能被覆盖，分镜图和视频会尽量保留。"
+          : "将根据剧本与已配图资产拆解分镜，并为镜头关联场景、角色、道具。是否继续？",
+        confirmText: hasShots ? "确认并规划" : "确认并生成",
+        cancelText: "取消",
+      });
+      if (!ok) return;
+      if (project.scriptText.trim().length >= 20) {
+        try {
+          setAnalyzing(projectId, true);
+          await flushSave(projectId);
+          await submitWorkflowSkill({
+            project,
+            skill: "script_plan",
+            episodeId,
+          });
+          toast.success("已提交分镜规划");
+        } catch (e) {
+          setAnalyzing(projectId, false);
+          toast.error(e instanceof Error ? e.message : "分镜规划提交失败");
+          return;
+        }
+      }
+    }
+    if (step === "storyboard-script") {
+      if (!project.scriptConfirmed) {
+        toast.error("请先「确认脚本」，再进分镜视频");
+        return;
+      }
+      const ok = await confirmDialog({
+        title: "进入分镜视频？",
+        description:
+          "将按已确认的分镜脚本生成镜头视频。图生视频模式下，没有分镜静帧的镜头会被跳过。",
+        confirmText: "进入视频",
+        cancelText: "取消",
+      });
+      if (!ok) return;
     }
     markStepComplete(projectId, step);
     const next = getNextStep(step);
@@ -155,7 +215,16 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
       return;
     }
     go(next.id);
-  }, [go, markStepComplete, project, projectId, step]);
+  }, [
+    episodeId,
+    flushSave,
+    go,
+    markStepComplete,
+    project,
+    projectId,
+    setAnalyzing,
+    step,
+  ]);
 
   const exportJson = useCallback(() => {
     if (!project) return;
@@ -174,7 +243,6 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
     URL.revokeObjectURL(url);
   }, [project]);
 
-  const meta = useMemo(() => getStepById(step), [step]);
   const nextStep = getNextStep(step);
   const suggested = useMemo(
     () => (project ? getWorkflowNextAction(project) : null),
@@ -218,7 +286,10 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
         go("storyboard-script", { view: "prompts" });
       } else if (suggested.skill === "script_plan") {
         go("storyboard-script");
-      } else if (suggested.skill === "plan_episodes") {
+      } else if (
+        suggested.skill === "plan_episodes" ||
+        suggested.skill === "series_memory"
+      ) {
         go("script");
       } else {
         go("assets");
@@ -256,6 +327,60 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
     );
   }
 
+  const gate = stepCanAdvance(step, project);
+  const showGenerateSlot =
+    step === "assets" ||
+    (step === "storyboard-script" && view !== "prompts") ||
+    step === "storyboard-video" ||
+    step === "preview";
+  const action = showGenerateSlot
+    ? (generateAction ?? heldAction.current)
+    : null;
+  const headerTools = !showGenerateSlot
+    ? null
+    : tools
+      ? tools
+      : generateAction
+        ? null
+        : heldTools.current;
+
+  const episodeChips =
+    project.episodes.length > 0 &&
+    (step === "storyboard-script" ||
+      step === "storyboard-video" ||
+      step === "preview") ? (
+      <>
+        <span className="mx-1 hidden h-4 w-px bg-border sm:inline-block" />
+        <button
+          type="button"
+          className={cn("manju-chip", !episodeId && "manju-chip--active")}
+          onClick={() =>
+            go(step, {
+              ep: null,
+              view: step === "storyboard-script" ? view : null,
+            })
+          }
+        >
+          全部
+        </button>
+        {project.episodes.map((ep, i) => (
+          <button
+            key={ep.id}
+            type="button"
+            className={cn("manju-chip", episodeId === ep.id && "manju-chip--active")}
+            onClick={() =>
+              go(step, {
+                ep: ep.id,
+                view: step === "storyboard-script" ? view : null,
+              })
+            }
+          >
+            {String(i + 1).padStart(2, "0")} {ep.title}
+          </button>
+        ))}
+      </>
+    ) : null;
+
   return (
     <div className="manju-workbench">
       <ManjuStepNav
@@ -269,116 +394,126 @@ export function ManjuWorkbench({ projectId }: { projectId: string }) {
       <section className="manju-main">
         <header className="manju-main__header">
           <div className="manju-main__header-left">
-            <div className="manju-main__step-title">
-              {String(meta.index).padStart(2, "0")} {meta.label}
+            <div className="manju-main__header-toolbar">
+              {step === "storyboard-script" ? (
+                <>
+                  <button
+                    type="button"
+                    className={cn(
+                      "manju-chip",
+                      view !== "prompts" && "manju-chip--active",
+                    )}
+                    onClick={() => go("storyboard-script", { view: null })}
+                  >
+                    分镜
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "manju-chip",
+                      view === "prompts" && "manju-chip--active",
+                    )}
+                    onClick={() => go("storyboard-script", { view: "prompts" })}
+                  >
+                    提示词
+                  </button>
+                </>
+              ) : null}
+              {toolbar}
+              {episodeChips}
             </div>
-            <p className="manju-main__step-hint">{meta.hint}</p>
           </div>
-          <div className="manju-main__header-right">
-            <span className="hidden text-[11px] text-muted-foreground sm:inline">
-              {saving ? "保存中…" : "已同步"}
-            </span>
-            {suggested &&
-            !(
-              !suggested.skill &&
-              suggested.stepId === step &&
-              suggested.label !== "确认脚本" &&
-              !(suggested.panel === "prompts" && view !== "prompts")
-            ) ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={analyzing}
-                title={suggested.detail}
-                onClick={() => void runSuggested()}
-              >
-                {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {suggested.label}
-              </Button>
+          <div className="manju-main__actions">
+            <button
+              type="button"
+              className="manju-tool-btn"
+              onClick={exportJson}
+              title="导出完整草稿 JSON（不含拼接成片）"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="manju-tool-btn__label">导出</span>
+            </button>
+            {headerTools ? (
+              <>
+                <button
+                  type="button"
+                  className="manju-tool-btn"
+                  disabled={headerTools.add.disabled || headerTools.add.loading}
+                  onClick={headerTools.add.onClick}
+                >
+                  {headerTools.add.loading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
+                  <span className="manju-tool-btn__label">
+                    {headerTools.add.label}
+                  </span>
+                </button>
+                {headerTools.secondary ? (
+                  <button
+                    type="button"
+                    className="manju-tool-btn manju-tool-btn--wide"
+                    disabled={
+                      headerTools.secondary.disabled ||
+                      headerTools.secondary.loading
+                    }
+                    onClick={headerTools.secondary.onClick}
+                  >
+                    {headerTools.secondary.loading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : null}
+                    <span className="manju-tool-btn__label">
+                      {headerTools.secondary.label}
+                    </span>
+                  </button>
+                ) : null}
+                {headerTools.tertiary ? (
+                  <button
+                    type="button"
+                    className="manju-tool-btn manju-tool-btn--wide"
+                    disabled={
+                      headerTools.tertiary.disabled ||
+                      headerTools.tertiary.loading
+                    }
+                    onClick={headerTools.tertiary.onClick}
+                  >
+                    {headerTools.tertiary.loading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : null}
+                    <span className="manju-tool-btn__label">
+                      {headerTools.tertiary.label}
+                    </span>
+                  </button>
+                ) : null}
+              </>
             ) : null}
-            <Button variant="outline" size="sm" onClick={exportJson}>
-              <Download className="h-4 w-4" />
-              导出
-            </Button>
+            {action ? (
+              <ManjuGenerateCombo
+                label={action.label}
+                onPrimary={action.onPrimary}
+                onOpenSettings={action.onOpenSettings}
+                disabled={action.disabled}
+                primaryDisabled={action.primaryDisabled}
+                loading={action.loading || analyzing}
+              />
+            ) : null}
             {nextStep ? (
-              <Button size="sm" onClick={advance}>
-                下一步 · {nextStep.label}
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <button
+                type="button"
+                className="manju-next-btn"
+                disabled={!gate.ok || analyzing}
+                title={gate.ok ? undefined : gate.reason}
+                onClick={() => void advance()}
+              >
+                <span className="manju-next-btn__label">
+                  下一步：{nextStep.label}
+                </span>
+              </button>
             ) : null}
           </div>
         </header>
         <div className="manju-main__body">
-          {step === "storyboard-script" ? (
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className={cn("manju-chip", view !== "prompts" && "manju-chip--active")}
-                onClick={() => go("storyboard-script", { view: null })}
-              >
-                分镜
-              </button>
-              <button
-                type="button"
-                className={cn("manju-chip", view === "prompts" && "manju-chip--active")}
-                onClick={() => go("storyboard-script", { view: "prompts" })}
-              >
-                提示词
-              </button>
-              {project.episodes.length > 0 ? (
-                <>
-                  <span className="mx-1 h-4 w-px bg-border" />
-                  <button
-                    type="button"
-                    className={cn("manju-chip", !episodeId && "manju-chip--active")}
-                    onClick={() => go(step, { ep: null, view })}
-                  >
-                    全部
-                  </button>
-                  {project.episodes.map((ep, i) => (
-                    <button
-                      key={ep.id}
-                      type="button"
-                      className={cn(
-                        "manju-chip",
-                        episodeId === ep.id && "manju-chip--active",
-                      )}
-                      onClick={() => go(step, { ep: ep.id, view })}
-                    >
-                      {String(i + 1).padStart(2, "0")} {ep.title}
-                    </button>
-                  ))}
-                </>
-              ) : null}
-            </div>
-          ) : null}
-          {step === "storyboard-video" || step === "preview" ? (
-            project.episodes.length > 0 ? (
-              <div className="mb-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={cn("manju-chip", !episodeId && "manju-chip--active")}
-                  onClick={() => go(step, { ep: null })}
-                >
-                  全部
-                </button>
-                {project.episodes.map((ep, i) => (
-                  <button
-                    key={ep.id}
-                    type="button"
-                    className={cn(
-                      "manju-chip",
-                      episodeId === ep.id && "manju-chip--active",
-                    )}
-                    onClick={() => go(step, { ep: ep.id })}
-                  >
-                    {String(i + 1).padStart(2, "0")} {ep.title}
-                  </button>
-                ))}
-              </div>
-            ) : null
-          ) : null}
-
           {step === "script" ? <ScriptStep project={project} /> : null}
           {step === "video-settings" ? (
             <div className="flex flex-col gap-4">

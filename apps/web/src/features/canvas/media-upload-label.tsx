@@ -4,6 +4,7 @@ import { useRef } from "react";
 import type { CanvasNode } from "@joyai/shared";
 import { cn } from "@/shared/lib/utils";
 import { uploadFileIntoNode } from "./lib/upload-to-node";
+import { CanvasIconClose } from "./icons/canvas-icons";
 
 type Kind = "image" | "video" | "panorama" | "audio";
 
@@ -35,11 +36,14 @@ export function MediaBusyState({
   label = "上传中…",
   className,
   overlay = false,
+  onCancel,
 }: {
   label?: string;
   className?: string;
   /** Cover existing media during replace uploads. */
   overlay?: boolean;
+  /** Show interrupt control while a generation job is running. */
+  onCancel?: () => void;
 }) {
   return (
     <div
@@ -52,6 +56,7 @@ export function MediaBusyState({
       aria-live="polite"
     >
       <div className="joy-media-busy-sheen" aria-hidden />
+      <div className="joy-media-busy-glow" aria-hidden />
       <div className="joy-media-busy-core">
         <span className="joy-media-busy-ring" aria-hidden>
           <svg viewBox="0 0 36 36">
@@ -63,6 +68,20 @@ export function MediaBusyState({
         <span className="joy-media-busy-bar" aria-hidden>
           <span />
         </span>
+        {onCancel ? (
+          <button
+            type="button"
+            className="joy-media-busy-cancel"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              onCancel();
+            }}
+          >
+            <CanvasIconClose className="size-3" />
+            中断
+          </button>
+        ) : null}
       </div>
     </div>
   );

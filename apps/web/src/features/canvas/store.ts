@@ -36,6 +36,8 @@ type HistoryFrame = {
   viewport: Viewport;
   nodes: CanvasNode[];
   edges: CanvasEdge[];
+  selectedIds: string[];
+  selectedEdgeId: string | null;
 };
 
 type CanvasState = {
@@ -107,11 +109,33 @@ function cloneFrame(
   viewport: Viewport,
   nodes: CanvasNode[],
   edges: CanvasEdge[],
+  selectedIds: string[],
+  selectedEdgeId: string | null,
 ): HistoryFrame {
   return {
     viewport: { ...viewport },
     nodes: nodes.map((n) => ({ ...n, data: { ...n.data } })),
     edges: edges.map((e) => ({ ...e })),
+    selectedIds: [...selectedIds],
+    selectedEdgeId,
+  };
+}
+
+function restoreSelection(
+  nodes: CanvasNode[],
+  edges: CanvasEdge[],
+  selectedIds: string[] | undefined,
+  selectedEdgeId: string | null | undefined,
+) {
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  const nextSelected = (selectedIds ?? []).filter((id) => nodeIds.has(id));
+  const edgeOk =
+    selectedEdgeId && edges.some((e) => e.id === selectedEdgeId)
+      ? selectedEdgeId
+      : null;
+  return {
+    selectedIds: nextSelected,
+    selectedEdgeId: edgeOk,
   };
 }
 
@@ -201,41 +225,77 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set({ selectedEdgeId: id, selectedIds: id ? [] : get().selectedIds }),
 
   pushHistory: () => {
-    const { viewport, nodes, edges, past } = get();
+    const { viewport, nodes, edges, past, selectedIds, selectedEdgeId } =
+      get();
     set({
-      past: [...past.slice(-39), cloneFrame(viewport, nodes, edges)],
+      past: [
+        ...past.slice(-39),
+        cloneFrame(viewport, nodes, edges, selectedIds, selectedEdgeId),
+      ],
       future: [],
     });
   },
 
   undo: () => {
-    const { past, future, viewport, nodes, edges } = get();
+    const {
+      past,
+      future,
+      viewport,
+      nodes,
+      edges,
+      selectedIds,
+      selectedEdgeId,
+    } = get();
     const prev = past[past.length - 1];
     if (!prev) return;
+    const selection = restoreSelection(
+      prev.nodes,
+      prev.edges,
+      prev.selectedIds,
+      prev.selectedEdgeId,
+    );
     set({
       past: past.slice(0, -1),
-      future: [cloneFrame(viewport, nodes, edges), ...future],
+      future: [
+        cloneFrame(viewport, nodes, edges, selectedIds, selectedEdgeId),
+        ...future,
+      ],
       viewport: prev.viewport,
       nodes: prev.nodes,
       edges: prev.edges,
-      selectedIds: [],
-      selectedEdgeId: null,
+      ...selection,
       dirty: true,
     });
   },
 
   redo: () => {
-    const { past, future, viewport, nodes, edges } = get();
+    const {
+      past,
+      future,
+      viewport,
+      nodes,
+      edges,
+      selectedIds,
+      selectedEdgeId,
+    } = get();
     const next = future[0];
     if (!next) return;
+    const selection = restoreSelection(
+      next.nodes,
+      next.edges,
+      next.selectedIds,
+      next.selectedEdgeId,
+    );
     set({
       future: future.slice(1),
-      past: [...past, cloneFrame(viewport, nodes, edges)],
+      past: [
+        ...past,
+        cloneFrame(viewport, nodes, edges, selectedIds, selectedEdgeId),
+      ],
       viewport: next.viewport,
       nodes: next.nodes,
       edges: next.edges,
-      selectedIds: [],
-      selectedEdgeId: null,
+      ...selection,
       dirty: true,
     });
   },

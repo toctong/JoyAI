@@ -47,6 +47,7 @@ export function DirectorNode({ node, onPointerDown, onOpenDirector }: Props) {
         label={nodeTitleLabel("director", node.data)}
         customTitle={String(node.data.title ?? "")}
         visible={selected || hovered}
+        onDragPointerDown={onPointerDown}
       />
       <div className="flex h-full flex-col items-center justify-center gap-2 rounded-md border border-border bg-card p-3 text-center">
         <CanvasIconDirector className="size-7 text-primary/80" />

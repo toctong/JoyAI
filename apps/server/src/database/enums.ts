@@ -7,6 +7,7 @@ export enum JobKind {
   image = "image",
   video = "video",
   llm = "llm",
+  audio = "audio",
 }
 
 export enum JobStatus {

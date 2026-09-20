@@ -10,12 +10,16 @@ import type {
   ManjuShotDraft,
   ManjuVideoSettings,
 } from "../manju-types";
+import { resolveManjuGenMode } from "../manju-types";
+import { assetRegistryName } from "./asset-registry";
 
 export type ReferenceSlot = {
   /** 1-based 「图N」 */
   index: number;
   asset: ManjuAssetDraft;
   label: string;
+  /** @[登记名] 匹配键，含 @[本体/衍生] */
+  registryName: string;
 };
 
 const IMAGE_AVOID =
@@ -62,11 +66,15 @@ export function resolveShotReferenceSlots(
   const ordered = kindOrder.flatMap((kind) =>
     linked.filter((a) => a.kind === kind),
   );
-  return ordered.map((asset, i) => ({
-    index: i + 1,
-    asset,
-    label: `${KIND_LABEL[asset.kind]}「${asset.name}」`,
-  }));
+  return ordered.map((asset, i) => {
+    const registryName = assetRegistryName(asset, project.assets);
+    return {
+      index: i + 1,
+      asset,
+      label: `${KIND_LABEL[asset.kind]}「${registryName}」`,
+      registryName,
+    };
+  });
 }
 
 export function referenceDeclaration(slots: ReferenceSlot[]): string {
@@ -76,15 +84,20 @@ export function referenceDeclaration(slots: ReferenceSlot[]): string {
     .join("；")}。画面中上述主体须与对应参考图外观一致，不要另起炉灶改造型。`;
 }
 
-/** 把 @[登记名] 换成「图N」；对不上的保留原 mention */
+/** 把 @[登记名] 或 @[本体/衍生] 换成「图N」；对不上的保留原 mention */
 export function renderReferenceMentions(
   text: string,
   slots: ReferenceSlot[],
 ): string {
   if (!text) return text;
-  const byName = new Map(
-    slots.map((s) => [s.asset.name.trim(), s.index] as const),
-  );
+  const byName = new Map<string, number>();
+  for (const s of slots) {
+    byName.set(s.registryName, s.index);
+    byName.set(s.asset.name.trim(), s.index);
+    for (const al of s.asset.aliases ?? []) {
+      if (al.trim()) byName.set(al.trim(), s.index);
+    }
+  }
   return text.replace(/@\[([^\]]+)\]/g, (full, name: string) => {
     const idx = byName.get(String(name).trim());
     return idx != null ? `图${idx}` : full;
@@ -131,15 +144,24 @@ function assetAvoid(kind: ManjuAssetDraft["kind"]): string {
 export function buildAssetImagePrompt(
   asset: ManjuAssetDraft,
   settings: ManjuVideoSettings,
+  allAssets: ManjuAssetDraft[] = [],
 ): string {
-  const title = `${KIND_LABEL[asset.kind]}设定图：${asset.name.trim() || "未命名"}`;
+  const reg =
+    allAssets.length > 0
+      ? assetRegistryName(asset, allAssets)
+      : asset.name.trim() || "未命名";
+  const title = `${KIND_LABEL[asset.kind]}设定图：${reg}`;
   const desc =
     asset.description.trim() ||
     "（请补充外貌 / 服饰 / 材质 / 氛围的叙事描述）";
+  const derivativeHint = asset.parentId
+    ? "此为同一角色的衍生造型（换装/变身），五官体型须与本体一致，仅服饰造型不同。"
+    : null;
   return trimJoin([
     title,
     styleLine(settings),
     `描述：${desc}`,
+    derivativeHint,
     assetLayout(asset.kind),
     assetGuard(asset.kind),
     assetAvoid(asset.kind),
@@ -190,6 +212,53 @@ export function buildStoryboardImagePrompt(
   ]);
 }
 
+/** 多宫格整图提示词：按格顺序描述 */
+export function buildGridStoryboardImagePrompt(
+  shots: ManjuShotDraft[],
+  project: ManjuProjectDraft,
+  layout: "2x2" | "3x3",
+): string {
+  const { rows, cols, cells } = (() => {
+    if (layout === "3x3") return { rows: 3, cols: 3, cells: 9 };
+    return { rows: 2, cols: 2, cells: 4 };
+  })();
+  const cellsText = shots
+    .slice(0, cells)
+    .map((shot, i) => {
+      const r = Math.floor(i / cols) + 1;
+      const c = (i % cols) + 1;
+      const body =
+        shot.imagePrompt?.trim() ||
+        shot.visual.trim() ||
+        `第 ${i + 1} 镜`;
+      return `格${r}-${c}：${body}`;
+    })
+    .join("\n");
+
+  // 收集出场资产参考（并集）
+  const assetIds = new Set(shots.flatMap((s) => s.assetRefs));
+  const linked = project.assets.filter(
+    (a) => assetIds.has(a.id) && (a.assetId || a.imageUrl),
+  );
+  const slots: ReferenceSlot[] = linked.map((asset, i) => ({
+    index: i + 1,
+    asset,
+    label: `${KIND_LABEL[asset.kind]}「${assetRegistryName(asset, project.assets)}」`,
+    registryName: assetRegistryName(asset, project.assets),
+  }));
+
+  return trimJoin([
+    `${rows}×${cols} 宫格分镜故事板，严格均分无${rows * cols} 格，从左到右、从上到下排列，格间无重叠无文字编号`,
+    `画幅 ${project.settings.ratio}`,
+    styleLine(project.settings),
+    referenceDeclaration(slots),
+    "各格内容：",
+    cellsText,
+    "同一角色跨格造型一致，光影色调连贯，每格都是完整可读的单帧画面。",
+    `Avoid: 格间文字标签、字幕、水印、不均分切分、${IMAGE_AVOID}`,
+  ]);
+}
+
 // ---------------------------------------------------------------------------
 // 分镜生视频
 // ---------------------------------------------------------------------------
@@ -212,7 +281,7 @@ export function buildStoryboardVideoPrompt(
     continuityHint?: string | null;
   },
 ): string {
-  const mode = options?.mode ?? project.settings.mode;
+  const mode = resolveManjuGenMode(options?.mode ?? project.settings.mode);
   const refs = options?.slots ?? resolveShotReferenceSlots(shot, project);
   const raw = shot.videoPrompt?.trim() || fallbackVideoBody(shot);
   const body = renderReferenceMentions(raw, refs);
@@ -225,11 +294,9 @@ export function buildStoryboardVideoPrompt(
   const modeHint =
     mode === "ref"
       ? "全能参考：外观以参考图为准，正文不要复述外貌服装，专注动作、运镜与气氛。"
-      : mode === "grid"
-        ? "多宫格分镜延续：保持相邻格人物造型与光影连续。"
-        : continuity
-          ? null
-          : "图生视频：以首帧分镜图为起点，自然演绎镜头内动作，保持人物造型与场景一致。";
+      : continuity
+        ? null
+        : "图生视频：以首帧分镜图为起点，自然演绎镜头内动作，保持人物造型与场景一致。";
 
   return trimJoin([
     `镜头时长约 ${duration} 秒，画幅 ${project.settings.ratio}`,

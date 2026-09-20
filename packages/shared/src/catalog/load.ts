@@ -7,7 +7,7 @@ import dashscope from "./dashscope.json";
 import apimart from "./apimart.json";
 import toapis from "./toapis.json";
 
-/** One channel catalog JSON: three blocks for easy editing. */
+/** One channel catalog JSON: kind blocks for easy editing. */
 export type ChannelCatalogJson = {
   platform: string;
   updatedAt?: string;
@@ -15,6 +15,7 @@ export type ChannelCatalogJson = {
   llm?: CatalogModelJson[];
   image?: CatalogModelJson[];
   video?: CatalogModelJson[];
+  audio?: CatalogModelJson[];
 };
 
 /** Model entry inside a kind block — `kind` comes from the block name. */
@@ -30,7 +31,7 @@ export type CatalogModelJson = {
   isDefault?: boolean;
 };
 
-const KIND_BLOCKS = ["llm", "image", "video"] as const;
+const KIND_BLOCKS = ["llm", "image", "video", "audio"] as const;
 
 function syncResolutions(
   pricing: ModelPricing | undefined,
@@ -76,7 +77,7 @@ function enrichCapabilities(
   return caps;
 }
 
-/** Flatten `{ llm, image, video }` → CatalogModel[] with kind + adapterId. */
+/** Flatten `{ llm, image, video, audio }` → CatalogModel[] with kind + adapterId. */
 export function flattenChannelCatalog(
   doc: ChannelCatalogJson,
 ): CatalogModel[] {

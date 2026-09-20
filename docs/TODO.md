@@ -105,6 +105,28 @@
 - [x] 安装 `three`；接入 `/director` 静态导演台（非自研舞台）
 - [x] 打开即可用；可选连入全景/图像；截图/视频落画布 Asset
 
+## Phase 17 — 批量出图 / 项目 JSON / Agent
+
+- [x] 生图张数 1–4 + 多结果落点
+- [x] 项目 JSON 导出/导入（顶栏 + 项目库）；创建可带 snapshot
+- [x] 画布 Agent MVP（右侧 AI 面板，JSON actions，无 Codex/MCP）
+
+## Phase 18 — 摄像机 / 选区历史 / 视频首尾帧
+
+- [x] 摄像机控制写入图/视频 prompt
+- [x] 撤销重做恢复选区
+- [x] 视频首/尾帧槽位 + first_last 参考序
+
+## Phase 19 — 图片组叠卡
+
+- [x] 多图结果自动成组；折叠叠卡 / 展开网格；设为主图
+
+## Phase 20 — TTS 语音生成（MVP）
+
+- [x] `kind:audio` Job + OpenAI-compatible `/audio/speech`
+- [x] 画布音频节点：文本 → 语音（音色 / 格式 / 语速）
+- [ ] 全量 TTS 供应商面板（Gemini / MiMo / Grok / GLM…）— 明确不做
+
 ## 本地启动（需自行安装依赖）
 
 ```bash

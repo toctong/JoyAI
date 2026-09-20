@@ -1,6 +1,7 @@
 "use client";
 
 import { CanvasIconFolderPlus } from "./icons/canvas-icons";
+import { ProjectCover } from "./project-cover";
 import { cn } from "@/shared/lib/utils";
 import "./folder-art.css";
 
@@ -41,12 +42,11 @@ export function FolderArt({ covers }: Props) {
                 className={cn("joy-folder__card", `is-${LAYERS[index]}`)}
               >
                 <span className="joy-folder__tape" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt=""
+                <ProjectCover
+                  url={url}
                   className="joy-folder__sheet"
-                  draggable={false}
+                  emptyClassName="joy-folder__sheet is-empty"
+                  showVideoMark={false}
                 />
               </span>
             ))}

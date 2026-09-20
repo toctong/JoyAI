@@ -139,6 +139,8 @@ export class JobTimeoutSweeper implements OnModuleInit, OnModuleDestroy {
     }
     return job.kind === JobKind.video
       ? "视频任务执行超时，已自动结束"
-      : "图片任务执行超时，已自动结束";
+      : job.kind === JobKind.audio
+        ? "音频任务执行超时，已自动结束"
+        : "图片任务执行超时，已自动结束";
   }
 }

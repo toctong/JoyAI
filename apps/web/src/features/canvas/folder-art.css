@@ -152,14 +152,15 @@
   height: 100%;
   object-fit: cover;
   border-radius: 4px;
-  background: #111;
+  background: var(--muted);
+  overflow: hidden;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
     0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .joy-folder__sheet.is-empty {
-  background: linear-gradient(180deg, #3a3a40 0%, #2a2a30 100%);
+  background: var(--muted);
 }
 
 :root:not(.dark) .joy-folder__sheet {
@@ -169,7 +170,7 @@
 }
 
 :root:not(.dark) .joy-folder__sheet.is-empty {
-  background: linear-gradient(180deg, #fff 0%, #f3efe8 100%);
+  background: var(--muted);
 }
 
 .joy-folder__tape {

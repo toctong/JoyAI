@@ -16,6 +16,7 @@ import { User } from "../../database/entities/user.entity";
 import { JobKind, JobStatus } from "../../database/enums";
 import { ChannelsService } from "../channels/channels.service";
 import { AssetsService } from "../assets/assets.service";
+import { RealtimeGateway } from "../realtime/realtime.gateway";
 
 type JobWithAssets = Job & { assets: Asset[] };
 type JobListRow = Omit<Job, "assignId"> & {
@@ -30,9 +31,12 @@ export class JobsService {
     @InjectRepository(Model) private readonly models: Repository<Model>,
     private readonly channels: ChannelsService,
     private readonly assets: AssetsService,
+    private readonly realtime: RealtimeGateway,
     @InjectQueue(QUEUE.IMAGE) private readonly imageQueue: Queue,
     @InjectQueue(QUEUE.VIDEO_SUBMIT) private readonly videoSubmitQueue: Queue,
+    @InjectQueue(QUEUE.VIDEO_POLL) private readonly videoPollQueue: Queue,
     @InjectQueue(QUEUE.LLM) private readonly llmQueue: Queue,
+    @InjectQueue(QUEUE.AUDIO) private readonly audioQueue: Queue,
   ) {}
 
   async create(userId: string, body: unknown) {
@@ -48,7 +52,9 @@ export class JobsService {
         ? this.imageQueue
         : kind === "llm"
           ? this.llmQueue
-          : this.videoSubmitQueue;
+          : kind === "audio"
+            ? this.audioQueue
+            : this.videoSubmitQueue;
 
     // Probe Redis before writing the job row — avoid orphan "执行中" records.
     await this.assertQueueAvailable(queue);
@@ -83,6 +89,12 @@ export class JobsService {
         );
       } else if (kind === "llm") {
         await this.llmQueue.add(
+          "generate",
+          { jobId: job.id },
+          { removeOnComplete: 100, removeOnFail: 200 },
+        );
+      } else if (kind === "audio") {
+        await this.audioQueue.add(
           "generate",
           { jobId: job.id },
           { removeOnComplete: 100, removeOnFail: 200 },
@@ -138,24 +150,40 @@ export class JobsService {
    */
   async list(
     userId: string,
-    opts: { take?: number; before?: string; beforeId?: string } = {},
+    opts: {
+      take?: number;
+      before?: string;
+      beforeId?: string;
+      /** studio = 创作台，排除画布任务 */
+      scope?: string;
+    } = {},
   ) {
     const take = Math.min(Math.max(Number(opts.take) || 30, 1), 100);
+    const studioOnly = opts.scope === "studio";
 
     const rows = await this.jobs.find({
-      where: { userId },
+      where: studioOnly
+        ? { userId, canvasProjectId: IsNull() }
+        : { userId },
       order: { createdAt: "DESC" },
       relations: ["assets"],
     });
     const enriched = await this.enrichMany(rows);
 
-    const timed = enriched.map((job) => {
-      const ms = Date.parse(String(job.finishedAt ?? job.createdAt));
-      return {
-        job,
-        ms: Number.isFinite(ms) ? ms : 0,
-      };
-    });
+    const timed = enriched
+      .filter((job) => {
+        if (!studioOnly) return true;
+        if (job.canvasProjectId) return false;
+        const input = job.input as { canvasProjectId?: string } | null;
+        return !input?.canvasProjectId;
+      })
+      .map((job) => {
+        const ms = Date.parse(String(job.finishedAt ?? job.createdAt));
+        return {
+          job,
+          ms: Number.isFinite(ms) ? ms : 0,
+        };
+      });
 
     // Newest first for cursor window
     timed.sort((a, b) => {
@@ -237,6 +265,66 @@ export class JobsService {
     if (!job) throw new NotFoundException("任务不存在");
     await this.jobs.remove(job);
     return { ok: true, id };
+  }
+
+  /** Interrupt a queued/running job; workers check status before finalizing. */
+  async cancel(userId: string, id: string) {
+    const job = await this.jobs.findOne({ where: { id, userId } });
+    if (!job) throw new NotFoundException("任务不存在");
+
+    if (
+      job.status === JobStatus.succeeded ||
+      job.status === JobStatus.failed ||
+      job.status === JobStatus.cancelled
+    ) {
+      return { ok: true, id, status: job.status };
+    }
+
+    await this.jobs.update(id, {
+      status: JobStatus.cancelled,
+      error: "已中断",
+      progress: 100,
+      finishedAt: new Date(),
+    });
+
+    await this.tryAbortQueues(id);
+
+    this.realtime.emitJob(userId, "job:failed", {
+      jobId: id,
+      status: "cancelled",
+      error: "已中断",
+    });
+
+    return { ok: true, id, status: "cancelled" as const };
+  }
+
+  private async tryAbortQueues(jobId: string) {
+    const queues = [
+      this.imageQueue,
+      this.videoSubmitQueue,
+      this.videoPollQueue,
+      this.llmQueue,
+    ];
+    await Promise.all(
+      queues.map(async (queue) => {
+        try {
+          const states = ["waiting", "delayed", "paused", "active"] as const;
+          for (const state of states) {
+            const batch = await queue.getJobs([state], 0, 200);
+            for (const bullJob of batch) {
+              if (bullJob.data?.jobId !== jobId) continue;
+              try {
+                await bullJob.remove();
+              } catch {
+                /* best effort — active workers still check cancelled status */
+              }
+            }
+          }
+        } catch {
+          /* best effort */
+        }
+      }),
+    );
   }
 
   async resolveReferenceUrls(

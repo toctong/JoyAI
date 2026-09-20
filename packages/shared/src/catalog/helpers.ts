@@ -4,7 +4,7 @@ export const USD_TO_CNY = 7.2;
 
 export type CatalogModel = {
   name: string;
-  kind: "image" | "video" | "llm";
+  kind: "image" | "video" | "llm" | "audio";
   remoteId: string;
   description?: string;
   /** Optional; catalogs no longer ship reference prices. */

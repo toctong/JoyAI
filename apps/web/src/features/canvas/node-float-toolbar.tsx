@@ -63,11 +63,16 @@ import {
 import { canSaveNodeAsset, saveNodeAsset } from "./lib/save-node-asset";
 import { spawnReversePrompt } from "./lib/reverse-prompt";
 import {
+  BAR_ALWAYS_TOOL_IDS,
   DEFAULT_PANORAMA_QUICK_TOOL_IDS,
   DEFAULT_QUICK_TOOL_IDS,
+  EDIT_MENU_TOOL_IDS,
   IMAGE_QUICK_TOOLS_KEY,
   PANORAMA_QUICK_TOOLS_KEY,
   PINNED_BAR_TOOL_IDS,
+  isBarAlwaysToolId,
+  isEditMenuToolId,
+  isOverflowOnlyToolId,
   readQuickTools,
   writeQuickTools,
   type QuickToolId,
@@ -79,7 +84,6 @@ import { CanvasIconMore } from "./icons/canvas-icons";
 type Props = {
   nodes: CanvasNode[];
   viewport: Viewport;
-  onEditImage?: (nodeId: string) => void;
   onOpenDirector?: (nodeId: string) => void;
   genPanelOpen?: boolean;
   onToggleGenPanel?: () => void;
@@ -100,7 +104,7 @@ function ToolBtn({
   children,
 }: {
   title: string;
-  /** Short visible name next to the icon (reference-style labeled toolbar). */
+  /** Short visible name next to the icon (optional; omit for compact icon-only). */
   label?: string;
   danger?: boolean;
   caret?: ReactNode;
@@ -114,14 +118,14 @@ function ToolBtn({
       aria-label={title}
       onClick={onClick}
       className={cn(
-        "joy-canvas-chrome-btn inline-flex h-8 items-center justify-center rounded-lg transition",
-        label ? "gap-1.5 px-2.5" : "size-8",
+        "joy-canvas-chrome-btn inline-flex h-7 items-center justify-center rounded-md transition",
+        label ? "gap-1 px-1.5" : "size-7",
         danger && "hover:bg-destructive/15 hover:text-destructive",
       )}
     >
       {children}
       {label ? (
-        <span className="whitespace-nowrap text-[12px] font-medium leading-none tracking-wide">
+        <span className="whitespace-nowrap text-[11px] font-medium leading-none tracking-wide">
           {label}
         </span>
       ) : null}
@@ -176,7 +180,6 @@ function anchorFor(nodes: CanvasNode[], viewport: Viewport) {
 export function NodeFloatToolbar({
   nodes,
   viewport,
-  onEditImage,
   onOpenDirector,
   genPanelOpen,
   onToggleGenPanel,
@@ -242,6 +245,19 @@ export function NodeFloatToolbar({
       node?.type === "panorama" ||
       node?.type === "audio");
   const status = String(node?.data.status ?? "idle");
+
+  // Empty media placeholders only need the gen / upload UI — no header chrome.
+  if (
+    !multi &&
+    node &&
+    (node.type === "image" ||
+      node.type === "video" ||
+      node.type === "panorama" ||
+      node.type === "audio") &&
+    !hasMedia
+  ) {
+    return null;
+  }
 
   async function onUpload(file: File) {
     if (!node) return;
@@ -434,13 +450,17 @@ export function NodeFloatToolbar({
                   referenceAssetIds.length > 0 || referenceUrls.length > 0,
               })
             : promptText;
+        const countRaw = Number(node.data.genCount);
+        const n = Number.isFinite(countRaw)
+          ? Math.min(4, Math.max(1, Math.floor(countRaw)))
+          : 1;
         const job = await api<{ id: string }>("/jobs", {
           method: "POST",
           body: {
             kind: "image",
             input: {
               prompt: finalPrompt,
-              n: 1,
+              n,
               ratio: outputKind === "panorama" ? "2:1" : undefined,
               canvasProjectId: projectId,
               canvasNodeId: node.id,
@@ -467,18 +487,6 @@ export function NodeFloatToolbar({
 
   function renderAction(action: NodeToolbarAction) {
     switch (action) {
-      case "edit-image":
-        if (node.type !== "image" || !url || url.startsWith("data:")) return null;
-        return (
-          <ToolBtn
-            key={action}
-            title="编辑"
-            label="编辑"
-            onClick={() => onEditImage?.(node.id)}
-          >
-            <CanvasIconPencil className="h-3.5 w-3.5" />
-          </ToolBtn>
-        );
       case "upload":
         if (
           node.type !== "image" &&
@@ -717,8 +725,8 @@ export function NodeFloatToolbar({
         return (
           <ToolBtn
             key={action}
-            title="截取音频"
-            label="截取"
+            title={node.type === "video" ? "剪辑" : "截取音频"}
+            label={node.type === "video" ? "剪辑" : "截取"}
             onClick={() => onOpenAudioTrim?.()}
           >
             <CanvasIconScissors className="h-3.5 w-3.5" />
@@ -830,46 +838,7 @@ export function NodeFloatToolbar({
   const editItems: ToolMenuItem[] = [];
   const moreItems: ToolMenuItem[] = [];
 
-  if (!multi && node.type === "image" && hasMedia) {
-    if (actions.includes("edit-image")) {
-      primaryItems.push({
-        id: "edit-image",
-        label: "编辑",
-        icon: <CanvasIconPencil className="size-3.5 opacity-70" />,
-        run: () => onEditImage?.(node.id),
-      });
-    }
-    if (actions.includes("spawn-prompt")) {
-      primaryItems.push({
-        id: "spawn-prompt",
-        label: "生图",
-        icon: <CanvasIconSparkles className="size-3.5 opacity-70" />,
-        run: () => spawnPromptBeside("基于参考生成"),
-      });
-    }
-    if (actions.includes("spawn-video")) {
-      primaryItems.push({
-        id: "spawn-video",
-        label: "生视频",
-        icon: <CanvasIconDirector className="size-3.5 opacity-70" />,
-        run: () => spawnPromptBeside("基于参考图生成视频", "generate", "video"),
-      });
-    }
-  }
   if (!multi && node.type === "panorama") {
-    if (actions.includes("spawn-prompt") && hasMedia) {
-      primaryItems.push({
-        id: "spawn-prompt",
-        label: "生全景",
-        icon: <CanvasIconSparkles className="size-3.5 opacity-70" />,
-        run: () =>
-          spawnPromptBeside(
-            "生成可无缝衔接的 2:1 全景",
-            "generate",
-            "panorama",
-          ),
-      });
-    }
     if (actions.includes("to-image") && hasMedia) {
       primaryItems.push({
         id: "to-image",
@@ -884,7 +853,7 @@ export function NodeFloatToolbar({
     if (actions.includes("upload")) {
       primaryItems.push({
         id: "upload",
-        label: url ? "替换" : "上传",
+        label: url ? "替换全景" : "上传全景",
         icon: <CanvasIconUpload className="size-3.5 opacity-70" />,
         run: () => fileRef.current?.click(),
       });
@@ -959,18 +928,6 @@ export function NodeFloatToolbar({
         run: () => onOpenImageTool?.("view"),
       });
     }
-    if (actions.includes("toggle-resize") && hasMedia) {
-      editItems.push({
-        id: "toggle-resize",
-        label: freeResize ? "锁定比例" : "自由比例",
-        icon: freeResize ? (
-          <CanvasIconUnlock className="size-3.5 opacity-70" />
-        ) : (
-          <CanvasIconLock className="size-3.5 opacity-70" />
-        ),
-        run: () => toggleFreeResize(node.id),
-      });
-    }
   }
 
   if (!multi) {
@@ -1020,6 +977,23 @@ export function NodeFloatToolbar({
         },
       });
     }
+    if (
+      actions.includes("toggle-resize") &&
+      (node.type === "video" ||
+        node.type === "image" ||
+        node.type === "panorama")
+    ) {
+      moreItems.push({
+        id: "toggle-resize",
+        label: freeResize ? "锁定比例" : "自由比例",
+        icon: freeResize ? (
+          <CanvasIconUnlock className="size-3.5 opacity-70" />
+        ) : (
+          <CanvasIconLock className="size-3.5 opacity-70" />
+        ),
+        run: () => toggleFreeResize(node.id),
+      });
+    }
     if (actions.includes("reverse-prompt") && hasMedia) {
       moreItems.push({
         id: "reverse-prompt",
@@ -1034,22 +1008,6 @@ export function NodeFloatToolbar({
         label: "复制提示词",
         icon: <CanvasIconFile className="size-3.5 opacity-70" />,
         run: () => copyUpstreamPrompt(node.id),
-      });
-    }
-    if (
-      actions.includes("toggle-resize") &&
-      (node.type === "video" ||
-        ((node.type === "image" || node.type === "panorama") && !hasMedia))
-    ) {
-      moreItems.push({
-        id: "toggle-resize",
-        label: freeResize ? "锁定比例" : "自由比例",
-        icon: freeResize ? (
-          <CanvasIconUnlock className="size-3.5 opacity-70" />
-        ) : (
-          <CanvasIconLock className="size-3.5 opacity-70" />
-        ),
-        run: () => toggleFreeResize(node.id),
       });
     }
     moreItems.push({
@@ -1133,28 +1091,46 @@ export function NodeFloatToolbar({
     ? quickCatalog.filter((item) => {
         const id = item.id as QuickToolId;
         if (PINNED_BAR_TOOL_IDS.includes(id)) return true;
-        if (node.type === "panorama" && (id === "to-image" || id === "upload")) {
+        if (isBarAlwaysToolId(id)) return true;
+        if (isOverflowOnlyToolId(id) || isEditMenuToolId(id)) return false;
+        if (node.type === "panorama" && id === "to-image") {
           return true;
         }
         return quickConfig.ids.includes(id);
       })
     : [];
-  /** Labeled buttons are wide — keep a short strip, park the rest under 更多. */
-  const MAX_FLEX_BAR_TOOLS = 5;
+  /** Icon-only by default; labeled mode still caps the strip so it stays short. */
+  const MAX_FLEX_BAR_TOOLS = quickConfig.showLabels ? 4 : 6;
   const pinnedBar = visibleQuick.filter((item) =>
     PINNED_BAR_TOOL_IDS.includes(item.id as QuickToolId),
   );
-  const flexBar = visibleQuick
-    .filter((item) => !PINNED_BAR_TOOL_IDS.includes(item.id as QuickToolId))
-    .slice(0, MAX_FLEX_BAR_TOOLS);
-  const barQuick = [...flexBar, ...pinnedBar];
+  // Edit tools always live under the 编辑 menu when available (not gated by quick ids).
+  const editMenuItems = EDIT_MENU_TOOL_IDS.map((id) =>
+    quickCatalog.find((item) => item.id === id),
+  ).filter((item): item is ToolMenuItem => Boolean(item));
+  const alwaysBar = BAR_ALWAYS_TOOL_IDS.map((id) =>
+    visibleQuick.find((item) => item.id === id),
+  ).filter((item): item is ToolMenuItem => Boolean(item));
+  const flexBar = [
+    ...alwaysBar,
+    ...visibleQuick
+      .filter(
+        (item) =>
+          !PINNED_BAR_TOOL_IDS.includes(item.id as QuickToolId) &&
+          !isEditMenuToolId(item.id) &&
+          !isBarAlwaysToolId(item.id),
+      )
+      .slice(0, Math.max(0, MAX_FLEX_BAR_TOOLS - alwaysBar.length)),
+  ];
+  const barQuick = [...editMenuItems, ...flexBar, ...pinnedBar];
   const barIds = new Set(barQuick.map((item) => item.id));
   /** Tools not on the bar — grouped, opened as right-side submenus. */
   const overflowFlat: ToolMenuItem[] = quickMode
     ? quickCatalog.filter(
         (item) =>
           !barIds.has(item.id) &&
-          !PINNED_BAR_TOOL_IDS.includes(item.id as QuickToolId),
+          !PINNED_BAR_TOOL_IDS.includes(item.id as QuickToolId) &&
+          !isEditMenuToolId(item.id),
       )
     : [];
   const overflowGroups: ToolMenuGroup[] = quickMode
@@ -1180,14 +1156,13 @@ export function NodeFloatToolbar({
       ].filter((group) => group.items.length > 0)
     : [];
   const flatCount = quickMode
-    ? barQuick.length + 1
+    ? (editMenuItems.length ? 1 : 0) + flexBar.length + pinnedBar.length + 1
     : shownButtons.length +
       editItems.length +
       moreItems.length +
       coreButtons.length +
       downloadSlot +
       saveSlot;
-  const collapseEdit = !quickMode && editItems.length > 1 && flatCount > 7;
 
   if (!flatCount) return null;
 
@@ -1213,19 +1188,27 @@ export function NodeFloatToolbar({
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="joy-canvas-chrome flex flex-nowrap items-center justify-center gap-0.5 rounded-xl px-1 py-1">
+      <div className="joy-canvas-chrome flex flex-nowrap items-center justify-center gap-0.5 rounded-xl px-0.5 py-0.5">
         {multi ? (
-          <span className="joy-canvas-chrome-muted px-2 text-[11px] tabular-nums">
+          <span className="joy-canvas-chrome-muted px-1.5 text-[11px] tabular-nums">
             {nodes.length}
           </span>
         ) : null}
         {quickMode ? (
           <>
+            {editMenuItems.length ? (
+              <ToolDrop
+                label={quickConfig.showLabels ? "编辑" : undefined}
+                title="编辑"
+                icon={<CanvasIconPencil className="h-3.5 w-3.5" />}
+                items={editMenuItems}
+              />
+            ) : null}
             {flexBar.map((item) => (
               <ToolBtn
                 key={item.id}
                 title={item.label}
-                label={item.label}
+                label={quickConfig.showLabels ? item.label : undefined}
                 danger={item.danger}
                 onClick={item.run}
               >
@@ -1233,13 +1216,12 @@ export function NodeFloatToolbar({
               </ToolBtn>
             ))}
             {pinnedBar.length ? (
-              <span className="mx-0.5 h-4 w-px bg-border/80" aria-hidden />
+              <span className="mx-0.5 h-3.5 w-px bg-border/80" aria-hidden />
             ) : null}
             {pinnedBar.map((item) => (
               <ToolBtn
                 key={item.id}
                 title={item.label}
-                label={item.label}
                 danger={item.danger}
                 onClick={item.run}
               >
@@ -1248,7 +1230,7 @@ export function NodeFloatToolbar({
             ))}
             {overflowGroups.length ? (
               <ToolDrop
-                label="更多"
+                label={quickConfig.showLabels ? "更多" : undefined}
                 title="更多功能"
                 icon={<CanvasIconMore className="h-3.5 w-3.5" />}
                 groups={overflowGroups}
@@ -1259,16 +1241,14 @@ export function NodeFloatToolbar({
         ) : (
           <>
             {shownButtons}
-            {collapseEdit && editItems.length ? (
+            {editItems.length ? (
               <ToolDrop
-                label="改图"
-                title="裁剪、扩图等"
-                icon={<CanvasIconScissors className="h-3.5 w-3.5" />}
+                label="编辑"
+                title="编辑"
+                icon={<CanvasIconPencil className="h-3.5 w-3.5" />}
                 items={editItems}
               />
-            ) : (
-              editItems.map(itemButton)
-            )}
+            ) : null}
             {moreItems.map(itemButton)}
             {coreButtons.length ? (
               <span className="mx-0.5 h-4 w-px bg-border/80" aria-hidden />
@@ -1299,7 +1279,9 @@ export function NodeFloatToolbar({
           options={quickCatalog
             .filter(
               (item) =>
-                !PINNED_BAR_TOOL_IDS.includes(item.id as QuickToolId),
+                !PINNED_BAR_TOOL_IDS.includes(item.id as QuickToolId) &&
+                !isEditMenuToolId(item.id) &&
+                !isOverflowOnlyToolId(item.id),
             )
             .map((item) => ({
               id: item.id as QuickToolId,
@@ -1308,7 +1290,9 @@ export function NodeFloatToolbar({
           selected={draftIds.filter(
             (id) => !PINNED_BAR_TOOL_IDS.includes(id),
           )}
+          showLabels={draftLabels}
           onSelectedChange={setDraftIds}
+          onShowLabelsChange={setDraftLabels}
           onClose={() => {
             setSettingsOpen(false);
             onPinToolbar?.(false);
@@ -1379,25 +1363,25 @@ const OVERFLOW_GROUP_ORDER: { id: string; label: string; ids: string[] }[] = [
   {
     id: "generate",
     label: "生成",
-    ids: ["edit-image", "spawn-prompt", "spawn-video", "gen"],
+    ids: ["gen"],
   },
   {
     id: "edit",
-    label: "改图",
+    label: "编辑",
     ids: [
+      "upload",
+      "inpaint",
+      "outpaint",
       "crop",
-      "split",
       "upscale",
       "angle",
-      "outpaint",
-      "inpaint",
       "view-image",
     ],
   },
   {
     id: "media",
     label: "媒体",
-    ids: ["upload", "to-panorama", "to-image", "toggle-resize"],
+    ids: ["split", "to-panorama", "to-image", "toggle-resize"],
   },
   {
     id: "prompt",
@@ -1440,7 +1424,7 @@ function ToolDrop({
   groups,
   cascade = false,
 }: {
-  label: string;
+  label?: string;
   title: string;
   icon: React.ReactNode;
   items?: ToolMenuItem[];

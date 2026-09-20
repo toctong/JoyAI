@@ -7,6 +7,7 @@ export const AdapterId = {
   OPENAI_IMAGES: "openai-images",
   OPENAI_VIDEOS: "openai-videos",
   OPENAI_CHAT: "openai-chat",
+  OPENAI_AUDIO: "openai-audio",
   ARK_IMAGES: "ark-images",
   ARK_VIDEO: "ark-video",
   DASHSCOPE_IMAGES: "dashscope-images",
@@ -24,7 +25,7 @@ export function isAdapterId(value: string): value is AdapterIdValue {
 /** Default adapter when catalog entry omits adapterId. */
 export function defaultAdapterId(
   platform: string,
-  kind: "image" | "video" | "llm",
+  kind: "image" | "video" | "llm" | "audio",
 ): AdapterIdValue | null {
   const p = platform.trim().toLowerCase();
   if (kind === "llm") {
@@ -39,6 +40,9 @@ export function defaultAdapterId(
       return AdapterId.OPENAI_CHAT;
     }
     return AdapterId.OPENAI_CHAT;
+  }
+  if (kind === "audio") {
+    return AdapterId.OPENAI_AUDIO;
   }
   if (kind === "image") {
     if (p === "volcengine") return AdapterId.ARK_IMAGES;
@@ -64,7 +68,7 @@ export function defaultAdapterId(
  */
 export function resolveAdapterId(opts: {
   platform: string;
-  kind: "image" | "video" | "llm";
+  kind: "image" | "video" | "llm" | "audio";
   adapterId?: string | null;
   capabilities?: { adapterId?: unknown } | null;
 }): AdapterIdValue {

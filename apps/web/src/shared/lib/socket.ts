@@ -30,15 +30,30 @@ function resolveWsBase(): string {
 
 let socket: Socket | null = null;
 
+/**
+ * Singleton jobs socket. Never recreate while an instance exists — recreating
+ * while `connected === false` (handshake / brief drop) used to drop all
+ * listeners and leave canvas nodes stuck in "生成中".
+ */
 export function getJobsSocket(): Socket {
   const token = useAuthStore.getState().token;
-  if (socket?.connected) return socket;
 
-  socket?.disconnect();
+  if (socket) {
+    const auth = socket.auth as { token?: string } | undefined;
+    if (auth?.token !== token) {
+      socket.auth = { token };
+    }
+    if (!socket.connected) {
+      socket.connect();
+    }
+    return socket;
+  }
+
   socket = io(`${resolveWsBase()}/jobs`, {
     auth: { token },
     transports: ["websocket", "polling"],
     autoConnect: true,
+    reconnection: true,
   });
 
   return socket;

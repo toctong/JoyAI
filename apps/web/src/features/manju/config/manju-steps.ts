@@ -58,7 +58,7 @@ export const MANJU_STEPS: ManjuStep[] = [
     index: 6,
     label: "视频预览",
     nextLabel: "导出",
-    hint: "串联预览、导出成片",
+    hint: "顺序连播；ZIP / 成片 MP4；可单向推送到新画布",
   },
 ];
 

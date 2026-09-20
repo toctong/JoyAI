@@ -236,7 +236,7 @@ export class ChannelsService {
     }
   }
 
-  async resolveForKind(kind: "image" | "video" | "llm", modelId?: string) {
+  async resolveForKind(kind: "image" | "video" | "llm" | "audio", modelId?: string) {
     if (modelId) {
       const model = await this.models.findOne({
         where: { id: modelId },

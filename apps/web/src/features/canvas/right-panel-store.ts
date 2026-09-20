@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-export type CanvasRightPanelMode = "nodes" | "history" | null;
+export type CanvasRightPanelMode = "nodes" | "history" | "agent" | null;
 
 type RightPanelState = {
   mode: CanvasRightPanelMode;

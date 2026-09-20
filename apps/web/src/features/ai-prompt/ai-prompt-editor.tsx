@@ -59,6 +59,8 @@ type Props = {
   onPlainChange?: (text: string) => void;
   onPayloadChange?: (payload: PromptGeneratePayload) => void;
   onKindCommand?: (kind: "image" | "video" | "text") => void;
+  /** When false, /图片 /视频 /文本 are hidden and cannot change the output kind. */
+  allowKindSwitch?: boolean;
   editorRef?: MutableRefObject<Editor | null>;
 };
 
@@ -112,6 +114,7 @@ export function AiPromptEditor({
   onPlainChange,
   onPayloadChange,
   onKindCommand,
+  allowKindSwitch = true,
   editorRef,
 }: Props) {
   const [menu, setMenu] = useState<MenuState>(null);
@@ -122,11 +125,13 @@ export function AiPromptEditor({
   const menuRef = useRef<MenuState>(null);
   const mentionItemsRef = useRef(mentionItems);
   const onKindCommandRef = useRef(onKindCommand);
+  const allowKindSwitchRef = useRef(allowKindSwitch);
   const onPlainChangeRef = useRef(onPlainChange);
   const onPayloadChangeRef = useRef(onPayloadChange);
 
   mentionItemsRef.current = mentionItems;
   onKindCommandRef.current = onKindCommand;
+  allowKindSwitchRef.current = allowKindSwitch;
   onPlainChangeRef.current = onPlainChange;
   onPayloadChangeRef.current = onPayloadChange;
 
@@ -165,7 +170,10 @@ export function AiPromptEditor({
   const applySlash = useCallback(
     (ed: Editor, cmd: SlashCommand | undefined, state: MenuState) => {
       if (!cmd || !state || state.type !== "slash") return;
-      if (cmd.kind) onKindCommandRef.current?.(cmd.kind);
+      if (cmd.kind) {
+        if (!allowKindSwitchRef.current) return;
+        onKindCommandRef.current?.(cmd.kind);
+      }
       replaceRange(ed, state.from, state.to, cmd.insert ?? "");
     },
     [replaceRange],
@@ -243,7 +251,9 @@ export function AiPromptEditor({
 
           const items =
             current.type === "slash"
-              ? filterSlashCommands(current.query)
+              ? filterSlashCommands(current.query).filter((item) =>
+                  allowKindSwitchRef.current ? true : !item.kind,
+                )
               : filterMentionItems(mentionItemsRef.current, current.query);
 
           if (event.key === "Escape") {
@@ -351,7 +361,11 @@ export function AiPromptEditor({
   }, [editor]);
 
   const slashItems =
-    menu?.type === "slash" ? filterSlashCommands(menu.query) : [];
+    menu?.type === "slash"
+      ? filterSlashCommands(menu.query).filter((item) =>
+          allowKindSwitch ? true : !item.kind,
+        )
+      : [];
   const mentionMenuItems =
     menu?.type === "mention"
       ? filterMentionItems(mentionItems, menu.query)

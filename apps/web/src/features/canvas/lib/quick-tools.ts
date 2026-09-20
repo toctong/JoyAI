@@ -1,10 +1,7 @@
-export const IMAGE_QUICK_TOOLS_KEY = "joyai-canvas-image-quick-tools-v1";
-export const PANORAMA_QUICK_TOOLS_KEY = "joyai-canvas-panorama-quick-tools-v2";
+export const IMAGE_QUICK_TOOLS_KEY = "joyai-canvas-image-quick-tools-v10";
+export const PANORAMA_QUICK_TOOLS_KEY = "joyai-canvas-panorama-quick-tools-v5";
 
 export const QUICK_TOOL_IDS = [
-  "edit-image",
-  "spawn-prompt",
-  "spawn-video",
   "outpaint",
   "inpaint",
   "crop",
@@ -35,24 +32,57 @@ export type QuickToolsConfig = {
 
 const ALL = new Set<string>(QUICK_TOOL_IDS);
 
-/** Matches infinite-canvas defaults, plus JoyAI 编辑 / 生图 / 生视频. */
+/** Image float bar defaults — edit actions sit under the 编辑 menu. */
 export const DEFAULT_QUICK_TOOL_IDS: QuickToolId[] = [
-  "edit-image",
-  "spawn-prompt",
-  "spawn-video",
-  "inpaint",
-  "crop",
   "split",
-  "upscale",
-  "reverse-prompt",
-  "copy-prompt",
-  "upload",
+  "to-panorama",
+  "toggle-resize",
   "save-asset",
   "download",
   "info",
   "duplicate",
   "delete",
 ];
+
+/** Tools that live under the 编辑 dropdown on the float bar (not as standalone chips). */
+export const EDIT_MENU_TOOL_IDS: QuickToolId[] = [
+  "upload",
+  "inpaint",
+  "outpaint",
+  "crop",
+  "upscale",
+  "angle",
+  "view-image",
+];
+
+/** Always shown as main-bar chips when available (not under 编辑 / 更多). */
+export const BAR_ALWAYS_TOOL_IDS: QuickToolId[] = [
+  "split",
+  "to-panorama",
+  "toggle-resize",
+];
+
+/** Prompt helpers stay under 更多 — never as main-bar chips. */
+export const OVERFLOW_ONLY_TOOL_IDS: QuickToolId[] = [
+  "reverse-prompt",
+  "copy-prompt",
+];
+
+const EDIT_MENU_SET = new Set<string>(EDIT_MENU_TOOL_IDS);
+const BAR_ALWAYS_SET = new Set<string>(BAR_ALWAYS_TOOL_IDS);
+const OVERFLOW_ONLY_SET = new Set<string>(OVERFLOW_ONLY_TOOL_IDS);
+
+export function isEditMenuToolId(id: string): boolean {
+  return EDIT_MENU_SET.has(id);
+}
+
+export function isBarAlwaysToolId(id: string): boolean {
+  return BAR_ALWAYS_SET.has(id);
+}
+
+export function isOverflowOnlyToolId(id: string): boolean {
+  return OVERFLOW_ONLY_SET.has(id);
+}
 
 /** Always stay on the float toolbar — not parked under 更多. */
 export const PINNED_BAR_TOOL_IDS: QuickToolId[] = [
@@ -62,14 +92,11 @@ export const PINNED_BAR_TOOL_IDS: QuickToolId[] = [
 ];
 
 export const DEFAULT_PANORAMA_QUICK_TOOL_IDS: QuickToolId[] = [
-  "spawn-prompt",
   "to-image",
   "upload",
   "crop",
   "split",
   "upscale",
-  "reverse-prompt",
-  "copy-prompt",
   "save-asset",
   "download",
   "info",

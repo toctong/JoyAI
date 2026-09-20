@@ -5,7 +5,6 @@ import {
   CanvasIconChevronLeft,
   CanvasIconFolder,
   CanvasIconFolderPlus,
-  CanvasIconImage,
   CanvasIconMore,
   CanvasIconMove,
   CanvasIconPlus,
@@ -45,6 +44,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/shared/lib/utils";
 import { FolderArt } from "@/features/canvas/folder-art";
+import { ProjectCover } from "@/features/canvas/project-cover";
+import {
+  buildBundleExport,
+  buildProjectExport,
+  downloadJson,
+  parseCanvasImport,
+  readJsonFile,
+  safeFilename,
+} from "@/features/canvas/lib/canvas-project-io";
+import { normalizeCanvasSnapshot, type CanvasSnapshot } from "@joyai/shared";
 import "./project-library.css";
 
 dayjs.extend(relativeTime);
@@ -194,6 +203,78 @@ export function ProjectLibrary() {
       await load(folderId);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "创建文件夹失败");
+    }
+  }
+
+  async function exportProjects(ids: string[]) {
+    try {
+      const payloads: Array<{
+        title: string;
+        folderId?: string | null;
+        snapshot: CanvasSnapshot;
+      }> = [];
+      for (const id of ids) {
+        const project = await api<{
+          title: string;
+          folderId: string | null;
+          snapshot: unknown;
+        }>(`/canvas/projects/${id}`);
+        const snapshot = normalizeCanvasSnapshot(project.snapshot);
+        if (!snapshot) continue;
+        payloads.push({
+          title: project.title,
+          folderId: project.folderId,
+          snapshot,
+        });
+      }
+      if (!payloads.length) {
+        toast.error("没有可导出的快照");
+        return;
+      }
+      if (payloads.length === 1) {
+        const only = payloads[0]!;
+        downloadJson(
+          `${safeFilename(only.title)}.json`,
+          buildProjectExport(only),
+        );
+      } else {
+        downloadJson(
+          `joyai-canvas-bundle-${payloads.length}.json`,
+          buildBundleExport(payloads),
+        );
+      }
+      toast.success(
+        payloads.length > 1 ? `已导出 ${payloads.length} 个项目` : "已导出项目",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "导出失败");
+    }
+  }
+
+  async function importFromFile(file: File) {
+    try {
+      const items = parseCanvasImport(await readJsonFile(file));
+      let firstId = "";
+      for (const item of items) {
+        const created = await api<{ id: string }>("/canvas/projects", {
+          method: "POST",
+          body: {
+            title: item.title,
+            folderId,
+            snapshot: item.snapshot,
+          },
+        });
+        if (!firstId) firstId = created.id;
+      }
+      toast.success(
+        items.length > 1 ? `已导入 ${items.length} 个项目` : "已导入项目",
+      );
+      await load(folderId);
+      if (items.length === 1 && firstId) {
+        router.push(`/canvas/${firstId}`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "导入失败");
     }
   }
 
@@ -438,6 +519,40 @@ export function ProjectLibrary() {
               新建文件夹
             </button>
 
+            <button
+              type="button"
+              className="joy-projects-pill"
+              disabled={!selectedCount && !projects.length}
+              onClick={() =>
+                void exportProjects(
+                  selectedCount
+                    ? Array.from(selected)
+                    : projects.map((p) => p.id),
+                )
+              }
+              title={
+                selectedCount
+                  ? "导出选中项目 JSON"
+                  : "导出当前文件夹全部项目 JSON"
+              }
+            >
+              导出 JSON
+            </button>
+
+            <label className="joy-projects-pill cursor-pointer">
+              导入 JSON
+              <input
+                type="file"
+                accept="application/json,.json"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void importFromFile(file);
+                }}
+              />
+            </label>
+
             <label className="joy-projects-search">
               <CanvasIconSearch />
               <input
@@ -548,19 +663,7 @@ export function ProjectLibrary() {
                   onDragStart={(e) => onProjectDragStart(e, project.id)}
                   onDragEnd={onProjectDragEnd}
                 >
-                  {project.coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={project.coverUrl}
-                      alt=""
-                      className="joy-projects-cover"
-                      draggable={false}
-                    />
-                  ) : (
-                    <div className="joy-projects-cover-empty">
-                      <CanvasIconImage />
-                    </div>
-                  )}
+                  <ProjectCover url={project.coverUrl} />
                   {showSelectChrome ? (
                     <span
                       className={cn(

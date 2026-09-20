@@ -12,6 +12,8 @@ import {
   type ManjuShotDraft,
   type ManjuVideoSettings,
 } from "./manju-types";
+import { collectAssetIdsToRemove } from "./lib/asset-registry";
+import { renameAssetInProject } from "./lib/rename-asset";
 import {
   createManjuProject,
   deleteManjuProject,
@@ -66,12 +68,18 @@ type ManjuState = {
   markStepComplete: (id: string, step: ManjuStepId) => void;
   getProject: (id: string) => ManjuProjectDraft | undefined;
 
-  addAsset: (projectId: string, kind: ManjuAssetDraft["kind"]) => string;
+  addAsset: (
+    projectId: string,
+    kind: ManjuAssetDraft["kind"],
+    parentId?: string | null,
+  ) => string;
   updateAsset: (
     projectId: string,
     assetId: string,
     patch: Partial<ManjuAssetDraft>,
   ) => void;
+  /** 改名并级联重写 @[登记名] */
+  renameAsset: (projectId: string, assetId: string, name: string) => void;
   removeAsset: (projectId: string, assetId: string) => void;
 
   addShot: (
@@ -303,8 +311,15 @@ export const useManjuStore = create<ManjuState>((set, get) => {
     },
     getProject: (id) => get().projects.find((p) => p.id === id),
 
-    addAsset: (projectId, kind) => {
-      const asset = createEmptyAsset(kind);
+    addAsset: (projectId, kind, parentId = null) => {
+      const parent = parentId
+        ? get().getProject(projectId)?.assets.find((a) => a.id === parentId)
+        : null;
+      const asset = createEmptyAsset(
+        parent?.kind ?? kind,
+        "",
+        parent?.id ?? null,
+      );
       mutate(projectId, (p) => ({
         ...p,
         assets: [...p.assets, asset],
@@ -319,15 +334,24 @@ export const useManjuStore = create<ManjuState>((set, get) => {
         ),
       }));
     },
+    renameAsset: (projectId, assetId, name) => {
+      mutate(projectId, (p) => {
+        const next = renameAssetInProject(p.assets, p.shots, assetId, name);
+        return { ...p, assets: next.assets, shots: next.shots };
+      });
+    },
     removeAsset: (projectId, assetId) => {
-      mutate(projectId, (p) => ({
-        ...p,
-        assets: p.assets.filter((a) => a.id !== assetId),
-        shots: p.shots.map((shot) => ({
-          ...shot,
-          assetRefs: shot.assetRefs.filter((x) => x !== assetId),
-        })),
-      }));
+      mutate(projectId, (p) => {
+        const drop = collectAssetIdsToRemove(p.assets, assetId);
+        return {
+          ...p,
+          assets: p.assets.filter((a) => !drop.has(a.id)),
+          shots: p.shots.map((shot) => ({
+            ...shot,
+            assetRefs: shot.assetRefs.filter((x) => !drop.has(x)),
+          })),
+        };
+      });
     },
 
     addShot: (projectId, afterIndex, opts) => {

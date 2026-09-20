@@ -15,10 +15,19 @@ import {
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Download, FileJson } from "lucide-react";
 import { useCanvasStore } from "./store";
 import { useCanvasRightPanelStore } from "./right-panel-store";
 import { api } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
+import { toast } from "@/shared/lib/toast";
+import {
+  buildProjectExport,
+  downloadJson,
+  parseCanvasImport,
+  readJsonFile,
+  safeFilename,
+} from "./lib/canvas-project-io";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,11 +62,13 @@ export function CanvasTopBar({
   const title = useCanvasStore((s) => s.title);
   const dirty = useCanvasStore((s) => s.dirty);
   const setTitle = useCanvasStore((s) => s.setTitle);
+  const getSnapshot = useCanvasStore((s) => s.getSnapshot);
   const rightMode = useCanvasRightPanelStore((s) => s.mode);
   const toggleRight = useCanvasRightPanelStore((s) => s.toggle);
   const [draft, setDraft] = useState(title);
   const [editing, setEditing] = useState(false);
   const titleWrapRef = useRef<HTMLDivElement>(null);
+  const jsonImportRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setDraft(title);
@@ -84,6 +95,38 @@ export function CanvasTopBar({
       method: "PATCH",
       body: { title: next },
     });
+  }
+
+  function exportProject() {
+    const file = buildProjectExport({
+      title,
+      snapshot: getSnapshot(),
+    });
+    downloadJson(`${safeFilename(title)}.json`, file);
+    toast.success("已导出项目 JSON");
+  }
+
+  async function importProjects(file: File) {
+    try {
+      const items = parseCanvasImport(await readJsonFile(file));
+      let firstId = "";
+      for (const item of items) {
+        const created = await api<{ id: string }>("/canvas/projects", {
+          method: "POST",
+          body: {
+            title: item.title,
+            snapshot: item.snapshot,
+          },
+        });
+        if (!firstId) firstId = created.id;
+      }
+      toast.success(
+        items.length > 1 ? `已导入 ${items.length} 个项目` : "已导入项目",
+      );
+      if (firstId) router.push(`/canvas/${firstId}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "导入失败");
+    }
   }
 
   return (
@@ -119,6 +162,14 @@ export function CanvasTopBar({
               <CanvasIconUpload className="size-4" />
               导入素材
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportProject}>
+              <Download className="size-4" />
+              导出项目 JSON
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => jsonImportRef.current?.click()}>
+              <FileJson className="size-4" />
+              导入项目 JSON
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onOpenShortcuts}>
               <CanvasIconKeyboard className="size-4" />
               快捷键
@@ -136,6 +187,18 @@ export function CanvasTopBar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <input
+          ref={jsonImportRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void importProjects(file);
+          }}
+        />
 
         <div ref={titleWrapRef} className="flex min-w-0 items-center gap-2 pl-1">
           {editing ? (
@@ -203,6 +266,19 @@ export function CanvasTopBar({
             )}
           >
             <CanvasIconHistory className="size-4" />
+          </button>
+          <button
+            type="button"
+            title="画布 Agent"
+            aria-label="画布 Agent"
+            aria-pressed={rightMode === "agent"}
+            onClick={() => toggleRight("agent")}
+            className={cn(
+              "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg",
+              rightMode === "agent" && "is-active",
+            )}
+          >
+            <span className="text-[11px] font-semibold tracking-tight">AI</span>
           </button>
         </div>
         <Link

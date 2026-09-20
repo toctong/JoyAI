@@ -430,6 +430,7 @@
   color: var(--muted-foreground);
   font-size: 13px;
   font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
   outline: none;
   box-shadow: none;

@@ -4,6 +4,7 @@ import type { ManjuProjectDraft } from "./manju-types";
 import {
   DEFAULT_SETTINGS,
   createEmptyProject,
+  resolveManjuGenMode,
 } from "./manju-types";
 
 export type ManjuProjectListItem = {
@@ -29,7 +30,11 @@ export function draftFromProject(p: ManjuProjectDraft): ManjuDraft {
     scriptText: p.scriptText,
     overview: p.overview ?? "",
     scriptConfirmed: p.scriptConfirmed ?? false,
-    settings: p.settings ?? DEFAULT_SETTINGS,
+    settings: {
+      ...DEFAULT_SETTINGS,
+      ...(p.settings ?? {}),
+      gridLayout: p.settings?.gridLayout ?? "2x2",
+    },
     assets: p.assets,
     shots: p.shots,
     episodes: p.episodes ?? [],
@@ -51,8 +56,28 @@ export function projectFromDto(dto: ManjuProjectDto): ManjuProjectDraft {
     settings: {
       ...DEFAULT_SETTINGS,
       ...(dto.draft.settings ?? {}),
+      mode: resolveManjuGenMode(
+        (dto.draft.settings?.mode as ManjuProjectDraft["settings"]["mode"]) ??
+          DEFAULT_SETTINGS.mode,
+      ),
     },
-    assets: (dto.draft.assets ?? []) as ManjuProjectDraft["assets"],
+    assets: (dto.draft.assets ?? []).map((a) => {
+      const raw = a as ManjuDraft["assets"][number] & {
+        parentId?: string | null;
+      };
+      return {
+        id: raw.id,
+        kind: raw.kind,
+        name: raw.name,
+        description: raw.description ?? "",
+        aliases: Array.isArray(raw.aliases) ? raw.aliases : [],
+        parentId: typeof raw.parentId === "string" ? raw.parentId : null,
+        imageUrl: raw.imageUrl ?? null,
+        assetId: raw.assetId ?? null,
+        jobId: raw.jobId ?? null,
+        status: raw.status ?? "idle",
+      };
+    }),
     shots: (dto.draft.shots ?? []) as ManjuProjectDraft["shots"],
     episodes: (dto.draft.episodes ?? []).map((e) => ({
       id: e.id,

@@ -6,6 +6,11 @@ import { getJobsSocket } from "@/shared/lib/socket";
 import { toast } from "@/shared/lib/toast";
 import { useManjuStore } from "./manju-store";
 import type { ManjuJobStatus } from "./manju-types";
+import {
+  applyGridJobSplit,
+  peekGridJob,
+  takeGridJob,
+} from "./lib/grid-jobs";
 
 type JobAsset = {
   id: string;
@@ -67,6 +72,11 @@ export function useManjuJobBridge(activeProjectId?: string) {
       const jobId = resolveJobId(payload);
       const status = payload.status ?? payload.job?.status;
       if (!jobId || !status) return;
+      // 宫格整图：只更新状态，等 completed 再切块
+      if (peekGridJob(jobId)) {
+        applyJobResult({ jobId, status: mapStatus(status) });
+        return;
+      }
       applyJobResult({
         jobId,
         status: mapStatus(status),
@@ -122,6 +132,20 @@ export function useManjuJobBridge(activeProjectId?: string) {
       }
 
       const media = pickMedia(payload.assets ?? payload.job?.assets);
+      const grid = peekGridJob(jobId);
+      if (grid) {
+        if (!media.url) {
+          void applyGridJobSplit(jobId, grid, "", "failed");
+          toast.error("宫格图缺少结果地址");
+          return;
+        }
+        toast.message("宫格图已出，正在切块…");
+        void applyGridJobSplit(jobId, { ...grid }, media.url, "succeeded").then(
+          () => toast.success(`已切成 ${grid.shotIds.length} 格分镜`),
+        );
+        return;
+      }
+
       applyJobResult({
         jobId,
         status: "succeeded",
@@ -137,7 +161,16 @@ export function useManjuJobBridge(activeProjectId?: string) {
     }) => {
       const jobId = resolveJobId(payload);
       if (!jobId) return;
-      applyJobResult({ jobId, status: "failed" });
+      const grid = takeGridJob(jobId);
+      if (grid) {
+        for (const shotId of grid.shotIds) {
+          useManjuStore.getState().updateShot(grid.projectId, shotId, {
+            storyboardStatus: "failed",
+          });
+        }
+      } else {
+        applyJobResult({ jobId, status: "failed" });
+      }
       if (activeProjectId) setAnalyzing(activeProjectId, false);
       toast.error(payload.error || payload.job?.error || "生成失败");
     };
@@ -150,6 +183,10 @@ export function useManjuJobBridge(activeProjectId?: string) {
       const url = payload.asset?.url;
       const assetId = payload.asset?.id;
       if (!jobId || !url) return;
+      if (peekGridJob(jobId)) {
+        // 宫格等 job:completed 统一切块，避免半成品写进单镜
+        return;
+      }
       applyJobResult({
         jobId,
         status: "succeeded",

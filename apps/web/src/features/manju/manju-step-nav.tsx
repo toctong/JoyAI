@@ -102,9 +102,8 @@ export function ManjuStepNav({
   return (
     <aside className="manju-nav">
       <div className="manju-nav__head">
-        <Link href="/manju" className="manju-nav__back">
+        <Link href="/manju" className="manju-nav__back" title="全部项目">
           <ChevronLeft className="h-3.5 w-3.5" />
-          全部项目
         </Link>
         <EditableTitle
           value={project.title}
@@ -113,9 +112,10 @@ export function ManjuStepNav({
       </div>
 
       <ol className="manju-nav__steps">
-        {MANJU_STEPS.map((step) => {
+        {MANJU_STEPS.map((step, i) => {
           const active = step.id === currentId;
-          const done = completed.has(step.id);
+          const done = completed.has(step.id) || active;
+          const isLast = i === MANJU_STEPS.length - 1;
 
           return (
             <li
@@ -138,22 +138,26 @@ export function ManjuStepNav({
                   className={cn(
                     "manju-nav__step-index",
                     active && "manju-nav__step-index--active",
-                    done && !active && "manju-nav__step-index--done",
                   )}
                 >
-                  {done && !active ? (
-                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                  ) : (
-                    String(step.index).padStart(2, "0")
-                  )}
+                  {step.index}
                 </span>
                 <span className="manju-nav__step-label">{step.label}</span>
-                {done ? (
-                  <span className="manju-nav__step-check" aria-hidden>
-                    <Check className="h-3 w-3" strokeWidth={3} />
-                  </span>
-                ) : null}
+                <span
+                  className={cn(
+                    "manju-nav__step-check",
+                    !done && "manju-nav__step-check--empty",
+                  )}
+                  aria-hidden
+                >
+                  {done ? <Check className="h-2.5 w-2.5" strokeWidth={3} /> : null}
+                </span>
               </button>
+              {!isLast ? (
+                <div className="manju-nav__connector-row" aria-hidden>
+                  <span className="manju-nav__connector" />
+                </div>
+              ) : null}
             </li>
           );
         })}

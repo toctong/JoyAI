@@ -1,5 +1,6 @@
 import { submitManjuAnalyzeJob } from "../manju-api";
 import type { ManjuProjectDraft, ManjuSkill } from "../manju-types";
+import { assetRegistryName } from "./asset-registry";
 
 type Skill = Exclude<ManjuSkill, null>;
 
@@ -13,7 +14,10 @@ export function buildSkillPrompt(
     return buildEpisodePlanPrompt(project);
   }
 
-  const names = project.assets.map((a) => a.name).filter(Boolean).join("、");
+  const names = project.assets
+    .map((a) => assetRegistryName(a, project.assets))
+    .filter(Boolean)
+    .join("、");
   const episodes = project.episodes.map((e) => e.title).filter(Boolean).join("、");
   const episode = episodeId
     ? project.episodes.find((e) => e.id === episodeId)
@@ -76,6 +80,9 @@ export async function submitWorkflowSkill(input: {
 }) {
   if (input.skill === "plan_episodes") {
     return submitEpisodePlan(input.project);
+  }
+  if (input.skill === "series_memory") {
+    return submitSeriesMemory(input.project);
   }
   return submitManjuAnalyzeJob({
     projectId: input.project.id,

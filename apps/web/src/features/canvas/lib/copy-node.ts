@@ -12,7 +12,7 @@ export function prepareCopiedData(
 ) {
   const next: Record<string, unknown> = { ...data, jobId: "" };
   const status = String(next.status ?? "");
-  if (status === "queued" || status === "running") {
+  if (status === "queued" || status === "running" || status === "polling") {
     next.status = "idle";
     next.error = "";
   }

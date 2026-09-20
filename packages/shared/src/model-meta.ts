@@ -103,6 +103,10 @@ export const ModelCapabilitiesSchema = z.object({
    * When omitted, runtime falls back to platform + kind defaults.
    */
   adapterId: z.string().optional(),
+  /** TTS 可选音色（OpenAI-compatible speech） */
+  voices: z.array(z.string()).optional(),
+  /** TTS 可选输出格式 */
+  audioFormats: z.array(z.string()).optional(),
   /**
    * Request dialect / aliases for the selected adapter.
    * When omitted, openai-images infers from platform + remoteId.

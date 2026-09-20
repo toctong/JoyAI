@@ -25,6 +25,7 @@ import {
   mediaBusyLabel,
 } from "../media-upload-label";
 import { isBusyStatus } from "../node-registry";
+import { cancelNodeJob } from "../lib/cancel-node-job";
 import {
   PanoramaViewer,
   canvasToPngFile,
@@ -95,6 +96,11 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
   const busy = isBusyStatus(status);
+  const canCancel =
+    busy && Boolean(String(node.data.jobId ?? "").trim());
+  const onCancel = canCancel
+    ? () => void cancelNodeJob(node.id)
+    : undefined;
   const wantLive = framed && (selected || hovered || immersive);
   /** Immersive owns its own WebGL; the node shows the sphere, not the flat source. */
   const showNodeViewer = livePreview && !immersive;
@@ -155,11 +161,12 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
 
   async function captureView() {
     const api = apiRef.current;
-    const canvas = api?.canvas();
-    if (!canvas || capturing) return;
+    if (!api || capturing) return;
     setCapturing(true);
     const toastId = toast.loading("正在截取当前视角…");
     try {
+      const canvas = await api.captureCanvas();
+      if (!canvas) throw new Error("截图失败");
       pushHistory();
       const file = await canvasToPngFile(
         canvas,
@@ -234,6 +241,7 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
           customTitle={String(node.data.title ?? "")}
           visible={framed || busy || selected || hovered}
           icon={<CanvasIconPanorama />}
+          onDragPointerDown={onPointerDown}
         />
         <div className="relative h-full w-full overflow-hidden rounded-md bg-black/80">
           {framed ? (
@@ -241,7 +249,7 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
               <PanoramaViewer
                 url={url}
                 active
-                orbit={false}
+                orbit={selected}
                 initialView={storedView}
                 onReady={onReady}
               />
@@ -258,14 +266,21 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
               </div>
             )
           ) : busy ? (
-            <MediaBusyState label={mediaBusyLabel(node.data)} />
+            <MediaBusyState
+              label={mediaBusyLabel(node.data)}
+              onCancel={onCancel}
+            />
           ) : (
             <MediaUploadLabel nodeId={node.id} kind="panorama">
               <CanvasIconPanorama className="size-7 opacity-70" />
             </MediaUploadLabel>
           )}
           {framed && busy ? (
-            <MediaBusyState overlay label={mediaBusyLabel(node.data)} />
+            <MediaBusyState
+              overlay
+              label={mediaBusyLabel(node.data)}
+              onCancel={onCancel}
+            />
           ) : null}
           {framed && String(node.data.aspectHint ?? "") === "non-2:1" ? (
             <div className="pointer-events-none absolute left-2 top-2 rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] text-black">

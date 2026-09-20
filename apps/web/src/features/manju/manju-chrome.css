@@ -1,49 +1,88 @@
-/* JoyAI 漫剧工作台 — 跟随全局 light/dark token（对齐 studio / canvas） */
+/* 漫剧工作台皮肤：仅 .manju-workbench，对齐 ai-video 大片（黑底 + 青柠） */
 
 .manju-workbench {
   --manju-nav-w: 220px;
+  --manju-accent: #b8f04a;
+  --manju-accent-end: #4ade80;
+  --manju-accent-fg: #111111;
+  --manju-surface: #1a1a1a;
+  --background: #000000;
+  --foreground: #f5f5f5;
+  --card: #141414;
+  --card-foreground: #f5f5f5;
+  --popover: #1c1c1c;
+  --popover-foreground: #f5f5f5;
+  --primary: #b8f04a;
+  --primary-foreground: #111111;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #f5f5f5;
+  --muted: #1a1a1a;
+  --muted-foreground: #a3a3a3;
+  --accent: #242424;
+  --accent-foreground: #f5f5f5;
+  --destructive: #f87171;
+  --destructive-foreground: #450a0a;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: rgba(184, 240, 74, 0.35);
+  --radius: 10px;
+  color-scheme: dark;
   display: flex;
   height: 100%;
   min-height: 0;
-  background: var(--background);
-  color: var(--foreground);
+  background: #000000;
+  color: #f5f5f5;
 }
 
 .manju-nav {
   display: flex;
   width: var(--manju-nav-w);
-  flex-shrink: 0;
+  flex: 0 0 220px;
   flex-direction: column;
-  border-right: 1px solid var(--border);
-  background: var(--card);
+  padding: 16px 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: #000000;
 }
 
 .manju-nav__head {
-  padding: 16px 14px 12px;
-  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 20px;
+  padding: 0 4px;
+  min-width: 0;
+  border-bottom: none;
 }
 
 .manju-nav__back {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 10px;
-  font-size: 12px;
-  color: var(--muted-foreground);
-  transition: color 0.15s;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border-radius: 8px;
+  font-size: 0;
+  color: #a3a3a3;
+  gap: 0;
 }
 
 .manju-nav__back:hover {
-  color: var(--foreground);
+  color: #f5f5f5;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .manju-nav__title,
 .manju-nav__title-input {
-  width: 100%;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--foreground);
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #a3a3a3;
   background: transparent;
   border: none;
   outline: none;
@@ -52,21 +91,30 @@
 
 .manju-nav__title {
   cursor: text;
-  border-radius: calc(var(--radius) - 2px);
-  padding: 4px 6px;
-  margin: 0 -6px;
+  border-radius: 8px;
+  padding: 2px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .manju-nav__title:hover {
-  background: var(--muted);
+  color: #f5f5f5;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .manju-nav__title-input {
-  border-radius: calc(var(--radius) - 2px);
-  padding: 4px 6px;
-  margin: 0 -6px;
-  background: var(--muted);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 55%, transparent);
+  border-radius: 8px;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #1a1a1a;
+  color: #f5f5f5;
+  box-shadow: none;
+}
+
+.manju-nav__title-input:focus {
+  border-color: rgba(184, 240, 74, 0.45);
+  box-shadow: 0 0 0 2px rgba(184, 240, 74, 0.25);
 }
 
 .manju-nav__steps {
@@ -74,165 +122,352 @@
   flex: 1;
   flex-direction: column;
   gap: 0;
-  padding: 12px 10px;
+  padding: 0 2px;
   margin: 0;
   list-style: none;
   overflow-y: auto;
 }
 
 .manju-nav__step-wrap {
-  position: relative;
-  padding-bottom: 8px;
+  display: flex;
+  flex-direction: column;
 }
 
-.manju-nav__step-wrap:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  left: 22px;
-  top: 40px;
-  bottom: 0;
+.manju-nav__connector-row {
+  display: flex;
+  height: 14px;
+  padding: 0 0 0 10px;
+}
+
+.manju-nav__connector {
   width: 0;
-  border-left: 1px dashed color-mix(in oklab, var(--border) 90%, transparent);
+  height: 100%;
+  margin-left: 11px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.28);
 }
 
 .manju-nav__step {
-  display: flex;
+  display: grid;
   width: 100%;
+  grid-template-columns: 22px minmax(0, 1fr) 18px;
   align-items: center;
   gap: 10px;
-  border-radius: calc(var(--radius) - 2px);
-  padding: 8px 10px 8px 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 10px;
   text-align: left;
-  color: var(--muted-foreground);
-  transition:
-    background 0.15s,
-    color 0.15s;
+  color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+  cursor: pointer;
 }
 
 .manju-nav__step:hover {
-  color: var(--foreground);
-  background: var(--muted);
+  color: #f5f5f5;
+  background: transparent;
 }
 
 .manju-nav__step--active {
-  color: var(--foreground);
-  background: var(--muted);
+  background: rgba(184, 240, 74, 0.14);
+  color: #b8f04a;
 }
 
 .manju-nav__step--active:hover {
-  color: var(--foreground);
-  background: var(--muted);
+  background: rgba(184, 240, 74, 0.14);
+  color: #b8f04a;
+}
+
+.manju-nav__step--done {
+  color: #f5f5f5;
 }
 
 .manju-nav__step-index {
   display: inline-flex;
-  height: 28px;
-  width: 28px;
-  flex-shrink: 0;
+  height: 22px;
+  width: 22px;
+  box-sizing: border-box;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  background: transparent;
   font-size: 12px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  border: 1px solid var(--border);
-  color: inherit;
-  background: var(--background);
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.manju-nav__step-index--active,
-.manju-nav__step-index--done {
+.manju-nav__step-index--active {
   border-color: transparent;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  background: #b8f04a;
+  color: #111111;
+}
+
+.manju-nav__step-index--done {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .manju-nav__step-label {
-  flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.manju-nav__step--active .manju-nav__step-label {
   font-weight: 500;
-  line-height: 1.3;
+  color: #b8f04a;
 }
 
 .manju-nav__step-check {
   display: inline-flex;
-  height: 18px;
-  width: 18px;
-  flex-shrink: 0;
+  height: 16px;
+  width: 16px;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  border-radius: 50%;
+  background: #b8f04a;
+  color: #12200a;
+  border: none;
+}
+
+.manju-nav__step-check--empty {
+  background: transparent;
+  border: none;
+  color: transparent;
 }
 
 .manju-nav__footer {
-  border-top: 1px solid var(--border);
-  padding: 12px 14px 14px;
+  border-top: none;
+  padding: 12px 8px 4px;
 }
 
 .manju-nav__next-label {
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--muted-foreground);
-  text-transform: uppercase;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #737373;
 }
 
 .manju-nav__next-text {
-  margin-top: 4px;
+  margin-top: 2px;
   font-size: 12px;
-  line-height: 1.45;
-  color: var(--foreground);
+  line-height: 1.4;
+  color: #a3a3a3;
 }
 
 .manju-main {
+  --manju-content-x: 24px;
   display: flex;
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  background: var(--background);
+  min-height: 0;
+  background: #000000;
 }
 
 .manju-main__header {
+  position: relative;
+  z-index: 40;
   display: flex;
-  height: 56px;
+  height: 58px;
+  min-height: 58px;
+  box-sizing: border-box;
   flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
-  padding: 0 20px;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #000000;
+  padding: 10px var(--manju-content-x);
 }
 
 .manju-main__header-left {
   display: flex;
   min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  padding-right: 520px;
+}
+
+.manju-main__header-toolbar {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.manju-main__step-title {
+  display: none;
+}
+
+.manju-main__step-hint {
+  display: none;
+}
+
+.manju-main__actions {
+  position: absolute;
+  top: 10px;
+  right: var(--manju-content-x);
+  display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.manju-main__step-title {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.manju-main__step-hint {
-  font-size: 12px;
-  color: var(--muted-foreground);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.manju-main__header-right {
-  display: flex;
+.manju-tool-btn {
+  display: inline-flex;
+  height: 38px;
+  width: 88px;
+  min-width: 88px;
+  box-sizing: border-box;
   flex-shrink: 0;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1a1a1a;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #a3a3a3;
+  cursor: pointer;
+}
+
+.manju-tool-btn--wide {
+  width: 112px;
+  min-width: 112px;
+}
+
+.manju-tool-btn:hover:not(:disabled) {
+  color: #f5f5f5;
+  background: #242424;
+}
+
+.manju-tool-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.manju-tool-btn__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.manju-generate-combo {
+  position: relative;
+  display: inline-flex;
+  width: 148px;
+  height: 38px;
+  flex-shrink: 0;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #b8f04a, #4ade80);
+}
+
+.manju-generate-combo__primary {
+  display: inline-flex;
+  width: 100%;
+  height: 38px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 40px 0 14px !important;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111111 !important;
+  cursor: pointer;
+}
+
+.manju-generate-combo__primary:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06) !important;
+  filter: none;
+}
+
+.manju-generate-combo__primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.manju-generate-combo__label {
+  display: inline-block;
+  width: 4em;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.manju-generate-combo__settings {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: inline-flex;
+  width: 38px;
+  height: 38px;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.14) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: #111111 !important;
+  cursor: pointer;
+}
+
+.manju-generate-combo__settings:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+
+.manju-next-btn {
+  display: inline-flex;
+  height: 38px;
+  width: 168px;
+  min-width: 168px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, #b8f04a, #4ade80) !important;
+  padding: 0 12px !important;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111111 !important;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+.manju-next-btn:hover:not(:disabled) {
+  filter: brightness(1.04);
+}
+
+.manju-next-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.manju-next-btn__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .manju-main__workspace {
@@ -246,7 +481,8 @@
   min-height: 0;
   flex: 1;
   overflow: auto;
-  padding: 20px;
+  padding: 24px;
+  background: #000000;
 }
 
 .manju-panel {
@@ -254,45 +490,45 @@
   min-height: 100%;
   flex-direction: column;
   align-items: stretch;
-  gap: 16px;
+  gap: 12px;
 }
 
 .manju-card {
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 8px;
   background: var(--card);
-  padding: 20px;
+  padding: 14px 16px;
   color: var(--card-foreground);
 }
 
 .manju-card__title {
-  margin-bottom: 6px;
-  font-size: 14px;
+  margin-bottom: 4px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .manju-card__desc {
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: 12px;
+  line-height: 1.55;
   color: var(--muted-foreground);
 }
 
 .manju-chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .manju-chip {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--background);
-  padding: 7px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--muted-foreground);
+  color: #a3a3a3;
   transition:
     background 0.15s,
     color 0.15s,
@@ -300,14 +536,14 @@
 }
 
 .manju-chip:hover {
-  color: var(--foreground);
-  background: var(--muted);
+  color: #f5f5f5;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .manju-chip--active {
-  border-color: transparent;
-  background: var(--primary);
-  color: var(--primary-foreground);
+  border-color: rgba(184, 240, 74, 0.45);
+  background: rgba(184, 240, 74, 0.12);
+  color: #b8f04a;
 }
 
 .manju-mode-card {
@@ -338,12 +574,29 @@
   cursor: not-allowed;
 }
 
+.manju-mode-card--soon {
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.manju-mode-card__badge {
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+
 .manju-tabs {
   display: inline-flex;
   gap: 4px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
   padding: 3px;
 }
 
@@ -355,13 +608,13 @@
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--muted-foreground);
+  color: #a3a3a3;
 }
 
 .manju-tab--active {
-  background: var(--background);
-  color: var(--foreground);
-  box-shadow: 0 0 0 1px var(--border);
+  background: rgba(184, 240, 74, 0.14);
+  color: #b8f04a;
+  box-shadow: none;
 }
 
 .manju-asset-card {
@@ -369,9 +622,15 @@
   grid-template-columns: 140px 1fr;
   gap: 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 8px;
   background: var(--card);
   padding: 12px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.manju-asset-card:hover {
+  border-color: color-mix(in oklab, var(--manju-accent) 40%, var(--border));
+  background: color-mix(in oklab, var(--manju-accent) 5%, var(--card));
 }
 
 @media (max-width: 640px) {
@@ -433,11 +692,17 @@
 .manju-shot-card {
   position: relative;
   min-height: 200px;
-  border-radius: var(--radius);
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--card);
-  padding: 16px;
+  padding: 14px;
   color: var(--card-foreground);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.manju-shot-card:hover {
+  border-color: color-mix(in oklab, var(--manju-accent) 40%, var(--border));
+  background: color-mix(in oklab, var(--manju-accent) 5%, var(--card));
 }
 
 .manju-shot-card__index {
@@ -882,3 +1147,173 @@
   animation: manju-accordion-up 0.2s ease-out;
 }
 
+/* --- script entry / assets empty (blockbuster-aligned) --- */
+.manju-script-choose {
+  display: flex;
+  flex: 1;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 24px;
+}
+
+.manju-script-choose__hero {
+  text-align: center;
+  color: #a3a3a3;
+}
+
+.manju-script-choose__hero-icon {
+  display: inline-flex;
+  width: 76px;
+  height: 76px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  color: #737373;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.manju-script-choose__hero p {
+  margin: 12px 0 0;
+  font-size: 15px;
+}
+
+.manju-script-choose__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 220px));
+  gap: 16px;
+}
+
+.manju-entry-card {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: #1a1a1a;
+  color: #f5f5f5;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.14s ease;
+}
+
+.manju-entry-card:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.manju-entry-card--active,
+.manju-entry-card:focus-visible {
+  border-color: rgba(184, 240, 74, 0.45);
+  outline: none;
+}
+
+.manju-entry-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.manju-entry-card__icon {
+  display: inline-flex;
+  color: #f5f5f5;
+  line-height: 1;
+}
+
+.manju-entry-card strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.manju-entry-card > span:not(.manju-entry-card__icon) {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #a3a3a3;
+}
+
+.manju-entry-card--compact {
+  gap: 8px;
+  padding: 16px 18px;
+  min-width: 180px;
+}
+
+.manju-assets-empty {
+  display: flex;
+  flex: 1;
+  min-height: 420px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.manju-assets-empty__visual {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin-bottom: 8px;
+}
+
+.manju-assets-empty__box {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  width: 72px;
+  height: 48px;
+  transform: translateX(-50%);
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.manju-assets-empty__beam {
+  position: absolute;
+  left: 50%;
+  bottom: 66px;
+  width: 2px;
+  height: 48px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    rgba(184, 240, 74, 0.05) 0%,
+    rgba(184, 240, 74, 0.55) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  box-shadow: 0 0 18px rgba(184, 240, 74, 0.18);
+}
+
+.manju-assets-empty__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f5f5f5;
+}
+
+.manju-assets-empty__desc {
+  margin: 0;
+  max-width: 360px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #a3a3a3;
+}
+
+.manju-assets-empty__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.manju-assets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}

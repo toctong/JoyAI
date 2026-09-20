@@ -1,0 +1,250 @@
+.joy-camera-panel {
+  width: min(420px, calc(100vw - 24px)) !important;
+  max-width: min(420px, calc(100vw - 24px));
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  background: color-mix(in oklab, var(--card) 96%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 18px 40px -22px rgba(0, 0, 0, 0.55);
+  color: var(--foreground);
+}
+
+.joy-camera-trigger .joy-chip-params-seg {
+  gap: 3px;
+  padding: 0 7px;
+}
+
+.joy-camera-trigger.is-on {
+  color: var(--foreground);
+}
+
+.dark .joy-camera-panel {
+  background: rgba(28, 28, 32, 0.96);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.joy-camera-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+}
+
+.joy-camera-panel-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.joy-camera-panel-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.joy-camera-panel-close:hover {
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+  color: var(--foreground);
+}
+
+.joy-camera-panel-body {
+  padding: 6px 6px 8px;
+}
+
+.joy-camera-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+
+.joy-camera-preset {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.joy-camera-preset:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+.joy-camera-preset.is-on {
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--foreground) 22%, transparent);
+  background: color-mix(in oklab, var(--primary) 16%, transparent);
+}
+
+.joy-camera-columns {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.joy-camera-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.joy-camera-col.has-sep {
+  border-left: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
+}
+
+.joy-camera-step {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 20px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.joy-camera-step:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+  color: var(--foreground);
+}
+
+.joy-camera-step:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.joy-camera-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 86px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--background) 70%, var(--card));
+  cursor: help;
+}
+
+.joy-camera-card-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.joy-camera-card-visual {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+}
+
+.joy-camera-photo {
+  display: block;
+  width: 100%;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 6px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.joy-camera-card-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 16px;
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--foreground);
+}
+
+.joy-camera-caption {
+  margin-top: 1px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
+.joy-camera-number {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.joy-camera-number-value {
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.joy-camera-number-unit {
+  margin-top: 2px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+
+.joy-camera-aperture {
+  display: flex;
+  align-items: baseline;
+}
+
+.joy-camera-aperture-prefix {
+  margin-right: 1px;
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--muted-foreground);
+}
+
+.joy-camera-panel-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.joy-camera-panel-foot-label {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.joy-camera-panel-foot-label.is-on {
+  color: var(--foreground);
+}

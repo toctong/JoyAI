@@ -80,6 +80,7 @@ import { NodeInfoDialog } from "./node-info-dialog";
 import { AudioTrimDialog } from "./audio-trim-dialog";
 import { MaskEditDialog } from "./mask-edit-dialog";
 import { trimMediaToFile } from "./lib/trim-audio";
+import { trimVideoToFile } from "./lib/trim-video";
 import { flagPanoramaAspect } from "./lib/panorama-prompt";
 import { convertImagePanoramaType } from "./lib/convert-media-type";
 import { commitImagePieces } from "./lib/commit-image-pieces";
@@ -99,6 +100,15 @@ import { separateAudioToNode } from "./lib/extract-audio-to-node";
 import { uploadFileToNewNode } from "./lib/upload-to-node";
 import { frameNodeToMedia } from "./lib/fit-node-size";
 import { getPlaybackTime } from "./lib/playback-clock";
+import {
+  expandIdsWithBatch,
+  isHiddenBatchChild,
+} from "./lib/batch-group";
+import {
+  handleCanvasJobCompleted,
+  handleCanvasJobFailed,
+} from "./lib/handle-job-event";
+import { isBusyStatus } from "./node-registry";
 import "./canvas-chrome.css";
 
 function notePanoramaAspect(nodeId: string, url: string) {
@@ -141,11 +151,6 @@ function rectsIntersect(
     a.y < b.y + b.h &&
     a.y + a.h > b.y
   );
-}
-
-function isEmptyMediaNode(node: CanvasNode) {
-  const url = String(node.data.url ?? "");
-  return !url || url.startsWith("data:");
 }
 
 function mediaKindOf(
@@ -367,172 +372,19 @@ export function CanvasBoard({
   useEffect(() => {
     const socket = getJobsSocket();
     const onCompleted = (payload: {
-      jobId: string;
+      jobId?: string;
       assets?: { id: string; url: string }[];
       result?: { text?: string };
     }) => {
-      const llmText = String(payload.result?.text ?? "").trim();
-      if (llmText) {
-        const matches = useCanvasStore
-          .getState()
-          .nodes.filter((node) => node.data.jobId === payload.jobId);
-        if (matches.length) {
-          useCanvasStore.getState().pushHistory();
-          for (const node of matches) {
-            if (node.type === "text") {
-              updateNodeData(node.id, {
-                text: llmText,
-                status: "succeeded",
-                error: "",
-              });
-              continue;
-            }
-            if (node.type === "prompt") {
-              updateNodeData(node.id, { status: "succeeded", error: "" });
-              const live = useCanvasStore.getState();
-              const outgoing = live.edges
-                .filter((edge) => edge.source === node.id)
-                .map((edge) => live.nodes.find((item) => item.id === edge.target))
-                .filter((item) => item?.type === "text");
-              const empty = outgoing.find(
-                (item) => !String(item?.data.text ?? "").trim(),
-              );
-              if (empty) {
-                updateNodeData(empty.id, {
-                  text: llmText,
-                  status: "succeeded",
-                  error: "",
-                  title: String(empty.data.title ?? "").trim() || "生成文本",
-                });
-              } else {
-                const box = nodeBox(node);
-                const textId = live.addNode("text", {
-                  x: box.x + box.width + 40,
-                  y: box.y,
-                });
-                live.updateNode(textId, { width: 360, height: 160 });
-                live.updateNodeData(textId, {
-                  text: llmText,
-                  status: "succeeded",
-                  title: titleFromPrompt(llmText) || "生成文本",
-                  fontSize: 14,
-                });
-                live.addEdge(node.id, textId);
-              }
-            }
-          }
-          return;
-        }
-      }
-
-      const asset = payload.assets?.[0];
-      if (!asset) return;
-      const matches = useCanvasStore
-        .getState()
-        .nodes.filter((node) => node.data.jobId === payload.jobId);
-      if (!matches.length) return;
-      const keepSelection = useCanvasStore.getState().selectedIds.slice();
-      useCanvasStore.getState().pushHistory();
-      let addedNode = false;
-      for (const node of matches) {
-        const live = useCanvasStore.getState();
-        if (node.type === "prompt") {
-          const url = String(asset.url ?? "").toLowerCase();
-          const stored = String(node.data.outputKind ?? "");
-          const outputKind: "image" | "video" | "panorama" =
-            stored === "video" || /\.(mp4|webm|mov)(\?|$)/.test(url)
-              ? "video"
-              : stored === "panorama"
-                ? "panorama"
-                : "image";
-          updateNodeData(node.id, {
-            status: "succeeded",
-            error: "",
-          });
-          const outgoing = live.edges
-            .filter((e) => e.source === node.id)
-            .map((e) => live.nodes.find((n) => n.id === e.target))
-            .filter((n): n is CanvasNode => n != null && n.type === outputKind);
-          const emptyTarget = outgoing.find(isEmptyMediaNode);
-          const named = titleFromPrompt(String(node.data.prompt ?? ""));
-          if (emptyTarget) {
-            updateNodeData(emptyTarget.id, {
-              url: asset.url,
-              assetId: asset.id,
-              status: "succeeded",
-              error: "",
-              prompt: String(node.data.prompt ?? ""),
-              ...(named && !String(emptyTarget.data.title ?? "").trim()
-                ? { title: named }
-                : {}),
-              ...(outputKind === "panorama"
-                ? { projection: "equirectangular" }
-                : {}),
-            });
-            if (outputKind === "panorama") {
-              notePanoramaAspect(emptyTarget.id, asset.url);
-            } else if (outputKind === "image" || outputKind === "video") {
-              void frameNodeToMedia(emptyTarget.id, asset.url, outputKind);
-            }
-          } else {
-            const box = nodeBox(node);
-            const mediaId = live.addNode(outputKind, {
-              x: box.x + box.width + 40,
-              y: box.y,
-            });
-            updateNodeData(mediaId, {
-              url: asset.url,
-              assetId: asset.id,
-              status: "succeeded",
-              prompt: String(node.data.prompt ?? ""),
-              ...(named ? { title: named } : {}),
-              ...(outputKind === "panorama"
-                ? { projection: "equirectangular" }
-                : {}),
-            });
-            live.addEdge(node.id, mediaId);
-            if (outputKind === "panorama") notePanoramaAspect(mediaId, asset.url);
-            else if (outputKind === "image" || outputKind === "video") {
-              void frameNodeToMedia(mediaId, asset.url, outputKind);
-            }
-            addedNode = true;
-          }
-        } else {
-          const selfNamed = titleFromPrompt(String(node.data.prompt ?? ""));
-          updateNodeData(node.id, {
-            url: asset.url,
-            assetId: asset.id,
-            status: "succeeded",
-            error: "",
-            ...(selfNamed && !String(node.data.title ?? "").trim()
-              ? { title: selfNamed }
-              : {}),
-            ...(node.type === "panorama"
-              ? { projection: "equirectangular" }
-              : {}),
-          });
-          if (node.type === "panorama") notePanoramaAspect(node.id, asset.url);
-          else if (node.type === "image" || node.type === "video") {
-            void frameNodeToMedia(node.id, asset.url, node.type);
-          }
-        }
-      }
-      if (addedNode) {
-        useCanvasStore.getState().setSelection(keepSelection);
-      }
+      handleCanvasJobCompleted(payload);
     };
-    const onFailed = (payload: { jobId: string; error?: string }) => {
-      const state = useCanvasStore.getState();
-      for (const node of state.nodes) {
-        if (node.data.jobId !== payload.jobId) continue;
-        updateNodeData(node.id, {
-          status: "failed",
-          error: payload.error ?? "生成失败",
-        });
-      }
+    const onFailed = (payload: {
+      jobId?: string;
+      error?: string;
+      status?: string;
+    }) => {
+      handleCanvasJobFailed(payload);
     };
-    socket.on("job:completed", onCompleted);
-    socket.on("job:failed", onFailed);
     const onAssetUpdated = (payload: {
       asset?: { id: string; url: string };
       jobId?: string | null;
@@ -545,12 +397,16 @@ export function CanvasBoard({
         const byAsset = node.data.assetId === asset.id;
         const byJob = payload.jobId && node.data.jobId === payload.jobId;
         if (!byAsset && !byJob) continue;
+        const busy = isBusyStatus(String(node.data.status ?? ""));
         updateNodeData(node.id, {
           url: asset.url,
           assetId: asset.id,
+          ...(busy ? { status: "succeeded", error: "" } : {}),
         });
       }
     };
+    socket.on("job:completed", onCompleted);
+    socket.on("job:failed", onFailed);
     socket.on("asset:updated", onAssetUpdated);
     return () => {
       socket.off("job:completed", onCompleted);
@@ -558,6 +414,60 @@ export function CanvasBoard({
       socket.off("asset:updated", onAssetUpdated);
     };
   }, [updateNodeData]);
+
+  // Safety net: if a WS event was missed, pull terminal job state for busy nodes.
+  useEffect(() => {
+    if (!projectReady) return;
+    let cancelled = false;
+
+    async function reconcileBusyJobs() {
+      const busy = useCanvasStore.getState().nodes.filter((node) => {
+        const status = String(node.data.status ?? "");
+        const jobId = String(node.data.jobId ?? "").trim();
+        return isBusyStatus(status) && Boolean(jobId);
+      });
+      if (!busy.length) return;
+
+      await Promise.all(
+        busy.map(async (node) => {
+          const jobId = String(node.data.jobId ?? "").trim();
+          if (!jobId || cancelled) return;
+          try {
+            const job = await api<{
+              id: string;
+              status: string;
+              error?: string | null;
+              assets?: { id: string; url: string }[];
+              result?: { text?: string };
+            }>(`/jobs/${jobId}`);
+            if (cancelled) return;
+            if (job.status === "succeeded") {
+              handleCanvasJobCompleted({
+                jobId: job.id,
+                assets: job.assets,
+                result: job.result,
+              });
+            } else if (job.status === "failed" || job.status === "cancelled") {
+              handleCanvasJobFailed({
+                jobId: job.id,
+                error: job.error ?? undefined,
+                status: job.status,
+              });
+            }
+          } catch {
+            /* ignore transient fetch errors */
+          }
+        }),
+      );
+    }
+
+    void reconcileBusyJobs();
+    const timer = window.setInterval(() => void reconcileBusyJobs(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [projectReady]);
 
   const ingestFiles = useCallback(
     async (files: FileList | File[], at?: { x: number; y: number }) => {
@@ -960,9 +870,10 @@ export function CanvasBoard({
         h: (bottom - top) / vp.zoom,
       };
     })();
-    const hit = useCanvasStore
-      .getState()
-      .nodes.filter((n) => {
+    const allNodes = useCanvasStore.getState().nodes;
+    const hit = allNodes
+      .filter((n) => !isHiddenBatchChild(n, allNodes))
+      .filter((n) => {
         const box = nodeBox(n);
         return rectsIntersect(world, {
           x: box.x,
@@ -1081,7 +992,11 @@ export function CanvasBoard({
         const localX = e.clientX - rect.left;
         const localY = e.clientY - rect.top;
         const vp = useCanvasStore.getState().viewport;
-        const liveNodes = useCanvasStore.getState().nodes;
+        const liveNodes = useCanvasStore
+          .getState()
+          .nodes.filter(
+            (n) => !isHiddenBatchChild(n, useCanvasStore.getState().nodes),
+          );
         const wx = (localX - vp.x) / vp.zoom;
         const wy = (localY - vp.y) / vp.zoom;
         const hit = hitNodeAt(liveNodes, wx, wy);
@@ -1196,6 +1111,8 @@ export function CanvasBoard({
       setSelection([node.id]);
       dragIds = [node.id];
     }
+
+    dragIds = expandIdsWithBatch(useCanvasStore.getState().nodes, dragIds);
 
     const origins: Record<string, { x: number; y: number }> = {};
     for (const id of dragIds) {
@@ -1575,10 +1492,37 @@ export function CanvasBoard({
       setAudioTrim(null);
       return;
     }
+    const asVideo = node.type === "video";
     setAudioTrimBusy(true);
     try {
-      const file = await trimMediaToFile(session.url, range.start, range.end);
       pushHistory();
+      if (asVideo) {
+        const file = await trimVideoToFile(
+          session.url,
+          range.start,
+          range.end,
+          String(node.data.fileName ?? node.data.title ?? "视频"),
+        );
+        const videoId = await uploadFileToNewNode(
+          file,
+          {
+            x: node.x + (node.width ?? 420) + 40,
+            y: node.y,
+          },
+          {
+            history: false,
+            preferredType: "video",
+            title: "剪辑片段",
+          },
+        );
+        addEdge(node.id, videoId);
+        setSelection([videoId]);
+        setAudioTrim(null);
+        toast.success("已剪辑并创建视频节点");
+        return;
+      }
+
+      const file = await trimMediaToFile(session.url, range.start, range.end);
       const audioId = await uploadFileToNewNode(
         file,
         {
@@ -1596,7 +1540,13 @@ export function CanvasBoard({
       setAudioTrim(null);
       toast.success("已截取并创建音频节点");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "截取失败");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : asVideo
+            ? "剪辑失败"
+            : "截取失败",
+      );
     } finally {
       setAudioTrimBusy(false);
     }
@@ -1705,7 +1655,8 @@ export function CanvasBoard({
   const genCapable =
     selectedMedia === "image" ||
     selectedMedia === "video" ||
-    selectedMedia === "panorama";
+    selectedMedia === "panorama" ||
+    selectedMedia === "audio";
   const selectedStatus = String(selectedNodes[0]?.data.status ?? "idle");
   const selectedUploading =
     selectedStatus === "queued" || selectedStatus === "running";
@@ -1848,7 +1799,6 @@ export function CanvasBoard({
           <NodeFloatToolbar
             nodes={floatToolbarNodes}
             viewport={viewport}
-            onEditImage={(id) => setEditingImageId(id)}
             onOpenDirector={(id) => setDirectorId(id)}
             genPanelOpen={genPanelOpen}
             onToggleGenPanel={
@@ -1985,6 +1935,7 @@ export function CanvasBoard({
               selectedIds,
             );
             return nodes.map((node, index) => {
+              if (isHiddenBatchChild(node, nodes)) return null;
               const inSelection = selectedIds.includes(node.id);
               const selected = inSelection && !soleGroupSelected;
               const hovered = hoveredNodeId === node.id;
@@ -2241,6 +2192,11 @@ export function CanvasBoard({
       />
       <AudioTrimDialog
         url={audioTrim?.url ?? ""}
+        mode={
+          nodes.find((item) => item.id === audioTrim?.nodeId)?.type === "video"
+            ? "video"
+            : "audio"
+        }
         open={Boolean(audioTrim)}
         busy={audioTrimBusy}
         onClose={() => {

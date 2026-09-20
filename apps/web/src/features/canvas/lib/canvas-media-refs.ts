@@ -22,7 +22,7 @@ function mediaKindOf(
   return null;
 }
 
-/** Build @-mention items from canvas nodes (image / video / audio / text). */
+/** Build @-mention items from canvas media nodes (caller scopes which nodes). */
 export function buildCanvasMentionItems(
   nodes: CanvasNode[],
 ): CanvasMentionItem[] {

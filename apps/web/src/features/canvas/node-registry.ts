@@ -2,7 +2,6 @@ import type { CanvasNodeType } from "@joyai/shared";
 
 /** Toolbar actions declared per node type (rendered by NodeFloatToolbar). */
 export type NodeToolbarAction =
-  | "edit-image"
   | "upload"
   | "download"
   | "save-asset"
@@ -64,7 +63,6 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
     defaultHeight: 240,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
     toolbar: [
-      "edit-image",
       "upload",
       "spawn-prompt",
       "spawn-video",
@@ -189,7 +187,9 @@ export function nodeDefaultSize(type: CanvasNodeType) {
 }
 
 export function isBusyStatus(status: string) {
-  return status === "queued" || status === "running";
+  return (
+    status === "queued" || status === "running" || status === "polling"
+  );
 }
 
 export function isFailedStatus(status: string) {

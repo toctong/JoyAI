@@ -2431,5 +2431,40 @@
         ]
       }
     }
+  ],
+  "audio": [
+    {
+      "name": "GPT-4o Mini TTS",
+      "remoteId": "gpt-4o-mini-tts",
+      "description": "APIMart 文档确认：POST /v1/audio/speech",
+      "isDefault": true,
+      "capabilities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "audio"
+        ],
+        "features": [
+          "tts"
+        ],
+        "adapterId": "openai-audio",
+        "voices": [
+          "alloy",
+          "echo",
+          "fable",
+          "onyx",
+          "nova",
+          "shimmer"
+        ],
+        "audioFormats": [
+          "wav",
+          "opus",
+          "aac",
+          "flac",
+          "pcm"
+        ]
+      }
+    }
   ]
 }

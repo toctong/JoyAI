@@ -4,6 +4,8 @@ import {
   buildStoryboardImagePrompt,
   buildStoryboardVideoPrompt,
 } from "./lib/prompt-builders";
+import { assetRegistryName } from "./lib/asset-registry";
+import { styleIdFromPrompt } from "./config/manju-style-templates";
 
 export type ManjuAspectRatio = "9:16" | "16:9" | "1:1" | "4:3" | "3:4" | "21:9";
 
@@ -20,7 +22,11 @@ export type ManjuJobStatus =
 export type ManjuVideoSettings = {
   ratio: ManjuAspectRatio;
   mode: ManjuGenMode;
+  /** 宫格布局；mode=grid 时用 */
+  gridLayout?: "2x2" | "3x3";
   style: string;
+  /** 风格模板 id；选模板时同步写入 style */
+  styleId?: string;
   duration: number;
   llmModelId?: string;
   imageModelId?: string;
@@ -53,6 +59,10 @@ export type ManjuShotDraft = {
   videoStatus: ManjuJobStatus;
   storyboardStale: boolean;
   videoStale: boolean;
+  /** 宫格同批；null 表示非宫格镜头 */
+  gridGroupId: string | null;
+  /** 宫格格号 0-based */
+  gridCellIndex: number | null;
 };
 
 export type ManjuAssetDraft = {
@@ -61,6 +71,8 @@ export type ManjuAssetDraft = {
   name: string;
   description: string;
   aliases: string[];
+  /** 衍生挂本体；本体为 null。提示词提及 @[本体名/衍生名] */
+  parentId: string | null;
   imageUrl: string | null;
   assetId: string | null;
   jobId: string | null;
@@ -109,10 +121,13 @@ export type ManjuProjectDraft = {
 export const DEFAULT_SETTINGS: ManjuVideoSettings = {
   ratio: "9:16",
   mode: "i2v",
-  style: "电影感写实",
+  gridLayout: "2x2",
+  style: "电影感写实，自然光影，细腻皮肤质感，电影级构图",
+  styleId: "cinematic",
   duration: 5,
 };
 
+/** @deprecated 用 STYLE_TEMPLATES；保留兼容旧引用 */
 export const STYLE_PRESETS = [
   "电影感写实",
   "暗色水墨",
@@ -135,23 +150,40 @@ export const MODE_OPTIONS: {
   id: ManjuGenMode;
   title: string;
   desc: string;
+  /** false = 界面展示但不可选，避免假能力 */
+  available: boolean;
 }[] = [
   {
     id: "i2v",
     title: "图生视频",
     desc: "以分镜图驱动，构图更可控",
+    available: true,
   },
   {
     id: "ref",
     title: "全能参考",
     desc: "多参考图直出，连贯性更好",
+    available: true,
   },
   {
     id: "grid",
     title: "多宫格",
-    desc: "宫格切块尚未实现，暂按图生视频",
+    desc: "一张宫格图切块后，再逐格生视频",
+    available: true,
   },
 ];
+
+/** 视频提交时：grid 按 i2v（单格静帧）处理 */
+export function resolveManjuGenMode(mode: ManjuGenMode): "i2v" | "ref" {
+  return mode === "ref" ? "ref" : "i2v";
+}
+
+export function gridLayoutDims(
+  layout: "2x2" | "3x3" | undefined,
+): { rows: number; cols: number; cells: number } {
+  if (layout === "3x3") return { rows: 3, cols: 3, cells: 9 };
+  return { rows: 2, cols: 2, cells: 4 };
+}
 
 export function createEmptyShot(index: number): ManjuShotDraft {
   return {
@@ -174,19 +206,25 @@ export function createEmptyShot(index: number): ManjuShotDraft {
     videoStatus: "idle",
     storyboardStale: false,
     videoStale: false,
+    gridGroupId: null,
+    gridCellIndex: null,
   };
 }
 
 export function createEmptyAsset(
   kind: ManjuAssetDraft["kind"],
   name = "",
+  parentId: string | null = null,
 ): ManjuAssetDraft {
+  const rootLabel =
+    kind === "character" ? "新角色" : kind === "scene" ? "新场景" : "新道具";
   return {
     id: crypto.randomUUID(),
     kind,
-    name: name || (kind === "character" ? "新角色" : kind === "scene" ? "新场景" : "新道具"),
+    name: name || (parentId ? "新衍生" : rootLabel),
     description: "",
     aliases: [],
+    parentId,
     imageUrl: null,
     assetId: null,
     jobId: null,
@@ -243,10 +281,21 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
 
   const settings: ManjuVideoSettings = {
     ratio: (settingsRaw?.ratio as ManjuAspectRatio) ?? DEFAULT_SETTINGS.ratio,
-    mode: (settingsRaw?.mode as ManjuGenMode) ?? DEFAULT_SETTINGS.mode,
+    mode: resolveManjuGenMode(
+      (settingsRaw?.mode as ManjuGenMode) ?? DEFAULT_SETTINGS.mode,
+    ),
     style:
       settingsRaw?.style ??
       (summary.trim() || DEFAULT_SETTINGS.style),
+    styleId:
+      settingsRaw?.styleId ??
+      styleIdFromPrompt(
+        settingsRaw?.style ?? (summary.trim() || DEFAULT_SETTINGS.style),
+      ),
+    gridLayout:
+      settingsRaw?.gridLayout === "3x3" || settingsRaw?.gridLayout === "2x2"
+        ? settingsRaw.gridLayout
+        : DEFAULT_SETTINGS.gridLayout,
     duration: settingsRaw?.duration ?? DEFAULT_SETTINGS.duration,
     llmModelId: settingsRaw?.llmModelId ?? "",
     imageModelId: settingsRaw?.imageModelId ?? "",
@@ -255,8 +304,9 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
 
   const assets = Array.isArray(p.assets)
     ? (p.assets as ManjuAssetDraft[]).map((a) => ({
-        ...createEmptyAsset(a.kind ?? "character", a.name),
+        ...createEmptyAsset(a.kind ?? "character", a.name, a.parentId ?? null),
         ...a,
+        parentId: typeof a.parentId === "string" ? a.parentId : null,
         status: a.status ?? "idle",
         imageUrl: a.imageUrl ?? null,
         assetId: a.assetId ?? null,
@@ -285,6 +335,11 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
         videoPrompt: typeof s.videoPrompt === "string" ? s.videoPrompt : "",
         storyboardStale: s.storyboardStale === true,
         videoStale: s.videoStale === true,
+        gridGroupId: typeof s.gridGroupId === "string" ? s.gridGroupId : null,
+        gridCellIndex:
+          typeof s.gridCellIndex === "number" && s.gridCellIndex >= 0
+            ? s.gridCellIndex
+            : null,
       }))
     : [];
 
@@ -399,8 +454,9 @@ export function shotDurationSeconds(
 export function buildAssetPrompt(
   asset: ManjuAssetDraft,
   settings: ManjuVideoSettings,
+  allAssets: ManjuAssetDraft[] = [],
 ): string {
-  return buildAssetImagePrompt(asset, settings);
+  return buildAssetImagePrompt(asset, settings, allAssets);
 }
 
 export function buildShotImagePrompt(
@@ -439,13 +495,27 @@ export function stepCanAdvance(
         ? { ok: true }
         : { ok: false, reason: "请选择或填写视觉风格" };
     case "assets":
-      return project.assets.length > 0
-        ? { ok: true }
-        : { ok: false, reason: "请至少添加一个角色/场景/道具" };
+      if (project.assets.length === 0) {
+        return { ok: false, reason: "请至少添加一个角色/场景/道具" };
+      }
+      if (!project.assets.some((a) => a.imageUrl)) {
+        return {
+          ok: false,
+          reason: "请先为至少一个资产生成或上传参考图，再进分镜",
+        };
+      }
+      return { ok: true };
     case "storyboard-script":
-      return project.shots.some((s) => s.visual.trim())
-        ? { ok: true }
-        : { ok: false, reason: "请至少写好一个分镜画面描述" };
+      if (!project.shots.some((s) => s.visual.trim())) {
+        return { ok: false, reason: "请至少写好一个分镜画面描述" };
+      }
+      if (!project.scriptConfirmed) {
+        return {
+          ok: false,
+          reason: "请先「确认脚本」，再进分镜视频",
+        };
+      }
+      return { ok: true };
     case "storyboard-video":
       return project.shots.some((s) => s.videoUrl)
         ? { ok: true }
@@ -557,7 +627,25 @@ export type ManjuSkill =
   | "script_plan"
   | "author_prompts"
   | "plan_episodes"
+  | "series_memory"
   | null;
+
+function needsEpisodeSourceSlice(project: ManjuProjectDraft): boolean {
+  if (project.scriptText.trim().length < 400) return false;
+  if (project.episodes.length === 0) return true;
+  return project.episodes.some((e) => !e.sourceText?.trim());
+}
+
+function settingsLookUntouched(project: ManjuProjectDraft): boolean {
+  if (project.completedSteps.includes("video-settings")) return false;
+  const s = project.settings;
+  const defaultStyle =
+    DEFAULT_SETTINGS.style === s.style ||
+    s.style === "电影感写实" ||
+    Boolean(s.styleId && s.styleId === DEFAULT_SETTINGS.styleId);
+  const noModels = !s.llmModelId && !s.imageModelId && !s.videoModelId;
+  return defaultStyle && noModels && s.mode === "i2v" && s.duration === 5;
+}
 
 /** ArcReel 式「下一步该做什么」 */
 export function getWorkflowNextAction(project: ManjuProjectDraft): {
@@ -573,7 +661,16 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "overview",
       skill: null,
       label: "完善原文",
-      detail: "粘贴小说或成品剧本，作为后续技能的输入",
+      detail: "粘贴或导入小说/剧本，作为后续技能的输入",
+    };
+  }
+  if (settingsLookUntouched(project)) {
+    return {
+      stepId: "video-settings",
+      panel: "overview",
+      skill: null,
+      label: "确认视频设定",
+      detail: "确认画幅、风格、时长与生成模式后再抽资产",
     };
   }
   if (project.assets.length === 0) {
@@ -585,16 +682,28 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       detail: "技能 analyze_assets：抽取角色、场景、道具和分集",
     };
   }
-  if (
-    project.scriptText.trim().length >= 400 &&
-    project.episodes.length === 0
-  ) {
+  if (needsEpisodeSourceSlice(project)) {
     return {
       stepId: "script",
       panel: "overview",
       skill: "plan_episodes",
       label: "规划分集",
-      detail: "技能 plan_episodes：切出标题、钩子和原文片段，长文先分集再规划分镜",
+      detail:
+        "技能 plan_episodes：切出标题、钩子和原文片段（analyze 只写了标题时也要再跑）",
+    };
+  }
+  if (
+    (project.scriptText.trim().length >= 400 ||
+      project.episodes.length > 0) &&
+    project.assets.some((a) => a.kind === "character") &&
+    !(project.series?.world?.trim() || (project.series?.bios?.length ?? 0) > 0)
+  ) {
+    return {
+      stepId: "script",
+      panel: "overview",
+      skill: "series_memory",
+      label: "整理连载记忆",
+      detail: "技能 series_memory：世界观、人设小传与伏笔（不改对白）",
     };
   }
   if (project.shots.length === 0) {
@@ -659,8 +768,8 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
     stepId: "preview",
     panel: "preview",
     skill: null,
-    label: "预览",
-    detail: "连续播放已生成镜头",
+    label: "预览与导出",
+    detail: "连播预览；ZIP / 成片；可单向推送到新画布",
   };
 }
 
@@ -670,10 +779,15 @@ export function autoLinkAssetsToShots(
   assets: ManjuAssetDraft[],
 ): ManjuShotDraft[] {
   return shots.map((shot) => {
-    const hay = `${shot.visual}\n${shot.dialogue}`;
+    const hay = `${shot.visual}\n${shot.dialogue}\n${shot.imagePrompt}\n${shot.videoPrompt}`;
     const refs = new Set(shot.assetRefs);
     for (const a of assets) {
-      if (a.name && hay.includes(a.name)) refs.add(a.id);
+      const reg = assetRegistryName(a, assets);
+      if (reg && hay.includes(reg)) refs.add(a.id);
+      else if (a.name && hay.includes(a.name)) refs.add(a.id);
+      for (const al of a.aliases ?? []) {
+        if (al && hay.includes(al)) refs.add(a.id);
+      }
     }
     return { ...shot, assetRefs: [...refs] };
   });

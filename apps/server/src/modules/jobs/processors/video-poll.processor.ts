@@ -46,6 +46,7 @@ export class VideoPollProcessor extends WorkerHost {
     const payload = bullJob.data;
     const job = await this.jobsRepo.findOne({ where: { id: payload.jobId } });
     if (!job) return;
+    if (job.status === JobStatus.cancelled) return;
 
     let result;
     try {
@@ -88,6 +89,11 @@ export class VideoPollProcessor extends WorkerHost {
           },
         });
 
+        const latest = await this.jobsRepo.findOne({ where: { id: job.id } });
+        if (!latest || latest.status === JobStatus.cancelled) {
+          return;
+        }
+
         await this.jobsRepo.update(job.id, {
           status: JobStatus.succeeded,
           progress: 100,
@@ -114,7 +120,7 @@ export class VideoPollProcessor extends WorkerHost {
         this.realtime.emitJob(job.userId, "job:completed", {
           jobId: job.id,
           status: "succeeded",
-          assets: [asset],
+          assets: [{ id: asset.id, url: asset.url }],
         });
 
         if (mirror) {

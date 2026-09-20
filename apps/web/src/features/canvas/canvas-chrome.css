@@ -173,7 +173,7 @@
   }
 }
 
-/* Media node busy — sheen + ring, not a bare spinner on flat gray. */
+/* Media node busy — layered sheen + soft pulse, not a stiff flat sweep. */
 .joy-media-busy {
   position: relative;
   display: flex;
@@ -184,9 +184,9 @@
   overflow: hidden;
   background:
     radial-gradient(
-      90% 80% at 50% 38%,
-      color-mix(in oklab, var(--ring) 22%, var(--card)),
-      var(--card) 70%
+      95% 85% at 50% 36%,
+      color-mix(in oklab, var(--ring) 18%, var(--card)),
+      var(--card) 72%
     );
   color: var(--foreground);
 }
@@ -194,23 +194,44 @@
 .joy-media-busy-sheen {
   pointer-events: none;
   position: absolute;
-  inset: -30% -10%;
+  inset: -40% -20%;
   background: linear-gradient(
-    105deg,
-    transparent 32%,
-    color-mix(in oklab, white 70%, transparent) 50%,
-    transparent 68%
+    118deg,
+    transparent 28%,
+    color-mix(in oklab, white 8%, transparent) 42%,
+    color-mix(in oklab, white 55%, transparent) 50%,
+    color-mix(in oklab, white 8%, transparent) 58%,
+    transparent 72%
   );
-  animation: joy-media-busy-sheen 2.1s ease-in-out infinite;
+  opacity: 0.85;
+  animation: joy-media-busy-sheen 2.8s cubic-bezier(0.45, 0.05, 0.55, 0.95)
+    infinite;
 }
 
 .dark .joy-media-busy-sheen {
   background: linear-gradient(
-    105deg,
-    transparent 32%,
-    color-mix(in oklab, white 14%, transparent) 50%,
-    transparent 68%
+    118deg,
+    transparent 28%,
+    color-mix(in oklab, white 4%, transparent) 42%,
+    color-mix(in oklab, white 22%, transparent) 50%,
+    color-mix(in oklab, white 4%, transparent) 58%,
+    transparent 72%
   );
+  opacity: 0.95;
+}
+
+.joy-media-busy-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: 18% 22%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--ring) 28%, transparent),
+    transparent 70%
+  );
+  filter: blur(12px);
+  animation: joy-media-busy-glow 3.2s ease-in-out infinite;
 }
 
 .joy-media-busy-core {
@@ -236,7 +257,7 @@
   height: 100%;
   transform-origin: center;
   transform-box: fill-box;
-  animation: joy-media-busy-spin 0.9s linear infinite;
+  animation: joy-media-busy-spin 1.05s linear infinite;
 }
 
 .joy-media-busy-ring .track {
@@ -272,8 +293,38 @@
   height: 100%;
   width: 42%;
   border-radius: inherit;
-  background: var(--ring);
-  animation: joy-media-busy-bar 1.15s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--ring) 55%, transparent),
+    var(--ring),
+    color-mix(in oklab, var(--ring) 55%, transparent)
+  );
+  animation: joy-media-busy-bar 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.joy-media-busy-cancel {
+  pointer-events: auto;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--foreground) 16%, transparent);
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  padding: 4px 10px;
+  font-size: 11px;
+  color: color-mix(in oklab, var(--foreground) 82%, transparent);
+  backdrop-filter: blur(6px);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.joy-media-busy-cancel:hover {
+  border-color: color-mix(in oklab, var(--foreground) 28%, transparent);
+  background: color-mix(in oklab, var(--background) 72%, transparent);
+  color: var(--foreground);
 }
 
 .joy-media-busy.is-overlay {
@@ -302,12 +353,44 @@
   background: rgb(255 255 255 / 0.22);
 }
 
+.joy-media-busy.is-overlay .joy-media-busy-cancel {
+  border-color: rgb(255 255 255 / 0.28);
+  background: rgb(0 0 0 / 0.35);
+  color: rgb(255 255 255 / 0.92);
+}
+
+.joy-media-busy.is-overlay .joy-media-busy-cancel:hover {
+  border-color: rgb(255 255 255 / 0.45);
+  background: rgb(0 0 0 / 0.5);
+  color: white;
+}
+
 @keyframes joy-media-busy-sheen {
   0% {
-    transform: translateX(-42%);
+    transform: translate3d(-55%, -8%, 0) rotate(8deg);
+    opacity: 0.35;
+  }
+  35% {
+    opacity: 0.95;
+  }
+  65% {
+    opacity: 0.85;
   }
   100% {
-    transform: translateX(42%);
+    transform: translate3d(55%, 8%, 0) rotate(8deg);
+    opacity: 0.35;
+  }
+}
+
+@keyframes joy-media-busy-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.08);
   }
 }
 
@@ -328,6 +411,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .joy-media-busy-sheen,
+  .joy-media-busy-glow,
   .joy-media-busy-ring svg,
   .joy-media-busy-bar > span {
     animation: none;
@@ -347,4 +431,49 @@
   opacity: 1;
   scale: 1;
   pointer-events: auto;
+}
+
+/* Photo Sphere Viewer — fill node / immersive host, hide default chrome. */
+.joy-psv-host,
+.joy-psv-host .psv-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.joy-psv-host .psv-loader-container,
+.joy-psv-host .psv-navbar {
+  display: none !important;
+}
+
+/* react-video-trim — follow canvas light/dark tokens */
+.joy-canvas-chrome .joy-video-trim {
+  --vc-accent: #ffffff;
+  --vc-toolbar-bg: var(--muted);
+  --vc-toolbar-overlay-bg: color-mix(in oklab, var(--popover) 94%, transparent);
+  --vc-toolbar-overlay-border-color: var(--border);
+  --vc-toolbar-shadow-color: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --vc-track-bg: var(--card);
+  --vc-handle-line-bg: color-mix(in oklab, var(--foreground) 40%, transparent);
+  --vc-button-bg: color-mix(in oklab, var(--foreground) 8%, transparent);
+  --vc-button-bg-hover: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --vc-text: var(--foreground);
+  --vc-text-muted: var(--muted-foreground);
+  --vc-error-bg: color-mix(in oklab, var(--destructive) 14%, var(--muted));
+  --vc-error-text: var(--destructive);
+  --vc-dim-overlay: color-mix(in oklab, var(--foreground) 28%, transparent);
+  --vc-playhead: #ffffff;
+  --vc-playhead-shadow-color: color-mix(in oklab, var(--foreground) 30%, transparent);
+  --vc-play-button-bg: transparent;
+  --vc-play-button-hover-bg: color-mix(in oklab, var(--foreground) 8%, transparent);
+  --vc-hover-preview-border-color: var(--border);
+  --vc-hover-preview-bg: color-mix(in oklab, var(--popover) 96%, transparent);
+  --vc-hover-preview-shadow-color: color-mix(in oklab, var(--foreground) 14%, transparent);
+  --vc-track-time-bg: color-mix(in oklab, var(--background) 82%, var(--foreground));
+  --vc-loading-bg: color-mix(in oklab, var(--foreground) 28%, transparent);
+}
+
+.dark .joy-canvas-chrome .joy-video-trim {
+  --vc-handle-line-bg: color-mix(in oklab, #000 55%, transparent);
+  --vc-dim-overlay: color-mix(in oklab, #000 55%, transparent);
+  --vc-track-time-bg: color-mix(in oklab, #000 72%, transparent);
 }

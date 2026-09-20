@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, Sparkles, Video } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
@@ -11,6 +12,7 @@ import { submitVideoJob } from "../use-manju-jobs";
 import {
   buildShotVideoPrompt,
   isBusyStatus,
+  resolveManjuGenMode,
   shotDurationSeconds,
   type ManjuProjectDraft,
   type ManjuShotDraft,
@@ -19,6 +21,7 @@ import {
   referenceMediaFromSlots,
   resolveShotReferenceSlots,
 } from "../lib/prompt-builders";
+import { useRegisterManjuHeaderSlots } from "../manju-header-slots";
 
 const DURATION_OPTS = [4, 5, 8, 10] as const;
 
@@ -29,12 +32,20 @@ export function StoryboardVideoStep({
   project: ManjuProjectDraft;
   episodeId?: string | null;
 }) {
+  const router = useRouter();
   const updateShot = useManjuStore((s) => s.updateShot);
   const bindJobToShotVideo = useManjuStore((s) => s.bindJobToShotVideo);
+  const addShot = useManjuStore((s) => s.addShot);
 
   const visibleShots = episodeId
     ? project.shots.filter((s) => s.episodeId === episodeId)
     : project.shots;
+  const hasVideos = visibleShots.some((s) => s.videoUrl);
+  const videoBusy = visibleShots.some((s) => isBusyStatus(s.videoStatus));
+  const staleCount = visibleShots.filter((s) => s.videoStale).length;
+  const missingCount = visibleShots.filter(
+    (s) => !s.videoUrl && !isBusyStatus(s.videoStatus),
+  ).length;
 
   const prevShotMedia = (shot: ManjuShotDraft) => {
     const idx = project.shots.findIndex((s) => s.id === shot.id);
@@ -52,7 +63,7 @@ export function StoryboardVideoStep({
       return;
     }
     try {
-      const mode = project.settings.mode;
+      const mode = resolveManjuGenMode(project.settings.mode);
       const slots = resolveShotReferenceSlots(shot, project);
       const fromAssets = referenceMediaFromSlots(slots);
       const prev = prevShotMedia(shot);
@@ -65,7 +76,7 @@ export function StoryboardVideoStep({
         referenceAssetIds = fromAssets.referenceAssetIds;
         referenceUrls = fromAssets.referenceUrls;
       } else {
-        // i2v / grid: 首帧 = 上一镜分镜（没有则本镜），末帧 = 本镜分镜
+        // i2v: 首帧 = 上一镜分镜（没有则本镜），末帧 = 本镜分镜
         const pushRef = (
           assetId: string | null | undefined,
           url: string | null | undefined,
@@ -91,15 +102,12 @@ export function StoryboardVideoStep({
         toast.error("图生视频需要先有分镜静帧");
         return;
       }
-      if (mode === "grid") {
-        toast.message("多宫格切块尚未实现，本次按首末帧图生视频提交");
-      }
 
       const duration = shotDurationSeconds(shot, project);
       const job = await submitVideoJob({
         prompt: buildShotVideoPrompt(shot, project, {
           continuityHint,
-          mode: mode === "grid" ? "i2v" : mode,
+          mode,
         }),
         duration,
         ratio: project.settings.ratio,
@@ -118,15 +126,27 @@ export function StoryboardVideoStep({
     }
   };
 
-  const generateAll = async () => {
-    const targets = visibleShots.filter(
+  const generateAll = async (force = false) => {
+    const mode = resolveManjuGenMode(project.settings.mode);
+    let targets = visibleShots.filter(
       (s) =>
-        (!s.videoUrl || s.videoStale) &&
+        (force || !s.videoUrl || s.videoStale) &&
         (s.visual.trim() || s.storyboardImageUrl || s.videoPrompt?.trim()) &&
         !isBusyStatus(s.videoStatus),
     );
+    if (mode === "i2v") {
+      const skipped = targets.filter((s) => !s.storyboardImageUrl).length;
+      targets = targets.filter((s) => s.storyboardImageUrl);
+      if (skipped > 0) {
+        toast.message(`已跳过 ${skipped} 镜：图生视频需要分镜静帧`);
+      }
+    }
     if (targets.length === 0) {
-      toast.message("没有待生成的镜头（已跳过未过期成片）");
+      toast.message(
+        force
+          ? "没有可重新生成的镜头"
+          : "没有待生成的镜头（已跳过未过期视频或缺分镜图）",
+      );
       return;
     }
     for (const shot of targets) {
@@ -135,20 +155,61 @@ export function StoryboardVideoStep({
   };
 
   const generateStaleOnly = async () => {
-    const targets = visibleShots.filter(
+    const mode = resolveManjuGenMode(project.settings.mode);
+    let targets = visibleShots.filter(
       (s) =>
         s.videoStale &&
         (s.visual.trim() || s.storyboardImageUrl || s.videoPrompt?.trim()) &&
         !isBusyStatus(s.videoStatus),
     );
+    if (mode === "i2v") {
+      const skipped = targets.filter((s) => !s.storyboardImageUrl).length;
+      targets = targets.filter((s) => s.storyboardImageUrl);
+      if (skipped > 0) {
+        toast.message(`已跳过 ${skipped} 镜：图生视频需要分镜静帧`);
+      }
+    }
     if (targets.length === 0) {
-      toast.message("没有标记为过期的视频");
+      toast.message("没有可重做的过期视频（或缺分镜图）");
       return;
     }
     for (const shot of targets) {
       await generateVideo(shot);
     }
   };
+
+  useRegisterManjuHeaderSlots(
+    null,
+    {
+      label: hasVideos ? "重新生成" : "开始生成",
+      onPrimary: () => void generateAll(hasVideos),
+      onOpenSettings: () =>
+        router.replace(`/manju/${project.id}?step=video-settings`),
+      disabled: visibleShots.length === 0,
+      loading: videoBusy,
+    },
+    {
+      add: {
+        label: "新增镜头",
+        onClick: () =>
+          addShot(project.id, undefined, { episodeId: episodeId ?? null }),
+      },
+      secondary:
+        missingCount > 0
+          ? {
+              label: `补缺(${missingCount})`,
+              onClick: () => void generateAll(),
+            }
+          : undefined,
+      tertiary: staleCount
+        ? {
+            label: `重做过期(${staleCount})`,
+            onClick: () => void generateStaleOnly(),
+          }
+        : undefined,
+    },
+    `${episodeId ?? "all"}:${visibleShots.length}:${hasVideos}:${videoBusy}:${staleCount}:${missingCount}:${project.settings.mode}`,
+  );
 
   if (visibleShots.length === 0) {
     return (
@@ -169,29 +230,13 @@ export function StoryboardVideoStep({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
             共 {visibleShots.length} 镜 · 已完成 {done} · 模式{" "}
-            {project.settings.mode === "i2v"
-              ? "图生视频"
-              : project.settings.mode === "ref"
-                ? "全能参考"
-                : "多宫格"}
-            · 批量会重做过期项
+            {project.settings.mode === "ref"
+              ? "全能参考"
+              : project.settings.mode === "grid"
+                ? `多宫格→逐格视频（${project.settings.gridLayout === "3x3" ? "3×3" : "2×2"}）`
+                : "图生视频"}
+            · 批量会重做过期项；缺分镜静帧会跳过
           </p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => void generateAll()}>
-              <Sparkles className="h-4 w-4" />
-              全部生成视频
-            </Button>
-            {visibleShots.some((s) => s.videoStale) ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void generateStaleOnly()}
-              >
-                重做过期视频 (
-                {visibleShots.filter((s) => s.videoStale).length})
-              </Button>
-            ) : null}
-          </div>
         </div>
 
         <div className="manju-shot-grid">
@@ -224,7 +269,9 @@ export function StoryboardVideoStep({
                       ? shot.videoStale
                         ? "重做过期"
                         : "重生成"
-                      : "生成"}
+                      : shot.videoStatus === "failed"
+                        ? "重试"
+                        : "生成"}
                   </Button>
                 </div>
 
@@ -287,9 +334,14 @@ export function StoryboardVideoStep({
                   </p>
                 )}
                 {shot.videoStatus === "failed" ? (
-                  <p className="mt-1 text-xs text-destructive">
-                    生成失败，可重试
-                  </p>
+                  <button
+                    type="button"
+                    className="mt-1 text-xs text-destructive underline-offset-2 hover:underline"
+                    disabled={busy}
+                    onClick={() => void generateVideo(shot)}
+                  >
+                    生成失败，点击重试
+                  </button>
                 ) : null}
               </article>
             );

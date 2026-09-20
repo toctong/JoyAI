@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Loader2, Pause, Play } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Download, Film, LayoutDashboard, Loader2, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   ResizableHandle,
@@ -9,9 +10,17 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
+import { fetchRemoteVideoBlob } from "@/features/canvas/lib/load-canvas-video";
+import { api } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 import type { ManjuProjectDraft } from "../manju-types";
+import { stitchManjuClips } from "../lib/stitch-clips";
+import {
+  buildManjuCanvasSnapshot,
+  shotsForCanvasPush,
+} from "../lib/push-to-canvas";
+import { useRegisterManjuHeaderSlots } from "../manju-header-slots";
 
 export function PreviewStep({
   project,
@@ -20,6 +29,7 @@ export function PreviewStep({
   project: ManjuProjectDraft;
   episodeId?: string | null;
 }) {
+  const router = useRouter();
   const clips = useMemo(() => {
     const pool = episodeId
       ? project.shots.filter((s) => s.episodeId === episodeId)
@@ -27,11 +37,20 @@ export function PreviewStep({
     return pool.filter((s) => s.videoUrl);
   }, [project.shots, episodeId]);
 
+  const canvasShots = useMemo(
+    () => shotsForCanvasPush(project, episodeId),
+    [project, episodeId],
+  );
+
   const [active, setActive] = useState(0);
   const [autoPlay, setAutoPlay] = useState(false);
   const [zipping, setZipping] = useState(false);
+  const [stitching, setStitching] = useState(false);
+  const [stitchLabel, setStitchLabel] = useState("");
+  const [pushing, setPushing] = useState(false);
 
   const current = clips[active] ?? null;
+  const busy = zipping || stitching || pushing;
 
   useEffect(() => {
     if (active >= clips.length) setActive(0);
@@ -48,33 +67,40 @@ export function PreviewStep({
     });
   };
 
+  const stem = (project.title || "manju").replace(/[\\/:*?"<>|]+/g, "_");
+
   const downloadZip = async () => {
-    if (clips.length === 0 || zipping) return;
+    if (clips.length === 0 || busy) return;
     setZipping(true);
     try {
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
-      const stem = (project.title || "manju").replace(/[\\/:*?"<>|]+/g, "_");
       let added = 0;
       for (const shot of clips) {
         if (!shot.videoUrl) continue;
-        const res = await fetch(shot.videoUrl);
-        if (!res.ok) {
-          toast.message(`镜头 ${String(shot.index).padStart(2, "0")} 下载失败，已跳过`);
-          continue;
+        try {
+          const blob = /^https?:/i.test(shot.videoUrl)
+            ? await fetchRemoteVideoBlob(shot.videoUrl)
+            : await fetch(shot.videoUrl).then(async (res) => {
+                if (!res.ok) throw new Error("download failed");
+                return res.blob();
+              });
+          const ext =
+            blob.type.includes("webm")
+              ? "webm"
+              : blob.type.includes("quicktime")
+                ? "mov"
+                : "mp4";
+          zip.file(
+            `${stem}_${String(shot.index).padStart(2, "0")}.${ext}`,
+            blob,
+          );
+          added += 1;
+        } catch {
+          toast.message(
+            `镜头 ${String(shot.index).padStart(2, "0")} 下载失败，已跳过`,
+          );
         }
-        const blob = await res.blob();
-        const ext =
-          blob.type.includes("webm")
-            ? "webm"
-            : blob.type.includes("quicktime")
-              ? "mov"
-              : "mp4";
-        zip.file(
-          `${stem}_${String(shot.index).padStart(2, "0")}.${ext}`,
-          blob,
-        );
-        added += 1;
       }
       if (added === 0) {
         toast.error("没有可打包的视频");
@@ -87,7 +113,7 @@ export function PreviewStep({
       a.download = `${stem}_clips.zip`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success(`已打包 ${added} 个镜头`);
+      toast.success(`已打包 ${added} 个镜头（ZIP，非成片）`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "打包失败");
     } finally {
@@ -95,13 +121,111 @@ export function PreviewStep({
     }
   };
 
+  const exportFilm = async () => {
+    if (clips.length === 0 || busy) return;
+    if (clips.length < 2) {
+      toast.message("至少两个镜头才能拼接成片；单镜请用「下载当前镜」");
+      return;
+    }
+    setStitching(true);
+    setStitchLabel("拉取镜头…");
+    try {
+      const urls = clips.map((c) => c.videoUrl!).filter(Boolean);
+      const blob = await stitchManjuClips(urls, {
+        onProgress: ({ clipIndex, clipTotal, phase }) => {
+          setStitchLabel(
+            phase === "fetch"
+              ? `拉取 ${clipIndex}/${clipTotal}`
+              : `编码 ${clipIndex}/${clipTotal}`,
+          );
+        },
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${stem}_film.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`成片已导出（${clips.length} 镜拼接）`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "成片拼接失败");
+    } finally {
+      setStitching(false);
+      setStitchLabel("");
+    }
+  };
+
+  const pushToCanvas = async () => {
+    if (busy) return;
+    if (canvasShots.length === 0) {
+      toast.message("没有可推送的分镜图或镜头视频");
+      return;
+    }
+    setPushing(true);
+    try {
+      const snapshot = buildManjuCanvasSnapshot(canvasShots);
+      const created = await api<{ id: string }>("/canvas/projects", {
+        method: "POST",
+        body: {
+          title: `${project.title || "漫剧"} · 分镜`,
+          snapshot,
+        },
+      });
+      toast.success("已推送到新画布（单向，不回写漫剧）");
+      router.push(`/canvas/${created.id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "推送画布失败");
+    } finally {
+      setPushing(false);
+    }
+  };
+
+  useRegisterManjuHeaderSlots(
+    null,
+    clips.length >= 2
+      ? {
+          label: stitching ? stitchLabel || "拼接中…" : "导出成片",
+          onPrimary: () => void exportFilm(),
+          disabled: busy,
+          loading: stitching,
+        }
+      : canvasShots.length > 0
+        ? {
+            label: "推送到画布",
+            onPrimary: () => void pushToCanvas(),
+            disabled: busy,
+            loading: pushing,
+          }
+        : null,
+    null,
+    `${clips.length}:${canvasShots.length}:${stitching}:${pushing}:${stitchLabel}`,
+  );
+
   if (clips.length === 0) {
     return (
-      <div className="manju-card max-w-2xl">
-        <div className="manju-card__title">视频预览</div>
-        <p className="manju-card__desc">
-          还没有可预览的镜头视频。请先在「分镜视频」中生成至少一个片段。
-        </p>
+      <div className="manju-card max-w-2xl space-y-4">
+        <div>
+          <div className="manju-card__title">视频预览</div>
+          <p className="manju-card__desc">
+            还没有可预览的镜头视频。请先在「分镜视频」中生成至少一个片段。
+          </p>
+        </div>
+        {canvasShots.length > 0 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pushing}
+            onClick={() => void pushToCanvas()}
+            title="仅推送已有分镜图到新画布"
+          >
+            {pushing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <LayoutDashboard className="h-4 w-4" />
+            )}
+            {pushing ? "推送中…" : "推送分镜到画布"}
+          </Button>
+        ) : null}
       </div>
     );
   }
@@ -141,6 +265,7 @@ export function PreviewStep({
                 <Button
                   size="sm"
                   variant={autoPlay ? "default" : "outline"}
+                  disabled={busy}
                   onClick={() => setAutoPlay((v) => !v)}
                 >
                   {autoPlay ? (
@@ -163,15 +288,43 @@ export function PreviewStep({
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={zipping}
+                  disabled={busy}
                   onClick={() => void downloadZip()}
+                  title="各镜头分开打包，方便后期剪辑"
                 >
                   {zipping ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  {zipping ? "打包中…" : "打包下载全部"}
+                  {zipping ? "打包中…" : "打包 ZIP"}
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={busy || clips.length < 2}
+                  onClick={() => void exportFilm()}
+                  title="浏览器内拼接为一条 MP4（需 Chromium 系浏览器）"
+                >
+                  {stitching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Film className="h-4 w-4" />
+                  )}
+                  {stitching ? stitchLabel || "拼接中…" : "导出成片"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || canvasShots.length === 0}
+                  onClick={() => void pushToCanvas()}
+                  title="创建新画布并铺开分镜图/视频（不回写漫剧草稿）"
+                >
+                  {pushing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LayoutDashboard className="h-4 w-4" />
+                  )}
+                  {pushing ? "推送中…" : "推送到画布"}
                 </Button>
               </div>
             </div>
@@ -207,7 +360,7 @@ export function PreviewStep({
                     {shot.videoStale ? " · 需重做" : ""}
                   </span>
                   <span className="line-clamp-2 block text-[11px] text-muted-foreground">
-                    {shot.visual || "已有成片"}
+                    {shot.visual || "已有镜头视频"}
                   </span>
                 </span>
               </button>

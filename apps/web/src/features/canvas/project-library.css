@@ -228,6 +228,32 @@
   width: 100%;
   object-fit: cover;
   display: block;
+  background: var(--muted);
+}
+
+.joy-projects-cover-wrap {
+  position: relative;
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--muted);
+}
+
+.joy-projects-cover-play {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  color: var(--foreground);
+  box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground) 16%, transparent);
+  pointer-events: none;
 }
 
 .joy-projects-cover-empty {
@@ -236,13 +262,8 @@
   width: 100%;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(160deg, #2a2a30 0%, #1a1a1f 100%);
-  color: rgba(255, 255, 255, 0.28);
-}
-
-:root:not(.dark) .joy-projects-cover-empty {
-  background: linear-gradient(160deg, #ececf0 0%, #d8d8de 100%);
-  color: rgba(0, 0, 0, 0.22);
+  background: var(--muted);
+  color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
 }
 
 .joy-projects-cover-empty svg {

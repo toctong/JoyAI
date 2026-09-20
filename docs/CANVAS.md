@@ -128,7 +128,7 @@
 
 ### 6.6 Phase 8 — 交互打磨（参考 infinite-canvas，本仓栈重写）
 
-主题与 chrome 跟全局 light/dark tokens；创建入口为**右键**（不做双击空白）。
+主题与 chrome 跟全局 light/dark tokens；创建入口为**右键**，空白处双击也可打开同一菜单。
 
 - [x] Canvas chrome 换肤（`canvas-chrome.css`）：dock / toolbar / menus / minimap / top bar
 - [x] 空白右键创建菜单（图标 + 上传）；节点右键复制 / 删除 / 成组·解组
@@ -206,7 +206,37 @@
 - [x] **结果落点**：生成完成不抢走当前选中，并可撤销；文本 / 提示词卡片高度写回节点，连线锚点跟着内容
 - [x] **适应选中**：按 `1` 把选中节点收入视口（没有选中时等同适应全部）
 
-**本阶段明确不做：** 插件 / URL 装节点、本地 Canvas Agent / MCP、Ant Design 皮、IndexedDB 本地项目模型、TTS 全量供应商面板、AI 超分 / 多角度、换 `@xyflow/react`。
+### 6.14 Phase 17 — 批量出图 / 项目 JSON / Agent
+
+对照 infinite-canvas 的批量结果与项目可移植性，以及最小可用画布 Agent（本仓栈重写）。
+
+- [x] **生图张数**：节点生成面板可选 1–4；`POST /jobs` 传真实 `n`；完成时多结果并排落图像节点
+- [x] **项目 JSON**：顶栏与项目库可导出/导入快照（只含 `assetId`/URL，剥离 data URL 与进行中 job）
+- [x] **创建可带 snapshot**：`POST /canvas/projects` 支持初始快照
+- [x] **画布 Agent（MVP）**：右侧 AI 面板；`kind:llm` + JSON actions；客户端执行创建节点/连线/提交图视频文本任务（不做 Codex/MCP/Skills）
+
+**仍明确不做：** 插件 / URL 装节点、Codex / MCP / Skills 市场、Ant Design 皮、IndexedDB 本地项目模型、TTS 全量供应商面板、Comfy、换 `@xyflow/react`。
+
+### 6.15 Phase 18 — 摄像机 / 选区历史 / 视频首尾帧
+
+- [x] **摄像机控制**：机身 / 镜头 / 焦距 / 光圈写入生图与生视频 prompt，配置保存在 `node.data.cameraControl`
+- [x] **撤销选区**：history 帧携带 `selectedIds` / `selectedEdgeId`，撤销重做尽量恢复
+- [x] **视频首尾帧**：生成面板可从当前图与连入图指定首帧 / 尾帧，提交时 `refMode: first_last` 并按序排列参考图
+
+### 6.16 Phase 19 — 图片组叠卡
+
+- [x] 多图结果写入 `isBatchRoot` / `batchChildIds` / `batchRootId` / `primaryImageId`
+- [x] 默认折叠叠卡；角标展开/收起；子图可「设为主图」
+- [x] 折叠时隐藏子节点；拖动根节点带动整组
+
+### 6.17 Phase 20 — TTS 语音生成（MVP）
+
+- [x] `JobKind.audio` + BullMQ `audio-generation` + OpenAI-compatible `/audio/speech`
+- [x] Catalog：APIMart 文档确认 `gpt-4o-mini-tts`；ToAPIs 仅留同名兼容种子（文档未列具体 id）
+- [x] 画布音频节点生成面板：文本 → 语音（音色 / 格式 / 语速）
+
+**仍明确不做：** Gemini / MiMo / Grok / GLM 等全量 TTS 供应商面板、克隆音色、参考音频驱动；火山豆包语音 / 百炼 CosyVoice 原生协议（非 `/audio/speech`）。
+
 
 ## 7. 文档与工程入口
 

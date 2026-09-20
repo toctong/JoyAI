@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import type { QuickToolId } from "./lib/quick-tools";
 
 export type QuickToolOption = {
@@ -21,7 +22,9 @@ type Props = {
   open: boolean;
   options: QuickToolOption[];
   selected: QuickToolId[];
+  showLabels: boolean;
   onSelectedChange: (ids: QuickToolId[]) => void;
+  onShowLabelsChange: (value: boolean) => void;
   onClose: () => void;
   onSave: () => void;
 };
@@ -30,7 +33,9 @@ export function ImageToolbarSettings({
   open,
   options,
   selected,
+  showLabels,
   onSelectedChange,
+  onShowLabelsChange,
   onClose,
   onSave,
 }: Props) {
@@ -60,9 +65,14 @@ export function ImageToolbarSettings({
         <DialogHeader>
           <DialogTitle>快捷工具</DialogTitle>
           <DialogDescription>
-            勾选的会出现在节点工具条上（超出部分进「更多」）。信息、复制、删除固定显示。未勾选的可从右键菜单使用。
+            勾选的会出现在节点工具条上（超出部分进「更多」）。编辑类工具固定在「编辑」菜单；信息、复制、删除固定显示。
           </DialogDescription>
         </DialogHeader>
+
+        <label className="flex items-center justify-between gap-3 rounded-md border px-3 py-2.5 text-sm">
+          <span>显示按钮文字</span>
+          <Switch checked={showLabels} onCheckedChange={onShowLabelsChange} />
+        </label>
 
         <div className="max-h-[50vh] overflow-auto rounded-md border">
           {options.map((item) => {

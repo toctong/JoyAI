@@ -6,23 +6,67 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, IsNull, Repository } from "typeorm";
 import { CanvasSnapshotSchema, normalizeCanvasSnapshot } from "@joyai/shared";
+import type { CanvasNode, CanvasSnapshot } from "@joyai/shared";
 import { CanvasFolder } from "../../database/entities/canvas-folder.entity";
 import { CanvasProject } from "../../database/entities/canvas-project.entity";
 
 function extractCoverUrl(snapshot: unknown): string | null {
   const normalized = normalizeCanvasSnapshot(snapshot);
   if (!normalized) return null;
+  let videoUrl: string | null = null;
   for (const node of normalized.nodes) {
     const url = node.data?.url;
-    if (
-      (node.type === "image" || node.type === "video") &&
-      typeof url === "string" &&
-      url.length > 0
-    ) {
-      return url;
-    }
+    if (typeof url !== "string" || !url || url.startsWith("data:")) continue;
+    if (node.type === "image" || node.type === "panorama") return url;
+    if (node.type === "video" && !videoUrl) videoUrl = url;
   }
-  return null;
+  return videoUrl;
+}
+
+/** Keep server-side succeeded media when a stale client save still says "running". */
+function mergeSnapshotPreservingJobResults(
+  incoming: CanvasSnapshot,
+  existingRaw: unknown,
+): CanvasSnapshot {
+  const existing = normalizeCanvasSnapshot(existingRaw);
+  if (!existing) return incoming;
+
+  const byId = new Map(existing.nodes.map((node) => [node.id, node]));
+  const nodes: CanvasNode[] = incoming.nodes.map((node) => {
+    const prev = byId.get(node.id);
+    if (!prev) return node;
+
+    const prevStatus = String(prev.data.status ?? "");
+    const nextStatus = String(node.data.status ?? "");
+    const prevUrl = String(prev.data.url ?? "");
+    const nextUrl = String(node.data.url ?? "");
+    const prevJob = String(prev.data.jobId ?? "");
+    const nextJob = String(node.data.jobId ?? "");
+    const prevDone =
+      prevStatus === "succeeded" &&
+      Boolean(prevUrl) &&
+      !prevUrl.startsWith("data:");
+    const nextBusy = nextStatus === "queued" || nextStatus === "running";
+    const sameJob = Boolean(prevJob) && prevJob === nextJob;
+    const nextEmpty = !nextUrl || nextUrl.startsWith("data:");
+
+    if (prevDone && nextBusy && sameJob && nextEmpty) {
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          url: prev.data.url,
+          assetId: prev.data.assetId,
+          status: "succeeded",
+          error: "",
+          jobId: prev.data.jobId ?? node.data.jobId,
+        },
+      };
+    }
+    return node;
+  });
+
+  return { ...incoming, nodes };
 }
 
 @Injectable()
@@ -202,19 +246,32 @@ export class CanvasService {
     });
   }
 
-  async create(userId: string, title?: string, folderId?: string | null) {
+  async create(
+    userId: string,
+    title?: string,
+    folderId?: string | null,
+    snapshotRaw?: unknown,
+  ) {
     if (folderId) await this.requireFolder(userId, folderId);
-    const snapshot = {
+    let snapshot: Record<string, unknown> = {
       version: 1 as const,
       viewport: { x: 0, y: 0, zoom: 1 },
       nodes: [],
     };
+    if (snapshotRaw !== undefined) {
+      const normalized = normalizeCanvasSnapshot(snapshotRaw);
+      if (!normalized) {
+        throw new BadRequestException("画板快照格式无效");
+      }
+      snapshot = normalized as unknown as Record<string, unknown>;
+    }
     const project = await this.projects.save(
       this.projects.create({
         userId,
         title: title?.trim() || "未命名项目",
         folderId: folderId ?? null,
         snapshot,
+        coverUrl: extractCoverUrl(snapshot),
       }),
     );
     return {
@@ -263,8 +320,12 @@ export class CanvasService {
       if (!parsed.success) {
         throw new BadRequestException("画板快照格式无效");
       }
-      project.snapshot = normalized as unknown as Record<string, unknown>;
-      const cover = extractCoverUrl(normalized);
+      const merged = mergeSnapshotPreservingJobResults(
+        normalized,
+        project.snapshot,
+      );
+      project.snapshot = merged as unknown as Record<string, unknown>;
+      const cover = extractCoverUrl(merged);
       if (cover) project.coverUrl = cover;
     }
     const saved = await this.projects.save(project);

@@ -1868,5 +1868,41 @@
         ]
       }
     }
+  ],
+  "audio": [
+    {
+      "name": "GPT-4o Mini TTS",
+      "remoteId": "gpt-4o-mini-tts",
+      "description": "ToAPIs 宣称 OpenAI-compatible TTS；文档未列具体 model id，按兼容约定种子",
+      "isDefault": true,
+      "capabilities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "audio"
+        ],
+        "features": [
+          "tts"
+        ],
+        "adapterId": "openai-audio",
+        "voices": [
+          "alloy",
+          "echo",
+          "fable",
+          "onyx",
+          "nova",
+          "shimmer"
+        ],
+        "audioFormats": [
+          "mp3",
+          "wav",
+          "opus",
+          "aac",
+          "flac",
+          "pcm"
+        ]
+      }
+    }
   ]
 }

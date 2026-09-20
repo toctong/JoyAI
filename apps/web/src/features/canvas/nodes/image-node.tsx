@@ -20,7 +20,9 @@ import {
   mediaBusyLabel,
 } from "../media-upload-label";
 import { uploadFileIntoNode } from "../lib/upload-to-node";
+import { cancelNodeJob } from "../lib/cancel-node-job";
 import { isBusyStatus } from "../node-registry";
+import { BatchStackChrome } from "../batch-stack-chrome";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -47,6 +49,11 @@ export function ImageNode({
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
   const busy = applying || isBusyStatus(status);
+  const canCancel =
+    !applying && isBusyStatus(status) && Boolean(String(node.data.jobId ?? "").trim());
+  const onCancel = canCancel
+    ? () => void cancelNodeJob(node.id)
+    : undefined;
   const title = nodeTitleLabel("image", node.data);
   const mediaW = Number(node.data.mediaWidth);
   const mediaH = Number(node.data.mediaHeight);
@@ -96,6 +103,7 @@ export function ImageNode({
           visible={framed || busy || selected || hovered}
           icon={<CanvasIconImage />}
           meta={sizeMeta}
+          onDragPointerDown={onPointerDown}
         />
         <div
           className={cn(
@@ -116,14 +124,21 @@ export function ImageNode({
               onDragStart={(event) => event.preventDefault()}
             />
           ) : busy ? (
-            <MediaBusyState label={mediaBusyLabel(node.data)} />
+            <MediaBusyState
+              label={mediaBusyLabel(node.data)}
+              onCancel={onCancel}
+            />
           ) : (
             <MediaUploadLabel nodeId={node.id} kind="image">
               <CanvasIconImage className="size-7 opacity-70" />
             </MediaUploadLabel>
           )}
           {framed && busy ? (
-            <MediaBusyState overlay label={mediaBusyLabel(node.data)} />
+            <MediaBusyState
+              overlay
+              label={mediaBusyLabel(node.data)}
+              onCancel={onCancel}
+            />
           ) : null}
           <NodeRuntimeBadge
             status={busy ? "idle" : status}
@@ -142,6 +157,7 @@ export function ImageNode({
             }
           />
         </div>
+        <BatchStackChrome node={node} visible={framed || selected || hovered} />
       </div>
       {editing && url ? (
         <ImageEditor

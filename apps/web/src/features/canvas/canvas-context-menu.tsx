@@ -330,7 +330,7 @@ export function CanvasNodeContextMenu({
               onClick={onTrimAudio}
             >
               <CanvasIconScissors className="size-3.5 opacity-70" />
-              截取音频
+              剪辑
             </button>
           ) : null}
           {onToggleFreeResize ? (

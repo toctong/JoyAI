@@ -216,6 +216,11 @@ export class ImageProcessor extends WorkerHost {
         }
       }
 
+      const latest = await this.jobsRepo.findOne({ where: { id: jobId } });
+      if (!latest || latest.status === JobStatus.cancelled) {
+        return;
+      }
+
       await this.jobsRepo.update(jobId, {
         status: JobStatus.succeeded,
         progress: 100,
@@ -242,7 +247,7 @@ export class ImageProcessor extends WorkerHost {
       this.realtime.emitJob(job.userId, "job:completed", {
         jobId,
         status: "succeeded",
-        assets: createdAssets,
+        assets: createdAssets.map((a) => ({ id: a.id, url: a.url })),
       });
 
       for (const item of pendingMirrors) {
@@ -258,6 +263,10 @@ export class ImageProcessor extends WorkerHost {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const latest = await this.jobsRepo.findOne({ where: { id: jobId } });
+      if (latest?.status === JobStatus.cancelled) {
+        return;
+      }
       this.logger.error(`Image job ${jobId} failed: ${message}`);
       await this.jobsRepo.update(jobId, {
         status: JobStatus.failed,

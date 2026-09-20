@@ -11,6 +11,7 @@ import { VideoSubmitProcessor } from "./processors/video-submit.processor";
 import { VideoPollProcessor } from "./processors/video-poll.processor";
 import { AssetMirrorProcessor } from "./processors/asset-mirror.processor";
 import { LlmProcessor } from "./processors/llm.processor";
+import { AudioProcessor } from "./processors/audio.processor";
 import { JobTimeoutSweeper } from "./job-timeout.sweeper";
 import { ChannelsModule } from "../channels/channels.module";
 import { AssetsModule } from "../assets/assets.module";
@@ -28,6 +29,7 @@ import { ManjuModule } from "../manju/manju.module";
       { name: QUEUE.VIDEO_POLL },
       { name: QUEUE.ASSET_MIRROR },
       { name: QUEUE.LLM },
+      { name: QUEUE.AUDIO },
     ),
     ChannelsModule,
     AssetsModule,
@@ -44,6 +46,7 @@ import { ManjuModule } from "../manju/manju.module";
     VideoPollProcessor,
     AssetMirrorProcessor,
     LlmProcessor,
+    AudioProcessor,
     JobTimeoutSweeper,
   ],
   exports: [JobsService],

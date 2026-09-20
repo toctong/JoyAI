@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   PointerSensor,
@@ -21,8 +21,6 @@ import {
   GripVertical,
   Loader2,
   MoreHorizontal,
-  PenLine,
-  Plus,
   Sparkles,
   Trash2,
   Link2,
@@ -39,20 +37,26 @@ import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { cn } from "@/shared/lib/utils";
 import { ManjuMdField } from "../manju-md-field";
+import { ManjuAssetPicker } from "../manju-asset-picker";
 import { useManjuStore } from "../manju-store";
 import { submitImageJob } from "../use-manju-jobs";
 import { submitWorkflowSkill } from "../lib/workflow-skill";
 import {
   buildShotImagePrompt,
+  gridLayoutDims,
   isBusyStatus,
   parseScriptToShots,
   type ManjuProjectDraft,
   type ManjuShotDraft,
 } from "../manju-types";
+import { assetRegistryName } from "../lib/asset-registry";
+import { registerGridJob } from "../lib/grid-jobs";
 import {
+  buildGridStoryboardImagePrompt,
   referenceMediaFromSlots,
   resolveShotReferenceSlots,
 } from "../lib/prompt-builders";
+import { useRegisterManjuHeaderSlots } from "../manju-header-slots";
 
 function SortableShotCard({
   project,
@@ -107,6 +111,16 @@ function SortableShotCard({
             <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">
               图需重做
             </span>
+          ) : null}
+          {shot.storyboardStatus === "failed" ? (
+            <button
+              type="button"
+              className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] text-destructive hover:bg-destructive/25"
+              disabled={busy}
+              onClick={() => onGenerate(shot)}
+            >
+              重试
+            </button>
           ) : null}
         </div>
         <div className="flex items-center gap-0.5">
@@ -219,29 +233,13 @@ function SortableShotCard({
             </p>
           ) : null}
           {project.assets.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {project.assets.map((a) => {
-                const on = shot.assetRefs.includes(a.id);
-                return (
-                  <button
-                    key={a.id}
-                    type="button"
-                    className={cn(
-                      "manju-chip !px-2 !py-0.5 !text-[11px]",
-                      on && "manju-chip--active",
-                    )}
-                    onClick={() => {
-                      const next = on
-                        ? shot.assetRefs.filter((id) => id !== a.id)
-                        : [...shot.assetRefs, a.id];
-                      updateShot(project.id, shot.id, { assetRefs: next });
-                    }}
-                  >
-                    {a.name}
-                  </button>
-                );
-              })}
-            </div>
+            <ManjuAssetPicker
+              assets={project.assets}
+              value={shot.assetRefs}
+              onChange={(assetRefs) =>
+                updateShot(project.id, shot.id, { assetRefs })
+              }
+            />
           ) : null}
           <Button variant="outline" size="sm" onClick={() => onEdit(null)}>
             完成编辑
@@ -284,7 +282,7 @@ function SortableShotCard({
                     key={id}
                     className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
                   >
-                    {a.name}
+                    {assetRegistryName(a, project.assets)}
                   </span>
                 ) : null;
               })}
@@ -303,6 +301,7 @@ export function StoryboardScriptStep({
   project: ManjuProjectDraft;
   episodeId?: string | null;
 }) {
+  const router = useRouter();
   const addShot = useManjuStore((s) => s.addShot);
   const updateShot = useManjuStore((s) => s.updateShot);
   const updateProject = useManjuStore((s) => s.updateProject);
@@ -321,6 +320,9 @@ export function StoryboardScriptStep({
   const visibleShots = episodeId
     ? project.shots.filter((s) => s.episodeId === episodeId)
     : project.shots;
+  const hasImages = visibleShots.some((s) => s.storyboardImageUrl);
+  const shotBusy = visibleShots.some((s) => isBusyStatus(s.storyboardStatus));
+  const staleCount = visibleShots.filter((s) => s.storyboardStale).length;
 
   const planShots = async () => {
     if (project.scriptText.trim().length < 20) {
@@ -378,6 +380,10 @@ export function StoryboardScriptStep({
       toast.error("请先填写画面描述或画面提示词");
       return;
     }
+    if (project.settings.mode === "grid") {
+      toast.message("多宫格模式请用「全部生成」按批出图切块");
+      return;
+    }
     try {
       const slots = resolveShotReferenceSlots(shot, project);
       const { referenceAssetIds, referenceUrls } =
@@ -397,15 +403,85 @@ export function StoryboardScriptStep({
     }
   };
 
-  const generateAll = async () => {
+  const generateGridBatches = async (targets: ManjuShotDraft[]) => {
+    const layout = project.settings.gridLayout === "3x3" ? "3x3" : "2x2";
+    const { rows, cols, cells } = gridLayoutDims(layout);
+    const ready = targets.filter(
+      (s) => s.visual.trim() || s.imagePrompt?.trim(),
+    );
+    if (ready.length === 0) {
+      toast.message("没有可生成的分镜");
+      return;
+    }
+    for (let i = 0; i < ready.length; i += cells) {
+      const batch = ready.slice(i, i + cells);
+      const groupId = crypto.randomUUID();
+      const assetIds = new Set(batch.flatMap((s) => s.assetRefs));
+      const linked = project.assets.filter(
+        (a) => assetIds.has(a.id) && (a.assetId || a.imageUrl),
+      );
+      const referenceAssetIds = linked
+        .map((a) => a.assetId)
+        .filter((id): id is string => Boolean(id));
+      const referenceUrls = linked
+        .filter((a) => !a.assetId && a.imageUrl)
+        .map((a) => a.imageUrl!)
+        .filter(Boolean);
+      try {
+        for (const shot of batch) {
+          updateShot(project.id, shot.id, {
+            storyboardStatus: "queued",
+            gridGroupId: groupId,
+            gridCellIndex: batch.indexOf(shot),
+          });
+        }
+        const job = await submitImageJob({
+          prompt: buildGridStoryboardImagePrompt(batch, project, layout),
+          ratio: project.settings.ratio,
+          modelId: project.settings.imageModelId,
+          referenceAssetIds: referenceAssetIds.length
+            ? referenceAssetIds
+            : undefined,
+          referenceUrls: referenceUrls.length ? referenceUrls : undefined,
+        });
+        registerGridJob(job.id, {
+          projectId: project.id,
+          shotIds: batch.map((s) => s.id),
+          rows,
+          cols,
+        });
+        for (const shot of batch) {
+          bindJobToShotStoryboard(project.id, shot.id, job.id, "queued");
+        }
+        toast.success(
+          `已提交 ${layout} 宫格（${batch.length} 镜），完成后自动切块`,
+        );
+      } catch (e) {
+        for (const shot of batch) {
+          updateShot(project.id, shot.id, { storyboardStatus: "failed" });
+        }
+        toast.error(e instanceof Error ? e.message : "宫格提交失败");
+      }
+    }
+  };
+
+  const generateAll = async (force = false) => {
     const targets = visibleShots.filter(
       (s) =>
-        (!s.storyboardImageUrl || s.storyboardStale) &&
+        (force || !s.storyboardImageUrl || s.storyboardStale) &&
         (s.visual.trim() || s.imagePrompt?.trim()) &&
         !isBusyStatus(s.storyboardStatus),
     );
     if (targets.length === 0) {
-      toast.message("没有待生成的分镜（已跳过未过期的图）");
+      toast.message(
+        force
+          ? "没有可重新生成的分镜"
+          : "没有待生成的分镜（已跳过未过期的图）",
+      );
+      return;
+    }
+    if (project.settings.mode === "grid") {
+      await generateGridBatches(targets);
       return;
     }
     for (const shot of targets) {
@@ -422,6 +498,10 @@ export function StoryboardScriptStep({
     );
     if (targets.length === 0) {
       toast.message("没有标记为过期的分镜图");
+      return;
+    }
+    if (project.settings.mode === "grid") {
+      await generateGridBatches(targets);
       return;
     }
     for (const shot of targets) {
@@ -454,6 +534,48 @@ export function StoryboardScriptStep({
     toast.success(`已从剧本写入 ${shots.length} 个分镜`);
   };
 
+  useRegisterManjuHeaderSlots(
+    null,
+    {
+      label: hasImages ? "重新生成" : "开始生成",
+      onPrimary: () => void generateAll(hasImages),
+      onOpenSettings: () =>
+        router.replace(`/manju/${project.id}?step=video-settings`),
+      disabled: visibleShots.length === 0,
+      loading: shotBusy || analyzing,
+    },
+    {
+      add: {
+        label: "新增",
+        onClick: () => {
+          const id = addShot(project.id, undefined, {
+            episodeId: episodeId ?? null,
+          });
+          setEditingId(id);
+        },
+      },
+      secondary: {
+        label: episodeId ? "规划本集" : "规划分镜",
+        onClick: () => void planShots(),
+        disabled: analyzing || project.scriptText.trim().length < 20,
+        loading: analyzing,
+      },
+      tertiary:
+        project.shots.length > 0 && !project.scriptConfirmed
+          ? {
+              label: "确认脚本",
+              onClick: confirmScript,
+            }
+          : staleCount
+            ? {
+                label: `重做过期(${staleCount})`,
+                onClick: () => void generateStaleOnly(),
+              }
+            : undefined,
+    },
+    `${episodeId ?? "all"}:${visibleShots.length}:${hasImages}:${shotBusy}:${analyzing}:${staleCount}:${project.scriptConfirmed}:${project.settings.mode}`,
+  );
+
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -484,15 +606,12 @@ export function StoryboardScriptStep({
             {visibleShots.filter((s) => s.storyboardImageUrl).length > 0
               ? ` · 已出图 ${visibleShots.filter((s) => s.storyboardImageUrl).length}`
               : ""}
+            {project.settings.mode === "grid"
+              ? ` · 多宫格 ${project.settings.gridLayout === "3x3" ? "3×3" : "2×2"}（全部生成按批切块）`
+              : ""}
             <span className="ml-2 opacity-70">· 拖拽手柄排序</span>
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/manju/${project.id}?step=storyboard-script&view=prompts`}>
-                <PenLine className="h-4 w-4" />
-                提示词
-              </Link>
-            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -501,28 +620,6 @@ export function StoryboardScriptStep({
             >
               从剧本同步
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={analyzing || project.scriptText.trim().length < 20}
-              onClick={() => void planShots()}
-            >
-              {analyzing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              AI {episodeId ? "规划本集" : "规划分镜"}
-            </Button>
-            {project.shots.length > 0 && !project.scriptConfirmed ? (
-              <Button variant="outline" size="sm" onClick={confirmScript}>
-                确认脚本
-              </Button>
-            ) : project.scriptConfirmed ? (
-              <span className="self-center text-xs text-muted-foreground">
-                脚本已确认
-              </span>
-            ) : null}
             <Button
               variant="outline"
               size="sm"
@@ -537,77 +634,51 @@ export function StoryboardScriptStep({
               <Link2 className="h-4 w-4" />
               关联资产
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void generateAll()}
-              disabled={visibleShots.length === 0}
-            >
-              <Sparkles className="h-4 w-4" />
-              全部生成分镜图
-            </Button>
-            {visibleShots.some((s) => s.storyboardStale) ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void generateStaleOnly()}
-              >
-                重做过期图 (
-                {visibleShots.filter((s) => s.storyboardStale).length})
-              </Button>
+            {project.scriptConfirmed ? (
+              <span className="self-center text-xs text-muted-foreground">
+                脚本已确认
+              </span>
             ) : null}
-            <Button
-              size="sm"
-              onClick={() => {
-                const id = addShot(project.id, undefined, {
-                  episodeId: episodeId ?? null,
-                });
-                setEditingId(id);
-              }}
-            >
-              <Plus className="h-4 w-4" />
-              新增
-            </Button>
           </div>
         </div>
 
         {visibleShots.length === 0 ? (
-          <div className="manju-card text-center">
-            <p className="manju-card__desc mb-4">
-              {episodeId
-                ? "这一集还没有镜头。可切回全部镜头，或用 AI 规划分镜。"
-                : "还没有分镜。可用 AI 按剧本规划，或手动新增镜头卡。"}
+          <div className="manju-assets-empty">
+            <p className="manju-assets-empty__title">
+              {episodeId ? "这一集还没有镜头" : "还没有分镜"}
             </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button
-                size="sm"
+            <p className="manju-assets-empty__desc">
+              {episodeId
+                ? "可切回全部镜头，或用 AI 规划本集。"
+                : "可用 AI 按剧本规划，或手动新增镜头卡。"}
+            </p>
+            <div className="manju-assets-empty__actions">
+              <button
+                type="button"
+                className="manju-entry-card manju-entry-card--compact"
                 disabled={analyzing || project.scriptText.trim().length < 20}
                 onClick={() => void planShots()}
               >
-                {analyzing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                AI {episodeId ? "规划本集" : "规划分镜"}
-              </Button>
-            {!episodeId ? (
-              <Button size="sm" onClick={() => addShot(project.id)}>
-                <Plus className="h-4 w-4" />
-                新增分镜
-              </Button>
-            ) : (
-              <Button
-                size="sm"
+                <strong>
+                  {analyzing
+                    ? "规划中…"
+                    : `AI ${episodeId ? "规划本集" : "规划分镜"}`}
+                </strong>
+                <span>按剧本拆解镜头画面与对白</span>
+              </button>
+              <button
+                type="button"
+                className="manju-entry-card manju-entry-card--compact"
                 onClick={() => {
-                  const id = addShot(project.id, undefined, { episodeId });
+                  const id = addShot(project.id, undefined, {
+                    episodeId: episodeId ?? null,
+                  });
                   setEditingId(id);
                 }}
               >
-                <Plus className="h-4 w-4" />
-                为本集新增
-              </Button>
-            )}
+                <strong>{episodeId ? "为本集新增" : "新增分镜"}</strong>
+                <span>手动添加一张空镜头卡</span>
+              </button>
             </div>
           </div>
         ) : (

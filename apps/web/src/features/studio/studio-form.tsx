@@ -73,10 +73,17 @@ type Job = {
   modelName?: string | null;
   channelName?: string | null;
   platform?: string | null;
-  input?: JobInput;
+  canvasProjectId?: string | null;
+  input?: JobInput & { canvasProjectId?: string };
   assets?: Asset[];
   error?: string | null;
 };
+
+function isStudioFeedJob(job: Job) {
+  if (job.canvasProjectId) return false;
+  if (job.input?.canvasProjectId) return false;
+  return true;
+}
 
 /** 生成时间：优先完成时间，否则创建时间 */
 function jobTimeIso(job: Pick<Job, "createdAt" | "finishedAt">) {
@@ -707,8 +714,8 @@ function StudioInner() {
   }, [jobs]);
 
   const loadInitial = useCallback(async () => {
-    const res = await api<JobsPage>(`/jobs?take=${JOBS_PAGE}`);
-    setJobs(sortJobsAsc(res.items));
+    const res = await api<JobsPage>(`/jobs?take=${JOBS_PAGE}&scope=studio`);
+    setJobs(sortJobsAsc(res.items.filter(isStudioFeedJob)));
     setHasMore(res.hasMore);
     stickToBottomRef.current = true;
     requestAnimationFrame(() => {
@@ -735,13 +742,15 @@ function StudioInner() {
         take: String(JOBS_PAGE),
         before: jobTimeIso(oldest),
         beforeId: oldest.id,
+        scope: "studio",
       });
       const res = await api<JobsPage>(`/jobs?${qs}`);
-      if (res.items.length === 0) {
-        setHasMore(false);
+      const items = res.items.filter(isStudioFeedJob);
+      if (items.length === 0) {
+        setHasMore(res.hasMore);
         return;
       }
-      setJobs((prev) => mergeJobsAsc(prev, res.items));
+      setJobs((prev) => mergeJobsAsc(prev, items));
       setHasMore(res.hasMore);
       requestAnimationFrame(() => {
         if (!viewport) return;
@@ -757,8 +766,12 @@ function StudioInner() {
   }, []);
 
   const refreshLatest = useCallback(async () => {
-    const res = await api<JobsPage>(`/jobs?take=${JOBS_PAGE}`);
-    setJobs((prev) => mergeJobsAsc(prev, res.items));
+    const res = await api<JobsPage>(`/jobs?take=${JOBS_PAGE}&scope=studio`);
+    setJobs((prev) =>
+      mergeJobsAsc(prev, res.items.filter(isStudioFeedJob)).filter(
+        isStudioFeedJob,
+      ),
+    );
     if (stickToBottomRef.current) {
       requestAnimationFrame(scrollFeedToBottom);
     }
@@ -825,9 +838,11 @@ function StudioInner() {
 
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          void loadOlder();
-        }
+        if (!entries.some((e) => e.isIntersecting)) return;
+        // Theme / layout thrash can briefly expose the sentinel while the user
+        // is still near the bottom — only load older when actually scrolled up.
+        if (root.scrollTop > 96) return;
+        void loadOlder();
       },
       { root, rootMargin: "80px 0px 0px 0px", threshold: 0 },
     );

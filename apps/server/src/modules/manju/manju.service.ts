@@ -166,6 +166,7 @@ export class ManjuService {
         name,
         description,
         aliases: cleanAliases,
+        parentId: null,
         imageUrl: null,
         assetId: null,
         jobId: null,
@@ -208,6 +209,13 @@ export class ManjuService {
       for (const a of draft.assets) {
         if (!nameToId.has(a.name)) nameToId.set(a.name, a.id);
         nameToId.set(`${a.kind}:${a.name}`, a.id);
+        if (a.parentId) {
+          const parent = draft.assets.find((p) => p.id === a.parentId);
+          if (parent?.name) {
+            const reg = `${parent.name.trim()}/${a.name.trim()}`;
+            if (!nameToId.has(reg)) nameToId.set(reg, a.id);
+          }
+        }
         for (const alias of a.aliases ?? []) {
           const key = alias.trim();
           if (key && !nameToId.has(key)) nameToId.set(key, a.id);
@@ -295,6 +303,8 @@ export class ManjuService {
           videoStatus: prev?.videoStatus ?? ("idle" as const),
           storyboardStale: prev?.storyboardStale ?? false,
           videoStale: prev?.videoStale ?? false,
+          gridGroupId: prev?.gridGroupId ?? null,
+          gridCellIndex: prev?.gridCellIndex ?? null,
         };
       });
 

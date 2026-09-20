@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../features/appearance/appearance.css";
+@import "../features/appearance/theme-transition.css";
 
 /* next-themes 用 class 切主题；必须声明，否则 dark: 只跟系统走 */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -97,6 +98,22 @@ html,
 body {
   height: 100%;
   overflow: hidden;
+}
+
+/*
+ * App scroll lives in Radix ScrollArea, not body. Radix modal menus still apply
+ * RemoveScroll body padding / margin — neutralize so theme toggles don't shove
+ * the shell each open.
+ */
+body[data-scroll-locked] {
+  margin-right: 0 !important;
+  padding-right: 0 !important;
+  --removed-body-scroll-bar-size: 0px;
+}
+
+/* Theme / media reflow must not scroll-anchor the creation feed. */
+[data-app-shell] main [data-radix-scroll-area-viewport] {
+  overflow-anchor: none;
 }
 
 /* Hide native scrollbars; app uses Radix ScrollArea */

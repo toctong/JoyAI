@@ -81,6 +81,15 @@
   scrollbar-width: none;
 }
 
+.joy-node-gen-toolbar-left > * {
+  flex-shrink: 0;
+}
+
+.joy-node-gen-toolbar-left .joy-chip,
+.joy-node-gen-toolbar-left .joy-chip-params-pill {
+  white-space: nowrap;
+}
+
 .joy-node-gen-toolbar-left::-webkit-scrollbar {
   display: none;
 }

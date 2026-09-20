@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  CanvasIconDirector,
   CanvasIconImage,
   CanvasIconLoader,
   CanvasIconPanorama,
   CanvasIconText,
+  CanvasIconVideo,
 } from "../icons/canvas-icons";
 import { Maximize2 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
@@ -24,6 +24,15 @@ import { useSyncNodeHeight } from "../lib/use-sync-node-height";
 import { CanvasIconSparkles } from "../icons/canvas-icons";
 import { videoRefMode } from "../lib/video-ref-mode";
 import { wrapPanoramaPrompt } from "../lib/panorama-prompt";
+import {
+  applyCameraPrompt,
+  parseCameraControl,
+} from "../lib/camera-control";
+import {
+  collectVideoFrameCandidates,
+  orderVideoImageRefs,
+  resolveVideoFrameSlots,
+} from "../lib/video-frame-slots";
 import {
   buildCanvasMentionItems,
   collectIncomingMediaFromEdges,
@@ -59,6 +68,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
   const highlighted = useIsNodeHighlighted(node.id);
   const pulsing = useIsNodePulsing(node.id);
   const nodes = useCanvasStore((s) => s.nodes);
+  const edges = useCanvasStore((s) => s.edges);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
   const [busy, setBusy] = useState(false);
@@ -83,10 +93,10 @@ export function PromptNode({ node, onPointerDown }: Props) {
     busy,
   ]);
 
-  const mentionItems = useMemo(
-    () => buildCanvasMentionItems(nodes),
-    [nodes],
-  );
+  const mentionItems = useMemo(() => {
+    const { incoming } = collectIncomingMediaFromEdges(nodes, edges, node.id);
+    return buildCanvasMentionItems(incoming);
+  }, [nodes, edges, node.id]);
 
   function setOutputKind(kind: OutputKind) {
     updateNodeData(node.id, {
@@ -148,12 +158,14 @@ export function PromptNode({ node, onPointerDown }: Props) {
       texts,
     );
     if (!projectId || !promptText) return;
+    const cameraControl = parseCameraControl(node.data.cameraControl);
     setBusy(true);
     updateNodeData(node.id, {
       status: "queued",
       prompt: promptText,
       error: "",
       outputKind,
+      cameraControl,
       referenceIds: [...new Set([...referenceAssetIds, ...nodeIds])],
       referenceUrls,
     });
@@ -175,37 +187,61 @@ export function PromptNode({ node, onPointerDown }: Props) {
         });
         updateNodeData(node.id, { status: "running", jobId: job.id });
       } else if (outputKind === "video") {
+        const candidates = collectVideoFrameCandidates(nodes, edges, node);
+        const slots = resolveVideoFrameSlots({
+          candidates,
+          firstFrameNodeId: String(node.data.firstFrameNodeId ?? ""),
+          lastFrameNodeId: String(node.data.lastFrameNodeId ?? ""),
+        });
+        const ordered = orderVideoImageRefs({
+          first: slots.first,
+          last: slots.last,
+          otherAssetIds: referenceAssetIds,
+          otherUrls: referenceUrls,
+        });
         const job = await api<{ id: string }>("/jobs", {
           method: "POST",
           body: {
             kind: "video",
             input: {
-              prompt: promptText,
+              prompt: applyCameraPrompt(promptText, cameraControl),
               canvasProjectId: projectId,
               canvasNodeId: node.id,
-              referenceAssetIds,
-              referenceUrls,
-              refMode: videoRefMode(
-                Math.max(referenceAssetIds.length, referenceUrls.length),
-              ),
+              referenceAssetIds: ordered.referenceAssetIds,
+              referenceUrls: ordered.referenceUrls,
+              refMode:
+                ordered.refMode ??
+                videoRefMode(
+                  Math.max(
+                    ordered.referenceAssetIds.length,
+                    ordered.referenceUrls.length,
+                  ),
+                ),
             },
           },
         });
         updateNodeData(node.id, { status: "running", jobId: job.id });
       } else {
-        const finalPrompt =
+        const finalPrompt = applyCameraPrompt(
           outputKind === "panorama"
             ? wrapPanoramaPrompt(promptText, {
-                hasReference: referenceAssetIds.length > 0 || referenceUrls.length > 0,
+                hasReference:
+                  referenceAssetIds.length > 0 || referenceUrls.length > 0,
               })
-            : promptText;
+            : promptText,
+          outputKind === "panorama" ? null : cameraControl,
+        );
+        const countRaw = Number(node.data.genCount);
+        const n = Number.isFinite(countRaw)
+          ? Math.min(4, Math.max(1, Math.floor(countRaw)))
+          : 1;
         const job = await api<{ id: string }>("/jobs", {
           method: "POST",
           body: {
             kind: "image",
             input: {
               prompt: finalPrompt,
-              n: 1,
+              n,
               ratio: outputKind === "panorama" ? "2:1" : undefined,
               canvasProjectId: projectId,
               canvasNodeId: node.id,
@@ -276,7 +312,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
             [
               { id: "image" as const, label: "图像", Icon: CanvasIconImage },
               { id: "panorama" as const, label: "全景", Icon: CanvasIconPanorama },
-              { id: "video" as const, label: "视频", Icon: CanvasIconDirector },
+              { id: "video" as const, label: "视频", Icon: CanvasIconVideo },
               { id: "text" as const, label: "文本", Icon: CanvasIconText },
             ] as const
           ).map(({ id, label, Icon }) => (

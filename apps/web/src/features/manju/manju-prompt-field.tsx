@@ -10,6 +10,10 @@ import {
 } from "@/features/ai-prompt";
 import { cn } from "@/shared/lib/utils";
 import type { ManjuAssetDraft } from "./manju-types";
+import {
+  assetDisplayLabel,
+  assetRegistryName,
+} from "./lib/asset-registry";
 import "./manju-prompt-field.css";
 
 type Props = {
@@ -23,28 +27,22 @@ type Props = {
   className?: string;
 };
 
-const KIND_LABEL: Record<ManjuAssetDraft["kind"], string> = {
-  character: "角色",
-  scene: "场景",
-  prop: "道具",
-};
-
 function toMentionItems(assets: ManjuAssetDraft[]): MentionCandidate[] {
   return assets
     .filter((a) => a.name.trim())
     .map((a) => {
-      const name = a.name.trim();
+      const registry = assetRegistryName(a, assets);
       return {
         id: a.id,
-        label: `${KIND_LABEL[a.kind]}·${name}`,
+        label: assetDisplayLabel(a, assets),
         url: a.imageUrl || "",
         mediaKind: "image" as const,
-        expandText: `@[${name}]`,
+        expandText: `@[${registry}]`,
       };
     });
 }
 
-/** 漫剧画面/视频提示词：@ 补全登记资产，存盘为 @[登记名] */
+/** 漫剧画面/视频提示词：@ 补全登记资产（含 @[本体/衍生]），存盘为 @[登记名] */
 export function ManjuPromptField({
   value,
   onChange,

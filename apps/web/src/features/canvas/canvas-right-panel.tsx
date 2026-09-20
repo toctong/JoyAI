@@ -23,6 +23,7 @@ import {
   useCanvasRightPanelStore,
   type CanvasRightPanelMode,
 } from "./right-panel-store";
+import { CanvasAgentPanel } from "./canvas-agent-panel";
 import { Crosshair } from "lucide-react";
 import { api } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
@@ -139,7 +140,12 @@ export function CanvasRightPanel({
     <aside
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className="joy-canvas-chrome absolute right-4 top-16 z-40 flex h-[min(560px,calc(100%-7.5rem))] w-[320px] flex-col overflow-hidden rounded-2xl border border-border shadow-lg"
+      className={cn(
+        "joy-canvas-chrome absolute right-4 top-16 z-40 flex flex-col overflow-hidden rounded-2xl border border-border shadow-lg",
+        mode === "agent"
+          ? "h-[min(640px,calc(100%-7.5rem))] w-[360px]"
+          : "h-[min(560px,calc(100%-7.5rem))] w-[320px]",
+      )}
       onPointerDown={(e) => e.stopPropagation()}
     >
       {mode === "nodes" ? (
@@ -150,6 +156,19 @@ export function CanvasRightPanel({
           onFocusGroup={onFocusGroup}
           onClose={close}
         />
+      ) : mode === "agent" ? (
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <button
+            type="button"
+            title="关闭"
+            aria-label="关闭"
+            onClick={close}
+            className="joy-canvas-chrome-btn absolute right-2 top-2 z-10 grid size-7 place-items-center rounded-lg"
+          >
+            <CanvasIconClose className="size-3.5" />
+          </button>
+          <CanvasAgentPanel projectId={projectId} />
+        </div>
       ) : (
         <HistoryPane
           projectId={projectId}

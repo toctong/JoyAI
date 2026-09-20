@@ -13,6 +13,7 @@ import { NodeRuntimeBadge } from "../node-runtime-badge";
 import { NodeTitleChip } from "../node-title-chip";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { isBusyStatus } from "../node-registry";
+import { cancelNodeJob } from "../lib/cancel-node-job";
 import {
   MediaBusyState,
   MediaUploadLabel,
@@ -37,6 +38,11 @@ export function AudioNode({ node, onPointerDown }: Props) {
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
   const busy = isBusyStatus(status);
+  const canCancel =
+    busy && Boolean(String(node.data.jobId ?? "").trim());
+  const onCancel = canCancel
+    ? () => void cancelNodeJob(node.id)
+    : undefined;
 
   return (
     <div
@@ -65,6 +71,7 @@ export function AudioNode({ node, onPointerDown }: Props) {
         customTitle={String(node.data.title ?? "")}
         visible={framed || busy || selected || hovered}
         icon={<CanvasIconAudio />}
+        onDragPointerDown={onPointerDown}
       />
       <div
         className={cn(
@@ -79,14 +86,21 @@ export function AudioNode({ node, onPointerDown }: Props) {
         {framed ? (
           <CanvasAudioPlayer key={url} src={url} className="h-full" />
         ) : busy ? (
-          <MediaBusyState label={mediaBusyLabel(node.data)} />
+          <MediaBusyState
+            label={mediaBusyLabel(node.data)}
+            onCancel={onCancel}
+          />
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="audio">
             <CanvasIconAudio className="size-6 opacity-70" />
           </MediaUploadLabel>
         )}
         {framed && busy ? (
-          <MediaBusyState overlay label={mediaBusyLabel(node.data)} />
+          <MediaBusyState
+            overlay
+            label={mediaBusyLabel(node.data)}
+            onCancel={onCancel}
+          />
         ) : null}
         {busy ? null : (
           <NodeRuntimeBadge

@@ -115,3 +115,31 @@ export interface LlmProvider {
   readonly platform: string;
   chat(input: LlmChatInput): Promise<LlmChatResult>;
 }
+
+export type AudioGenerateInput = {
+  prompt: string;
+  voice?: string;
+  format?: "mp3" | "wav" | "opus" | "aac" | "flac" | "pcm";
+  speed?: number;
+  instructions?: string;
+  model: string;
+  apiKey: string;
+  baseUrl: string;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type AudioGenerateResult = {
+  audio: {
+    /** Raw speech bytes from the provider */
+    bytes: Uint8Array;
+    mimeType: string;
+    format: string;
+  };
+  raw?: unknown;
+};
+
+export interface AudioProvider {
+  readonly adapterId: string;
+  readonly platform: string;
+  generate(input: AudioGenerateInput): Promise<AudioGenerateResult>;
+}

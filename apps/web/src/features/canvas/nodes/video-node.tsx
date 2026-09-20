@@ -25,6 +25,7 @@ import {
   mediaBusyLabel,
 } from "../media-upload-label";
 import { isBusyStatus } from "../node-registry";
+import { cancelNodeJob } from "../lib/cancel-node-job";
 import { setPlaybackTime } from "../lib/playback-clock";
 import { cn } from "@/shared/lib/utils";
 
@@ -60,6 +61,11 @@ export function VideoNode({ node, onPointerDown }: Props) {
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
   const busy = isBusyStatus(status);
+  const canCancel =
+    busy && Boolean(String(node.data.jobId ?? "").trim());
+  const onCancel = canCancel
+    ? () => void cancelNodeJob(node.id)
+    : undefined;
   const title = nodeTitleLabel("video", node.data);
   const mediaW = Number(node.data.mediaWidth);
   const mediaH = Number(node.data.mediaHeight);
@@ -149,6 +155,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
         visible={framed || busy || selected || hovered}
         icon={<CanvasIconVideo />}
         meta={sizeMeta}
+        onDragPointerDown={onPointerDown}
       />
       <div
         className={cn(
@@ -180,14 +187,21 @@ export function VideoNode({ node, onPointerDown }: Props) {
             onPause={() => setPlaying(false)}
           />
         ) : busy ? (
-          <MediaBusyState label={mediaBusyLabel(node.data)} />
+          <MediaBusyState
+            label={mediaBusyLabel(node.data)}
+            onCancel={onCancel}
+          />
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="video">
             <CanvasIconVideo className="size-7 opacity-70" />
           </MediaUploadLabel>
         )}
         {framed && busy ? (
-          <MediaBusyState overlay label={mediaBusyLabel(node.data)} />
+          <MediaBusyState
+            overlay
+            label={mediaBusyLabel(node.data)}
+            onCancel={onCancel}
+          />
         ) : null}
         {showControls && duration > 0 ? (
           <span className="pointer-events-none absolute left-2 top-2 z-20 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white">
