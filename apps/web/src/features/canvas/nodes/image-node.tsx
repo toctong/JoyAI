@@ -23,6 +23,7 @@ import { uploadFileIntoNode } from "../lib/upload-to-node";
 import { cancelNodeJob } from "../lib/cancel-node-job";
 import { isBusyStatus } from "../node-registry";
 import { BatchStackChrome } from "../batch-stack-chrome";
+import { JoyRemoteImg } from "@/shared/ui/joy-remote-img";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -112,8 +113,7 @@ export function ImageNode({
           )}
         >
           {url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <JoyRemoteImg
               src={url}
               alt=""
               draggable={false}

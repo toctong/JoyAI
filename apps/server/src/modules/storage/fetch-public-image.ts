@@ -26,10 +26,11 @@ export async function fetchPublicMedia(
     response = await axios.get<ArrayBuffer>(url, {
       responseType: "arraybuffer",
       timeout:
-        prefer === "image" ? 25_000 : prefer === "audio" ? 120_000 : 180_000,
+        prefer === "image" ? 120_000 : prefer === "audio" ? 120_000 : 180_000,
       maxContentLength: maxBytes,
       maxBodyLength: maxBytes,
       maxRedirects: 3,
+      headers: { "Accept-Encoding": "identity" },
       validateStatus: (status) => status >= 200 && status < 300,
       beforeRedirect: (options) => {
         const host = String(options.hostname ?? "");

@@ -6,6 +6,7 @@ import {
   CanvasIconImage,
   CanvasIconVideo,
 } from "./icons/canvas-icons";
+import { JoyRemoteImg } from "@/shared/ui/joy-remote-img";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -21,8 +22,7 @@ export function CanvasRefThumb({ kind, url, className }: Props) {
 
   if ((kind === "image" || kind === "panorama") && visual) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <JoyRemoteImg
         src={src}
         alt=""
         draggable={false}

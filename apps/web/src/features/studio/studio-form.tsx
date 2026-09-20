@@ -28,6 +28,7 @@ import {
   GeneratingThumb,
 } from "@/features/studio/generating-thumb";
 import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
+import { useDisplayMediaUrl } from "@/shared/ui/joy-remote-img";
 import {
   splitPromptForDisplay,
   type PromptDisplayPart,
@@ -557,6 +558,41 @@ function frameStyleForAspect(aspect: string): CSSProperties {
   };
 }
 
+function StudioImageThumb({
+  src,
+  aspectRatio,
+}: {
+  src: string;
+  aspectRatio: string;
+}) {
+  const { url, loading } = useDisplayMediaUrl(src);
+
+  return (
+    <div
+      className="joy-studio-thumb-frame"
+      style={{ aspectRatio }}
+    >
+      {loading || !url ? (
+        <span
+          aria-busy
+          className="block size-full animate-pulse rounded-[inherit] bg-muted/40"
+        />
+      ) : (
+        <PhotoView src={url}>
+          <button
+            type="button"
+            className="joy-studio-thumb-preview"
+            aria-label="预览图片"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt="" />
+          </button>
+        </PhotoView>
+      )}
+    </div>
+  );
+}
+
 /** Video frame that can adopt intrinsic aspect for adaptive/auto jobs. */
 function StudioVideoThumb({
   src,
@@ -1053,22 +1089,11 @@ function StudioInner() {
                             flexible
                           />
                         ) : (
-                          <div
+                          <StudioImageThumb
                             key={asset.id}
-                            className="joy-studio-thumb-frame"
-                            style={{ aspectRatio: ar }}
-                          >
-                            <PhotoView src={asset.url}>
-                              <button
-                                type="button"
-                                className="joy-studio-thumb-preview"
-                                aria-label="预览图片"
-                              >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={asset.url} alt="" />
-                              </button>
-                            </PhotoView>
-                          </div>
+                            src={asset.url}
+                            aspectRatio={ar}
+                          />
                         ),
                       )}
                     </div>
