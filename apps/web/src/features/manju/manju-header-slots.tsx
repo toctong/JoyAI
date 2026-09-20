@@ -15,7 +15,6 @@ import {
 export type ManjuHeaderGenerateAction = {
   label: string;
   onPrimary: () => void;
-  onOpenSettings?: () => void;
   disabled?: boolean;
   primaryDisabled?: boolean;
   loading?: boolean;

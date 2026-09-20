@@ -112,7 +112,6 @@ export function ScriptFileImport({
             )}
           </span>
           <strong>{busy ? "导入中…" : isDragActive ? "松开导入" : "上传剧本"}</strong>
-          <span>支持 .txt / .md / .docx 文档导入</span>
         </button>
       </div>
     );
@@ -123,7 +122,7 @@ export function ScriptFileImport({
       {...getRootProps()}
       className={cn(
         "inline-flex rounded-md",
-        isDragActive && "ring-2 ring-[rgba(184,240,74,0.4)]",
+        isDragActive && "ring-2 ring-ring/40",
         className,
       )}
     >

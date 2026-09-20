@@ -23,13 +23,15 @@ type ChatMessage = {
 
 type Props = {
   projectId: string;
+  /** Hide the built-in title row when hosted in the agent drawer. */
+  compactHeader?: boolean;
 };
 
 /**
  * Minimal canvas Agent: LLM JSON plan → client tool execution.
  * Reuses kind:llm jobs (no Codex / MCP / Skills).
  */
-export function CanvasAgentPanel({ projectId }: Props) {
+export function CanvasAgentPanel({ projectId, compactHeader = false }: Props) {
   const selectedIds = useCanvasStore((s) => s.selectedIds);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -143,17 +145,26 @@ export function CanvasAgentPanel({ projectId }: Props) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
-        <Sparkles className="size-3.5 text-primary" />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium">画布 Agent</div>
-          <div className="truncate text-[11px] text-muted-foreground">
-            {selectedIds.length
-              ? `已选 ${selectedIds.length} 个节点`
-              : "未选中节点"}
+      {compactHeader ? null : (
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+          <Sparkles className="size-3.5 text-primary" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">画布 Agent</div>
+            <div className="truncate text-[11px] text-muted-foreground">
+              {selectedIds.length
+                ? `已选 ${selectedIds.length} 个节点`
+                : "未选中节点"}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+      {compactHeader ? (
+        <div className="border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
+          {selectedIds.length
+            ? `已选 ${selectedIds.length} 个节点`
+            : "未选中节点 · 可以说「在选中图右侧生成…」"}
+        </div>
+      ) : null}
 
       <ScrollArea className="min-h-0 flex-1 px-3 py-3">
         <div className="space-y-3">

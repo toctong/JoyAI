@@ -88,7 +88,6 @@ export function ManjuStepActions({
         <ManjuGenerateCombo
           label={generate.label}
           onPrimary={generate.onPrimary}
-          onOpenSettings={generate.onOpenSettings}
           disabled={generate.disabled || busy}
           primaryDisabled={generate.primaryDisabled}
           loading={generate.loading}

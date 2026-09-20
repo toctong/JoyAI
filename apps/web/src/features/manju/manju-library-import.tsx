@@ -92,7 +92,7 @@ export function ManjuLibraryImport({ kind, disabled, className, onPick }: Props)
     <>
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="sm"
         className={cn("manju-asset-card__action", className)}
         disabled={disabled}

@@ -216,7 +216,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               <Sparkles className="h-8 w-8" />
             </span>
             <strong>AI 帮写</strong>
-            <span>对话生成小说 / 剧本，再应用到编辑区</span>
           </button>
           <button
             type="button"
@@ -227,7 +226,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               <ClipboardPaste className="h-8 w-8" />
             </span>
             <strong>粘贴剧本</strong>
-            <span>已有内容可直接粘贴修改</span>
           </button>
           <ScriptFileImport
             variant="card"
@@ -322,9 +320,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
           </div>
 
           <TabsContent value="script" className="manju-script-meta__panel">
-            <p className="manju-card__desc">
-              粘贴或导入成品剧本 / 小说。「AI 分析」只登记角色、场景、道具和分集，分镜要另跑规划。
-            </p>
             <ManjuMdField
               value={project.scriptText}
               onChange={(scriptText) =>
@@ -333,7 +328,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               placeholder={`示例：\n\n场景：青石巷口·雨夜\n\n少年：今晚，城门不会为任何人开。\n\n镜头2\n暗色水墨风，镜头缓慢推进巷深。少年握着信笺。`}
               height={420}
               preview="edit"
-              className="mt-3"
             />
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>{project.scriptText.length} 字</span>
@@ -350,9 +344,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
           </TabsContent>
 
           <TabsContent value="overview" className="manju-script-meta__panel">
-            <p className="manju-card__desc">
-              AI 分析会写入这里，也可手工改。不影响已确认的对白与媒体。
-            </p>
             <ManjuMdField
               value={project.overview}
               onChange={(overview) =>
@@ -361,14 +352,10 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               placeholder="一两段概括剧情、人物关系与基调…"
               height={280}
               preview="edit"
-              className="mt-3"
             />
           </TabsContent>
 
           <TabsContent value="episodes" className="manju-script-meta__panel">
-            <p className="manju-card__desc">
-              分集标题、钩子与原文切片。规划分集后可在此微调。
-            </p>
             {project.episodes.length > 0 ? (
               <div className="manju-episode-grid mt-4">
                 {project.episodes.map((ep, i) => (
@@ -454,22 +441,18 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               </div>
             ) : (
               <p className="mt-6 text-center text-sm text-muted-foreground">
-                暂无分集。可点上方「规划分集」，或先在「剧本原文」跑「AI 分析」。
+                暂无分集
               </p>
             )}
           </TabsContent>
 
           <TabsContent value="series" className="manju-script-meta__panel">
-            <p className="manju-card__desc">
-              世界观、角色小传、未回收伏笔。不参与生图，也不改已确认的对白和镜头。
-            </p>
             <ManjuMdField
               value={series.world}
               onChange={(world) => patchSeries({ ...series, world })}
               placeholder="时代、规则、世界观…"
               height={120}
               hideToolbar
-              className="mt-3"
             />
             <div className="mt-4 space-y-3">
               {series.bios.map((bio, index) => (
@@ -578,7 +561,7 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
             ) : null}
             {series.bios.length === 0 && series.hooks.length === 0 ? (
               <p className="mt-4 text-center text-sm text-muted-foreground">
-                暂无小传与伏笔。可点「整理连载记忆」从原文抽取。
+                暂无小传与伏笔
               </p>
             ) : null}
           </TabsContent>

@@ -130,7 +130,7 @@ export function ImageNode({
             />
           ) : (
             <MediaUploadLabel nodeId={node.id} kind="image">
-              <CanvasIconImage className="size-7 opacity-70" />
+              <CanvasIconImage />
             </MediaUploadLabel>
           )}
           {framed && busy ? (

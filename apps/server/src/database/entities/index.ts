@@ -6,6 +6,7 @@ import { Asset } from "./asset.entity";
 import { CanvasFolder } from "./canvas-folder.entity";
 import { CanvasProject } from "./canvas-project.entity";
 import { ManjuProject } from "./manju-project.entity";
+import { ManjuFolder } from "./manju-folder.entity";
 import { AppSetting } from "./app-setting.entity";
 import { AuditLog } from "./audit-log.entity";
 
@@ -18,6 +19,7 @@ export const ENTITIES = [
   CanvasFolder,
   CanvasProject,
   ManjuProject,
+  ManjuFolder,
   AppSetting,
   AuditLog,
 ] as const;
@@ -31,6 +33,7 @@ export {
   CanvasFolder,
   CanvasProject,
   ManjuProject,
+  ManjuFolder,
   AppSetting,
   AuditLog,
 };

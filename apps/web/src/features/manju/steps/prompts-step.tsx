@@ -101,9 +101,7 @@ export function PromptsStep({
     return (
       <div className="manju-card">
         <div className="manju-card__title">分镜提示词</div>
-        <p className="manju-card__desc">
-          尚无分镜。请先在分镜页用 AI 规划，或手动新增镜头。
-        </p>
+        <p className="text-sm text-muted-foreground">暂无分镜</p>
       </div>
     );
   }
@@ -115,7 +113,7 @@ export function PromptsStep({
           <div>
             <div className="text-base">分镜提示词</div>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              已齐 {filled}/{visibleShots.length} · 点卡片编辑画面/视频提示词
+              已齐 {filled}/{visibleShots.length}
             </p>
           </div>
           <Button
@@ -216,7 +214,7 @@ export function PromptsStep({
                   >
                     <div className="manju-asset-card__actions">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         className="manju-asset-card__action"
                         disabled={!shot.imagePrompt?.trim()}
@@ -231,7 +229,7 @@ export function PromptsStep({
                         画面词
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         className="manju-asset-card__action"
                         disabled={!shot.videoPrompt?.trim()}
@@ -246,7 +244,7 @@ export function PromptsStep({
                         视频词
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         className="manju-asset-card__action"
                         onClick={() => setPreviewId(shot.id)}

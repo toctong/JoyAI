@@ -4,9 +4,10 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, In, IsNull, Repository } from "typeorm";
 import { normalizeManjuDraft, type ManjuDraft } from "@joyai/shared";
 import { ManjuProject } from "../../database/entities/manju-project.entity";
+import { ManjuFolder } from "../../database/entities/manju-folder.entity";
 import { newId } from "../../database/id";
 
 function extractCoverUrl(draft: ManjuDraft): string | null {
@@ -43,7 +44,190 @@ export class ManjuService {
   constructor(
     @InjectRepository(ManjuProject)
     private readonly projects: Repository<ManjuProject>,
+    @InjectRepository(ManjuFolder)
+    private readonly folders: Repository<ManjuFolder>,
+    private readonly dataSource: DataSource,
   ) {}
+
+  async library(userId: string, folderId?: string | null) {
+    const parentId = folderId ?? null;
+    if (parentId) await this.requireFolder(userId, parentId);
+
+    const [folderRows, projects] = await Promise.all([
+      this.folders.find({
+        where: {
+          userId,
+          parentId: parentId === null ? IsNull() : parentId,
+        },
+        order: { updatedAt: "DESC" },
+        select: ["id", "title", "parentId", "createdAt", "updatedAt"],
+      }),
+      this.projects.find({
+        where: {
+          userId,
+          folderId: parentId === null ? IsNull() : parentId,
+        },
+        order: { updatedAt: "DESC" },
+        select: [
+          "id",
+          "title",
+          "coverUrl",
+          "folderId",
+          "createdAt",
+          "updatedAt",
+        ],
+      }),
+    ]);
+
+    const folderIds = folderRows.map((f) => f.id);
+    const coverProjects =
+      folderIds.length === 0
+        ? []
+        : await this.projects.find({
+            where: { userId, folderId: In(folderIds) },
+            order: { updatedAt: "DESC" },
+            select: ["folderId", "coverUrl"],
+          });
+    const coversByFolder = new Map<string, string[]>();
+    for (const p of coverProjects) {
+      if (!p.folderId || !p.coverUrl) continue;
+      const list = coversByFolder.get(p.folderId) ?? [];
+      if (list.length >= 6) continue;
+      list.push(p.coverUrl);
+      coversByFolder.set(p.folderId, list);
+    }
+
+    return {
+      folderId: parentId,
+      folders: folderRows.map((f) => ({
+        id: f.id,
+        title: f.title,
+        parentId: f.parentId,
+        createdAt: f.createdAt,
+        updatedAt: f.updatedAt,
+        coverUrls: coversByFolder.get(f.id) ?? [],
+      })),
+      projects,
+    };
+  }
+
+  listFolders(userId: string) {
+    return this.folders.find({
+      where: { userId },
+      order: { updatedAt: "DESC" },
+      select: ["id", "title", "parentId", "updatedAt"],
+    });
+  }
+
+  async createFolder(
+    userId: string,
+    title?: string,
+    parentId?: string | null,
+  ) {
+    if (parentId) await this.requireFolder(userId, parentId);
+    const folder = await this.folders.save(
+      this.folders.create({
+        userId,
+        title: title?.trim() || "新建合集",
+        parentId: parentId ?? null,
+      }),
+    );
+    return {
+      id: folder.id,
+      title: folder.title,
+      parentId: folder.parentId,
+      createdAt: folder.createdAt,
+      updatedAt: folder.updatedAt,
+    };
+  }
+
+  async updateFolder(
+    userId: string,
+    id: string,
+    data: { title?: string; parentId?: string | null },
+  ) {
+    const folder = await this.requireFolder(userId, id);
+    if (data.parentId !== undefined && data.parentId !== null) {
+      if (data.parentId === id) {
+        throw new BadRequestException("不能将合集移动到自身");
+      }
+      await this.requireFolder(userId, data.parentId);
+      await this.assertNotDescendant(userId, id, data.parentId);
+    }
+    if (data.title !== undefined) {
+      folder.title = data.title.trim() || "新建合集";
+    }
+    if (data.parentId !== undefined) folder.parentId = data.parentId;
+    const saved = await this.folders.save(folder);
+    return {
+      id: saved.id,
+      title: saved.title,
+      parentId: saved.parentId,
+      createdAt: saved.createdAt,
+      updatedAt: saved.updatedAt,
+    };
+  }
+
+  async deleteFolder(userId: string, id: string) {
+    const folder = await this.requireFolder(userId, id);
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        ManjuProject,
+        { userId, folderId: id },
+        { folderId: folder.parentId },
+      );
+      await manager.update(
+        ManjuFolder,
+        { userId, parentId: id },
+        { parentId: folder.parentId },
+      );
+      await manager.delete(ManjuFolder, { id });
+    });
+    return { ok: true };
+  }
+
+  async moveProjects(userId: string, ids: string[], folderId: string | null) {
+    if (!ids.length) throw new BadRequestException("未选择项目");
+    if (folderId) await this.requireFolder(userId, folderId);
+    const result = await this.projects.update(
+      { userId, id: In(ids) },
+      { folderId },
+    );
+    return { ok: true, count: result.affected ?? 0 };
+  }
+
+  async deleteProjects(userId: string, ids: string[]) {
+    if (!ids.length) throw new BadRequestException("未选择项目");
+    const result = await this.projects.delete({ userId, id: In(ids) });
+    return { ok: true, count: result.affected ?? 0 };
+  }
+
+  private async requireFolder(userId: string, id: string) {
+    const folder = await this.folders.findOne({ where: { id, userId } });
+    if (!folder) throw new NotFoundException("合集不存在");
+    return folder;
+  }
+
+  private async assertNotDescendant(
+    userId: string,
+    ancestorId: string,
+    candidateId: string,
+  ) {
+    let cursor: string | null = candidateId;
+    const seen = new Set<string>();
+    while (cursor) {
+      if (cursor === ancestorId) {
+        throw new BadRequestException("不能将合集移动到其子合集中");
+      }
+      if (seen.has(cursor)) break;
+      seen.add(cursor);
+      const next = await this.folders.findOne({
+        where: { id: cursor, userId },
+        select: ["parentId"],
+      });
+      cursor = next?.parentId ?? null;
+    }
+  }
 
   async list(userId: string) {
     const rows = await this.projects.find({
@@ -66,13 +250,15 @@ export class ManjuService {
     return this.toDto(project);
   }
 
-  async create(userId: string, title?: string) {
+  async create(userId: string, title?: string, folderId?: string | null) {
+    if (folderId) await this.requireFolder(userId, folderId);
     const draft = normalizeManjuDraft({});
     const project = await this.projects.save(
       this.projects.create({
         userId,
         title: title?.trim() || "未命名漫剧",
         coverUrl: null,
+        folderId: folderId ?? null,
         draft,
       }),
     );

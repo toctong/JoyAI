@@ -21,12 +21,22 @@ import {
 import { CanvasShortcutsHelp } from "./canvas-shortcuts-help";
 import { NodeFloatToolbar } from "./node-float-toolbar";
 import { MultiSelectToolbar } from "./multi-select-toolbar";
-import { GroupBoundsOverlay } from "./group-bounds-overlay";
+import { GroupBoundsOverlay, GROUP_PAD, SELECTION_PAD } from "./group-bounds-overlay";
 import { NodeView } from "./node-view";
 import { NodeResizeHandles } from "./node-resize-handles";
 import { NodeGenPanel } from "./node-gen-panel";
-import { CanvasEdges, NodeHandles } from "./canvas-edges";
+import {
+  CanvasEdges,
+  NodeHandles,
+  SelectionConnectHandle,
+  type ConnectDraft,
+} from "./canvas-edges";
 import { hitNodeAt, nodeBox } from "./lib/node-box";
+import {
+  preferredConnectTargetType,
+} from "./lib/edge-compat";
+import { colorTagMeta, colorTagOf } from "./lib/color-tag";
+import { useColorTagFocusStore } from "./color-tag-focus-store";
 import {
   CanvasCreateMenu,
   CanvasNodeContextMenu,
@@ -34,6 +44,7 @@ import {
   type CanvasNodeMenuState,
 } from "./canvas-context-menu";
 import { CanvasRightPanel } from "./canvas-right-panel";
+import { CanvasAgentDrawer } from "./canvas-agent-drawer";
 import { CanvasAssetDialog } from "./canvas-asset-dialog";
 import { useCanvasRightPanelStore } from "./right-panel-store";
 import { computeMentionHighlightIds } from "./lib/mention-highlight";
@@ -219,13 +230,10 @@ export function CanvasBoard({
   const [projectReady, setProjectReady] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [toolbarPinned, setToolbarPinned] = useState(false);
-  const [connectDraft, setConnectDraft] = useState<{
-    sourceId: string;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [connectDraft, setConnectDraft] = useState<ConnectDraft | null>(null);
   const focusApplied = useRef(false);
-  const connectSourceRef = useRef<string | null>(null);
+  /** Active connect sources (1 = single green-dot, ≥2 = selection fan-out). */
+  const connectSourcesRef = useRef<string[]>([]);
   const hoverLeaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panning = useRef(false);
   const panStart = useRef({ x: 0, y: 0, vx: 0, vy: 0 });
@@ -246,6 +254,7 @@ export function CanvasBoard({
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
   const selectedIds = useCanvasStore((s) => s.selectedIds);
+  const focusedColorTag = useColorTagFocusStore((s) => s.focusedTag);
   const selectedEdgeId = useCanvasStore((s) => s.selectedEdgeId);
   const snapToGrid = useCanvasStore((s) => s.snapToGrid);
   const dirty = useCanvasStore((s) => s.dirty);
@@ -293,8 +302,9 @@ export function CanvasBoard({
   }, [edges, nodes, selectedIds]);
 
   useEffect(() => {
+    if (connectDraft) return;
     setHighlightedIds(mentionHighlights);
-  }, [mentionHighlights, setHighlightedIds]);
+  }, [mentionHighlights, setHighlightedIds, connectDraft]);
 
   useEffect(() => {
     setMiniMapOpen(readMinimapOpenPreference(true));
@@ -719,8 +729,9 @@ export function CanvasBoard({
         marqueeRef.current = null;
         setShortcutsOpen(false);
         setConnectDraft(null);
-        connectSourceRef.current = null;
+        connectSourcesRef.current = [];
         useCanvasRightPanelStore.getState().close();
+        useColorTagFocusStore.getState().clear();
       }
       if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
@@ -933,17 +944,33 @@ export function CanvasBoard({
   }
 
   function onPointerMoveBoard(e: React.PointerEvent) {
-    if (connectSourceRef.current) {
+    if (connectSourcesRef.current.length) {
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
         const vp = useCanvasStore.getState().viewport;
         const wx = (e.clientX - rect.left - vp.x) / vp.zoom;
         const wy = (e.clientY - rect.top - vp.y) / vp.zoom;
+        const sourceIds = connectSourcesRef.current;
         setConnectDraft({
-          sourceId: connectSourceRef.current,
+          sourceId: sourceIds[0]!,
+          sourceIds: sourceIds.length > 1 ? sourceIds : undefined,
           x: wx,
           y: wy,
         });
+        const live = useCanvasStore.getState().nodes;
+        const sources = sourceIds
+          .map((id) => live.find((n) => n.id === id))
+          .filter((n): n is CanvasNode => Boolean(n));
+        const hit = hitNodeAt(
+          live.filter((n) => !isHiddenBatchChild(n, live)),
+          wx,
+          wy,
+        );
+        if (hit && !sourceIds.includes(hit.id)) {
+          setHighlightedIds([hit.id]);
+        } else {
+          setHighlightedIds([]);
+        }
       }
       return;
     }
@@ -985,46 +1012,58 @@ export function CanvasBoard({
   }
 
   function onPointerUpBoard(e: React.PointerEvent) {
-    if (connectSourceRef.current) {
-      const sourceId = connectSourceRef.current;
+    if (connectSourcesRef.current.length) {
+      const sourceIds = [...connectSourcesRef.current];
       const rect = containerRef.current?.getBoundingClientRect();
       if (rect) {
         const localX = e.clientX - rect.left;
         const localY = e.clientY - rect.top;
         const vp = useCanvasStore.getState().viewport;
-        const liveNodes = useCanvasStore
-          .getState()
-          .nodes.filter(
-            (n) => !isHiddenBatchChild(n, useCanvasStore.getState().nodes),
-          );
+        const allNodes = useCanvasStore.getState().nodes;
+        const liveNodes = allNodes.filter(
+          (n) => !isHiddenBatchChild(n, allNodes),
+        );
         const wx = (localX - vp.x) / vp.zoom;
         const wy = (localY - vp.y) / vp.zoom;
         const hit = hitNodeAt(liveNodes, wx, wy);
-        if (hit && hit.id !== sourceId) {
+        const sources = sourceIds
+          .map((id) => liveNodes.find((n) => n.id === id))
+          .filter((n): n is CanvasNode => Boolean(n));
+
+        if (hit && !sourceIds.includes(hit.id)) {
           pushHistory();
-          addEdge(sourceId, hit.id);
+          let linked = 0;
+          for (const source of sources) {
+            if (addEdge(source.id, hit.id)) linked += 1;
+          }
+          if (sourceIds.length > 1 && linked) {
+            toast.success(`已批量连接 ${linked} 条线`);
+          }
         } else if (!hit) {
-          const sourceNode = liveNodes.find((n) => n.id === sourceId);
+          const preferred =
+            sourceIds.length > 1
+              ? preferredConnectTargetType(sources)
+              : sources[0]?.type === "panorama"
+                ? "director"
+                : sources[0]?.type === "image" ||
+                    sources[0]?.type === "text" ||
+                    sources[0]?.type === "video" ||
+                    sources[0]?.type === "audio"
+                  ? "prompt"
+                  : undefined;
           setCreateMenu({
             kind: "connect",
             x: localX,
             y: localY,
             worldX: wx,
             worldY: wy,
-            sourceId,
-            preferredType:
-              sourceNode?.type === "panorama"
-                ? "director"
-                : sourceNode?.type === "image" ||
-                    sourceNode?.type === "text" ||
-                    sourceNode?.type === "video" ||
-                    sourceNode?.type === "audio"
-                  ? "prompt"
-                  : undefined,
+            sourceId: sourceIds[0],
+            sourceIds: sourceIds.length > 1 ? sourceIds : undefined,
+            preferredType: preferred,
           });
         }
       }
-      connectSourceRef.current = null;
+      connectSourcesRef.current = [];
       setConnectDraft(null);
     }
     if (marqueeRef.current) {
@@ -1131,12 +1170,29 @@ export function CanvasBoard({
   }
 
   function onConnectStart(nodeId: string, e: React.PointerEvent) {
-    connectSourceRef.current = nodeId;
+    connectSourcesRef.current = [nodeId];
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const wx = (e.clientX - rect.left - viewport.x) / viewport.zoom;
     const wy = (e.clientY - rect.top - viewport.y) / viewport.zoom;
     setConnectDraft({ sourceId: nodeId, x: wx, y: wy });
+    containerRef.current?.setPointerCapture(e.pointerId);
+  }
+
+  function onSelectionConnectStart(e: React.PointerEvent) {
+    const ids = useCanvasStore.getState().selectedIds;
+    if (ids.length < 2) return;
+    connectSourcesRef.current = [...ids];
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const wx = (e.clientX - rect.left - viewport.x) / viewport.zoom;
+    const wy = (e.clientY - rect.top - viewport.y) / viewport.zoom;
+    setConnectDraft({
+      sourceId: ids[0]!,
+      sourceIds: ids,
+      x: wx,
+      y: wy,
+    });
     containerRef.current?.setPointerCapture(e.pointerId);
   }
 
@@ -1158,19 +1214,27 @@ export function CanvasBoard({
   }
 
   function onBoardDoubleClick(e: React.MouseEvent) {
-    if (e.target !== e.currentTarget) return;
-    e.preventDefault();
-    closeMenus();
+    // Node drag uses setPointerCapture on the board, so dblclick can retarget
+    // here even when the user double-clicked a node — hit-test before opening.
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
+    const vp = useCanvasStore.getState().viewport;
+    const allNodes = useCanvasStore.getState().nodes;
+    const live = allNodes.filter((n) => !isHiddenBatchChild(n, allNodes));
+    const wx = (mx - vp.x) / vp.zoom;
+    const wy = (my - vp.y) / vp.zoom;
+    if (hitNodeAt(live, wx, wy)) return;
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    closeMenus();
     setCreateMenu({
       kind: "blank",
       x: mx,
       y: my,
-      worldX: (mx - viewport.x) / viewport.zoom,
-      worldY: (my - viewport.y) / viewport.zoom,
+      worldX: wx,
+      worldY: wy,
     });
   }
 
@@ -1218,35 +1282,102 @@ export function CanvasBoard({
       x: menu.worldX,
       y: menu.worldY,
     });
-    if (menu.kind === "connect" && menu.sourceId) {
-      addEdge(menu.sourceId, id);
-      const source = nodes.find((n) => n.id === menu.sourceId);
-      if (
-        type === "prompt" &&
-        source &&
-        (source.type === "image" ||
-          source.type === "video" ||
-          source.type === "panorama" ||
-          source.type === "audio")
-      ) {
-        const assetId = String(source.data.assetId ?? "");
-        const refUrl = String(source.data.url ?? "");
-        updateNodeData(id, {
-          outputKind:
-            source.type === "audio"
-              ? "video"
-              : source.type === "panorama"
-                ? "panorama"
-                : "image",
-          referenceIds: assetId ? [assetId, source.id] : [source.id],
-          referenceUrls:
-            refUrl && !refUrl.startsWith("data:") ? [refUrl] : [],
-        });
+    if (menu.kind === "connect") {
+      const sourceIds =
+        menu.sourceIds?.length
+          ? menu.sourceIds
+          : menu.sourceId
+            ? [menu.sourceId]
+            : [];
+      const sourceNodes = sourceIds
+        .map((sid) => nodes.find((n) => n.id === sid))
+        .filter((n): n is CanvasNode => Boolean(n));
+
+      for (const source of sourceNodes) {
+        addEdge(source.id, id);
       }
-      if (type === "prompt" && source?.type === "text") {
-        updateNodeData(id, {
-          prompt: String(source.data.text ?? "").trim(),
-        });
+
+      // Prefill prompt refs from connected media / text sources.
+      if (type === "prompt") {
+        const mediaSource = sourceNodes.find(
+          (source) =>
+            source.type === "image" ||
+            source.type === "video" ||
+            source.type === "panorama" ||
+            source.type === "audio",
+        );
+        if (mediaSource) {
+          const assetId = String(mediaSource.data.assetId ?? "");
+          const refUrl = String(mediaSource.data.url ?? "");
+          const allAssetIds = sourceNodes
+            .filter(
+              (s) =>
+                s.type === "image" ||
+                s.type === "video" ||
+                s.type === "panorama" ||
+                s.type === "audio",
+            )
+            .flatMap((s) => {
+              const aid = String(s.data.assetId ?? "");
+              return aid ? [aid, s.id] : [s.id];
+            });
+          const allUrls = sourceNodes
+            .filter(
+              (s) =>
+                s.type === "image" ||
+                s.type === "video" ||
+                s.type === "panorama" ||
+                s.type === "audio",
+            )
+            .map((s) => String(s.data.url ?? ""))
+            .filter((u) => u && !u.startsWith("data:"));
+          updateNodeData(id, {
+            outputKind:
+              mediaSource.type === "audio"
+                ? "video"
+                : mediaSource.type === "panorama"
+                  ? "panorama"
+                  : mediaSource.type === "video"
+                    ? "video"
+                    : "image",
+            referenceIds: [
+              ...new Set(
+                allAssetIds.length
+                  ? allAssetIds
+                  : assetId
+                    ? [assetId, mediaSource.id]
+                    : [mediaSource.id],
+              ),
+            ],
+            referenceUrls: [
+              ...new Set(
+                allUrls.length
+                  ? allUrls
+                  : refUrl && !refUrl.startsWith("data:")
+                    ? [refUrl]
+                    : [],
+              ),
+            ],
+          });
+        }
+        const textSource = sourceNodes.find((s) => s.type === "text");
+        if (textSource) {
+          updateNodeData(id, {
+            prompt: String(textSource.data.text ?? "").trim(),
+          });
+        }
+      }
+
+      if (type === "video" && sourceNodes.length) {
+        const images = sourceNodes.filter(
+          (s) => s.type === "image" || s.type === "panorama",
+        );
+        if (images[0]) {
+          updateNodeData(id, {
+            firstFrameNodeId: images[0].id,
+            ...(images[1] ? { lastFrameNodeId: images[1].id } : {}),
+          });
+        }
       }
     }
     setSelection([id]);
@@ -1689,6 +1820,9 @@ export function CanvasBoard({
         onRedo={redo}
         onImport={() => uploadRef.current?.click()}
         onOpenShortcuts={() => setShortcutsOpen(true)}
+        onFocusNode={(id) => {
+          focusNode(id, viewportSize);
+        }}
       />
       <CanvasRightPanel
         projectId={projectId}
@@ -1711,6 +1845,7 @@ export function CanvasBoard({
           if (!ok) ok = focusByJobOrAsset({ jobId, assetId }, viewportSize);
         }}
       />
+      <CanvasAgentDrawer projectId={projectId} />
       <CanvasToolbar
         panMode={panMode}
         canUndo={past.length > 0}
@@ -1914,6 +2049,20 @@ export function CanvasBoard({
               containerRef.current?.setPointerCapture(e.pointerId);
             }}
           />
+          {selectedNodes.length >= 2 &&
+          !isPanningTool &&
+          !isNodeDragging &&
+          !connectDraft ? (
+            <SelectionConnectHandle
+              nodes={selectedNodes}
+              pad={
+                isCompleteGroupSelection(nodes, selectedIds)
+                  ? GROUP_PAD
+                  : SELECTION_PAD
+              }
+              onConnectStart={onSelectionConnectStart}
+            />
+          ) : null}
           <CanvasEdges
             nodes={nodes}
             edges={edges}
@@ -1934,11 +2083,18 @@ export function CanvasBoard({
               nodes,
               selectedIds,
             );
+            const focusSwatch = focusedColorTag
+              ? colorTagMeta(focusedColorTag).swatch
+              : null;
             return nodes.map((node, index) => {
               if (isHiddenBatchChild(node, nodes)) return null;
               const inSelection = selectedIds.includes(node.id);
               const selected = inSelection && !soleGroupSelected;
               const hovered = hoveredNodeId === node.id;
+              const box = nodeBox(node);
+              const colorFocused =
+                Boolean(focusedColorTag) &&
+                colorTagOf(node) === focusedColorTag;
               return (
                 <div
                   key={node.id}
@@ -1946,14 +2102,28 @@ export function CanvasBoard({
                   draggable={false}
                   style={{
                     position: "relative",
-                    zIndex: inSelection ? 10_000 + index : index + 2,
+                    zIndex: inSelection || colorFocused ? 10_000 + index : index + 2,
                     isolation: "isolate",
                   }}
                   onDragStart={(event) => event.preventDefault()}
                   onMouseEnter={() => onNodeHoverEnter(node.id)}
                   onMouseLeave={onNodeHoverLeave}
+                  onDoubleClick={(e) => e.stopPropagation()}
                   onContextMenu={(e) => onNodeContextMenu(e, node)}
                 >
+                  {colorFocused && focusSwatch ? (
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute rounded-[10px]"
+                      style={{
+                        left: box.x - 3,
+                        top: box.y - 3,
+                        width: box.width + 6,
+                        height: box.height + 6,
+                        boxShadow: `0 0 0 2px ${focusSwatch}, 0 0 0 5px color-mix(in oklab, ${focusSwatch} 28%, transparent)`,
+                      }}
+                    />
+                  ) : null}
                   <NodeView
                     node={node}
                     onPointerDown={onNodePointerDown}
@@ -1968,7 +2138,8 @@ export function CanvasBoard({
                     visible={
                       selected ||
                       hovered ||
-                      connectDraft?.sourceId === node.id
+                      connectDraft?.sourceId === node.id ||
+                      Boolean(connectDraft?.sourceIds?.includes(node.id))
                     }
                     onConnectStart={onConnectStart}
                   />
@@ -2003,7 +2174,7 @@ export function CanvasBoard({
               双击 / 右键、拖入文件或底栏工具添加节点
             </p>
             <p className="joy-canvas-empty-hint-sub mt-2 text-sm">
-              框选多选 · 绿点连线 · Space 临时拖移 · ? 快捷键
+              框选多选 · 绿点连线 · 多选右侧绿点批量连 · Space 临时拖移 · ? 快捷键
             </p>
           </div>
         ) : null}

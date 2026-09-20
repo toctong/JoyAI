@@ -75,8 +75,13 @@ export type CanvasCreateMenuState = {
   y: number;
   worldX: number;
   worldY: number;
+  /** Single-source connect (legacy / one node). */
   sourceId?: string;
+  /** Multi-select fan-out connect. */
+  sourceIds?: string[];
   preferredType?: CanvasNodeType;
+  /** When set, only these create types are listed (multi-connect). */
+  allowedTypes?: CanvasNodeType[];
 };
 
 export type CanvasNodeMenuState = {
@@ -114,14 +119,20 @@ export function CanvasCreateMenu({
     const list = CREATE_ORDER.map((type) => ({
       type,
       label: CREATE_LABELS[type],
-    })).filter((item) => NODE_TYPE_LIST.some((n) => n.type === item.type));
+    }))
+      .filter((item) => NODE_TYPE_LIST.some((n) => n.type === item.type))
+      .filter(
+        (item) =>
+          !menu.allowedTypes?.length ||
+          menu.allowedTypes.includes(item.type),
+      );
     if (!menu.preferredType) return list;
     return [...list].sort((a, b) => {
       if (a.type === menu.preferredType) return -1;
       if (b.type === menu.preferredType) return 1;
       return 0;
     });
-  }, [menu.preferredType]);
+  }, [menu.allowedTypes, menu.preferredType]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -150,7 +161,11 @@ export function CanvasCreateMenu({
     >
       <div className="px-3.5 pb-1.5 pt-0.5">
         <span className="joy-canvas-chrome-muted text-[12px] font-medium">
-          {menu.kind === "connect" ? "连接到新节点" : "添加节点"}
+          {menu.kind === "connect"
+            ? menu.sourceIds && menu.sourceIds.length > 1
+              ? `批量连接到新节点（${menu.sourceIds.length}）`
+              : "连接到新节点"
+            : "添加节点"}
         </span>
       </div>
       <div className="flex flex-col gap-0.5 px-1.5">

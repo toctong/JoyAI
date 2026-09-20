@@ -115,10 +115,13 @@ export async function listManjuProjects() {
   return api<ManjuProjectListItem[]>("/manju/projects");
 }
 
-export async function createManjuProject(title?: string) {
+export async function createManjuProject(
+  title?: string,
+  folderId?: string | null,
+) {
   return api<ManjuProjectDto>("/manju/projects", {
     method: "POST",
-    body: { title },
+    body: { title, folderId: folderId ?? null },
   });
 }
 

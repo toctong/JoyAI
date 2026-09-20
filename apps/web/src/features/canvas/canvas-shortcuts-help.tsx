@@ -19,6 +19,14 @@ const ROWS: { keys: string[]; desc: string }[] = [
   { keys: ["中键拖动"], desc: "平移画布" },
   { keys: ["拖动空白"], desc: "框选" },
   { keys: ["Shift", "点击"], desc: "加选 / 减选" },
+  {
+    keys: ["多选绿点"],
+    desc: "从选区右侧绿点拖线，批量连到兼容节点或空白新建",
+  },
+  {
+    keys: ["颜色标签"],
+    desc: "悬停 / 选中节点标题右侧上色；顶栏色点高亮边框并列出节点，点空白取消",
+  },
   { keys: ["Ctrl / Cmd", "A"], desc: "全选" },
   { keys: ["Ctrl / Cmd", "G"], desc: "成组" },
   { keys: ["Ctrl / Cmd", "Shift", "G"], desc: "解组" },

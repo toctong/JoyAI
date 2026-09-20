@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronLeft, PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -8,10 +8,7 @@ import {
   MANJU_STEPS,
   type ManjuStepId,
 } from "./config/manju-steps";
-import {
-  getWorkflowNextAction,
-  type ManjuProjectDraft,
-} from "./manju-types";
+import type { ManjuProjectDraft } from "./manju-types";
 
 const DEFAULT_TITLE = "未命名漫剧";
 
@@ -87,7 +84,6 @@ export function ManjuStepNav({
   onToggleCollapse,
   onProjectTitleChange,
   onSelect,
-  onSuggested,
 }: {
   project: ManjuProjectDraft;
   currentId: ManjuStepId;
@@ -96,13 +92,7 @@ export function ManjuStepNav({
   onToggleCollapse?: () => void;
   onProjectTitleChange: (title: string) => void;
   onSelect: (id: ManjuStepId) => void;
-  onSuggested?: () => void;
 }) {
-  const nextAction = useMemo(
-    () => getWorkflowNextAction(project),
-    [project],
-  );
-
   return (
     <aside className={cn("manju-nav", collapsed && "manju-nav--collapsed")}>
       <div className="manju-nav__head">
@@ -193,23 +183,6 @@ export function ManjuStepNav({
           );
         })}
       </ol>
-
-      <div className="manju-nav__footer">
-        <div className="manju-nav__next-label">建议下一步</div>
-        <button
-          type="button"
-          className="manju-nav__next-text w-full text-left hover:underline"
-          onClick={() => {
-            if (onSuggested) onSuggested();
-            else onSelect(nextAction.stepId);
-          }}
-        >
-          <span>{nextAction.label}</span>
-          <span className="mt-0.5 block text-muted-foreground">
-            {nextAction.detail}
-          </span>
-        </button>
-      </div>
     </aside>
   );
 }

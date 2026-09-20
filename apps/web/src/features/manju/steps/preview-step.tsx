@@ -184,9 +184,7 @@ export function PreviewStep({
       <div className="manju-card max-w-2xl space-y-4">
         <div>
           <div className="manju-card__title">视频预览</div>
-          <p className="manju-card__desc">
-            还没有可预览的镜头视频。请先在「分镜视频」中生成至少一个片段。
-          </p>
+          <p className="text-sm text-muted-foreground">暂无可预览视频</p>
         </div>
         {canvasShots.length > 0 ? (
           <Button

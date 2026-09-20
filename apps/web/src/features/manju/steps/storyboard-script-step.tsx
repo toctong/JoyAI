@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   DndContext,
   PointerSensor,
@@ -128,7 +127,7 @@ function SortableShotCard({
       }}
       className={cn(
         "manju-asset-card manju-asset-card--interactive",
-        isDragging && "opacity-80 shadow-lg",
+        isDragging && "opacity-80",
       )}
       role="button"
       tabIndex={0}
@@ -313,7 +312,7 @@ function SortableShotCard({
               </span>
             )}
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               className="manju-asset-card__action manju-asset-card__action--primary"
               disabled={
@@ -446,7 +445,6 @@ export function StoryboardScriptStep({
   project: ManjuProjectDraft;
   episodeId?: string | null;
 }) {
-  const router = useRouter();
   const addShot = useManjuStore((s) => s.addShot);
   const updateShot = useManjuStore((s) => s.updateShot);
   const updateProject = useManjuStore((s) => s.updateProject);
@@ -716,8 +714,6 @@ export function StoryboardScriptStep({
   const stepGenerate: ManjuHeaderGenerateAction = {
     label: hasImages ? "重新生成" : "开始生成",
     onPrimary: () => void generateAll(hasImages),
-    onOpenSettings: () =>
-      router.replace(`/manju/${project.id}?step=video-settings`),
     disabled: !canGenerateImages || analyzing,
     loading: shotBusy,
     emphasis: canGenerateImages && !hasImages,
@@ -769,9 +765,9 @@ export function StoryboardScriptStep({
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            type="button"
+            className="manju-list__pill"
             onClick={() => {
               autoLinkShotAssets(project.id);
               toast.success("已按名称自动关联资产");
@@ -780,20 +776,15 @@ export function StoryboardScriptStep({
               visibleShots.length === 0 || project.assets.length === 0
             }
           >
-            <Link2 className="h-4 w-4" />
+            <Link2 className="size-3.5" />
             关联资产
-          </Button>
+          </button>
         </div>
 
         {visibleShots.length === 0 ? (
           <div className="manju-assets-empty">
             <p className="manju-assets-empty__title">
               {episodeId ? "这一集还没有镜头" : "还没有分镜"}
-            </p>
-            <p className="manju-assets-empty__desc">
-              {episodeId
-                ? "可切回全部镜头，或用 AI 规划本集。"
-                : "可用 AI 按剧本规划，或手动新增镜头卡。"}
             </p>
             <div className="manju-assets-empty__actions">
               <button
@@ -808,7 +799,6 @@ export function StoryboardScriptStep({
                     ? "规划中…"
                     : `AI ${episodeId ? "规划本集" : "规划分镜"}`}
                 </strong>
-                <span>按剧本拆解镜头画面与对白</span>
               </button>
               <button
                 type="button"
@@ -821,7 +811,6 @@ export function StoryboardScriptStep({
                 }}
               >
                 <strong>{episodeId ? "为本集新增" : "新增分镜"}</strong>
-                <span>手动添加一张空镜头卡</span>
               </button>
             </div>
           </div>

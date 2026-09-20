@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { Download, FileJson } from "lucide-react";
 import { useCanvasStore } from "./store";
 import { useCanvasRightPanelStore } from "./right-panel-store";
+import { CanvasColorTagBar } from "./canvas-color-tag-bar";
 import { api } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
@@ -46,6 +47,7 @@ type Props = {
   onRedo: () => void;
   onImport: () => void;
   onOpenShortcuts: () => void;
+  onFocusNode: (id: string) => void;
 };
 
 /** Top chrome — layout aligned to infinite-canvas (JoyAI theme). */
@@ -57,6 +59,7 @@ export function CanvasTopBar({
   onRedo,
   onImport,
   onOpenShortcuts,
+  onFocusNode,
 }: Props) {
   const router = useRouter();
   const title = useCanvasStore((s) => s.title);
@@ -240,9 +243,11 @@ export function CanvasTopBar({
       </div>
 
       <div className="pointer-events-auto flex items-center gap-1.5">
+        <CanvasColorTagBar onFocusNode={onFocusNode} />
         <div className="joy-canvas-chrome flex items-center gap-0.5 rounded-xl p-1">
           <button
             type="button"
+            data-canvas-right-toggle
             title="搜索节点"
             aria-label="搜索节点"
             aria-pressed={rightMode === "nodes"}
@@ -256,6 +261,7 @@ export function CanvasTopBar({
           </button>
           <button
             type="button"
+            data-canvas-right-toggle
             title="生成历史"
             aria-label="生成历史"
             aria-pressed={rightMode === "history"}
@@ -266,19 +272,6 @@ export function CanvasTopBar({
             )}
           >
             <CanvasIconHistory className="size-4" />
-          </button>
-          <button
-            type="button"
-            title="画布 Agent"
-            aria-label="画布 Agent"
-            aria-pressed={rightMode === "agent"}
-            onClick={() => toggleRight("agent")}
-            className={cn(
-              "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg",
-              rightMode === "agent" && "is-active",
-            )}
-          >
-            <span className="text-[11px] font-semibold tracking-tight">AI</span>
           </button>
         </div>
         <Link

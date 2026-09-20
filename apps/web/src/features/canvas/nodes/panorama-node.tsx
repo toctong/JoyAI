@@ -272,7 +272,7 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
             />
           ) : (
             <MediaUploadLabel nodeId={node.id} kind="panorama">
-              <CanvasIconPanorama className="size-7 opacity-70" />
+              <CanvasIconPanorama />
             </MediaUploadLabel>
           )}
           {framed && busy ? (

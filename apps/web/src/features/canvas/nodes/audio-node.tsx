@@ -92,7 +92,7 @@ export function AudioNode({ node, onPointerDown }: Props) {
           />
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="audio">
-            <CanvasIconAudio className="size-6 opacity-70" />
+            <CanvasIconAudio />
           </MediaUploadLabel>
         )}
         {framed && busy ? (

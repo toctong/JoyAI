@@ -10,7 +10,6 @@ import { cn } from "@/shared/lib/utils";
 import { ManjuModelBar } from "./manju-studio";
 import { ManjuStepNav } from "./manju-step-nav";
 import { ManjuStoryboardViewBar } from "./manju-storyboard-view-bar";
-import { ManjuFlowGuideBar } from "./manju-flow-guide";
 import {
   ManjuHeaderSlotsProvider,
   useManjuHeaderSlotView,
@@ -22,8 +21,7 @@ import {
   MANJU_STEPS,
   type ManjuStepId,
 } from "./config/manju-steps";
-import { stepCanAdvance, getWorkflowNextAction, type ManjuPanel } from "./manju-types";
-import { getStepFlowGuide } from "./lib/flow-guide";
+import { stepCanAdvance, type ManjuPanel } from "./manju-types";
 import { submitWorkflowSkill } from "./lib/workflow-skill";
 import { draftFromProject } from "./manju-api";
 import { ScriptStep } from "./steps/script-step";
@@ -271,70 +269,10 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
   }, [project]);
 
   const nextStep = getNextStep(step);
-  const suggested = useMemo(
-    () => (project ? getWorkflowNextAction(project) : null),
-    [project],
-  );
   const completed = useMemo(
     () => new Set(project?.completedSteps ?? []),
     [project?.completedSteps],
   );
-
-  const runSuggested = useCallback(async () => {
-    if (!project || !suggested) return;
-    if (!suggested.skill) {
-      if (suggested.label === "确认脚本") {
-        updateProject(projectId, { scriptConfirmed: true });
-        const needAssets = !project.assets.some((a) => a.imageUrl);
-        toast.success(
-          needAssets ? "脚本已确认，请先生成设定图" : "脚本已确认，可以写提示词",
-        );
-        if (needAssets) go("assets");
-        else go("storyboard-script", { view: "prompts" });
-        return;
-      }
-      if (suggested.panel === "prompts") {
-        go("storyboard-script", { view: "prompts" });
-        return;
-      }
-      go(suggested.stepId);
-      return;
-    }
-    try {
-      setAnalyzing(projectId, true);
-      await flushSave(projectId);
-      await submitWorkflowSkill({
-        project,
-        skill: suggested.skill,
-        episodeId,
-      });
-      toast.success(`已提交${suggested.label}`);
-      if (suggested.skill === "author_prompts") {
-        go("storyboard-script", { view: "prompts" });
-      } else if (suggested.skill === "script_plan") {
-        go("storyboard-script");
-      } else if (
-        suggested.skill === "plan_episodes" ||
-        suggested.skill === "series_memory"
-      ) {
-        go("script");
-      } else {
-        go("assets");
-      }
-    } catch (e) {
-      setAnalyzing(projectId, false);
-      toast.error(e instanceof Error ? e.message : "提交失败");
-    }
-  }, [
-    episodeId,
-    flushSave,
-    go,
-    project,
-    projectId,
-    setAnalyzing,
-    suggested,
-    updateProject,
-  ]);
 
   if (loading) {
     return (
@@ -355,58 +293,6 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
   }
 
   const gate = stepCanAdvance(step, project);
-  const flowGuide = getStepFlowGuide(step, project, { view });
-
-  const runFlowGuide = () => {
-    const pulseFocus = (key: string, tip: string) => {
-      const el = document.querySelector<HTMLElement>(
-        `[data-manju-focus='${key}']`,
-      );
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      el?.classList.add("manju-focus-pulse");
-      window.setTimeout(() => el?.classList.remove("manju-focus-pulse"), 1600);
-      toast.message(tip);
-    };
-
-    switch (flowGuide.intent) {
-      case "next":
-        void advance();
-        return;
-      case "go-script":
-        go("script");
-        return;
-      case "go-assets":
-        go("assets");
-        return;
-      case "go-prompts":
-        go("storyboard-script", { view: "prompts", ep: episodeId });
-        return;
-      case "confirm-script":
-        updateProject(projectId, { scriptConfirmed: true });
-        toast.success("脚本已确认，接下来去写提示词");
-        go("storyboard-script", { view: "prompts", ep: episodeId });
-        return;
-      case "focus-plan":
-        pulseFocus("plan", "请点高亮的「规划分镜」");
-        return;
-      case "focus-generate":
-        if (step === "storyboard-script" && view === "prompts") {
-          go("storyboard-script", { view: null, ep: episodeId });
-          window.setTimeout(
-            () => pulseFocus("generate", "请点高亮的「开始生成」"),
-            120,
-          );
-          return;
-        }
-        pulseFocus("generate", "请点高亮的「开始生成」");
-        return;
-      case "focus-prompts":
-        pulseFocus("prompts", "请点高亮的「AI 编写全部提示词」");
-        return;
-      default:
-        return;
-    }
-  };
 
   const storyboardView =
     step === "storyboard-script"
@@ -430,7 +316,6 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
         onToggleCollapse={toggleNavCollapsed}
         onProjectTitleChange={(title) => updateProject(projectId, { title })}
         onSelect={(id) => go(id)}
-        onSuggested={() => void runSuggested()}
       />
       <section className="manju-main">
         <header className="manju-main__header">
@@ -487,7 +372,6 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
           </div>
         </header>
         <div className="manju-main__body">
-          <ManjuFlowGuideBar guide={flowGuide} onCta={runFlowGuide} />
           {step === "storyboard-script" ||
           step === "storyboard-video" ||
           step === "preview" ? (

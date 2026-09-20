@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,7 +53,6 @@ export function StoryboardVideoStep({
   project: ManjuProjectDraft;
   episodeId?: string | null;
 }) {
-  const router = useRouter();
   const updateShot = useManjuStore((s) => s.updateShot);
   const bindJobToShotVideo = useManjuStore((s) => s.bindJobToShotVideo);
   const addShot = useManjuStore((s) => s.addShot);
@@ -229,8 +227,6 @@ export function StoryboardVideoStep({
   const stepGenerate: ManjuHeaderGenerateAction = {
     label: hasVideos ? "重新生成" : "开始生成",
     onPrimary: () => void generateAll(hasVideos),
-    onOpenSettings: () =>
-      router.replace(`/manju/${project.id}?step=video-settings`),
     disabled: visibleShots.length === 0,
     loading: videoBusy,
     emphasis: visibleShots.length > 0 && !hasVideos,
@@ -248,9 +244,7 @@ export function StoryboardVideoStep({
         <ManjuStepActions tools={stepTools} generate={stepGenerate} />
         <div className="manju-card">
           <div className="manju-card__title">分镜视频</div>
-          <p className="manju-card__desc">
-            尚无分镜。请先在「分镜脚本」中创建镜头卡。
-          </p>
+          <p className="text-sm text-muted-foreground">暂无分镜</p>
         </div>
       </div>
     );
@@ -389,7 +383,7 @@ export function StoryboardVideoStep({
                   >
                     <div className="manju-asset-card__actions">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         className="manju-asset-card__action manju-asset-card__action--primary"
                         disabled={busy}

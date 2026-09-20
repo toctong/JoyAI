@@ -37,13 +37,22 @@ function bezierMid(x1: number, y1: number, x2: number, y2: number) {
   };
 }
 
+export type ConnectDraft = {
+  /** Primary source for single-node drag; also first of multi. */
+  sourceId: string;
+  /** When set (length ≥ 2), draft fan-out from each selected source. */
+  sourceIds?: string[];
+  x: number;
+  y: number;
+};
+
 type Props = {
   nodes: CanvasNode[];
   edges: CanvasEdge[];
   selectedEdgeId: string | null;
   selectedNodeIds?: string[];
   edgeVisibility?: CanvasEdgeVisibility;
-  draft?: { sourceId: string; x: number; y: number } | null;
+  draft?: ConnectDraft | null;
   onSelectEdge: (id: string | null) => void;
   onCutEdge: (id: string) => void;
 };
@@ -184,19 +193,26 @@ export function CanvasEdges({
         })}
         {draft
           ? (() => {
-              const source = byId.get(draft.sourceId);
-              if (!source) return null;
-              const a = nodeCenterRight(source);
-              return (
-                <path
-                  d={bezierPath(a.x, a.y, draft.x, draft.y)}
-                  fill="none"
-                  stroke="currentColor"
-                  className="joy-canvas-edge-flow text-primary"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                />
-              );
+              const ids =
+                draft.sourceIds?.length
+                  ? draft.sourceIds
+                  : [draft.sourceId];
+              return ids.map((id) => {
+                const source = byId.get(id);
+                if (!source) return null;
+                const a = nodeCenterRight(source);
+                return (
+                  <path
+                    key={`draft-${id}`}
+                    d={bezierPath(a.x, a.y, draft.x, draft.y)}
+                    fill="none"
+                    stroke="currentColor"
+                    className="joy-canvas-edge-flow text-primary"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                  />
+                );
+              });
             })()
           : null}
       </g>
@@ -253,5 +269,57 @@ export function NodeHandles({
         <Plus className="size-3" strokeWidth={2.25} />
       </button>
     </>
+  );
+}
+
+type SelectionHandleProps = {
+  nodes: CanvasNode[];
+  pad?: number;
+  onConnectStart: (e: React.PointerEvent) => void;
+};
+
+/**
+ * Shared output port on the multi-select hull — drag to fan-out edges
+ * from every selected node to a compatible target.
+ */
+export function SelectionConnectHandle({
+  nodes,
+  pad = 14,
+  onConnectStart,
+}: SelectionHandleProps) {
+  if (nodes.length < 2) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const node of nodes) {
+    const box = nodeBox(node);
+    minX = Math.min(minX, box.x);
+    minY = Math.min(minY, box.y);
+    maxX = Math.max(maxX, box.x + box.width);
+    maxY = Math.max(maxY, box.y + box.height);
+  }
+  if (!Number.isFinite(minX)) return null;
+  const left = maxX + pad + PORT_GAP;
+  const top = (minY + maxY) / 2;
+
+  return (
+    <button
+      type="button"
+      title="批量连线 · 拖到目标节点或空白处"
+      aria-label="批量输出连接点"
+      data-canvas-no-zoom
+      className={cn(
+        "joy-canvas-port is-visible absolute z-[20001] grid size-5 -translate-y-1/2 place-items-center rounded-full border border-foreground/75 bg-background text-foreground shadow-sm hover:scale-110",
+      )}
+      style={{ left, top }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onConnectStart(e);
+      }}
+    >
+      <Plus className="size-3" strokeWidth={2.25} />
+    </button>
   );
 }

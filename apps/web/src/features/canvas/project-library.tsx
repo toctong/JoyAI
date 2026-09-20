@@ -572,7 +572,9 @@ export function ProjectLibrary() {
               onClick={() => void createProject()}
               disabled={creating}
             >
-              <CanvasIconPlus />
+              <span className="joy-projects-create-mark" aria-hidden>
+                <CanvasIconPlus />
+              </span>
               <span>新建项目</span>
             </button>
           </div>

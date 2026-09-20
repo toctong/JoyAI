@@ -58,6 +58,34 @@ export function writeEdgeVisibilityPreference(mode: CanvasEdgeVisibility) {
   }
 }
 
+const AGENT_WIDTH_KEY = "joyai.canvas.agentDrawerWidth";
+export const AGENT_DRAWER_MIN_WIDTH = 300;
+export const AGENT_DRAWER_DEFAULT_WIDTH = 380;
+
+export function readAgentDrawerWidth(
+  fallback = AGENT_DRAWER_DEFAULT_WIDTH,
+): number {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const n = Number(localStorage.getItem(AGENT_WIDTH_KEY));
+    if (Number.isFinite(n) && n >= AGENT_DRAWER_MIN_WIDTH) return Math.round(n);
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+export function writeAgentDrawerWidth(width: number) {
+  try {
+    localStorage.setItem(
+      AGENT_WIDTH_KEY,
+      String(Math.round(Math.max(AGENT_DRAWER_MIN_WIDTH, width))),
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
 /** True when event target is under chrome that must ignore zoom / board shortcuts. */
 export function isCanvasOverlayTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;

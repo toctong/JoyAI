@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   GitBranch,
   Loader2,
@@ -107,7 +106,6 @@ export function AssetsStep({
   const kindAssets = project.assets.filter((a) => a.kind === activeKind);
   const hasImages = kindAssets.some((a) => a.imageUrl);
   const kindBusy = kindAssets.some((a) => isBusyStatus(a.status));
-  const router = useRouter();
   const editing = editingId
     ? (project.assets.find((a) => a.id === editingId) ?? null)
     : null;
@@ -328,8 +326,6 @@ export function AssetsStep({
   const stepGenerate: ManjuHeaderGenerateAction = {
     label: hasImages ? "重新生成" : "开始生成",
     onPrimary: () => void generateBatch(hasImages),
-    onOpenSettings: () =>
-      router.replace(`/manju/${project.id}?step=video-settings`),
     disabled: kindAssets.length === 0 || submitting || stopping || kindBusy,
     loading: submitting,
     emphasis: kindAssets.length > 0 && !hasImages,
@@ -469,7 +465,7 @@ export function AssetsStep({
               <div className="manju-asset-card__actions">
                 {!asset.parentId && asset.kind === "character" ? (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     className="manju-asset-card__action"
                     disabled={busy || submitting || stopping}
@@ -510,7 +506,7 @@ export function AssetsStep({
                 />
                 {busy ? (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     className="manju-asset-card__action manju-asset-card__action--stop"
                     disabled={stopping}
@@ -521,7 +517,7 @@ export function AssetsStep({
                   </Button>
                 ) : (
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     className="manju-asset-card__action manju-asset-card__action--primary"
                     disabled={submitting || stopping}
@@ -590,9 +586,6 @@ export function AssetsStep({
               <span className="manju-assets-empty__beam" />
             </div>
             <p className="manju-assets-empty__title">还没有{kindLabel}</p>
-            <p className="manju-assets-empty__desc">
-              可在剧本步用「AI 分析」登记，或点上方「新增{kindLabel}」后填写并生成参考图。角色可再加「衍生」换装。
-            </p>
             <div className="manju-assets-empty__actions">
               <button
                 type="button"
@@ -600,7 +593,6 @@ export function AssetsStep({
                 onClick={() => addAsset(project.id, activeKind)}
               >
                 <strong>手动新增</strong>
-                <span>自行填写名称与描述后出图</span>
               </button>
             </div>
           </div>

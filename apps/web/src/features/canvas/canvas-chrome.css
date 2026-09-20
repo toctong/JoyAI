@@ -41,6 +41,42 @@
   color: var(--primary-foreground);
 }
 
+.joy-media-upload-btn {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.joy-media-upload-btn:hover {
+  transform: translateY(-0.5px);
+}
+
+.joy-media-upload-btn:active {
+  transform: none;
+}
+
+.joy-color-tag-trigger {
+  cursor: pointer;
+}
+
+.joy-canvas-agent-fab {
+  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
+  background: var(--popover);
+  color: var(--popover-foreground);
+}
+
+.joy-canvas-agent-fab-icon {
+  background: color-mix(in oklab, var(--primary) 18%, transparent);
+  color: var(--primary);
+}
+
+.joy-canvas-agent-resize {
+  background: transparent;
+}
+
+.joy-canvas-agent-resize:hover,
+.joy-canvas-agent-resize:active {
+  background: color-mix(in oklab, var(--primary) 35%, transparent);
+}
+
 .joy-canvas-chrome-muted {
   color: var(--muted-foreground);
 }
@@ -173,7 +209,7 @@
   }
 }
 
-/* Media node busy — layered sheen + soft pulse, not a stiff flat sweep. */
+/* Media node busy — shared mesh video, status copy stays on top. */
 .joy-media-busy {
   position: relative;
   display: flex;
@@ -182,56 +218,8 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background:
-    radial-gradient(
-      95% 85% at 50% 36%,
-      color-mix(in oklab, var(--ring) 18%, var(--card)),
-      var(--card) 72%
-    );
-  color: var(--foreground);
-}
-
-.joy-media-busy-sheen {
-  pointer-events: none;
-  position: absolute;
-  inset: -40% -20%;
-  background: linear-gradient(
-    118deg,
-    transparent 28%,
-    color-mix(in oklab, white 8%, transparent) 42%,
-    color-mix(in oklab, white 55%, transparent) 50%,
-    color-mix(in oklab, white 8%, transparent) 58%,
-    transparent 72%
-  );
-  opacity: 0.85;
-  animation: joy-media-busy-sheen 2.8s cubic-bezier(0.45, 0.05, 0.55, 0.95)
-    infinite;
-}
-
-.dark .joy-media-busy-sheen {
-  background: linear-gradient(
-    118deg,
-    transparent 28%,
-    color-mix(in oklab, white 4%, transparent) 42%,
-    color-mix(in oklab, white 22%, transparent) 50%,
-    color-mix(in oklab, white 4%, transparent) 58%,
-    transparent 72%
-  );
-  opacity: 0.95;
-}
-
-.joy-media-busy-glow {
-  pointer-events: none;
-  position: absolute;
-  inset: 18% 22%;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in oklab, var(--ring) 28%, transparent),
-    transparent 70%
-  );
-  filter: blur(12px);
-  animation: joy-media-busy-glow 3.2s ease-in-out infinite;
+  background: #0c1018;
+  color: #fff;
 }
 
 .joy-media-busy-core {
@@ -243,63 +231,11 @@
   gap: 10px;
 }
 
-.joy-media-busy-ring {
-  width: 36px;
-  height: 36px;
-  filter: drop-shadow(
-    0 0 10px color-mix(in oklab, var(--ring) 60%, transparent)
-  );
-}
-
-.joy-media-busy-ring svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  transform-origin: center;
-  transform-box: fill-box;
-  animation: joy-media-busy-spin 1.05s linear infinite;
-}
-
-.joy-media-busy-ring .track {
-  fill: none;
-  stroke: color-mix(in oklab, var(--ring) 32%, transparent);
-  stroke-width: 2.5;
-}
-
-.joy-media-busy-ring .arc {
-  fill: none;
-  stroke: var(--ring);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-dasharray: 24 64;
-}
-
 .joy-media-busy-label {
   font-size: 12px;
   letter-spacing: 0.02em;
-  color: color-mix(in oklab, var(--foreground) 78%, transparent);
-}
-
-.joy-media-busy-bar {
-  width: 76px;
-  height: 3px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--ring) 22%, transparent);
-}
-
-.joy-media-busy-bar > span {
-  display: block;
-  height: 100%;
-  width: 42%;
-  border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    color-mix(in oklab, var(--ring) 55%, transparent),
-    var(--ring),
-    color-mix(in oklab, var(--ring) 55%, transparent)
-  );
-  animation: joy-media-busy-bar 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  color: rgb(255 255 255 / 0.92);
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.45);
 }
 
 .joy-media-busy-cancel {
@@ -309,11 +245,11 @@
   align-items: center;
   gap: 4px;
   border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--foreground) 16%, transparent);
-  background: color-mix(in oklab, var(--background) 55%, transparent);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  background: rgb(0 0 0 / 0.35);
   padding: 4px 10px;
   font-size: 11px;
-  color: color-mix(in oklab, var(--foreground) 82%, transparent);
+  color: rgb(255 255 255 / 0.92);
   backdrop-filter: blur(6px);
   transition:
     background 0.15s ease,
@@ -322,100 +258,9 @@
 }
 
 .joy-media-busy-cancel:hover {
-  border-color: color-mix(in oklab, var(--foreground) 28%, transparent);
-  background: color-mix(in oklab, var(--background) 72%, transparent);
-  color: var(--foreground);
-}
-
-.joy-media-busy.is-overlay {
-  background: color-mix(in oklab, #09090b 58%, transparent);
-  color: #fff;
-  backdrop-filter: blur(8px);
-}
-
-.joy-media-busy.is-overlay .joy-media-busy-label {
-  color: rgb(255 255 255 / 0.9);
-}
-
-.joy-media-busy.is-overlay .joy-media-busy-ring .track {
-  stroke: rgb(255 255 255 / 0.28);
-}
-
-.joy-media-busy.is-overlay .joy-media-busy-ring .arc {
-  stroke: #fff;
-}
-
-.joy-media-busy.is-overlay .joy-media-busy-bar > span {
-  background: #fff;
-}
-
-.joy-media-busy.is-overlay .joy-media-busy-bar {
-  background: rgb(255 255 255 / 0.22);
-}
-
-.joy-media-busy.is-overlay .joy-media-busy-cancel {
-  border-color: rgb(255 255 255 / 0.28);
-  background: rgb(0 0 0 / 0.35);
-  color: rgb(255 255 255 / 0.92);
-}
-
-.joy-media-busy.is-overlay .joy-media-busy-cancel:hover {
   border-color: rgb(255 255 255 / 0.45);
   background: rgb(0 0 0 / 0.5);
   color: white;
-}
-
-@keyframes joy-media-busy-sheen {
-  0% {
-    transform: translate3d(-55%, -8%, 0) rotate(8deg);
-    opacity: 0.35;
-  }
-  35% {
-    opacity: 0.95;
-  }
-  65% {
-    opacity: 0.85;
-  }
-  100% {
-    transform: translate3d(55%, 8%, 0) rotate(8deg);
-    opacity: 0.35;
-  }
-}
-
-@keyframes joy-media-busy-glow {
-  0%,
-  100% {
-    opacity: 0.35;
-    transform: scale(0.92);
-  }
-  50% {
-    opacity: 0.75;
-    transform: scale(1.08);
-  }
-}
-
-@keyframes joy-media-busy-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes joy-media-busy-bar {
-  0% {
-    transform: translateX(-130%);
-  }
-  100% {
-    transform: translateX(280%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .joy-media-busy-sheen,
-  .joy-media-busy-glow,
-  .joy-media-busy-ring svg,
-  .joy-media-busy-bar > span {
-    animation: none;
-  }
 }
 
 .joy-canvas-port {

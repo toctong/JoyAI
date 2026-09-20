@@ -1,13 +1,12 @@
 "use client";
 
-import { Loader2, RefreshCw, Settings2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
-/** 青柠渐变主生成 + 右侧设定；定宽 148×38，对齐大片 header combo */
+/** 主生成 pill，跟随系统 primary */
 export function ManjuGenerateCombo({
   label,
   onPrimary,
-  onOpenSettings,
   disabled = false,
   primaryDisabled = false,
   loading = false,
@@ -17,7 +16,6 @@ export function ManjuGenerateCombo({
 }: {
   label: string;
   onPrimary: () => void;
-  onOpenSettings?: () => void;
   disabled?: boolean;
   primaryDisabled?: boolean;
   loading?: boolean;
@@ -48,17 +46,6 @@ export function ManjuGenerateCombo({
         )}
         <span className="manju-generate-combo__label">{label}</span>
       </button>
-      {onOpenSettings ? (
-        <button
-          type="button"
-          className="manju-generate-combo__settings"
-          aria-label="生成设置"
-          disabled={disabled}
-          onClick={onOpenSettings}
-        >
-          <Settings2 className="h-3.5 w-3.5" />
-        </button>
-      ) : null}
     </div>
   );
 }

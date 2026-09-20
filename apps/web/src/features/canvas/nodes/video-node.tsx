@@ -193,7 +193,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
           />
         ) : (
           <MediaUploadLabel nodeId={node.id} kind="video">
-            <CanvasIconVideo className="size-7 opacity-70" />
+            <CanvasIconVideo />
           </MediaUploadLabel>
         )}
         {framed && busy ? (

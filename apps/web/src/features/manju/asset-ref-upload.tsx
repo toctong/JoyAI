@@ -52,14 +52,14 @@ export function AssetRefUpload({ disabled, onFile, className }: Props) {
     <div
       {...getRootProps()}
       className={cn(
-        "flex min-w-0 flex-1 rounded-md",
-        isDragActive && "ring-2 ring-primary/40",
+        "flex min-w-0 flex-1",
+        isDragActive && "ring-2 ring-ring/40 ring-inset",
       )}
     >
       <input {...getInputProps()} />
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="sm"
         className={cn("manju-asset-card__action", className)}
         disabled={disabled}

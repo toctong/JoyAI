@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CanvasNode, CanvasNodeType } from "@joyai/shared";
 import {
   CanvasIconAudio,
@@ -20,10 +20,13 @@ import { nodeTitleLabel } from "./lib/node-chrome";
 import { NODE_REGISTRY } from "./node-registry";
 import { CanvasRefThumb } from "./canvas-ref-thumb";
 import {
+  CanvasHoverPreview,
+  type HoverPreviewPayload,
+} from "./canvas-hover-preview";
+import {
   useCanvasRightPanelStore,
   type CanvasRightPanelMode,
 } from "./right-panel-store";
-import { CanvasAgentPanel } from "./canvas-agent-panel";
 import { Crosshair } from "lucide-react";
 import { api } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
@@ -133,49 +136,57 @@ export function CanvasRightPanel({
 }: Props) {
   const mode = useCanvasRightPanelStore((s) => s.mode);
   const close = useCanvasRightPanelStore((s) => s.close);
+  const panelRef = useRef<HTMLElement>(null);
+  const [preview, setPreview] = useState<HoverPreviewPayload | null>(null);
 
-  if (!mode) return null;
+  useEffect(() => {
+    setPreview(null);
+  }, [mode]);
+
+  useEffect(() => {
+    if (!mode || mode === "agent") return;
+    const onDown = (event: PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target) return;
+      if (panelRef.current?.contains(target)) return;
+      if (target.closest("[data-canvas-right-toggle]")) return;
+      close();
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [mode, close]);
+
+  if (!mode || mode === "agent") return null;
 
   return (
     <aside
+      ref={panelRef}
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className={cn(
-        "joy-canvas-chrome absolute right-4 top-16 z-40 flex flex-col overflow-hidden rounded-2xl border border-border shadow-lg",
-        mode === "agent"
-          ? "h-[min(640px,calc(100%-7.5rem))] w-[360px]"
-          : "h-[min(560px,calc(100%-7.5rem))] w-[320px]",
-      )}
+      className="joy-canvas-chrome absolute right-4 top-16 z-40 flex h-[min(560px,calc(100%-7.5rem))] w-[320px] flex-col overflow-visible rounded-2xl border border-border shadow-lg"
       onPointerDown={(e) => e.stopPropagation()}
+      onPointerLeave={() => setPreview(null)}
     >
-      {mode === "nodes" ? (
-        <NodesPane
-          nodes={nodes}
-          selectedIds={selectedIds}
-          onFocusNode={onFocusNode}
-          onFocusGroup={onFocusGroup}
-          onClose={close}
-        />
-      ) : mode === "agent" ? (
-        <div className="relative flex min-h-0 flex-1 flex-col">
-          <button
-            type="button"
-            title="关闭"
-            aria-label="关闭"
-            onClick={close}
-            className="joy-canvas-chrome-btn absolute right-2 top-2 z-10 grid size-7 place-items-center rounded-lg"
-          >
-            <CanvasIconClose className="size-3.5" />
-          </button>
-          <CanvasAgentPanel projectId={projectId} />
-        </div>
-      ) : (
-        <HistoryPane
-          projectId={projectId}
-          onFocusJob={onFocusJob}
-          onClose={close}
-        />
-      )}
+      <CanvasHoverPreview preview={preview} className="top-0" />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl">
+        {mode === "nodes" ? (
+          <NodesPane
+            nodes={nodes}
+            selectedIds={selectedIds}
+            onFocusNode={onFocusNode}
+            onFocusGroup={onFocusGroup}
+            onClose={close}
+            onHoverPreview={setPreview}
+          />
+        ) : (
+          <HistoryPane
+            projectId={projectId}
+            onFocusJob={onFocusJob}
+            onClose={close}
+            onHoverPreview={setPreview}
+          />
+        )}
+      </div>
     </aside>
   );
 }
@@ -248,12 +259,14 @@ function NodesPane({
   onFocusNode,
   onFocusGroup,
   onClose,
+  onHoverPreview,
 }: {
   nodes: CanvasNode[];
   selectedIds: string[];
   onFocusNode: (id: string) => void;
   onFocusGroup?: (memberIds: string[]) => void;
   onClose: () => void;
+  onHoverPreview: (preview: HoverPreviewPayload | null) => void;
 }) {
   const [keyword, setKeyword] = useState("");
   const [tab, setTab] = useState<NodeTab>("all");
@@ -364,6 +377,14 @@ function NodesPane({
                         if (first) onFocusNode(first);
                       }
                     }}
+                    onPointerEnter={() =>
+                      onHoverPreview({
+                        title: row.title,
+                        kind: "other",
+                        icon: <CanvasIconGroup className="size-8 opacity-70" />,
+                      })
+                    }
+                    onPointerLeave={() => onHoverPreview(null)}
                     className={cn(
                       "group/row flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition",
                       active ? "bg-muted" : "hover:bg-muted/60",
@@ -411,6 +432,22 @@ function NodesPane({
                   key={row.id}
                   type="button"
                   onClick={() => onFocusNode(node.id)}
+                  onPointerEnter={() =>
+                    onHoverPreview({
+                      title: row.title,
+                      kind:
+                        node.type === "video"
+                          ? "video"
+                          : node.type === "audio"
+                            ? "audio"
+                            : node.type === "image" || node.type === "panorama"
+                              ? "image"
+                              : "other",
+                      url: showThumb ? url : undefined,
+                      icon: <Icon className="size-8 opacity-70" />,
+                    })
+                  }
+                  onPointerLeave={() => onHoverPreview(null)}
                   className={cn(
                     "group/row flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition",
                     active ? "bg-muted" : "hover:bg-muted/60",
@@ -449,6 +486,7 @@ function HistoryPane({
   projectId,
   onFocusJob,
   onClose,
+  onHoverPreview,
 }: {
   projectId: string;
   onFocusJob: (opts: {
@@ -457,6 +495,7 @@ function HistoryPane({
     nodeId?: string | null;
   }) => void;
   onClose: () => void;
+  onHoverPreview: (preview: HoverPreviewPayload | null) => void;
 }) {
   const [tab, setTab] = useState<HistoryTab>("all");
   const [jobs, setJobs] = useState<HistoryJob[]>([]);
@@ -542,6 +581,20 @@ function HistoryPane({
                       nodeId,
                     })
                   }
+                  onPointerEnter={() =>
+                    onHoverPreview({
+                      title,
+                      kind:
+                        media === "video"
+                          ? "video"
+                          : media === "audio"
+                            ? "audio"
+                            : "image",
+                      url: thumb,
+                      icon: <Icon className="size-8 opacity-70" />,
+                    })
+                  }
+                  onPointerLeave={() => onHoverPreview(null)}
                   className="group/row flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-muted/60"
                 >
                   <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted">

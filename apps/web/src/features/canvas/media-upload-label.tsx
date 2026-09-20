@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef } from "react";
+import { Upload } from "lucide-react";
 import type { CanvasNode } from "@joyai/shared";
+import { LoadingAnimation } from "@/components/loading-animation";
 import { cn } from "@/shared/lib/utils";
 import { uploadFileIntoNode } from "./lib/upload-to-node";
 import { CanvasIconClose } from "./icons/canvas-icons";
@@ -22,7 +24,12 @@ const LABEL: Record<Kind, string> = {
   audio: "上传音频",
 };
 
-const DRAG_CLICK_PX = 4;
+const HINT: Record<Kind, string> = {
+  image: "尝试上传或生成图片",
+  video: "尝试上传或生成视频",
+  panorama: "尝试上传或生成全景",
+  audio: "尝试上传或生成音频",
+};
 
 type Props = {
   nodeId: string;
@@ -55,19 +62,9 @@ export function MediaBusyState({
       role="status"
       aria-live="polite"
     >
-      <div className="joy-media-busy-sheen" aria-hidden />
-      <div className="joy-media-busy-glow" aria-hidden />
+      <LoadingAnimation />
       <div className="joy-media-busy-core">
-        <span className="joy-media-busy-ring" aria-hidden>
-          <svg viewBox="0 0 36 36">
-            <circle className="track" cx="18" cy="18" r="14" />
-            <circle className="arc" cx="18" cy="18" r="14" />
-          </svg>
-        </span>
         <span className="joy-media-busy-label">{label}</span>
-        <span className="joy-media-busy-bar" aria-hidden>
-          <span />
-        </span>
         {onCancel ? (
           <button
             type="button"
@@ -96,8 +93,8 @@ export function mediaBusyLabel(
 }
 
 /**
- * Empty-state upload. Pointerdown bubbles so the node can be dragged.
- * The file picker opens only on a click that did not move.
+ * Empty-state upload. Soft type icon + hint; pill CTA uses theme primary.
+ * Only the button opens the file picker — the rest of the node stays draggable.
  */
 export function MediaUploadLabel({
   nodeId,
@@ -106,43 +103,43 @@ export function MediaUploadLabel({
   children,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const draggedRef = useRef(false);
 
   return (
     <div
       className={cn(
-        "flex h-full w-full cursor-inherit flex-col items-center justify-center gap-2 text-muted-foreground",
+        "flex h-full w-full flex-col items-center justify-center gap-3 px-4",
         className,
       )}
-      onPointerDown={(event) => {
-        if (event.button !== 0) return;
-        const startX = event.clientX;
-        const startY = event.clientY;
-        draggedRef.current = false;
-        const onMove = (move: PointerEvent) => {
-          if (Math.hypot(move.clientX - startX, move.clientY - startY) > DRAG_CLICK_PX) {
-            draggedRef.current = true;
-          }
-        };
-        const onUp = () => {
-          window.removeEventListener("pointermove", onMove);
-          window.removeEventListener("pointerup", onUp);
-        };
-        window.addEventListener("pointermove", onMove);
-        window.addEventListener("pointerup", onUp);
-      }}
-      onClick={(event) => {
-        if (draggedRef.current) {
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-        inputRef.current?.click();
-      }}
-      onDragStart={(event) => event.preventDefault()}
     >
-      {children}
-      <span className="pointer-events-none select-none text-xs">{LABEL[kind]}</span>
+      <span
+        aria-hidden
+        className="pointer-events-none text-muted-foreground [&>*]:size-12 [&>*]:opacity-45"
+      >
+        {children}
+      </span>
+      <p className="pointer-events-none max-w-[14rem] text-center text-[12px] leading-snug text-muted-foreground">
+        {HINT[kind]}
+      </p>
+      <button
+        type="button"
+        title={LABEL[kind]}
+        aria-label={LABEL[kind]}
+        className={cn(
+          "joy-media-upload-btn inline-flex max-w-full items-center gap-2 rounded-full px-5 py-2 text-[13px] font-medium",
+          "bg-primary text-primary-foreground shadow-sm",
+          "hover:opacity-90 active:opacity-80",
+        )}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          inputRef.current?.click();
+        }}
+      >
+        <Upload className="size-4 shrink-0" strokeWidth={2.25} />
+        <span className="min-w-0 truncate">{LABEL[kind]}</span>
+      </button>
       <input
         ref={inputRef}
         type="file"

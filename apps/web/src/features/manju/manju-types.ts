@@ -122,19 +122,20 @@ export const DEFAULT_SETTINGS: ManjuVideoSettings = {
   ratio: "9:16",
   mode: "i2v",
   gridLayout: "2x2",
-  style: "电影感写实，自然光影，细腻皮肤质感，电影级构图",
-  styleId: "cinematic",
+  style: "真人写实摄影，自然皮肤质感，真实光影，电影级细节",
+  styleId: "realistic",
   duration: 5,
 };
 
 /** @deprecated 用 STYLE_TEMPLATES；保留兼容旧引用 */
 export const STYLE_PRESETS = [
-  "电影感写实",
-  "暗色水墨",
-  "日系动漫",
-  "赛博朋克",
-  "国风工笔",
-  "3D 渲染",
+  "真人写实",
+  "3D玄幻",
+  "真人古装",
+  "3D写实",
+  "2D动画",
+  "2D电影",
+  "好莱坞大片",
 ] as const;
 
 export const RATIO_OPTIONS: { id: ManjuAspectRatio; label: string }[] = [
@@ -164,8 +165,7 @@ export const MODE_OPTIONS: {
     badge: "R2V",
     detail:
       "使用动态镜头组，配合多参考图直出视频，总体参数更少，空间连续更好。",
-    previewVideo:
-      "https://aigc-joyai.tos-cn-beijing.volces.com/bg_theme/3.mp4",
+    previewVideo: "/manju/mode-tips/r2v.mp4",
     available: true,
   },
   {
@@ -175,8 +175,7 @@ export const MODE_OPTIONS: {
     badge: "I2V",
     detail:
       "先按提示词生成分镜静帧，再以图生视频推进运动。构图、景别可在出视频前细调。",
-    previewVideo:
-      "https://aigc-joyai.tos-cn-beijing.volces.com/bg_theme/4.mp4",
+    previewVideo: "/manju/mode-tips/i2v.mp4",
     available: true,
   },
   {
@@ -186,8 +185,7 @@ export const MODE_OPTIONS: {
     badge: "GRID",
     detail:
       "一次生成多宫格分镜图，按格切块后再逐格出视频，镜间节奏更顺。",
-    previewVideo:
-      "https://ai-video-e1.tos-cn-beijing.volces.com/ai-video/login/login.mp4",
+    previewVideo: "/manju/mode-tips/grid.mp4",
     available: true,
   },
 ];
@@ -546,7 +544,10 @@ function settingsLookUntouched(project: ManjuProjectDraft): boolean {
   const s = project.settings;
   const defaultStyle =
     DEFAULT_SETTINGS.style === s.style ||
+    s.style === "真人写实" ||
     s.style === "电影感写实" ||
+    s.styleId === "realistic" ||
+    s.styleId === "cinematic" ||
     Boolean(s.styleId && s.styleId === DEFAULT_SETTINGS.styleId);
   const noModels = !s.llmModelId && !s.imageModelId && !s.videoModelId;
   return defaultStyle && noModels && s.mode === "i2v" && s.duration === 5;

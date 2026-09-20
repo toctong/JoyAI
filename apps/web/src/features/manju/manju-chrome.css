@@ -1,38 +1,29 @@
-﻿/* 漫剧工作台皮肤：仅 .manju-workbench，对齐 ai-video 大片（黑底 + 青柠） */
+﻿/* 漫剧工作台：跟随应用主题（浅色 / 深色） */
 
 .manju-workbench {
   --manju-nav-w: 220px;
   --manju-nav-w-collapsed: 64px;
-  --manju-accent: #b8f04a;
-  --manju-accent-end: #4ade80;
-  --manju-accent-fg: #111111;
-  --manju-surface: #1a1a1a;
-  --background: #000000;
-  --foreground: #f5f5f5;
-  --card: #141414;
-  --card-foreground: #f5f5f5;
-  --popover: #1c1c1c;
-  --popover-foreground: #f5f5f5;
-  --primary: #b8f04a;
-  --primary-foreground: #111111;
-  --secondary: #1a1a1a;
-  --secondary-foreground: #f5f5f5;
-  --muted: #1a1a1a;
-  --muted-foreground: #a3a3a3;
-  --accent: #242424;
-  --accent-foreground: #f5f5f5;
-  --destructive: #f87171;
-  --destructive-foreground: #450a0a;
-  --border: rgba(255, 255, 255, 0.08);
-  --input: rgba(255, 255, 255, 0.1);
-  --ring: rgba(184, 240, 74, 0.35);
-  --radius: 10px;
-  color-scheme: dark;
+  /* 主操作按钮：常规 primary */
+  --manju-soft: var(--primary-foreground);
+  --manju-soft-bg: var(--primary);
+  --manju-soft-bg-hover: color-mix(in oklab, var(--primary) 88%, var(--background));
+  --manju-surface: var(--muted);
   display: flex;
   height: 100%;
   min-height: 0;
-  background: #000000;
-  color: #f5f5f5;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* 与资产库 / 画布一致：控件不铺默认阴影 */
+.manju-workbench :is(button, [role="button"], [data-slot="select-trigger"]),
+.manju-list :is(button, [role="button"]) {
+  box-shadow: none !important;
+}
+
+.manju-workbench [data-slot="tabs-trigger"][data-state="active"],
+.manju-workbench .manju-script-meta__tabs [data-state="active"] {
+  box-shadow: none !important;
 }
 
 /* 漫剧：标题统一 16px，文字不加粗 */
@@ -79,8 +70,8 @@
   flex: 0 0 var(--manju-nav-w);
   flex-direction: column;
   padding: 16px 12px;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background: #000000;
+  border-right: 1px solid var(--border);
+  background: var(--card);
   transition: width 0.2s ease, flex-basis 0.2s ease;
 }
 
@@ -129,13 +120,13 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
   cursor: pointer;
 }
 
 .manju-nav__collapse:hover {
-  color: #f5f5f5;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
 .manju-main__nav-toggle {
@@ -148,13 +139,13 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
   cursor: pointer;
 }
 
 .manju-main__nav-toggle:hover {
-  color: #f5f5f5;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
 .manju-nav__head {
@@ -177,13 +168,13 @@
   margin: 0;
   border-radius: 8px;
   font-size: 0;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
   gap: 0;
 }
 
 .manju-nav__back:hover {
-  color: #f5f5f5;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
 .manju-nav__title,
@@ -195,7 +186,7 @@
   font-size: 16px;
   font-weight: 400;
   letter-spacing: 0;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
   background: transparent;
   border: none;
   outline: none;
@@ -212,22 +203,22 @@
 }
 
 .manju-nav__title:hover {
-  color: #f5f5f5;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
 .manju-nav__title-input {
   border-radius: 8px;
   padding: 2px 6px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: #1a1a1a;
-  color: #f5f5f5;
+  border: 1px solid color-mix(in oklab, var(--foreground) 14%, transparent);
+  background: var(--muted);
+  color: var(--foreground);
   box-shadow: none;
 }
 
 .manju-nav__title-input:focus {
-  border-color: rgba(184, 240, 74, 0.45);
-  box-shadow: 0 0 0 2px rgba(184, 240, 74, 0.25);
+  border-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 25%, transparent);
 }
 
 .manju-nav__steps {
@@ -256,7 +247,7 @@
   width: 0;
   height: 100%;
   margin-left: 11px;
-  border-left: 1px dashed rgba(255, 255, 255, 0.28);
+  border-left: 1px dashed color-mix(in oklab, var(--foreground) 28%, transparent);
 }
 
 .manju-nav__step {
@@ -269,28 +260,28 @@
   border-radius: 999px;
   padding: 8px 10px;
   text-align: left;
-  color: rgba(255, 255, 255, 0.72);
+  color: color-mix(in oklab, var(--foreground) 72%, transparent);
   background: transparent;
   cursor: pointer;
 }
 
 .manju-nav__step:hover {
-  color: #f5f5f5;
+  color: var(--foreground);
   background: transparent;
 }
 
 .manju-nav__step--active {
-  background: rgba(184, 240, 74, 0.14);
-  color: #b8f04a;
+  background: var(--secondary);
+  color: var(--foreground);
 }
 
 .manju-nav__step--active:hover {
-  background: rgba(184, 240, 74, 0.14);
-  color: #b8f04a;
+  background: var(--secondary);
+  color: var(--foreground);
 }
 
 .manju-nav__step--done {
-  color: #f5f5f5;
+  color: var(--foreground);
 }
 
 .manju-nav__step-index {
@@ -301,24 +292,24 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border: 1.5px solid color-mix(in oklab, var(--foreground) 55%, transparent);
   background: transparent;
   font-size: 12px;
   font-weight: 400;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.9);
+  color: color-mix(in oklab, var(--foreground) 90%, transparent);
 }
 
 .manju-nav__step-index--active {
   border-color: transparent;
-  background: #b8f04a;
-  color: #111111;
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 
 .manju-nav__step-index--done {
-  border-color: rgba(255, 255, 255, 0.55);
+  border-color: color-mix(in oklab, var(--foreground) 55%, transparent);
   background: transparent;
-  color: rgba(255, 255, 255, 0.9);
+  color: color-mix(in oklab, var(--foreground) 90%, transparent);
 }
 
 .manju-nav__step-label {
@@ -333,7 +324,7 @@
 
 .manju-nav__step--active .manju-nav__step-label {
   font-weight: 400;
-  color: #b8f04a;
+  color: var(--foreground);
 }
 
 .manju-nav__step-check {
@@ -343,8 +334,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #b8f04a;
-  color: #12200a;
+  background: var(--primary);
+  color: var(--primary-foreground);
   border: none;
 }
 
@@ -364,14 +355,14 @@
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
-  color: #737373;
+  color: var(--muted-foreground);
 }
 
 .manju-nav__next-text {
   margin-top: 2px;
   font-size: 12px;
   line-height: 1.4;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-main {
@@ -381,7 +372,7 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  background: #000000;
+  background: var(--background);
 }
 
 .manju-main__header {
@@ -395,8 +386,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: #000000;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
   padding: 8px var(--manju-content-x);
 }
 
@@ -429,13 +420,13 @@
   padding: 2px 8px;
   font-size: 10px;
   font-weight: 400;
-  color: #737373;
+  color: var(--muted-foreground);
 }
 
 .manju-main__save.is-saving,
 .manju-main__save.is-busy {
-  background: rgba(245, 158, 11, 0.14);
-  color: #fbbf24;
+  background: var(--muted);
+  color: var(--muted-foreground);
 }
 
 .manju-main__step-title {
@@ -456,15 +447,15 @@
 /* 项目全局渠道模型：头部收纳按钮 + 弹出面板 */
 .manju-model-bar-trigger {
   display: inline-flex;
-  height: 32px;
+  height: 36px;
   max-width: 168px;
   align-items: center;
   gap: 6px;
-  padding: 0 8px 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  background: #141414;
-  color: #e5e5e5;
+  padding: 0 10px 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--foreground);
   cursor: pointer;
   transition:
     border-color 0.15s ease,
@@ -473,15 +464,15 @@
 
 .manju-model-bar-trigger:hover,
 .manju-model-bar-trigger--open {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: #1a1a1a;
+  border-color: transparent;
+  background: color-mix(in oklab, var(--secondary) 80%, var(--foreground) 8%);
 }
 
 .manju-model-bar-trigger__label {
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 400;
-  color: #f5f5f5;
+  color: var(--foreground);
 }
 
 .manju-model-bar-trigger__summary {
@@ -490,21 +481,21 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-model-bar-panel {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 12px !important;
-  background: #1a1a1a !important;
-  color: #f5f5f5 !important;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5) !important;
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  box-shadow: 0 16px 40px color-mix(in oklab, var(--foreground) 18%, transparent) !important;
   z-index: 70;
 }
 
 .manju-model-bar-panel__head {
   padding: 12px 14px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 
 .manju-model-bar-panel__head strong {
@@ -517,7 +508,7 @@
   margin: 4px 0 0;
   font-size: 11px;
   line-height: 1.45;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-model-bar-panel__body {
@@ -536,45 +527,46 @@
 .manju-model-bar-panel__kind {
   font-size: 11px;
   font-weight: 400;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-model-bar-panel__select {
   height: 34px !important;
   width: 100%;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  background: rgba(0, 0, 0, 0.28) !important;
+  border-color: var(--border) !important;
+  background: var(--input) !important;
   font-size: 12px !important;
-  color: #f5f5f5 !important;
+  color: var(--foreground) !important;
   box-shadow: none !important;
 }
 
 /* Canvas-like compact chrome cluster */
 .manju-chrome {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 3px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #141414;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 .manju-chrome-btn {
   display: inline-flex;
-  height: 30px;
-  max-width: 140px;
+  height: 36px;
+  width: 36px;
+  max-width: none;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
   gap: 5px;
   border: none;
-  border-radius: 8px;
-  background: transparent;
-  padding: 0 9px;
+  border-radius: 10px;
+  background: var(--secondary);
+  padding: 0;
   font-size: 12px;
   font-weight: 400;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
   cursor: pointer;
   transition:
     background 0.15s ease,
@@ -588,13 +580,13 @@
 }
 
 .manju-chrome-btn--icon {
-  width: 30px;
+  width: 36px;
   padding: 0;
 }
 
 .manju-chrome-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  color: #f5f5f5;
+  background: color-mix(in oklab, var(--secondary) 80%, var(--foreground) 8%);
+  color: var(--foreground);
 }
 
 .manju-chrome-btn:disabled {
@@ -604,8 +596,8 @@
 
 .manju-tool-btn {
   display: inline-flex;
-  height: 38px;
-  width: 88px;
+  height: 36px;
+  width: auto;
   min-width: 88px;
   box-sizing: border-box;
   flex-shrink: 0;
@@ -613,11 +605,11 @@
   justify-content: center;
   gap: 6px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #1a1a1a;
-  padding: 0 10px;
+  border: 1px solid transparent;
+  background: var(--manju-soft-bg);
+  padding: 0 14px;
   font-size: 13px;
-  color: #a3a3a3;
+  color: var(--manju-soft);
   cursor: pointer;
 }
 
@@ -627,8 +619,8 @@
 }
 
 .manju-tool-btn:hover:not(:disabled) {
-  color: #f5f5f5;
-  background: #242424;
+  color: var(--manju-soft);
+  background: var(--manju-soft-bg-hover);
 }
 
 .manju-tool-btn:disabled {
@@ -646,34 +638,34 @@
   position: relative;
   display: inline-flex;
   width: 148px;
-  height: 38px;
+  height: 36px;
   flex-shrink: 0;
   align-items: center;
   overflow: hidden;
   border-radius: 999px;
-  background: linear-gradient(135deg, #b8f04a, #4ade80);
+  background: var(--manju-soft-bg);
 }
 
 .manju-generate-combo__primary {
   display: inline-flex;
   width: 100%;
-  height: 38px;
+  height: 36px;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 6px;
   border: none !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  padding: 0 40px 0 14px !important;
+  padding: 0 14px !important;
   font-size: 13px;
   font-weight: 400;
-  color: #111111 !important;
+  color: var(--manju-soft) !important;
   cursor: pointer;
 }
 
 .manju-generate-combo__primary:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.06) !important;
+  background: var(--manju-soft-bg-hover) !important;
   filter: none;
 }
 
@@ -695,27 +687,27 @@
   top: 0;
   right: 0;
   display: inline-flex;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   align-items: center;
   justify-content: center;
   border: none !important;
-  border-left: 1px solid rgba(0, 0, 0, 0.14) !important;
+  border-left: 1px solid color-mix(in oklab, var(--primary-foreground) 22%, transparent) !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
-  color: #111111 !important;
+  color: var(--manju-soft) !important;
   cursor: pointer;
 }
 
 .manju-generate-combo__settings:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.06) !important;
+  background: var(--manju-soft-bg-hover) !important;
 }
 
 .manju-next-btn {
   display: inline-flex;
-  height: 38px;
+  height: 36px;
   width: 168px;
   min-width: 168px;
   box-sizing: border-box;
@@ -724,17 +716,19 @@
   justify-content: center;
   border: none !important;
   border-radius: 999px !important;
-  background: linear-gradient(135deg, #b8f04a, #4ade80) !important;
-  padding: 0 12px !important;
+  background: var(--manju-soft-bg) !important;
+  padding: 0 14px !important;
   font-size: 13px;
   font-weight: 400;
-  color: #111111 !important;
+  color: var(--manju-soft) !important;
   cursor: pointer;
   box-shadow: none !important;
 }
 
 .manju-next-btn:hover:not(:disabled) {
-  filter: brightness(1.04);
+  background: var(--manju-soft-bg-hover) !important;
+  color: var(--manju-soft) !important;
+  filter: none;
 }
 
 .manju-next-btn:disabled {
@@ -761,7 +755,7 @@
   flex: 1;
   overflow: auto;
   padding: 20px var(--manju-content-x) 40px;
-  background: #000000;
+  background: var(--background);
 }
 
 .manju-panel {
@@ -793,7 +787,7 @@
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.3;
-  color: #fafafa;
+  color: var(--foreground);
 }
 
 .manju-card__desc {
@@ -801,7 +795,7 @@
   font-size: 13px;
   font-weight: 400;
   line-height: 1.55;
-  color: #737373;
+  color: var(--muted-foreground);
 }
 
 .manju-chip-row {
@@ -817,12 +811,12 @@
   gap: 6px;
   white-space: nowrap;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: transparent;
+  border: 1px solid transparent;
+  background: var(--secondary);
   padding: 9px 16px;
   font-size: 13px;
   font-weight: 400;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
   transition:
     background 0.15s,
     color 0.15s,
@@ -830,54 +824,54 @@
 }
 
 .manju-chip:hover {
-  color: #f5f5f5;
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--secondary) 80%, var(--foreground) 8%);
 }
 
 .manju-chip--active {
-  border-color: #b8f04a;
-  background: transparent;
-  color: #b8f04a;
+  border-color: color-mix(in oklab, var(--ring) 55%, transparent);
+  background: var(--card);
+  color: var(--foreground);
   font-weight: 400;
-  box-shadow: inset 0 0 0 1px rgba(184, 240, 74, 0.12);
+  box-shadow: none;
 }
 
 .manju-mode-card {
   display: flex;
+  width: 100%;
   min-height: 96px;
   flex-direction: column;
   gap: 8px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: #121212;
+  border: 1px solid var(--border);
+  background: var(--card);
   padding: 18px 16px 16px;
   text-align: left;
-  color: #f5f5f5;
+  color: var(--foreground);
   transition:
     border-color 0.2s ease,
     background 0.2s ease;
 }
 
 .manju-mode-card:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: #161616;
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+  background: var(--muted);
   box-shadow: none;
 }
 
 .manju-mode-card--active {
-  border-color: #b8f04a;
+  border-color: color-mix(in oklab, var(--ring) 55%, transparent);
   box-shadow: none;
-  background: #141414;
+  background: var(--card);
 }
 
 .manju-mode-card--active .manju-mode-card__title {
-  color: #b8f04a;
+  color: var(--foreground);
   font-weight: 400;
 }
 
 .manju-mode-card--active .manju-mode-card__desc {
-  color: rgba(184, 240, 74, 0.72);
+  color: var(--muted-foreground);
 }
 
 .manju-mode-card:disabled {
@@ -902,7 +896,7 @@
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.35;
-  color: #f5f5f5;
+  color: var(--foreground);
 }
 
 .manju-mode-card__desc {
@@ -910,7 +904,7 @@
   font-size: 12px;
   font-weight: 400;
   line-height: 1.5;
-  color: #8a8a8a;
+  color: var(--muted-foreground);
 }
 
 .manju-mode-detail {
@@ -918,31 +912,132 @@
   overflow: hidden;
   border: 0;
   border-radius: 14px;
-  background: #0f0f0f;
+  background: var(--card);
 }
 
 .manju-mode-card__badge {
   flex-shrink: 0;
   border-radius: 999px;
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  background: linear-gradient(135deg, #fde68a, #f5f5f4);
+  border: 1px solid var(--border);
+  background: var(--secondary);
   padding: 2px 8px;
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.04em;
-  color: #1c1917;
+  color: var(--muted-foreground);
 }
 
 .manju-mode-grid {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  overflow: visible;
 }
 
 @media (max-width: 900px) {
   .manju-mode-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.manju-mode-card-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.manju-mode-card-wrap--soon {
+  opacity: 0.55;
+}
+
+.manju-mode-tip {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  z-index: 40;
+  width: min(360px, calc(100vw - 48px));
+  transform: translateX(-50%);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 16px 40px color-mix(in oklab, var(--foreground) 18%, transparent);
+  pointer-events: none;
+  animation: manju-mode-tip-in 0.16s ease;
+}
+
+.manju-mode-card-wrap:first-child .manju-mode-tip {
+  left: 0;
+  transform: none;
+}
+
+.manju-mode-card-wrap:last-child .manju-mode-tip {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+@keyframes manju-mode-tip-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.manju-mode-card-wrap:first-child .manju-mode-tip {
+  animation-name: manju-mode-tip-in-start;
+}
+
+.manju-mode-card-wrap:last-child .manju-mode-tip {
+  animation-name: manju-mode-tip-in-end;
+}
+
+@keyframes manju-mode-tip-in-start {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes manju-mode-tip-in-end {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.manju-mode-tip__media {
+  aspect-ratio: 16 / 9;
+  background: var(--muted);
+}
+
+.manju-mode-tip__video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.manju-mode-tip__text {
+  margin: 0;
+  padding: 12px 14px 14px;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--muted-foreground);
 }
 
 .manju-mode-detail__visual {
@@ -953,37 +1048,45 @@
   justify-content: flex-end;
   padding: 12px;
   background:
-    radial-gradient(ellipse at 30% 40%, rgba(184, 240, 74, 0.12), transparent 55%),
-    linear-gradient(135deg, #1a1a1a, #0a0a0a 60%);
+    radial-gradient(ellipse at 30% 40%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 55%),
+    linear-gradient(135deg, var(--muted), var(--background) 60%);
 }
 
 .manju-mode-detail__visual--ref {
   background:
-    radial-gradient(ellipse at 70% 30%, rgba(96, 165, 250, 0.18), transparent 50%),
-    linear-gradient(135deg, #171a22, #0a0a0a 62%);
+    radial-gradient(
+      ellipse at 70% 30%,
+      color-mix(in oklab, var(--ring) 22%, transparent),
+      transparent 50%
+    ),
+    linear-gradient(135deg, var(--muted), var(--background) 62%);
 }
 
 .manju-mode-detail__visual--i2v {
   background:
-    radial-gradient(ellipse at 25% 60%, rgba(184, 240, 74, 0.16), transparent 52%),
-    linear-gradient(135deg, #161816, #0a0a0a 62%);
+    radial-gradient(ellipse at 25% 60%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 52%),
+    linear-gradient(135deg, var(--muted), var(--background) 62%);
 }
 
 .manju-mode-detail__visual--grid {
   background:
-    radial-gradient(ellipse at 50% 40%, rgba(251, 191, 36, 0.14), transparent 55%),
-    linear-gradient(135deg, #1a1814, #0a0a0a 62%);
+    radial-gradient(
+      ellipse at 50% 40%,
+      color-mix(in oklab, var(--secondary) 40%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(135deg, var(--muted), var(--background) 62%);
 }
 
 .manju-mode-detail__visual-label {
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--background) 72%, transparent);
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: #e5e5e5;
+  color: var(--foreground);
   backdrop-filter: blur(6px);
 }
 
@@ -992,43 +1095,7 @@
   padding: 14px 16px;
   font-size: 13px;
   line-height: 1.55;
-  color: #d4d4d4;
-}
-
-.manju-mode-tip {
-  overflow: hidden;
-  border-radius: 14px;
-  background: #0c0c0c;
-  animation: manju-mode-tip-in 0.18s ease;
-}
-
-@keyframes manju-mode-tip-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.manju-mode-tip__video {
-  display: block;
-  width: 100%;
-  max-height: 280px;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  background: #000;
-}
-
-.manju-mode-tip__text {
-  margin: 0;
-  padding: 14px 16px 16px;
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.6;
-  color: #d4d4d4;
+  color: var(--foreground);
 }
 
 .manju-mode-detail__grid {
@@ -1036,14 +1103,14 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
   padding: 12px 16px 14px;
 }
 
 .manju-mode-detail__grid-label {
   font-size: 12px;
   font-weight: 400;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-settings-panel {
@@ -1052,9 +1119,16 @@
 }
 
 .manju-settings-block {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: visible;
+}
+
+/* 模式 tip 向下溢出时，需压过下方风格库等兄弟区块 */
+.manju-settings-block:has(.manju-mode-grid) {
+  z-index: 6;
 }
 
 .manju-settings-block__head {
@@ -1070,14 +1144,14 @@
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.3;
-  color: #fafafa;
+  color: var(--foreground);
 }
 
 .manju-settings-sub {
   margin: -2px 0 0;
   font-size: 12px;
   font-weight: 400;
-  color: #737373;
+  color: var(--muted-foreground);
 }
 
 .manju-settings-hint {
@@ -1086,89 +1160,89 @@
   gap: 5px;
   font-size: 12px;
   font-weight: 400;
-  color: #737373;
+  color: var(--muted-foreground);
 }
 
 .manju-settings-lock {
   border-radius: 999px;
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid var(--border);
+  background: var(--muted);
   padding: 2px 8px;
   font-size: 10px;
   font-weight: 400;
-  color: #fbbf24;
+  color: var(--muted-foreground);
 }
 
-.manju-style-carousel {
-  position: relative;
-  margin-inline: 0;
-  padding-inline: 36px;
-}
-
-.manju-style-carousel__viewport {
-  width: 100%;
-}
-
-.manju-style-carousel__track {
-  margin-left: 0 !important;
-}
-
-.manju-style-carousel__item {
-  flex-basis: 120px;
-  padding-left: 12px;
-}
-
-.manju-style-carousel__item:first-child {
-  padding-left: 0;
-}
-
-.manju-style-carousel__prev,
-.manju-style-carousel__next {
-  z-index: 2;
-  height: 32px !important;
-  width: 32px !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-  background: #1a1a1a !important;
-  color: #e5e5e5 !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-}
-
-.manju-style-carousel__prev:hover:not(:disabled),
-.manju-style-carousel__next:hover:not(:disabled) {
-  border-color: rgba(184, 240, 74, 0.45) !important;
-  color: #b8f04a !important;
-  background: #1f1f1f !important;
-}
-
-.manju-style-carousel__prev:disabled,
-.manju-style-carousel__next:disabled {
-  opacity: 0.35;
-}
-
-.manju-style-carousel__prev {
-  left: 0 !important;
-  top: 42% !important;
-}
-
-.manju-style-carousel__next {
-  right: 0 !important;
-  top: 42% !important;
-}
-
-.manju-style-grid {
+.manju-style-row {
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(112px, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  max-width: 720px;
+}
+
+@media (max-width: 720px) {
+  .manju-style-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.manju-style-dialog {
+  width: min(720px, calc(100vw - 32px)) !important;
+  max-width: 720px !important;
+  height: 520px !important;
+  max-height: 520px !important;
+  min-height: 520px !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  padding: 20px 20px 16px !important;
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 16px 40px color-mix(in oklab, var(--foreground) 18%, transparent) !important;
+}
+
+.manju-style-dialog > .manju-style-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 12px;
+  background: var(--background);
+  padding: 12px;
+}
+
+.manju-style-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .manju-style-dialog {
+    height: min(520px, calc(100vh - 48px)) !important;
+    max-height: min(520px, calc(100vh - 48px)) !important;
+    min-height: min(520px, calc(100vh - 48px)) !important;
+  }
+
+  .manju-style-dialog__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.manju-style-dialog__empty {
+  display: flex;
+  height: 100%;
+  min-height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--muted-foreground);
 }
 
 .manju-style-card {
-  display: flex;
-  min-width: 112px;
-  flex-direction: column;
-  gap: 10px;
+  display: block;
+  width: 100%;
+  min-width: 0;
   border: 0;
   background: transparent;
   padding: 0;
@@ -1177,33 +1251,123 @@
 }
 
 .manju-style-card__thumb {
+  position: relative;
   display: block;
   aspect-ratio: 3 / 4;
   overflow: hidden;
-  border: 2px solid transparent;
+  border: 2px solid var(--border);
   border-radius: 12px;
-  background: #1a1a1a;
-  transition: border-color 0.2s ease;
+  background: var(--muted);
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.manju-style-card__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
 }
 
 .manju-style-card:hover .manju-style-card__thumb {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
 }
 
 .manju-style-card--active .manju-style-card__thumb {
-  border-color: #b8f04a;
-  box-shadow: none;
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.manju-style-card--active:hover .manju-style-card__thumb {
+  border-color: var(--ring);
 }
 
 .manju-style-card__label {
-  font-size: 13px;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1;
+  padding: 18px 6px 8px;
+  font-size: 12px;
   font-weight: 400;
-  color: #a3a3a3;
+  line-height: 1.2;
+  color: #fff;
+  text-align: center;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.28) 55%,
+    transparent 100%
+  );
 }
 
-.manju-style-card--active .manju-style-card__label {
-  color: #b8f04a;
-  font-weight: 400;
+.manju-style-card__thumb--custom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--muted) 80%, transparent),
+      color-mix(in oklab, var(--card) 90%, transparent)
+    );
+}
+
+.manju-style-card__thumb--more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+  background: var(--secondary);
+  color: var(--muted-foreground);
+}
+
+.manju-style-card__thumb--more .manju-style-card__label {
+  position: static;
+  width: auto;
+  padding: 0;
+  color: var(--foreground);
+  background: transparent;
+}
+
+.manju-style-card--more:hover .manju-style-card__thumb--more {
+  border-color: color-mix(in oklab, var(--ring) 55%, var(--border));
+  color: var(--foreground);
+}
+
+.manju-style-card__thumb--custom .manju-style-card__label {
+  position: static;
+  width: 100%;
+  padding: 10px 6px 12px;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.manju-style-card--custom:hover .manju-style-card__thumb--custom {
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+}
+
+.manju-style-card--custom.manju-style-card--active .manju-style-card__thumb--custom {
+  border-style: dashed;
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.manju-style-card--custom.manju-style-card--active
+  .manju-style-card__thumb--custom
+  .manju-style-card__label {
+  color: var(--foreground);
 }
 
 .manju-style-card__thumb--cinematic {
@@ -1215,7 +1379,7 @@
 .manju-style-card__thumb--ink {
   background:
     radial-gradient(circle at 60% 40%, #525252, transparent 45%),
-    linear-gradient(180deg, #262626, #0a0a0a);
+    linear-gradient(180deg, #262626, var(--background));
 }
 
 .manju-style-card__thumb--anime {
@@ -1293,15 +1457,15 @@
 
 .manju-step-actions__btn {
   display: inline-flex;
-  height: 32px;
+  height: 36px;
   align-items: center;
-  gap: 5px;
-  padding: 0 10px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #e5e5e5;
-  font-size: 12px;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--manju-soft-bg);
+  color: var(--manju-soft);
+  font-size: 13px;
   font-weight: 400;
   cursor: pointer;
   transition:
@@ -1310,8 +1474,8 @@
 }
 
 .manju-step-actions__btn:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.07);
+  border-color: transparent;
+  background: var(--manju-soft-bg-hover);
 }
 
 .manju-step-actions__btn:disabled {
@@ -1320,40 +1484,43 @@
 }
 
 .manju-step-actions__btn--stop {
-  border-color: rgba(248, 113, 113, 0.35);
-  color: #fca5a5;
+  border-color: transparent;
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+  color: var(--destructive);
 }
 
 .manju-step-actions__btn--stop:hover:not(:disabled) {
-  border-color: rgba(248, 113, 113, 0.5);
-  background: rgba(248, 113, 113, 0.1);
+  border-color: transparent;
+  background: color-mix(in oklab, var(--destructive) 18%, transparent);
 }
 
 .manju-step-actions__btn--emphasis {
-  border-color: rgba(184, 240, 74, 0.45);
-  background: rgba(184, 240, 74, 0.12);
-  color: #d4f98a;
-  box-shadow: 0 0 0 1px rgba(184, 240, 74, 0.12);
+  border-color: transparent;
+  background: var(--manju-soft-bg);
+  color: var(--manju-soft);
+  box-shadow: none;
 }
 
 .manju-step-actions__btn--emphasis:hover:not(:disabled) {
-  border-color: rgba(184, 240, 74, 0.6);
-  background: rgba(184, 240, 74, 0.18);
+  border-color: transparent;
+  background: var(--manju-soft-bg-hover);
 }
 
 .manju-generate-combo--emphasis {
-  box-shadow:
-    0 0 0 2px rgba(184, 240, 74, 0.35),
-    0 0 18px rgba(184, 240, 74, 0.25);
+  outline: 2px solid color-mix(in oklab, var(--ring) 55%, transparent);
+  outline-offset: 2px;
+  box-shadow: none;
 }
 
 @keyframes manju-focus-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(184, 240, 74, 0.55);
+    outline: 2px solid color-mix(in oklab, var(--ring) 55%, transparent);
+    outline-offset: 2px;
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(184, 240, 74, 0);
+    outline: 2px solid color-mix(in oklab, var(--ring) 0%, transparent);
+    outline-offset: 6px;
   }
 }
 
@@ -1364,27 +1531,39 @@
 
 .manju-tabs {
   display: inline-flex;
+  align-items: center;
   gap: 4px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  padding: 3px;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
 }
 
 .manju-tab {
   display: inline-flex;
+  height: 36px;
   align-items: center;
   gap: 6px;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  padding: 0 16px;
+  font-size: 14px;
   font-weight: 400;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.manju-tab:hover {
+  color: var(--foreground);
 }
 
 .manju-tab--active {
-  background: rgba(184, 240, 74, 0.14);
-  color: #b8f04a;
+  background: var(--secondary);
+  color: var(--foreground);
   box-shadow: none;
 }
 
@@ -1395,18 +1574,16 @@
   height: 100%;
   min-height: 168px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #141414;
+  background: var(--card);
   padding: 10px;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .manju-asset-card:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+  box-shadow: none;
   transform: none;
 }
 
@@ -1432,9 +1609,9 @@
   justify-content: center;
   overflow: hidden;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: #0a0a0a;
-  color: #737373;
+  border: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
+  background: var(--background);
+  color: var(--muted-foreground);
   font-size: 11px;
 }
 
@@ -1448,30 +1625,33 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid transparent;
+  background: color-mix(in oklab, var(--background) 78%, transparent);
   padding: 2px 7px;
   font-size: 10px;
   font-weight: 400;
   line-height: 1.3;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
   backdrop-filter: blur(6px);
   pointer-events: none;
 }
 
 .manju-asset-card__tag.is-ok {
-  border-color: rgba(184, 240, 74, 0.35);
-  color: #b8f04a;
+  border-color: transparent;
+  background: var(--secondary);
+  color: var(--foreground);
 }
 
 .manju-asset-card__tag.is-failed {
-  border-color: rgba(248, 113, 113, 0.4);
-  color: #f87171;
+  border-color: transparent;
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+  color: var(--destructive);
 }
 
 .manju-asset-card__tag.is-busy {
-  border-color: rgba(251, 191, 36, 0.4);
-  color: #fbbf24;
+  border-color: transparent;
+  background: var(--muted);
+  color: var(--muted-foreground);
 }
 
 .manju-asset-card__media img {
@@ -1489,8 +1669,8 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  background: rgba(0, 0, 0, 0.62);
-  color: #e5e5e5;
+  background: color-mix(in oklab, var(--background) 70%, transparent);
+  color: var(--foreground);
   font-size: 11px;
   font-weight: 400;
   backdrop-filter: blur(2px);
@@ -1514,7 +1694,7 @@
 .manju-asset-card__badge {
   margin: 0;
   font-size: 10px;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-asset-card__title {
@@ -1525,7 +1705,7 @@
   font-size: 16px;
   font-weight: 400;
   line-height: 1.35;
-  color: #f5f5f5;
+  color: var(--foreground);
 }
 
 .manju-asset-card__desc-text {
@@ -1539,7 +1719,7 @@
   text-align: left;
   font-size: 12px;
   line-height: 1.45;
-  color: #d4d4d4;
+  color: var(--foreground);
   cursor: pointer;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1547,7 +1727,7 @@
 }
 
 .manju-asset-card__desc-text:hover {
-  color: #f5f5f5;
+  color: var(--foreground);
 }
 
 .manju-asset-card__alias-text {
@@ -1556,7 +1736,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-asset-card__prompt {
@@ -1566,24 +1746,27 @@
   white-space: nowrap;
   font-size: 10px;
   line-height: 1.35;
-  color: #737373;
+  color: var(--muted-foreground);
 }
 
 .manju-asset-card__footer {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
+  gap: 0;
   margin-top: auto;
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: none;
 }
 
 .manju-asset-card__actions {
   display: flex;
   width: 100%;
   align-items: stretch;
-  gap: 4px;
+  gap: 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--secondary);
 }
 
 .manju-asset-card__actions > * {
@@ -1591,39 +1774,60 @@
   min-width: 0;
 }
 
+.manju-asset-card__actions > * + * {
+  border-left: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.manju-asset-card__actions > span {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  overflow: hidden;
+  font-size: 10px;
+  color: var(--muted-foreground);
+}
+
 .manju-asset-card__action,
 .manju-asset-card__actions button {
   width: 100% !important;
-  height: 28px !important;
+  height: 34px !important;
   justify-content: center !important;
   gap: 4px !important;
   padding-left: 6px !important;
   padding-right: 6px !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  background: rgba(255, 255, 255, 0.03) !important;
-  font-size: 11px !important;
-  color: #e5e5e5 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: var(--foreground) !important;
   white-space: nowrap;
+  box-shadow: none !important;
+}
+
+.manju-asset-card__action:hover:not(:disabled),
+.manju-asset-card__actions button:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--foreground) 6%, transparent) !important;
 }
 
 .manju-asset-card__action--primary {
-  border-color: rgba(184, 240, 74, 0.35) !important;
-  background: rgba(184, 240, 74, 0.1) !important;
-  color: #b8f04a !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--foreground) !important;
 }
 
 .manju-asset-card__action--primary:hover:not(:disabled) {
-  background: rgba(184, 240, 74, 0.16) !important;
+  background: color-mix(in oklab, var(--foreground) 6%, transparent) !important;
 }
 
 .manju-asset-card__action--stop {
-  border-color: rgba(248, 113, 113, 0.4) !important;
-  background: rgba(248, 113, 113, 0.1) !important;
-  color: #fca5a5 !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--destructive) !important;
 }
 
 .manju-asset-card__action--stop:hover:not(:disabled) {
-  background: rgba(248, 113, 113, 0.16) !important;
+  background: color-mix(in oklab, var(--destructive) 10%, transparent) !important;
 }
 
 .manju-icon-btn {
@@ -1661,7 +1865,7 @@
 }
 
 .manju-asset-card--interactive:focus-visible {
-  outline: 2px solid rgba(184, 240, 74, 0.45);
+  outline: 2px solid color-mix(in oklab, var(--primary) 45%, transparent);
   outline-offset: 2px;
 }
 
@@ -1691,19 +1895,19 @@
   flex-shrink: 0;
   font-size: 11px;
   font-weight: 400;
-  color: #737373;
+  color: var(--muted-foreground);
 }
 
 .manju-prompt-cov.is-ok {
-  color: #b8f04a;
+  color: var(--primary);
 }
 
 .manju-prompt-cov.is-half {
-  color: #fbbf24;
+  color: var(--muted-foreground);
 }
 
 .manju-prompt-cov.is-empty {
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-shot-card__index {
@@ -1711,7 +1915,7 @@
   font-size: 12px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-shot-card__body {
@@ -1881,23 +2085,27 @@
   display: flex;
   min-height: 100%;
   flex-direction: column;
-  gap: 20px;
-  padding: 24px 28px 40px;
-  background: var(--background);
+  gap: 28px;
+  padding: 28px 32px 48px;
+  /* 跟随壳层 bg-card，与画布项目页一致，不另铺 background */
   color: var(--foreground);
 }
 
 .manju-list__head {
   display: flex;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
 
 .manju-list__title {
+  margin: 0;
   font-size: 16px;
   font-weight: 400;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--foreground);
 }
 
 .manju-list__sub {
@@ -1906,9 +2114,60 @@
   color: var(--muted-foreground);
 }
 
+.manju-list__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.manju-list__pill {
+  display: inline-flex;
+  height: 36px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--secondary);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.manju-list__pill:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--secondary) 80%, var(--foreground) 8%);
+}
+
+.manju-workbench .manju-list__pill:not(.manju-list__pill--ghost) {
+  background: var(--manju-soft-bg);
+  color: var(--manju-soft);
+}
+
+.manju-workbench .manju-list__pill:not(.manju-list__pill--ghost):hover:not(:disabled) {
+  background: var(--manju-soft-bg-hover);
+}
+
+.manju-list__pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.manju-list__pill--ghost {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.manju-list__pill--ghost:hover:not(:disabled) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
 .manju-list__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
 }
 
@@ -1957,6 +2216,7 @@
 
 .manju-list__empty {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -2192,7 +2452,7 @@
 
 .manju-script-choose__hero {
   text-align: center;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-script-choose__hero-icon {
@@ -2202,10 +2462,10 @@
   align-items: center;
   justify-content: center;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-  color: #737373;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+  background: linear-gradient(145deg, color-mix(in oklab, var(--foreground) 8%, transparent), color-mix(in oklab, var(--foreground) 2%, transparent));
+  color: var(--muted-foreground);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
 .manju-script-choose__hero p {
@@ -2246,22 +2506,22 @@
   align-items: flex-start;
   gap: 16px;
   padding: 24px 22px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
   border-radius: 12px;
-  background: #1a1a1a;
-  color: #f5f5f5;
+  background: var(--muted);
+  color: var(--foreground);
   cursor: pointer;
   text-align: left;
   transition: border-color 0.14s ease;
 }
 
 .manju-entry-card:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: color-mix(in oklab, var(--foreground) 14%, transparent);
 }
 
 .manju-entry-card--active,
 .manju-entry-card:focus-visible {
-  border-color: rgba(184, 240, 74, 0.45);
+  border-color: color-mix(in oklab, var(--primary) 45%, transparent);
   outline: none;
 }
 
@@ -2272,7 +2532,7 @@
 
 .manju-entry-card__icon {
   display: inline-flex;
-  color: #f5f5f5;
+  color: var(--foreground);
   line-height: 1;
 }
 
@@ -2285,7 +2545,7 @@
   flex: 1;
   font-size: 12px;
   line-height: 1.5;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-entry-card--compact {
@@ -2305,13 +2565,13 @@
   margin-bottom: 14px;
   padding: 0 0 12px;
   border: 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
   border-radius: 0;
   background: transparent;
 }
 
 .manju-flow-guide--ready {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
+  border-bottom-color: color-mix(in oklab, var(--foreground) 10%, transparent);
   background: transparent;
 }
 
@@ -2331,11 +2591,11 @@
   flex-shrink: 0;
   font-size: 16px;
   font-weight: 400;
-  color: #d4d4d4;
+  color: var(--foreground);
 }
 
 .manju-flow-guide__detail {
-  color: #737373;
+  color: var(--muted-foreground);
 }
 
 .manju-flow-guide__cta {
@@ -2350,9 +2610,9 @@
   padding: 0;
   font-size: 12px;
   font-weight: 400;
-  color: #e5e5e5;
+  color: var(--foreground);
   text-decoration: underline;
-  text-decoration-color: rgba(255, 255, 255, 0.22);
+  text-decoration-color: color-mix(in oklab, var(--foreground) 22%, transparent);
   text-underline-offset: 3px;
   cursor: pointer;
   transition:
@@ -2361,9 +2621,9 @@
 }
 
 .manju-flow-guide__cta:hover {
-  color: #b8f04a;
+  color: var(--primary);
   background: transparent;
-  text-decoration-color: rgba(184, 240, 74, 0.45);
+  text-decoration-color: color-mix(in oklab, var(--primary) 45%, transparent);
 }
 
 .manju-storyboard-view-bar {
@@ -2386,25 +2646,32 @@
   flex-shrink: 0;
   font-size: 12px;
   font-weight: 400;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-storyboard-view-bar__ep-trigger {
-  height: 34px !important;
+  height: 36px !important;
   min-width: 160px;
   max-width: min(280px, 70vw);
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: transparent !important;
+  border-radius: 10px !important;
+  background: var(--secondary) !important;
   padding-inline: 12px 10px !important;
-  font-size: 12px !important;
-  color: #e5e5e5 !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: var(--foreground) !important;
   box-shadow: none !important;
 }
 
 .manju-storyboard-view-bar__ep-trigger:hover {
-  border-color: rgba(255, 255, 255, 0.16) !important;
-  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: transparent !important;
+  background: color-mix(in oklab, var(--secondary) 80%, var(--foreground) 8%) !important;
+}
+
+.manju-storyboard-view-bar__ep-trigger:focus,
+.manju-storyboard-view-bar__ep-trigger:focus-visible {
+  border-color: color-mix(in oklab, var(--ring) 45%, transparent) !important;
+  box-shadow: none !important;
 }
 
 .manju-storyboard-view-bar__eps {
@@ -2420,35 +2687,36 @@
   display: inline-flex;
   height: auto !important;
   align-items: center;
-  gap: 2px;
-  padding: 3px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.04) !important;
-  color: #a3a3a3;
+  gap: 4px;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--muted-foreground);
 }
 
 .manju-script-meta__tabs [data-state="active"] {
-  border-radius: 999px !important;
-  background: rgba(255, 255, 255, 0.12) !important;
-  color: #f5f5f5 !important;
+  border-radius: 10px !important;
+  background: var(--secondary) !important;
+  color: var(--foreground) !important;
   box-shadow: none !important;
 }
 
 .manju-script-meta__tabs button {
-  height: auto !important;
-  border-radius: 999px !important;
-  padding: 6px 14px !important;
-  font-size: 12px !important;
+  height: 36px !important;
+  border-radius: 10px !important;
+  padding: 0 16px !important;
+  font-size: 14px !important;
   font-weight: 400 !important;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
   transition:
     background 0.15s ease,
     color 0.15s ease;
 }
 
 .manju-script-meta__tabs button:hover:not([data-state="active"]) {
-  color: #e5e5e5;
+  color: var(--foreground);
+  background: transparent;
 }
 
 .manju-script-meta__panel {
@@ -2472,18 +2740,16 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background: #141414;
+  background: var(--card);
   overflow: hidden;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .manju-episode-card:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+  box-shadow: none;
 }
 
 .manju-episode-card__head {
@@ -2491,11 +2757,11 @@
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.05),
-    rgba(255, 255, 255, 0.015)
+    color-mix(in oklab, var(--foreground) 5%, transparent),
+    color-mix(in oklab, var(--foreground) 1.5%, transparent)
   );
 }
 
@@ -2507,8 +2773,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: rgba(184, 240, 74, 0.12);
-  color: #b8f04a;
+  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  color: var(--primary);
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 0.02em;
@@ -2523,7 +2789,7 @@
   padding-right: 0 !important;
   font-size: 16px !important;
   font-weight: 400 !important;
-  color: #f5f5f5 !important;
+  color: var(--foreground) !important;
 }
 
 .manju-episode-card__title-input:focus-visible {
@@ -2549,22 +2815,22 @@
 .manju-episode-card__label {
   font-size: 11px;
   font-weight: 400;
-  color: #737373;
+  color: var(--muted-foreground);
   letter-spacing: 0.02em;
 }
 
 .manju-episode-card__input {
   height: 32px !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  background: rgba(0, 0, 0, 0.28) !important;
+  border-color: var(--border) !important;
+  background: var(--input) !important;
   font-size: 12px !important;
-  color: #e5e5e5 !important;
+  color: var(--foreground) !important;
 }
 
 .manju-episode-card__field .w-md-editor,
 .manju-episode-card__field .w-md-editor-toolbar {
-  border-color: rgba(255, 255, 255, 0.08) !important;
-  background: rgba(0, 0, 0, 0.28) !important;
+  border-color: var(--border) !important;
+  background: var(--input) !important;
 }
 
 @media (max-width: 720px) {
@@ -2599,9 +2865,9 @@
   width: 72px;
   height: 48px;
   transform: translateX(-50%);
-  border: 2px solid rgba(255, 255, 255, 0.16);
+  border: 2px solid color-mix(in oklab, var(--foreground) 16%, transparent);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in oklab, var(--foreground) 3%, transparent);
 }
 
 .manju-assets-empty__beam {
@@ -2613,18 +2879,18 @@
   transform: translateX(-50%);
   background: linear-gradient(
     180deg,
-    rgba(184, 240, 74, 0.05) 0%,
-    rgba(184, 240, 74, 0.55) 50%,
-    rgba(255, 255, 255, 0.08) 100%
+    color-mix(in oklab, var(--primary) 5%, transparent) 0%,
+    color-mix(in oklab, var(--primary) 55%, transparent) 50%,
+    color-mix(in oklab, var(--foreground) 8%, transparent) 100%
   );
-  box-shadow: 0 0 18px rgba(184, 240, 74, 0.18);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 18%, transparent);
 }
 
 .manju-assets-empty__title {
   margin: 0;
   font-size: 16px;
   font-weight: 400;
-  color: #f5f5f5;
+  color: var(--foreground);
 }
 
 .manju-assets-empty__desc {
@@ -2632,7 +2898,7 @@
   max-width: 360px;
   font-size: 13px;
   line-height: 1.55;
-  color: #a3a3a3;
+  color: var(--muted-foreground);
 }
 
 .manju-assets-empty__actions {
@@ -2661,32 +2927,19 @@
   flex: 1;
 }
 
-/* Portaled dialogs / menus while manju workbench is open */
+/* Portaled dialogs / menus follow the app theme */
 html[data-manju-chrome] [role="dialog"],
 html[data-manju-chrome] [role="alertdialog"] {
-  --background: #141414;
-  --foreground: #f5f5f5;
-  --card: #141414;
-  --card-foreground: #f5f5f5;
-  --popover: #1c1c1c;
-  --popover-foreground: #f5f5f5;
-  --muted: #1a1a1a;
-  --muted-foreground: #a3a3a3;
-  --border: rgba(255, 255, 255, 0.1);
-  --primary: #b8f04a;
-  --primary-foreground: #111111;
-  --ring: rgba(184, 240, 74, 0.35);
-  background: #141414 !important;
-  color: #f5f5f5;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
 }
 
 html[data-manju-chrome] [data-radix-popper-content-wrapper] [role="menu"],
 html[data-manju-chrome] [data-radix-menu-content],
 html[data-manju-chrome] [data-radix-dropdown-menu-content],
 html[data-manju-chrome] [data-radix-select-content] {
-  background: #1c1c1c !important;
-  color: #f5f5f5;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: var(--popover);
+  color: var(--foreground);
+  border-color: var(--border);
 }
