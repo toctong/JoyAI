@@ -11,6 +11,7 @@ import { ChannelsService } from "../../channels/channels.service";
 import { JobsService } from "../jobs.service";
 import { StorageService } from "../../storage/storage.service";
 import { AssetsService } from "../../assets/assets.service";
+import { sourceFromJob } from "../../assets/asset-source";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { CanvasService } from "../../canvas/canvas.service";
 import { enqueueAssetMirror } from "../enqueue-asset-mirror";
@@ -179,6 +180,7 @@ export class ImageProcessor extends WorkerHost {
             ext: "png",
           });
           url = put.url;
+          const assetSource = sourceFromJob(job);
           const asset = await this.assets.create({
             userId: job.userId,
             jobId,
@@ -187,7 +189,9 @@ export class ImageProcessor extends WorkerHost {
             md5: put.md5,
             mimeType: "image/png",
             size: put.size,
+            source: assetSource,
             meta: {
+              source: assetSource,
               sha256: put.sha256,
               storageKey: put.key,
               tosDeduplicated: put.deduplicated,
@@ -199,13 +203,16 @@ export class ImageProcessor extends WorkerHost {
         }
         if (!url) continue;
 
+        const assetSource = sourceFromJob(job);
         const asset = await this.assets.create({
           userId: job.userId,
           jobId,
           kind: "image",
           url,
           mimeType: "image/png",
+          source: assetSource,
           meta: {
+            source: assetSource,
             originUrl: url,
             storageStatus: mirror ? "pending" : "ready",
           },

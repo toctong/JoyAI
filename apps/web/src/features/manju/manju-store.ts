@@ -99,10 +99,6 @@ type ManjuState = {
     shots: ManjuShotDraft[],
     opts?: { preserveConfirm?: boolean },
   ) => void;
-  mergeExtractedAssets: (
-    projectId: string,
-    extracted: ManjuAssetDraft[],
-  ) => number;
   autoLinkShotAssets: (projectId: string) => void;
 
   bindJobToAsset: (
@@ -416,22 +412,6 @@ export const useManjuStore = create<ManjuState>((set, get) => {
         shots: reindex(shots),
         scriptConfirmed: opts?.preserveConfirm ? p.scriptConfirmed : false,
       }));
-    },
-    mergeExtractedAssets: (projectId, extracted) => {
-      let added = 0;
-      mutate(projectId, (p) => {
-        const existing = new Set(p.assets.map((a) => `${a.kind}:${a.name}`));
-        const next = [...p.assets];
-        for (const a of extracted) {
-          const key = `${a.kind}:${a.name}`;
-          if (existing.has(key)) continue;
-          existing.add(key);
-          next.push(a);
-          added += 1;
-        }
-        return { ...p, assets: next };
-      });
-      return added;
     },
     autoLinkShotAssets: (projectId) => {
       mutate(projectId, (p) => ({

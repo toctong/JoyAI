@@ -150,25 +150,44 @@ export const MODE_OPTIONS: {
   id: ManjuGenMode;
   title: string;
   desc: string;
+  badge: string;
+  detail: string;
+  /** 悬停预览短片（静音循环） */
+  previewVideo: string;
   /** false = 界面展示但不可选，避免假能力 */
   available: boolean;
 }[] = [
   {
-    id: "i2v",
-    title: "图生视频",
-    desc: "以分镜图驱动，构图更可控",
+    id: "ref",
+    title: "全能参考模式",
+    desc: "多参考图直出视频，镜头连贯性更好",
+    badge: "R2V",
+    detail:
+      "使用动态镜头组，配合多参考图直出视频，总体参数更少，空间连续更好。",
+    previewVideo:
+      "https://aigc-joyai.tos-cn-beijing.volces.com/bg_theme/3.mp4",
     available: true,
   },
   {
-    id: "ref",
-    title: "全能参考",
-    desc: "多参考图直出，连贯性更好",
+    id: "i2v",
+    title: "图生视频模式",
+    desc: "先生分镜图，再生视频，精准掌控",
+    badge: "I2V",
+    detail:
+      "先按提示词生成分镜静帧，再以图生视频推进运动。构图、景别可在出视频前细调。",
+    previewVideo:
+      "https://aigc-joyai.tos-cn-beijing.volces.com/bg_theme/4.mp4",
     available: true,
   },
   {
     id: "grid",
-    title: "多宫格",
-    desc: "一张宫格图切块后，再逐格生视频",
+    title: "多宫格生视频",
+    desc: "连续帧宫格生分镜，画面更连贯",
+    badge: "GRID",
+    detail:
+      "一次生成多宫格分镜图，按格切块后再逐格出视频，镜间节奏更顺。",
+    previewVideo:
+      "https://ai-video-e1.tos-cn-beijing.volces.com/ai-video/login/login.mp4",
     available: true,
   },
 ];
@@ -414,34 +433,6 @@ function readSeries(raw: unknown): ManjuSeries {
   };
 }
 
-/** 简单从剧本拆分镜：按空行或「镜头N」切块 */
-export function parseScriptToShots(script: string): ManjuShotDraft[] {
-  const text = script.trim();
-  if (!text) return [];
-
-  const blocks = text
-    .split(/\n{2,}|(?=^\s*镜头\s*\d+)/m)
-    .map((b) => b.trim())
-    .filter(Boolean);
-
-  return blocks.slice(0, 40).map((block, i) => {
-    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
-    const dialogueLine = lines.find((l) => /[「『"]/.test(l) || /^对白[:：]/.test(l));
-    const visual = lines
-      .filter((l) => l !== dialogueLine)
-      .join("\n")
-      .replace(/^镜头\s*\d+[:：]?\s*/m, "");
-    const dialogue = dialogueLine
-      ? dialogueLine.replace(/^对白[:：]\s*/, "")
-      : "";
-    return {
-      ...createEmptyShot(i + 1),
-      visual: visual || block,
-      dialogue,
-    };
-  });
-}
-
 export function shotDurationSeconds(
   shot: ManjuShotDraft,
   project: ManjuProjectDraft,
@@ -527,92 +518,6 @@ export function stepCanAdvance(
   }
 }
 
-const STOP_NAMES = new Set([
-  "然后",
-  "突然",
-  "这时",
-  "此时",
-  "镜头",
-  "画面",
-  "旁白",
-  "对白",
-  "场景",
-  "室内",
-  "室外",
-  "白天",
-  "夜晚",
-  "上午",
-  "下午",
-]);
-
-/**
- * 启发式抽取角色 / 场景 / 道具（ArcReel analyze_assets 的轻量本地版；后续可换 LLM job）
- */
-export function extractAssetsFromScript(script: string): ManjuAssetDraft[] {
-  const text = script.trim();
-  if (!text) return [];
-
-  const characters = new Map<string, string>();
-  const scenes = new Map<string, string>();
-  const props = new Map<string, string>();
-
-  // 「角色名：对白」或 【角色名】
-  for (const m of text.matchAll(
-    /(?:^|\n)\s*[【\[]?\s*([\u4e00-\u9fff·]{2,6})\s*[】\]]?\s*[：:]\s*(.+)/g,
-  )) {
-    const name = m[1]!;
-    if (STOP_NAMES.has(name)) continue;
-    if (!characters.has(name)) {
-      characters.set(name, `剧本出场角色：${name}`);
-    }
-  }
-
-  // 「XX说 / XX道 / XX问」
-  for (const m of text.matchAll(
-    /([\u4e00-\u9fff·]{2,4})(?:说|道|问|喊|答|笑道|怒道)/g,
-  )) {
-    const name = m[1]!;
-    if (STOP_NAMES.has(name)) continue;
-    if (!characters.has(name)) characters.set(name, `对话角色：${name}`);
-  }
-
-  // 场景提示：场景：/地点：/室内·室外
-  for (const m of text.matchAll(
-    /(?:场景|地点|场景名)\s*[:：]\s*([^\n，。；]{2,20})/g,
-  )) {
-    const name = m[1]!.trim();
-    if (name) scenes.set(name, `剧本场景：${name}`);
-  }
-  for (const m of text.matchAll(
-    /((?:室内|室外|城内|巷口|客栈|宫殿|街道|山巅|海边|雨夜)[^\n，。；]{0,10})/g,
-  )) {
-    const name = m[1]!.trim();
-    if (name.length >= 2 && !scenes.has(name)) {
-      scenes.set(name, `氛围场景：${name}`);
-    }
-  }
-
-  // 道具：手持/拿出/佩戴
-  for (const m of text.matchAll(
-    /(?:手持|拿出|佩戴|握着|举起)\s*([\u4e00-\u9fff]{1,8})/g,
-  )) {
-    const name = m[1]!;
-    if (!props.has(name)) props.set(name, `出场道具：${name}`);
-  }
-
-  const out: ManjuAssetDraft[] = [];
-  for (const [name, description] of characters) {
-    out.push({ ...createEmptyAsset("character", name), description });
-  }
-  for (const [name, description] of scenes) {
-    out.push({ ...createEmptyAsset("scene", name), description });
-  }
-  for (const [name, description] of props) {
-    out.push({ ...createEmptyAsset("prop", name), description });
-  }
-  return out;
-}
-
 export type ManjuPanel =
   | "overview"
   | "characters"
@@ -647,7 +552,7 @@ function settingsLookUntouched(project: ManjuProjectDraft): boolean {
   return defaultStyle && noModels && s.mode === "i2v" && s.duration === 5;
 }
 
-/** ArcReel 式「下一步该做什么」 */
+/** 侧栏「建议下一步」——文案面向用户，不提技能名 */
 export function getWorkflowNextAction(project: ManjuProjectDraft): {
   stepId: ManjuStepId;
   panel: ManjuPanel;
@@ -661,7 +566,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "overview",
       skill: null,
       label: "完善原文",
-      detail: "粘贴或导入小说/剧本，作为后续技能的输入",
+      detail: "粘贴、导入或用 AI 帮写一段可拍的剧本",
     };
   }
   if (settingsLookUntouched(project)) {
@@ -670,16 +575,16 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "overview",
       skill: null,
       label: "确认视频设定",
-      detail: "确认画幅、风格、时长与生成模式后再抽资产",
+      detail: "选好画幅、风格、时长和生成模式",
     };
   }
   if (project.assets.length === 0) {
     return {
-      stepId: "assets",
+      stepId: "script",
       panel: "overview",
       skill: "analyze_assets",
-      label: "分析资产",
-      detail: "技能 analyze_assets：抽取角色、场景、道具和分集",
+      label: "AI 分析剧本",
+      detail: "在剧本页点「AI 分析」，登记角色、场景、道具",
     };
   }
   if (needsEpisodeSourceSlice(project)) {
@@ -688,8 +593,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "overview",
       skill: "plan_episodes",
       label: "规划分集",
-      detail:
-        "技能 plan_episodes：切出标题、钩子和原文片段（analyze 只写了标题时也要再跑）",
+      detail: "长文建议先切分集，再按集规划分镜",
     };
   }
   if (
@@ -703,7 +607,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "overview",
       skill: "series_memory",
       label: "整理连载记忆",
-      detail: "技能 series_memory：世界观、人设小传与伏笔（不改对白）",
+      detail: "补世界观与人设小传，方便多集统一",
     };
   }
   if (project.shots.length === 0) {
@@ -712,7 +616,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "timeline",
       skill: "script_plan",
       label: "规划分镜",
-      detail: "技能 script_plan：锁定镜头、对白和出场资产",
+      detail: "点「规划分镜」，按剧本拆镜头与对白",
     };
   }
   if (!project.scriptConfirmed) {
@@ -721,7 +625,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "timeline",
       skill: null,
       label: "确认脚本",
-      detail: "确认后才会写画面/视频提示词，避免改写对白",
+      detail: "检查镜头无误后点「确认脚本」",
     };
   }
   if (!project.assets.some((a) => a.imageUrl)) {
@@ -730,7 +634,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "characters",
       skill: null,
       label: "生成设定图",
-      detail: "先出角色/场景/道具参考图，再写提示词，避免 @[名] 对不上图",
+      detail: "先出角色/场景/道具参考图，再写提示词",
     };
   }
   if (
@@ -743,7 +647,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "prompts",
       skill: "author_prompts",
       label: "编写提示词",
-      detail: "技能 author_prompts：只补画面/视频提示词，不改镜序与对白",
+      detail: "切到「提示词」页，点 AI 编写全部提示词",
     };
   }
   if (!project.shots.some((s) => s.storyboardImageUrl)) {
@@ -752,7 +656,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "timeline",
       skill: null,
       label: "生成分镜图",
-      detail: "按提示词提交图像任务",
+      detail: "在分镜页点「开始生成」出静帧",
     };
   }
   if (!project.shots.some((s) => s.videoUrl)) {
@@ -761,7 +665,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "timeline",
       skill: null,
       label: "生成分镜视频",
-      detail: "用渠道视频模型做图生视频",
+      detail: "点「开始生成」，把分镜图做成短视频",
     };
   }
   return {
@@ -769,7 +673,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
     panel: "preview",
     skill: null,
     label: "预览与导出",
-    detail: "连播预览；ZIP / 成片；可单向推送到新画布",
+    detail: "连播检查成片，可打包 ZIP 或导出 MP4",
   };
 }
 

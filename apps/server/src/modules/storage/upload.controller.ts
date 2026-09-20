@@ -107,7 +107,8 @@ export class UploadController {
 
     const existing = await this.assets.findByMd5(user.id, md5);
     if (existing) {
-      const asset = await this.ensureOriginalName(existing, originalName);
+      let asset = await this.ensureOriginalName(existing, originalName);
+      asset = (await this.assets.ensureSource(asset.id, "upload")) ?? asset;
       return { ...asset, deduplicated: true };
     }
 
@@ -123,16 +124,14 @@ export class UploadController {
 
     const asset = await this.assets.create({
       userId: user.id,
-      kind: file.mimetype?.startsWith("video/")
-        ? "video"
-        : file.mimetype?.startsWith("audio/")
-          ? "audio"
-          : "image",
+      kind: kindFromUpload(file.mimetype, originalName),
       url: put.url,
       md5: put.md5,
       mimeType: file.mimetype,
       size: put.size,
+      source: "upload",
       meta: {
+        source: "upload",
         sha256: put.sha256,
         storageKey: put.key,
         tosDeduplicated: put.deduplicated,
@@ -157,4 +156,29 @@ export class UploadController {
     });
     return patched ?? asset;
   }
+}
+
+function kindFromUpload(mimeType?: string, filename?: string | null) {
+  const mime = (mimeType ?? "").toLowerCase();
+  const ext = filename?.split(".").pop()?.toLowerCase() ?? "";
+  if (mime.startsWith("video/") || ["mp4", "webm", "mov", "mkv"].includes(ext)) {
+    return "video";
+  }
+  if (
+    mime.startsWith("audio/") ||
+    ["mp3", "wav", "ogg", "flac", "m4a", "aac", "opus"].includes(ext)
+  ) {
+    return "audio";
+  }
+  if (
+    mime.startsWith("text/") ||
+    mime === "application/pdf" ||
+    mime.includes("msword") ||
+    mime.includes("officedocument") ||
+    mime.includes("json") ||
+    ["txt", "md", "pdf", "doc", "docx", "json", "csv", "rtf"].includes(ext)
+  ) {
+    return "text";
+  }
+  return "image";
 }

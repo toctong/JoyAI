@@ -1,8 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Video } from "lucide-react";
+import { Loader2, Pencil, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
 import { cn } from "@/shared/lib/utils";
@@ -21,9 +30,22 @@ import {
   referenceMediaFromSlots,
   resolveShotReferenceSlots,
 } from "../lib/prompt-builders";
-import { useRegisterManjuHeaderSlots } from "../manju-header-slots";
+import { ManjuStepActions } from "../manju-step-actions";
+import type {
+  ManjuHeaderGenerateAction,
+  ManjuHeaderTools,
+} from "../manju-header-slots";
 
 const DURATION_OPTS = [4, 5, 8, 10] as const;
+
+function videoStatusLabel(shot: ManjuShotDraft, busy: boolean) {
+  if (shot.videoStatus === "queued") return "排队中";
+  if (busy) return "生成中";
+  if (shot.videoStatus === "failed") return "失败";
+  if (shot.videoStale) return "需重做";
+  if (shot.videoUrl) return "已出片";
+  return "待出片";
+}
 
 export function StoryboardVideoStep({
   project,
@@ -36,6 +58,7 @@ export function StoryboardVideoStep({
   const updateShot = useManjuStore((s) => s.updateShot);
   const bindJobToShotVideo = useManjuStore((s) => s.bindJobToShotVideo);
   const addShot = useManjuStore((s) => s.addShot);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const visibleShots = episodeId
     ? project.shots.filter((s) => s.episodeId === episodeId)
@@ -46,6 +69,9 @@ export function StoryboardVideoStep({
   const missingCount = visibleShots.filter(
     (s) => !s.videoUrl && !isBusyStatus(s.videoStatus),
   ).length;
+  const editing = editingId
+    ? (project.shots.find((s) => s.id === editingId) ?? null)
+    : null;
 
   const prevShotMedia = (shot: ManjuShotDraft) => {
     const idx = project.shots.findIndex((s) => s.id === shot.id);
@@ -117,6 +143,7 @@ export function StoryboardVideoStep({
         referenceUrls: referenceUrls.length ? referenceUrls : undefined,
         refMode: mode === "ref" ? "omni" : "first_last",
         modelId: project.settings.videoModelId || undefined,
+        manjuProjectId: project.id,
       });
       bindJobToShotVideo(project.id, shot.id, job.id, "queued");
       toast.success(`镜头 ${String(shot.index).padStart(2, "0")} 已提交生视频`);
@@ -178,46 +205,53 @@ export function StoryboardVideoStep({
     }
   };
 
-  useRegisterManjuHeaderSlots(
-    null,
-    {
-      label: hasVideos ? "重新生成" : "开始生成",
-      onPrimary: () => void generateAll(hasVideos),
-      onOpenSettings: () =>
-        router.replace(`/manju/${project.id}?step=video-settings`),
-      disabled: visibleShots.length === 0,
-      loading: videoBusy,
+  const stepTools: ManjuHeaderTools = {
+    add: {
+      label: "新增镜头",
+      onClick: () =>
+        addShot(project.id, undefined, { episodeId: episodeId ?? null }),
     },
-    {
-      add: {
-        label: "新增镜头",
-        onClick: () =>
-          addShot(project.id, undefined, { episodeId: episodeId ?? null }),
-      },
-      secondary:
-        missingCount > 0
-          ? {
-              label: `补缺(${missingCount})`,
-              onClick: () => void generateAll(),
-            }
-          : undefined,
-      tertiary: staleCount
+    secondary:
+      missingCount > 0
         ? {
-            label: `重做过期(${staleCount})`,
-            onClick: () => void generateStaleOnly(),
+            label: `补缺(${missingCount})`,
+            onClick: () => void generateAll(),
           }
         : undefined,
-    },
-    `${episodeId ?? "all"}:${visibleShots.length}:${hasVideos}:${videoBusy}:${staleCount}:${missingCount}:${project.settings.mode}`,
-  );
+    tertiary: staleCount
+      ? {
+          label: `重做过期(${staleCount})`,
+          onClick: () => void generateStaleOnly(),
+        }
+      : undefined,
+  };
+
+  const stepGenerate: ManjuHeaderGenerateAction = {
+    label: hasVideos ? "重新生成" : "开始生成",
+    onPrimary: () => void generateAll(hasVideos),
+    onOpenSettings: () =>
+      router.replace(`/manju/${project.id}?step=video-settings`),
+    disabled: visibleShots.length === 0,
+    loading: videoBusy,
+    emphasis: visibleShots.length > 0 && !hasVideos,
+    title:
+      visibleShots.length === 0
+        ? "请先在分镜脚本里建镜头"
+        : hasVideos
+          ? "可批量重出镜头视频"
+          : "点这里批量出镜头视频",
+  };
 
   if (visibleShots.length === 0) {
     return (
-      <div className="manju-card">
-        <div className="manju-card__title">分镜视频</div>
-        <p className="manju-card__desc">
-          尚无分镜。请先在「分镜脚本」中创建镜头卡。
-        </p>
+      <div className="manju-panel">
+        <ManjuStepActions tools={stepTools} generate={stepGenerate} />
+        <div className="manju-card">
+          <div className="manju-card__title">分镜视频</div>
+          <p className="manju-card__desc">
+            尚无分镜。请先在「分镜脚本」中创建镜头卡。
+          </p>
+        </div>
       </div>
     );
   }
@@ -227,7 +261,7 @@ export function StoryboardVideoStep({
   return (
     <JoyPhotoProvider>
       <div className="manju-panel">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="manju-step-bar">
           <p className="text-sm text-muted-foreground">
             共 {visibleShots.length} 镜 · 已完成 {done} · 模式{" "}
             {project.settings.mode === "ref"
@@ -237,45 +271,51 @@ export function StoryboardVideoStep({
                 : "图生视频"}
             · 批量会重做过期项；缺分镜静帧会跳过
           </p>
+          <ManjuStepActions
+            tools={stepTools}
+            generate={stepGenerate}
+            busy={videoBusy}
+          />
         </div>
 
         <div className="manju-shot-grid">
           {visibleShots.map((shot) => {
             const busy = isBusyStatus(shot.videoStatus);
             const dur = shotDurationSeconds(shot, project);
+            const waitLabel =
+              shot.videoStatus === "queued"
+                ? "排队中…"
+                : busy
+                  ? "生成中…"
+                  : null;
             return (
-              <article key={shot.id} className="manju-shot-card">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="manju-shot-card__index !mb-0">
-                    {String(shot.index).padStart(2, "0")}
-                  </span>
-                  {shot.videoStale ? (
-                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">
-                      视频需重做
-                    </span>
-                  ) : null}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => void generateVideo(shot)}
-                  >
-                    {busy ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Video className="h-3.5 w-3.5" />
+              <article
+                key={shot.id}
+                className="manju-asset-card manju-asset-card--interactive"
+                role="button"
+                tabIndex={0}
+                onClick={() => setEditingId(shot.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setEditingId(shot.id);
+                  }
+                }}
+              >
+                <div
+                  className="manju-asset-card__media"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span
+                    className={cn(
+                      "manju-asset-card__tag",
+                      shot.videoStatus === "failed" && "is-failed",
+                      shot.videoUrl && !shot.videoStale && !busy && "is-ok",
+                      (busy || shot.videoStale) && "is-busy",
                     )}
-                    {shot.videoUrl
-                      ? shot.videoStale
-                        ? "重做过期"
-                        : "重生成"
-                      : shot.videoStatus === "failed"
-                        ? "重试"
-                        : "生成"}
-                  </Button>
-                </div>
-
-                <div className="manju-video-frame overflow-hidden rounded-md">
+                  >
+                    {videoStatusLabel(shot, busy)}
+                  </span>
                   {shot.videoUrl ? (
                     <StudioPlyrPlayer
                       src={shot.videoUrl}
@@ -288,66 +328,154 @@ export function StoryboardVideoStep({
                       <img
                         src={shot.storyboardImageUrl}
                         alt=""
-                        className="h-full w-full cursor-zoom-in object-cover opacity-70"
+                        className="cursor-zoom-in opacity-80"
                       />
                     </PhotoView>
-                  ) : busy ? (
-                    <div className="flex flex-col items-center gap-2 py-10">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                      生成中…
+                  ) : !busy ? (
+                    <span className="text-xs text-muted-foreground">
+                      暂无视频
+                    </span>
+                  ) : null}
+                  {waitLabel ? (
+                    <div className="manju-asset-card__busy" aria-live="polite">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>{waitLabel}</span>
                     </div>
-                  ) : (
-                    <span className="text-xs">待生成视频</span>
-                  )}
+                  ) : null}
                 </div>
 
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {DURATION_OPTS.map((d) => (
+                <div className="manju-asset-card__body">
+                  <div
+                    className="manju-asset-card__top"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 className="manju-asset-card__title">
+                      镜 {String(shot.index).padStart(2, "0")}
+                    </h3>
                     <button
-                      key={d}
                       type="button"
-                      className={cn(
-                        "manju-chip !px-2 !py-0.5 !text-[11px]",
-                        dur === d && "manju-chip--active",
-                      )}
-                      onClick={() =>
-                        updateShot(project.id, shot.id, {
-                          duration: d === project.settings.duration ? null : d,
-                        })
-                      }
+                      className="manju-icon-btn"
+                      aria-label="编辑"
+                      onClick={() => setEditingId(shot.id)}
                     >
-                      {d}s
+                      <Pencil className="h-3.5 w-3.5" />
                     </button>
-                  ))}
-                </div>
+                  </div>
 
-                <p className="manju-shot-card__text mt-2 line-clamp-3">
-                  {shot.visual || "（无画面描述）"}
-                </p>
-                {shot.videoPrompt?.trim() ? (
-                  <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">
-                    提示词：{shot.videoPrompt}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-[10px] text-amber-600/90 dark:text-amber-400/80">
-                    未写 videoPrompt，将用画面描述拼装
-                  </p>
-                )}
-                {shot.videoStatus === "failed" ? (
                   <button
                     type="button"
-                    className="mt-1 text-xs text-destructive underline-offset-2 hover:underline"
-                    disabled={busy}
-                    onClick={() => void generateVideo(shot)}
+                    className="manju-asset-card__desc-text"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingId(shot.id);
+                    }}
                   >
-                    生成失败，点击重试
+                    {shot.visual.trim() || (
+                      <span className="opacity-50">（无画面描述）</span>
+                    )}
                   </button>
-                ) : null}
+
+                  <p className="manju-asset-card__alias-text">时长 {dur}s</p>
+
+                  <p className="manju-asset-card__prompt">
+                    {shot.videoPrompt?.trim()
+                      ? `提示词：${shot.videoPrompt}`
+                      : "未写视频提示词，将用画面描述拼装"}
+                  </p>
+
+                  <div
+                    className="manju-asset-card__footer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="manju-asset-card__actions">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="manju-asset-card__action manju-asset-card__action--primary"
+                        disabled={busy}
+                        onClick={() => void generateVideo(shot)}
+                      >
+                        {busy ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Video className="h-3.5 w-3.5" />
+                        )}
+                        {shot.videoUrl
+                          ? shot.videoStale
+                            ? "重做过期"
+                            : "重生成"
+                          : shot.videoStatus === "failed"
+                            ? "重试"
+                            : "生成"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </article>
             );
           })}
         </div>
       </div>
+
+      <Dialog
+        open={Boolean(editing)}
+        onOpenChange={(open) => {
+          if (!open) setEditingId(null);
+        }}
+      >
+        <DialogContent className="manju-dialog max-w-lg gap-4 border-border bg-card p-5 shadow-none sm:rounded-xl">
+          {editing ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>
+                  编辑镜头视频 {String(editing.index).padStart(2, "0")}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>本镜时长</Label>
+                  <div className="manju-chip-row">
+                    {DURATION_OPTS.map((d) => {
+                      const dur = shotDurationSeconds(editing, project);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          className={cn(
+                            "manju-chip",
+                            dur === d && "manju-chip--active",
+                          )}
+                          onClick={() =>
+                            updateShot(project.id, editing.id, {
+                              duration:
+                                d === project.settings.duration ? null : d,
+                            })
+                          }
+                        >
+                          {d}s
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {editing.visual.trim() || "（无画面描述）"}
+                </p>
+                {editing.videoPrompt?.trim() ? (
+                  <p className="text-xs text-muted-foreground">
+                    提示词：{editing.videoPrompt}
+                  </p>
+                ) : null}
+              </div>
+              <DialogFooter>
+                <Button type="button" onClick={() => setEditingId(null)}>
+                  完成
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </JoyPhotoProvider>
   );
 }

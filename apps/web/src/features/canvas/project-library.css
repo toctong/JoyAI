@@ -1,10 +1,28 @@
-/* 我的项目 — Jimeng-like project library chrome */
+/* 我的项目 — card chrome（文字在卡片内，对齐漫剧列表） */
 
 .joy-projects {
-  --jp-media-radius: 16px;
-  --jp-gap: 28px;
+  --jp-media-radius: calc(var(--radius) - 4px);
+  --jp-gap: 16px;
   min-height: 100%;
   padding: 28px 32px 48px;
+}
+
+/* 标题统一 16px，文字一律不加粗 */
+.joy-projects :is(h1, h2, h3, h4, h5, h6),
+.joy-projects [class*="-title"] {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.joy-projects,
+.joy-projects button,
+.joy-projects input,
+.joy-projects span,
+.joy-projects p,
+.joy-projects label,
+.joy-projects strong,
+.joy-projects b {
+  font-weight: 400;
 }
 
 .joy-projects-inner {
@@ -29,10 +47,10 @@
 
 .joy-projects-title {
   margin: 0;
-  font-size: 26px;
-  font-weight: 650;
+  font-size: 16px;
+  font-weight: 400;
   letter-spacing: -0.02em;
-  line-height: 1.2;
+  line-height: 1.3;
   color: var(--foreground);
 }
 
@@ -69,7 +87,7 @@
   background: var(--secondary);
   padding: 0 14px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--foreground);
   transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
@@ -132,8 +150,8 @@
 
 .joy-projects-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--jp-gap) 22px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--jp-gap);
 }
 
 @media (min-width: 1280px) {
@@ -152,44 +170,51 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 16px;
+  transition: border-color 0.15s ease;
 }
 
-.joy-projects-media {
-  position: relative;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  border-radius: var(--jp-media-radius);
-  background: var(--muted);
-  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
+.joy-projects-item:hover {
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
 }
 
-.joy-projects-item:hover .joy-projects-media:not(.is-create) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+.joy-projects-item.is-selected {
+  border-color: color-mix(in oklab, var(--ring) 70%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--ring) 45%, transparent);
 }
 
-.dark .joy-projects-item:hover .joy-projects-media:not(.is-create) {
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
-}
-
-.joy-projects-media.is-selected {
-  border-color: #fff;
-  box-shadow: 0 0 0 1px #fff;
-}
-
-.joy-projects-media.is-drop {
+.joy-projects-item.is-drop {
   border-color: color-mix(in oklab, var(--ring) 80%, white);
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--ring) 45%, transparent);
 }
 
-.joy-projects-media.is-dragging {
+.joy-projects-item.is-dragging {
   opacity: 0.55;
+}
+
+.joy-projects-item.is-create {
+  padding: 0;
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--border) 90%, var(--foreground) 10%);
+  background: color-mix(in oklab, var(--card) 40%, transparent);
+}
+
+.joy-projects-item.is-create:hover {
+  border-color: color-mix(in oklab, var(--foreground) 35%, var(--border));
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+
+.joy-projects-media {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--jp-media-radius);
+  background: var(--muted);
 }
 
 .joy-projects-media.is-create {
@@ -198,18 +223,18 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  border-style: dashed;
-  border-color: color-mix(in oklab, var(--border) 90%, var(--foreground) 10%);
-  background: color-mix(in oklab, var(--card) 40%, transparent);
+  aspect-ratio: 16 / 9;
+  min-height: 148px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
   color: var(--muted-foreground);
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  transition: color 0.15s ease;
 }
 
-.joy-projects-media.is-create:hover {
-  border-color: color-mix(in oklab, var(--foreground) 35%, var(--border));
+.joy-projects-item.is-create:hover .joy-projects-media.is-create {
   color: var(--foreground);
-  background: color-mix(in oklab, var(--muted) 55%, transparent);
 }
 
 .joy-projects-media.is-create svg {
@@ -220,7 +245,7 @@
 
 .joy-projects-media.is-create span {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .joy-projects-cover {
@@ -274,7 +299,7 @@
 .joy-projects-hit {
   position: absolute;
   inset: 0;
-  z-index: 6;
+  z-index: 2;
   cursor: pointer;
 }
 
@@ -303,12 +328,14 @@
 }
 
 .joy-projects-meta {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 4px;
-  padding: 0 2px;
   min-width: 0;
+  pointer-events: none;
 }
 
 .joy-projects-meta-text {
@@ -321,14 +348,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
-  font-weight: 550;
+  font-size: 16px;
+  font-weight: 400;
   line-height: 1.35;
   color: var(--foreground);
 }
 
 .joy-projects-sub {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   font-size: 12px;
   line-height: 1.4;
   color: var(--muted-foreground);
@@ -346,6 +373,7 @@
   border-radius: 999px;
   color: var(--muted-foreground);
   opacity: 0;
+  pointer-events: auto;
   transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
@@ -388,15 +416,11 @@
     padding: 20px 16px 40px;
   }
 
-  .joy-projects-title {
-    font-size: 22px;
-  }
-
   .joy-projects-search input {
     width: 160px;
   }
 
   .joy-projects-grid {
-    gap: 20px 14px;
+    gap: var(--jp-gap);
   }
 }

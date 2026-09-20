@@ -101,6 +101,8 @@ export const ImageJobInputSchema = z.object({
   modelId: z.string().optional(),
   canvasProjectId: z.string().optional(),
   canvasNodeId: z.string().optional(),
+  /** 漫剧项目：创作台 scope=studio 会排除 */
+  manjuProjectId: z.string().optional(),
   /** Future provider ops; currently treated as generate + reference. */
   operation: ImageEditOperationSchema.optional().default("generate"),
 });
@@ -118,6 +120,7 @@ export const VideoJobInputSchema = z.object({
   modelId: z.string().optional(),
   canvasProjectId: z.string().optional(),
   canvasNodeId: z.string().optional(),
+  manjuProjectId: z.string().optional(),
 });
 export type VideoJobInput = z.infer<typeof VideoJobInputSchema>;
 
@@ -131,8 +134,38 @@ export const AudioJobInputSchema = z.object({
   modelId: z.string().optional(),
   canvasProjectId: z.string().optional(),
   canvasNodeId: z.string().optional(),
+  manjuProjectId: z.string().optional(),
 });
 export type AudioJobInput = z.infer<typeof AudioJobInputSchema>;
+
+/** 用户资产库来源：创作 / 画布 / 漫剧 / 上传 */
+export const AssetSourceSchema = z.enum([
+  "studio",
+  "canvas",
+  "manju",
+  "upload",
+]);
+export type AssetSource = z.infer<typeof AssetSourceSchema>;
+
+export function resolveAssetSource(input: {
+  source?: string | null;
+  jobId?: string | null;
+  canvasProjectId?: string | null;
+  manjuProjectId?: string | null;
+}): AssetSource {
+  if (
+    input.source === "studio" ||
+    input.source === "canvas" ||
+    input.source === "manju" ||
+    input.source === "upload"
+  ) {
+    return input.source;
+  }
+  if (!input.jobId) return "upload";
+  if (input.canvasProjectId) return "canvas";
+  if (input.manjuProjectId) return "manju";
+  return "studio";
+}
 
 /** LLM 任务用途：漫剧分析 / 画布反推 / 通用聊天 */
 export const LlmJobPurposeSchema = z.enum([
@@ -143,6 +176,7 @@ export const LlmJobPurposeSchema = z.enum([
   "series_memory",
   "plan_episodes",
   "reverse_prompt",
+  "script_write",
   "chat",
 ]);
 export type LlmJobPurpose = z.infer<typeof LlmJobPurposeSchema>;
@@ -239,6 +273,18 @@ export const ManjuSeriesMemoryResultSchema = z.object({
 });
 export type ManjuSeriesMemoryResult = z.infer<
   typeof ManjuSeriesMemoryResultSchema
+>;
+
+/** 剧本 AI 帮写：不自动回写项目，由前端「应用」 */
+export const ManjuScriptWriteResultSchema = z.object({
+  intent: z.enum(["create", "revise", "qa"]).default("create"),
+  reply: z.string().default(""),
+  script: z.string().default(""),
+  /** 本集钩子；只进分集字段，不进正文 */
+  hook: z.string().default(""),
+});
+export type ManjuScriptWriteResult = z.infer<
+  typeof ManjuScriptWriteResultSchema
 >;
 
 export const ManjuSeriesBioSchema = z.object({
@@ -388,3 +434,4 @@ export * from "./adapters";
 export * from "./protocol";
 export * from "./model-catalog";
 export * from "./pricing-format";
+export * from "./manju/script-write-genres";

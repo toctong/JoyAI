@@ -11,6 +11,7 @@ import { ChannelsService } from "../../channels/channels.service";
 import { JobsService } from "../jobs.service";
 import { StorageService } from "../../storage/storage.service";
 import { AssetsService } from "../../assets/assets.service";
+import { sourceFromJob } from "../../assets/asset-source";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { CanvasService } from "../../canvas/canvas.service";
 
@@ -88,6 +89,7 @@ export class AudioProcessor extends WorkerHost {
         },
       );
 
+      const assetSource = sourceFromJob(job);
       const asset = await this.assets.create({
         userId: job.userId,
         jobId,
@@ -96,7 +98,9 @@ export class AudioProcessor extends WorkerHost {
         md5: put.md5,
         mimeType: result.audio.mimeType,
         size: put.size,
+        source: assetSource,
         meta: {
+          source: assetSource,
           sha256: put.sha256,
           storageKey: put.key,
           tosDeduplicated: put.deduplicated,

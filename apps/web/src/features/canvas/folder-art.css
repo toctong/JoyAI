@@ -22,7 +22,6 @@
 }
 
 .joy-projects-media:has(.joy-folder) {
-  border-color: color-mix(in oklab, var(--border) 70%, transparent);
   background: transparent;
 }
 

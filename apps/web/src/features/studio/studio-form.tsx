@@ -74,7 +74,7 @@ type Job = {
   channelName?: string | null;
   platform?: string | null;
   canvasProjectId?: string | null;
-  input?: JobInput & { canvasProjectId?: string };
+  input?: JobInput & { canvasProjectId?: string; manjuProjectId?: string };
   assets?: Asset[];
   error?: string | null;
 };
@@ -82,7 +82,8 @@ type Job = {
 function isStudioFeedJob(job: Job) {
   if (job.canvasProjectId) return false;
   if (job.input?.canvasProjectId) return false;
-  return true;
+  if (job.input?.manjuProjectId) return false;
+  return job.kind === "image" || job.kind === "video";
 }
 
 /** 生成时间：优先完成时间，否则创建时间 */

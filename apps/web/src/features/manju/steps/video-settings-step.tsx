@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ManjuVideoSettingsSchema } from "@joyai/shared";
 import { z } from "zod";
+import { Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { cn } from "@/shared/lib/utils";
 import { useManjuStore } from "../manju-store";
 import {
@@ -59,6 +67,12 @@ export function VideoSettingsStep({
 
   const settings = form.watch();
 
+  const [hoverModeId, setHoverModeId] = useState<string | null>(null);
+  const tipMode =
+    MODE_OPTIONS.find((m) => m.id === (hoverModeId ?? settings.mode)) ??
+    MODE_OPTIONS.find((m) => m.id === settings.mode) ??
+    null;
+
   const commit = (patch: Partial<ManjuVideoSettings>) => {
     const next = { ...project.settings, ...patch };
     patchSettings(project.id, next);
@@ -79,10 +93,12 @@ export function VideoSettingsStep({
   };
 
   return (
-    <div className="manju-panel max-w-3xl">
-      <section className="manju-card">
-        <div className="manju-card__title">视频画面比例</div>
-        <div className="manju-chip-row mt-3">
+    <div className="manju-panel manju-settings-panel">
+      <section className="manju-settings-block">
+        <div className="manju-settings-block__head">
+          <h3 className="manju-settings-block__title">视频画面比例</h3>
+        </div>
+        <div className="manju-chip-row">
           {RATIO_OPTIONS.map((r) => (
             <button
               key={r.id}
@@ -99,14 +115,23 @@ export function VideoSettingsStep({
         </div>
       </section>
 
-      <section className="manju-card">
-        <div className="manju-card__title">生成模式</div>
-        <p className="manju-card__desc mb-3">
-          {modeLocked
-            ? "已提交过分镜视频，模式已锁定，避免同一项目混用。"
-            : "图生视频用分镜静帧；全能参考只用资产图；多宫格先出整图再切块逐格视频。首次提交视频后锁定。"}
-        </p>
-        <div className="grid gap-3 sm:grid-cols-3">
+      <section className="manju-settings-block">
+        <div className="manju-settings-block__head">
+          <h3 className="manju-settings-block__title">生分镜视频方式</h3>
+          {modeLocked ? (
+            <span className="manju-settings-lock">已锁定</span>
+          ) : (
+            <span className="manju-settings-hint">
+              <Info className="size-3.5" aria-hidden />
+              首次提交分镜视频后锁定
+            </span>
+          )}
+        </div>
+
+        <div
+          className="manju-mode-grid"
+          onMouseLeave={() => setHoverModeId(null)}
+        >
           {MODE_OPTIONS.map((m) => {
             const unavailable = !m.available;
             const active = settings.mode === m.id && m.available;
@@ -120,6 +145,8 @@ export function VideoSettingsStep({
                   active && "manju-mode-card--active",
                   unavailable && "manju-mode-card--soon",
                 )}
+                onMouseEnter={() => setHoverModeId(m.id)}
+                onFocus={() => setHoverModeId(m.id)}
                 onClick={() => {
                   if (unavailable) return;
                   commit({
@@ -131,21 +158,40 @@ export function VideoSettingsStep({
                   });
                 }}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-semibold">{m.title}</div>
+                <div className="manju-mode-card__row">
+                  <div className="manju-mode-card__title">{m.title}</div>
+                  <span className="manju-mode-card__badge">{m.badge}</span>
                 </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {m.desc}
-                </div>
+                <p className="manju-mode-card__desc">{m.desc}</p>
               </button>
             );
           })}
         </div>
+
+        {tipMode ? (
+          <div
+            className="manju-mode-tip"
+            role="tooltip"
+            onMouseEnter={() => setHoverModeId(tipMode.id)}
+            onMouseLeave={() => setHoverModeId(null)}
+          >
+            <video
+              key={tipMode.id}
+              className="manju-mode-tip__video"
+              src={tipMode.previewVideo}
+              muted
+              autoPlay
+              loop
+              playsInline
+              preload="metadata"
+            />
+            <p className="manju-mode-tip__text">{tipMode.detail}</p>
+          </div>
+        ) : null}
+
         {settings.mode === "grid" ? (
-          <div className="mt-4">
-            <div className="mb-2 text-xs font-medium text-muted-foreground">
-              宫格布局
-            </div>
+          <div className="manju-mode-detail__grid">
+            <span className="manju-mode-detail__grid-label">宫格布局</span>
             <div className="manju-chip-row">
               {(
                 [
@@ -172,28 +218,55 @@ export function VideoSettingsStep({
         ) : null}
       </section>
 
-      <section className="manju-card">
-        <div className="manju-card__title">视觉风格</div>
-        <p className="manju-card__desc mb-3">
-          选模板会写入风格提示词；可再手工微调下方文案。
-        </p>
-        <div className="manju-chip-row">
-          {STYLE_TEMPLATES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={cn(
-                "manju-chip",
-                (settings.styleId === t.id ||
+      <section className="manju-settings-block">
+        <div className="manju-settings-block__head">
+          <h3 className="manju-settings-block__title">选择画面风格</h3>
+        </div>
+        <p className="manju-settings-sub">风格库</p>
+        <div className="manju-style-carousel">
+          <Carousel
+            opts={{
+              align: "start",
+              dragFree: true,
+              containScroll: "trimSnaps",
+            }}
+            className="manju-style-carousel__viewport"
+          >
+            <CarouselContent className="manju-style-carousel__track">
+              {STYLE_TEMPLATES.map((t) => {
+                const active =
+                  settings.styleId === t.id ||
                   (!settings.styleId &&
-                    styleIdFromPrompt(settings.style) === t.id)) &&
-                  "manju-chip--active",
-              )}
-              onClick={() => pickStyle(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
+                    styleIdFromPrompt(settings.style) === t.id);
+                return (
+                  <CarouselItem
+                    key={t.id}
+                    className="manju-style-carousel__item"
+                  >
+                    <button
+                      type="button"
+                      className={cn(
+                        "manju-style-card",
+                        active && "manju-style-card--active",
+                      )}
+                      onClick={() => pickStyle(t.id)}
+                    >
+                      <span
+                        className={cn(
+                          "manju-style-card__thumb",
+                          `manju-style-card__thumb--${t.tone}`,
+                        )}
+                        aria-hidden
+                      />
+                      <span className="manju-style-card__label">{t.label}</span>
+                    </button>
+                  </CarouselItem>
+                );
+              })}
+            </CarouselContent>
+            <CarouselPrevious className="manju-style-carousel__prev" />
+            <CarouselNext className="manju-style-carousel__next" />
+          </Carousel>
         </div>
         <div className="mt-3 space-y-1.5">
           <Label htmlFor="manju-style" className="text-xs text-muted-foreground">
@@ -214,9 +287,11 @@ export function VideoSettingsStep({
         </div>
       </section>
 
-      <section className="manju-card">
-        <div className="manju-card__title">默认镜头时长</div>
-        <div className="manju-chip-row mt-3">
+      <section className="manju-settings-block">
+        <div className="manju-settings-block__head">
+          <h3 className="manju-settings-block__title">默认镜头时长</h3>
+        </div>
+        <div className="manju-chip-row">
           {[4, 5, 8, 10].map((d) => (
             <button
               key={d}

@@ -21,8 +21,21 @@ export class AssetsController {
   constructor(private readonly assets: AssetsService) {}
 
   @Get()
-  list(@CurrentUser() user: AuthUser, @Query("take") take?: string) {
-    return this.assets.list(user.id, take ? Number(take) : 50);
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query("take") take?: string,
+    @Query("kind") kind?: string,
+    @Query("source") source?: string,
+    @Query("from") from?: string,
+    @Query("sort") sort?: string,
+  ) {
+    return this.assets.list(user.id, {
+      take: take ? Number(take) : 80,
+      kind,
+      source,
+      from,
+      sort: sort === "oldest" ? "oldest" : "newest",
+    });
   }
 
   /** Pin / mirror canvas media into the user asset library. */

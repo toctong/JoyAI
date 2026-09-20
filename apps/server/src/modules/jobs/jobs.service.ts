@@ -154,7 +154,7 @@ export class JobsService {
       take?: number;
       before?: string;
       beforeId?: string;
-      /** studio = 创作台，排除画布任务 */
+      /** studio = 创作台，排除画布 / 漫剧任务 */
       scope?: string;
     } = {},
   ) {
@@ -174,8 +174,14 @@ export class JobsService {
       .filter((job) => {
         if (!studioOnly) return true;
         if (job.canvasProjectId) return false;
-        const input = job.input as { canvasProjectId?: string } | null;
-        return !input?.canvasProjectId;
+        const input = job.input as {
+          canvasProjectId?: string;
+          manjuProjectId?: string;
+        } | null;
+        if (input?.canvasProjectId) return false;
+        if (input?.manjuProjectId) return false;
+        // 创作台只展示图/视频生成，不混 LLM/音频
+        return job.kind === JobKind.image || job.kind === JobKind.video;
       })
       .map((job) => {
         const ms = Date.parse(String(job.finishedAt ?? job.createdAt));

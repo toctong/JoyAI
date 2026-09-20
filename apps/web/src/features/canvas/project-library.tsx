@@ -565,7 +565,7 @@ export function ProjectLibrary() {
         </header>
 
         <div className="joy-projects-grid">
-          <div className="joy-projects-item">
+          <div className="joy-projects-item is-create">
             <button
               type="button"
               className="joy-projects-media is-create"
@@ -578,34 +578,43 @@ export function ProjectLibrary() {
           </div>
 
           {filteredFolders.map((folder) => (
-            <div key={folder.id} className="joy-projects-item">
-              <div
-                className={cn(
-                  "joy-projects-media",
-                  dropTargetId === folder.id && "is-drop",
-                )}
-                onDragOver={(e) => onFolderDragOver(e, folder.id)}
-                onDragLeave={() =>
-                  setDropTargetId((id) => (id === folder.id ? null : id))
-                }
-                onDrop={(e) => void onFolderDrop(e, folder.id)}
-              >
+            <div
+              key={folder.id}
+              className={cn(
+                "joy-projects-item",
+                dropTargetId === folder.id && "is-drop",
+              )}
+              onDragOver={(e) => onFolderDragOver(e, folder.id)}
+              onDragLeave={() =>
+                setDropTargetId((id) => (id === folder.id ? null : id))
+              }
+              onDrop={(e) => void onFolderDrop(e, folder.id)}
+            >
+              <div className="joy-projects-media">
                 <FolderArt covers={folder.coverUrls} />
-                <button
-                  type="button"
-                  className="joy-projects-hit"
-                  onClick={() => {
-                    if (multiSelect) return;
-                    clearSelection();
-                    setFolderId(folder.id);
-                  }}
-                />
               </div>
+              <div
+                role="button"
+                tabIndex={0}
+                className="joy-projects-hit"
+                onClick={() => {
+                  if (multiSelect) return;
+                  clearSelection();
+                  setFolderId(folder.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" && e.key !== " ") return;
+                  e.preventDefault();
+                  if (multiSelect) return;
+                  clearSelection();
+                  setFolderId(folder.id);
+                }}
+              />
               <div className="joy-projects-meta">
                 <div className="joy-projects-meta-text">
                   <p className="joy-projects-name">{folder.title}</p>
                   <p className="joy-projects-sub">
-                    编辑于 {formatEditedAt(folder.updatedAt)}
+                    {formatEditedAt(folder.updatedAt)}
                   </p>
                 </div>
                 <DropdownMenu>
@@ -652,17 +661,18 @@ export function ProjectLibrary() {
             const checked = selected.has(project.id);
             const dragging = draggingIds.includes(project.id);
             return (
-              <div key={project.id} className="joy-projects-item">
-                <div
-                  className={cn(
-                    "joy-projects-media",
-                    checked && "is-selected",
-                    dragging && "is-dragging",
-                  )}
-                  draggable={!multiSelect || checked || !showSelectChrome}
-                  onDragStart={(e) => onProjectDragStart(e, project.id)}
-                  onDragEnd={onProjectDragEnd}
-                >
+              <div
+                key={project.id}
+                className={cn(
+                  "joy-projects-item",
+                  checked && "is-selected",
+                  dragging && "is-dragging",
+                )}
+                draggable={!multiSelect || checked || !showSelectChrome}
+                onDragStart={(e) => onProjectDragStart(e, project.id)}
+                onDragEnd={onProjectDragEnd}
+              >
+                <div className="joy-projects-media">
                   <ProjectCover url={project.coverUrl} />
                   {showSelectChrome ? (
                     <span
@@ -674,23 +684,33 @@ export function ProjectLibrary() {
                       <CanvasIconCheck className="h-3.5 w-3.5" />
                     </span>
                   ) : null}
-                  <button
-                    type="button"
-                    className="joy-projects-hit"
-                    onClick={() => {
-                      if (showSelectChrome) {
-                        toggleSelect(project.id);
-                        return;
-                      }
-                      router.push(`/canvas/${project.id}`);
-                    }}
-                  />
                 </div>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="joy-projects-hit"
+                  onClick={() => {
+                    if (showSelectChrome) {
+                      toggleSelect(project.id);
+                      return;
+                    }
+                    router.push(`/canvas/${project.id}`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" && e.key !== " ") return;
+                    e.preventDefault();
+                    if (showSelectChrome) {
+                      toggleSelect(project.id);
+                      return;
+                    }
+                    router.push(`/canvas/${project.id}`);
+                  }}
+                />
                 <div className="joy-projects-meta">
                   <div className="joy-projects-meta-text">
                     <p className="joy-projects-name">{project.title}</p>
                     <p className="joy-projects-sub">
-                      编辑于 {formatEditedAt(project.updatedAt)}
+                      {formatEditedAt(project.updatedAt)}
                     </p>
                   </div>
                   {!showSelectChrome ? (

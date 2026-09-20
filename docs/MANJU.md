@@ -22,7 +22,7 @@
 ### 2.2 配置三层
 
 1. 渠道默认（管理后台 `llm` / `image` / `video`）
-2. `draft.settings`：画幅、风格/`styleId`、时长、`mode`、`gridLayout`、三个模型 id
+2. `draft.settings`：画幅、风格/`styleId`、时长、`mode`、`gridLayout`；文本/图像/视频渠道模型为**项目全局**（工作台头部固定选择，非仅视频设定）
 3. 单镜：`shot.duration`、`assetRefs`
 
 `settings.mode`：
@@ -45,6 +45,7 @@
 
 | purpose | 作用 |
 |---------|------|
+| `script_write` | AI 帮写对话：生成/润色剧本，不自动回写（用户点「应用」）。技能见 `apps/server/src/modules/jobs/skills/script-write/`，题材示例在 `@joyai/shared` |
 | `analyze_assets` | 梗概、角色/场景/道具、分集标题 |
 | `plan_episodes` | 分集 + 原文切片 `sourceText` |
 | `series_memory` | 世界观 / 小传 / 伏笔 |

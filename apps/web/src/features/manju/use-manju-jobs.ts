@@ -5,12 +5,13 @@ import { api } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { toast } from "@/shared/lib/toast";
 import { useManjuStore } from "./manju-store";
-import type { ManjuJobStatus } from "./manju-types";
+import { isBusyStatus, type ManjuJobStatus } from "./manju-types";
 import {
   applyGridJobSplit,
   peekGridJob,
   takeGridJob,
 } from "./lib/grid-jobs";
+import { isManjuAssetSubmitPending } from "./lib/pending-asset-submit";
 
 type JobAsset = {
   id: string;
@@ -157,7 +158,8 @@ export function useManjuJobBridge(activeProjectId?: string) {
     const onFailed = (payload: {
       jobId?: string;
       error?: string;
-      job?: { id?: string; error?: string | null };
+      status?: string;
+      job?: { id?: string; error?: string | null; status?: string };
     }) => {
       const jobId = resolveJobId(payload);
       if (!jobId) return;
@@ -172,7 +174,13 @@ export function useManjuJobBridge(activeProjectId?: string) {
         applyJobResult({ jobId, status: "failed" });
       }
       if (activeProjectId) setAnalyzing(activeProjectId, false);
-      toast.error(payload.error || payload.job?.error || "生成失败");
+      const status = payload.status ?? payload.job?.status;
+      const err = payload.error || payload.job?.error || "生成失败";
+      if (status === "cancelled" || err === "已中断") {
+        toast.message("已停止生成");
+      } else {
+        toast.error(err);
+      }
     };
 
     const onAssetUpdated = (payload: {
@@ -207,6 +215,123 @@ export function useManjuJobBridge(activeProjectId?: string) {
       socket.off("asset:updated", onAssetUpdated);
     };
   }, [activeProjectId, applyJobResult, loadProject, setAnalyzing]);
+
+  // 对账：WS 丢事件时，按 jobId 拉终态，避免资产/镜头一直转圈
+  useEffect(() => {
+    if (!activeProjectId) return;
+    let cancelled = false;
+
+    async function reconcileBusyJobs() {
+      const project = useManjuStore
+        .getState()
+        .projects.find((p) => p.id === activeProjectId);
+      if (!project) return;
+
+      const updateAsset = useManjuStore.getState().updateAsset;
+      const updateShot = useManjuStore.getState().updateShot;
+
+      // 无 jobId 却 busy：刷新残留；跳过正在提交、尚未绑 jobId 的卡
+      for (const asset of project.assets) {
+        if (
+          isBusyStatus(asset.status) &&
+          !asset.jobId?.trim() &&
+          !isManjuAssetSubmitPending(asset.id)
+        ) {
+          updateAsset(project.id, asset.id, {
+            jobId: null,
+            status: asset.imageUrl ? "succeeded" : "idle",
+          });
+        }
+      }
+      for (const shot of project.shots) {
+        if (
+          isBusyStatus(shot.storyboardStatus) &&
+          !shot.storyboardJobId?.trim()
+        ) {
+          updateShot(project.id, shot.id, {
+            storyboardJobId: null,
+            storyboardStatus: shot.storyboardImageUrl ? "succeeded" : "idle",
+          });
+        }
+        if (isBusyStatus(shot.videoStatus) && !shot.videoJobId?.trim()) {
+          updateShot(project.id, shot.id, {
+            videoJobId: null,
+            videoStatus: shot.videoUrl ? "succeeded" : "idle",
+          });
+        }
+      }
+
+      const fresh = useManjuStore
+        .getState()
+        .projects.find((p) => p.id === activeProjectId);
+      if (!fresh) return;
+
+      const jobIds = new Set<string>();
+      for (const asset of fresh.assets) {
+        if (isBusyStatus(asset.status) && asset.jobId?.trim()) {
+          jobIds.add(asset.jobId.trim());
+        }
+      }
+      for (const shot of fresh.shots) {
+        if (
+          isBusyStatus(shot.storyboardStatus) &&
+          shot.storyboardJobId?.trim()
+        ) {
+          jobIds.add(shot.storyboardJobId.trim());
+        }
+        if (isBusyStatus(shot.videoStatus) && shot.videoJobId?.trim()) {
+          jobIds.add(shot.videoJobId.trim());
+        }
+      }
+      if (jobIds.size === 0) return;
+
+      await Promise.all(
+        [...jobIds].map(async (jobId) => {
+          if (cancelled) return;
+          try {
+            const job = await api<{
+              id: string;
+              status: string;
+              error?: string | null;
+              assets?: JobAsset[];
+            }>(`/jobs/${jobId}`);
+            if (cancelled) return;
+            if (job.status === "succeeded") {
+              const media = pickMedia(job.assets);
+              const grid = peekGridJob(jobId);
+              if (grid) {
+                if (media.url) {
+                  void applyGridJobSplit(jobId, grid, media.url, "succeeded");
+                }
+                return;
+              }
+              applyJobResult({
+                jobId: job.id,
+                status: "succeeded",
+                url: media.url,
+                assetId: media.assetId,
+              });
+            } else if (
+              job.status === "failed" ||
+              job.status === "cancelled"
+            ) {
+              if (peekGridJob(jobId)) takeGridJob(jobId);
+              applyJobResult({ jobId: job.id, status: "failed" });
+            }
+          } catch {
+            /* ignore transient */
+          }
+        }),
+      );
+    }
+
+    void reconcileBusyJobs();
+    const timer = window.setInterval(() => void reconcileBusyJobs(), 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeProjectId, applyJobResult]);
 }
 
 export async function submitImageJob(input: {
@@ -215,6 +340,7 @@ export async function submitImageJob(input: {
   referenceAssetIds?: string[];
   referenceUrls?: string[];
   modelId?: string;
+  manjuProjectId: string;
 }): Promise<{ id: string }> {
   return api<{ id: string }>("/jobs", {
     method: "POST",
@@ -227,6 +353,7 @@ export async function submitImageJob(input: {
         modelId: input.modelId || undefined,
         referenceAssetIds: input.referenceAssetIds,
         referenceUrls: input.referenceUrls,
+        manjuProjectId: input.manjuProjectId,
       },
     },
   });
@@ -240,6 +367,7 @@ export async function submitVideoJob(input: {
   referenceUrls?: string[];
   refMode?: "omni" | "first_last";
   modelId?: string;
+  manjuProjectId: string;
 }): Promise<{ id: string }> {
   return api<{ id: string }>("/jobs", {
     method: "POST",
@@ -253,6 +381,7 @@ export async function submitVideoJob(input: {
         referenceAssetIds: input.referenceAssetIds,
         referenceUrls: input.referenceUrls,
         refMode: input.refMode,
+        manjuProjectId: input.manjuProjectId,
       },
     },
   });

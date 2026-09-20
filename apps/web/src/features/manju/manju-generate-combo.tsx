@@ -11,6 +11,8 @@ export function ManjuGenerateCombo({
   disabled = false,
   primaryDisabled = false,
   loading = false,
+  emphasis = false,
+  title,
   className,
 }: {
   label: string;
@@ -19,14 +21,24 @@ export function ManjuGenerateCombo({
   disabled?: boolean;
   primaryDisabled?: boolean;
   loading?: boolean;
+  emphasis?: boolean;
+  title?: string;
   className?: string;
 }) {
   return (
-    <div className={cn("manju-generate-combo", className)}>
+    <div
+      className={cn(
+        "manju-generate-combo",
+        emphasis && "manju-generate-combo--emphasis",
+        className,
+      )}
+      data-manju-focus="generate"
+    >
       <button
         type="button"
         className="manju-generate-combo__primary"
         disabled={disabled || primaryDisabled || loading}
+        title={title}
         onClick={onPrimary}
       >
         {loading ? (

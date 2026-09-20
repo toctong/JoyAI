@@ -9,6 +9,7 @@ import { Job } from "../../../database/entities/job.entity";
 import { JobStatus } from "../../../database/enums";
 import { StorageService } from "../../storage/storage.service";
 import { AssetsService } from "../../assets/assets.service";
+import { sourceFromJob } from "../../assets/asset-source";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { CanvasService } from "../../canvas/canvas.service";
 import { enqueueAssetMirror } from "../enqueue-asset-mirror";
@@ -77,13 +78,16 @@ export class VideoPollProcessor extends WorkerHost {
         result = { status: "running" as const };
       } else {
         const mirror = this.storage.isConfigured();
+        const assetSource = sourceFromJob(job);
         const asset = await this.assets.create({
           userId: job.userId,
           jobId: job.id,
           kind: "video",
           url: originUrl,
           mimeType: "video/mp4",
+          source: assetSource,
           meta: {
+            source: assetSource,
             originUrl,
             storageStatus: mirror ? "pending" : "ready",
           },

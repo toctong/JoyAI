@@ -8,6 +8,7 @@ import {
   Download,
   ExternalLink,
   ImageIcon,
+  Music,
   Sparkles,
   Video,
   X,
@@ -37,12 +38,14 @@ export type AssetsPreviewItem = {
   createdAt: string;
   mimeType?: string | null;
   jobId?: string | null;
+  source?: string | null;
   meta?: Record<string, unknown> | null;
   originalName?: string | null;
   job?: {
     id: string;
     canvasProjectId?: string | null;
     canvasNodeId?: string | null;
+    manjuProjectId?: string | null;
     modelName?: string | null;
     channelName?: string | null;
     prompt?: string | null;
@@ -82,18 +85,56 @@ export function AssetsDetailDialog({
 
   useEffect(() => {
     if (!open || !asset || ready) return;
+    if (asset.kind === "audio" || asset.kind === "text") {
+      setReady(true);
+      return;
+    }
     const t = window.setTimeout(() => setReady(true), 8000);
     return () => window.clearTimeout(t);
   }, [open, asset, ready]);
 
   const markReady = useCallback(() => setReady(true), []);
   const isVideo = asset?.kind === "video";
-  const isUpload = Boolean(asset && !asset.jobId && !asset.job);
+  const isAudio = asset?.kind === "audio";
+  const isDoc = asset?.kind === "text";
+  const assetSource =
+    asset?.source === "studio" ||
+    asset?.source === "canvas" ||
+    asset?.source === "manju" ||
+    asset?.source === "upload"
+      ? asset.source
+      : asset && !asset.jobId && !asset.job
+        ? "upload"
+        : "studio";
+  const isUpload = assetSource === "upload";
+  const kindNoun = isVideo
+    ? "视频"
+    : isAudio
+      ? "音频"
+      : isDoc
+        ? "文档"
+        : "图片";
+  const sourceLabel =
+    assetSource === "upload"
+      ? `上传${kindNoun}`
+      : assetSource === "canvas"
+        ? `画布${kindNoun}`
+        : assetSource === "manju"
+          ? `漫剧${kindNoun}`
+          : `创作${kindNoun}`;
   const prompt = asset?.job?.prompt?.trim() || "";
   const refUrls = asset?.job?.referenceUrls?.filter(Boolean) ?? [];
   const modelLabel = [asset?.job?.modelName, asset?.job?.channelName]
     .filter(Boolean)
     .join(" · ");
+  const docPreview =
+    typeof asset?.meta?.preview === "string" ? asset.meta.preview : "";
+  const fileName =
+    (typeof asset?.originalName === "string" && asset.originalName) ||
+    (typeof asset?.meta?.originalName === "string"
+      ? asset.meta.originalName
+      : "") ||
+    "";
 
   async function onCopyPrompt() {
     if (!prompt) {
@@ -138,7 +179,13 @@ export function AssetsDetailDialog({
           aria-describedby={undefined}
         >
           <DialogTitle className="sr-only">
-            {isVideo ? "视频预览" : "图片预览"}
+            {isVideo
+              ? "视频预览"
+              : isAudio
+                ? "音频预览"
+                : isDoc
+                  ? "文档预览"
+                  : "图片预览"}
           </DialogTitle>
 
           <DialogClose className="joy-explore-dialog-close" aria-label="关闭">
@@ -160,6 +207,8 @@ export function AssetsDetailDialog({
                       aria-hidden
                       className="joy-explore-dialog-blur"
                     />
+                  ) : isAudio || isDoc ? (
+                    <div className="joy-assets-dialog-file-bg" aria-hidden />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -178,6 +227,43 @@ export function AssetsDetailDialog({
                         onReady={markReady}
                         onError={markReady}
                       />
+                    ) : isAudio ? (
+                      <div className="joy-assets-dialog-file">
+                        <Music className="h-10 w-10" />
+                        <p>{fileName || "音频"}</p>
+                        <audio
+                          key={asset.id}
+                          src={asset.url}
+                          controls
+                          className="joy-assets-dialog-audio"
+                          onLoadedData={markReady}
+                          onError={markReady}
+                        />
+                      </div>
+                    ) : isDoc ? (
+                      <div className="joy-assets-dialog-file">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src="/icons/doc-file.svg"
+                          alt=""
+                          className="joy-assets-doc-icon is-lg"
+                        />
+                        <p>{fileName || "文档"}</p>
+                        {docPreview ? (
+                          <pre className="joy-assets-dialog-preview">
+                            {docPreview}
+                          </pre>
+                        ) : (
+                          <a
+                            href={asset.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="joy-assets-dialog-open"
+                          >
+                            打开文档
+                          </a>
+                        )}
+                      </div>
                     ) : (
                       <PhotoView src={asset.url}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -199,18 +285,19 @@ export function AssetsDetailDialog({
                 <div className="joy-assets-dialog-kind">
                   {isVideo ? (
                     <Video className="h-3.5 w-3.5" />
+                  ) : isAudio ? (
+                    <Music className="h-3.5 w-3.5" />
+                  ) : isDoc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src="/icons/doc-file.svg"
+                      alt=""
+                      className="joy-assets-doc-icon is-sm"
+                    />
                   ) : (
                     <ImageIcon className="h-3.5 w-3.5" />
                   )}
-                  <span>
-                    {isUpload
-                      ? isVideo
-                        ? "上传视频"
-                        : "上传图片"
-                      : isVideo
-                        ? "生成视频"
-                        : "生成图片"}
-                  </span>
+                  <span>{sourceLabel}</span>
                 </div>
 
                 <div className="joy-assets-dialog-time">{createdLabel}</div>

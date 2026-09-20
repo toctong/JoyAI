@@ -21,11 +21,27 @@ import {
   GripVertical,
   Loader2,
   MoreHorizontal,
+  Pencil,
   Sparkles,
   Trash2,
   Link2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,7 +61,6 @@ import {
   buildShotImagePrompt,
   gridLayoutDims,
   isBusyStatus,
-  parseScriptToShots,
   type ManjuProjectDraft,
   type ManjuShotDraft,
 } from "../manju-types";
@@ -56,19 +71,30 @@ import {
   referenceMediaFromSlots,
   resolveShotReferenceSlots,
 } from "../lib/prompt-builders";
-import { useRegisterManjuHeaderSlots } from "../manju-header-slots";
+import { ManjuStepActions } from "../manju-step-actions";
+import type {
+  ManjuHeaderGenerateAction,
+  ManjuHeaderTools,
+} from "../manju-header-slots";
+
+function storyboardStatusLabel(shot: ManjuShotDraft, busy: boolean) {
+  if (shot.storyboardStatus === "queued") return "排队中";
+  if (busy) return "生成中";
+  if (shot.storyboardStatus === "failed") return "失败";
+  if (shot.storyboardStale) return "需重做";
+  if (shot.storyboardImageUrl) return "已出图";
+  return "待出图";
+}
 
 function SortableShotCard({
   project,
   shot,
-  editing,
   onEdit,
   onGenerate,
 }: {
   project: ManjuProjectDraft;
   shot: ManjuShotDraft;
-  editing: boolean;
-  onEdit: (id: string | null) => void;
+  onEdit: (id: string) => void;
   onGenerate: (shot: ManjuShotDraft) => void;
 }) {
   const updateShot = useManjuStore((s) => s.updateShot);
@@ -83,6 +109,15 @@ function SortableShotCard({
     isDragging,
   } = useSortable({ id: shot.id });
   const busy = isBusyStatus(shot.storyboardStatus);
+  const waitLabel =
+    shot.storyboardStatus === "queued"
+      ? "排队中…"
+      : busy
+        ? "生成中…"
+        : null;
+  const epTitle = shot.episodeId
+    ? (project.episodes.find((e) => e.id === shot.episodeId)?.title ?? null)
+    : null;
 
   return (
     <article
@@ -91,56 +126,89 @@ function SortableShotCard({
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className={cn("manju-shot-card", isDragging && "opacity-80 shadow-lg")}
+      className={cn(
+        "manju-asset-card manju-asset-card--interactive",
+        isDragging && "opacity-80 shadow-lg",
+      )}
+      role="button"
+      tabIndex={0}
+      onClick={() => onEdit(shot.id)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEdit(shot.id);
+        }
+      }}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="manju-icon-btn cursor-grab active:cursor-grabbing"
-            title="拖拽排序"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="h-4 w-4" />
-          </button>
-          <span className="manju-shot-card__index !mb-0">
-            {String(shot.index).padStart(2, "0")}
-          </span>
-          {shot.storyboardStale ? (
-            <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-300">
-              图需重做
-            </span>
-          ) : null}
-          {shot.storyboardStatus === "failed" ? (
+      <div
+        className="manju-asset-card__media"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <span
+          className={cn(
+            "manju-asset-card__tag",
+            shot.storyboardStatus === "failed" && "is-failed",
+            shot.storyboardImageUrl &&
+              !shot.storyboardStale &&
+              !busy &&
+              "is-ok",
+            (busy || shot.storyboardStale) && "is-busy",
+          )}
+        >
+          {storyboardStatusLabel(shot, busy)}
+        </span>
+        {shot.storyboardImageUrl ? (
+          <PhotoView src={shot.storyboardImageUrl}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={shot.storyboardImageUrl}
+              alt=""
+              className="cursor-zoom-in"
+            />
+          </PhotoView>
+        ) : !busy ? (
+          <span className="text-xs text-muted-foreground">暂无分镜图</span>
+        ) : null}
+        {waitLabel ? (
+          <div className="manju-asset-card__busy" aria-live="polite">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span>{waitLabel}</span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="manju-asset-card__body">
+        <div
+          className="manju-asset-card__top"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-1">
             <button
               type="button"
-              className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] text-destructive hover:bg-destructive/25"
-              disabled={busy}
-              onClick={() => onGenerate(shot)}
+              className="manju-icon-btn cursor-grab active:cursor-grabbing"
+              title="拖拽排序"
+              {...attributes}
+              {...listeners}
             >
-              重试
+              <GripVertical className="h-3.5 w-3.5" />
             </button>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-0.5">
+            <h3 className="manju-asset-card__title">
+              镜 {String(shot.index).padStart(2, "0")}
+            </h3>
+          </div>
           <button
             type="button"
             className="manju-icon-btn"
-            disabled={busy || (!shot.visual.trim() && !shot.imagePrompt?.trim())}
-            title="生成分镜图"
-            onClick={() => onGenerate(shot)}
+            aria-label="编辑"
+            onClick={() => onEdit(shot.id)}
           >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
+            <Pencil className="h-3.5 w-3.5" />
           </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button type="button" className="manju-icon-btn">
-                <MoreHorizontal className="h-4 w-4" />
+              <button type="button" className="manju-icon-btn" aria-label="更多">
+                <MoreHorizontal className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -187,110 +255,187 @@ function SortableShotCard({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div>
 
-      {shot.storyboardImageUrl ? (
-        <PhotoView src={shot.storyboardImageUrl}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={shot.storyboardImageUrl}
-            alt=""
-            className="manju-shot-card__thumb cursor-zoom-in"
-          />
-        </PhotoView>
-      ) : busy ? (
-        <div className="manju-shot-card__thumb manju-shot-card__thumb--empty">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
-      ) : null}
-
-      {editing ? (
-        <div className="mt-2 space-y-2">
-          <ManjuMdField
-            value={shot.visual}
-            onChange={(visual) =>
-              updateShot(project.id, shot.id, { visual })
-            }
-            placeholder="画面描述…"
-            height={100}
-            hideToolbar
-          />
-          <ManjuMdField
-            value={shot.dialogue}
-            onChange={(dialogue) =>
-              updateShot(project.id, shot.id, { dialogue })
-            }
-            placeholder="对白（可选）"
-            height={72}
-            hideToolbar
-            className="mt-2"
-          />
-          {project.episodes.length > 0 ? (
-            <p className="text-[10px] text-muted-foreground">
-              分集：
-              {project.episodes.find((e) => e.id === shot.episodeId)?.title ??
-                "未归属"}
-            </p>
-          ) : null}
-          {project.assets.length > 0 ? (
-            <ManjuAssetPicker
-              assets={project.assets}
-              value={shot.assetRefs}
-              onChange={(assetRefs) =>
-                updateShot(project.id, shot.id, { assetRefs })
-              }
-            />
-          ) : null}
-          <Button variant="outline" size="sm" onClick={() => onEdit(null)}>
-            完成编辑
-          </Button>
-        </div>
-      ) : (
         <button
           type="button"
-          className="mt-2 w-full text-left"
-          onClick={() => onEdit(shot.id)}
+          className="manju-asset-card__desc-text"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(shot.id);
+          }}
         >
-          <div className="manju-shot-card__text">
-            {shot.visual || (
-              <span className="text-muted-foreground">点击填写画面描述…</span>
-            )}
-            {shot.dialogue ? `\n\n${shot.dialogue}` : ""}
-          </div>
-          {shot.imagePrompt?.trim() || shot.videoPrompt?.trim() ? (
-            <div className="mt-2 space-y-1 text-[10px] text-muted-foreground">
-              {shot.imagePrompt?.trim() ? (
-                <p className="line-clamp-2">图：{shot.imagePrompt}</p>
-              ) : null}
-              {shot.videoPrompt?.trim() ? (
-                <p className="line-clamp-2">视频：{shot.videoPrompt}</p>
-              ) : (
-                <p className="text-amber-600/90 dark:text-amber-400/80">缺视频提示词</p>
-              )}
-            </div>
-          ) : (
-            <p className="mt-2 text-[10px] text-amber-600/90 dark:text-amber-400/80">
-              尚未编写提示词，请切到上方「提示词」
-            </p>
+          {shot.visual.trim() || (
+            <span className="opacity-50">点击填写画面描述…</span>
           )}
-          {shot.assetRefs.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {shot.assetRefs.map((id) => {
-                const a = project.assets.find((x) => x.id === id);
-                return a ? (
-                  <span
-                    key={id}
-                    className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                  >
-                    {assetRegistryName(a, project.assets)}
-                  </span>
-                ) : null;
-              })}
-            </div>
+          {shot.dialogue.trim() ? (
+            <span className="mt-1 block opacity-80">对白：{shot.dialogue}</span>
           ) : null}
         </button>
-      )}
+
+        {epTitle ? (
+          <p className="manju-asset-card__alias-text">分集：{epTitle}</p>
+        ) : null}
+
+        <p className="manju-asset-card__prompt">
+          {shot.imagePrompt?.trim() || shot.videoPrompt?.trim()
+            ? [
+                shot.imagePrompt?.trim()
+                  ? `图：${shot.imagePrompt}`
+                  : null,
+                shot.videoPrompt?.trim()
+                  ? `视频：${shot.videoPrompt}`
+                  : "缺视频提示词",
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            : "尚未编写提示词，请切到「提示词」"}
+        </p>
+
+        <div
+          className="manju-asset-card__footer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="manju-asset-card__actions">
+            {shot.assetRefs.length > 0 ? (
+              <span className="truncate text-[10px] text-muted-foreground">
+                {shot.assetRefs
+                  .slice(0, 3)
+                  .map((id) => project.assets.find((a) => a.id === id)?.name)
+                  .filter(Boolean)
+                  .join(" · ")}
+                {shot.assetRefs.length > 3
+                  ? ` +${shot.assetRefs.length - 3}`
+                  : ""}
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground opacity-50">
+                未关联资产
+              </span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="manju-asset-card__action manju-asset-card__action--primary"
+              disabled={
+                busy || (!shot.visual.trim() && !shot.imagePrompt?.trim())
+              }
+              onClick={() => onGenerate(shot)}
+            >
+              {busy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {shot.storyboardStatus === "failed"
+                ? "重试"
+                : shot.storyboardImageUrl
+                  ? "重生成"
+                  : "生成"}
+            </Button>
+          </div>
+        </div>
+      </div>
     </article>
+  );
+}
+
+function ShotEditDialog({
+  project,
+  shot,
+  open,
+  onClose,
+}: {
+  project: ManjuProjectDraft;
+  shot: ManjuShotDraft | null;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const updateShot = useManjuStore((s) => s.updateShot);
+  if (!shot) return null;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DialogContent className="manju-dialog max-w-lg gap-4 border-border bg-card p-5 shadow-none sm:rounded-xl">
+        <DialogHeader>
+          <DialogTitle>
+            编辑分镜 {String(shot.index).padStart(2, "0")}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>画面描述</Label>
+            <ManjuMdField
+              value={shot.visual}
+              onChange={(visual) =>
+                updateShot(project.id, shot.id, { visual })
+              }
+              placeholder="画面描述…"
+              height={120}
+              hideToolbar
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>对白（可选）</Label>
+            <ManjuMdField
+              value={shot.dialogue}
+              onChange={(dialogue) =>
+                updateShot(project.id, shot.id, { dialogue })
+              }
+              placeholder="对白…"
+              height={72}
+              hideToolbar
+            />
+          </div>
+          {project.episodes.length > 0 ? (
+            <div className="space-y-1.5">
+              <Label>归属分集</Label>
+              <Select
+                value={shot.episodeId ?? "none"}
+                onValueChange={(v) =>
+                  updateShot(project.id, shot.id, {
+                    episodeId: v === "none" ? null : v,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="未归属" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">未归属</SelectItem>
+                  {project.episodes.map((ep, i) => (
+                    <SelectItem key={ep.id} value={ep.id}>
+                      {String(i + 1).padStart(2, "0")} {ep.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          {project.assets.length > 0 ? (
+            <div className="space-y-1.5">
+              <Label>关联资产</Label>
+              <ManjuAssetPicker
+                assets={project.assets}
+                value={shot.assetRefs}
+                onChange={(assetRefs) =>
+                  updateShot(project.id, shot.id, { assetRefs })
+                }
+              />
+            </div>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button type="button" onClick={onClose}>
+            完成
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -392,6 +537,7 @@ export function StoryboardScriptStep({
         prompt: buildShotImagePrompt(shot, project),
         ratio: project.settings.ratio,
         modelId: project.settings.imageModelId,
+        manjuProjectId: project.id,
         referenceAssetIds,
         referenceUrls,
       });
@@ -439,6 +585,7 @@ export function StoryboardScriptStep({
           prompt: buildGridStoryboardImagePrompt(batch, project, layout),
           ratio: project.settings.ratio,
           modelId: project.settings.imageModelId,
+          manjuProjectId: project.id,
           referenceAssetIds: referenceAssetIds.length
             ? referenceAssetIds
             : undefined,
@@ -509,72 +656,73 @@ export function StoryboardScriptStep({
     }
   };
 
-  const fromScript = async () => {
-    const shots = parseScriptToShots(project.scriptText);
-    if (shots.length === 0) {
-      toast.error("剧本为空或无法拆分");
-      return;
-    }
-    const hasMedia = project.shots.some(
-      (s) => s.storyboardImageUrl || s.videoUrl,
+  const needsPlan = visibleShots.length === 0;
+  const needsConfirm = visibleShots.length > 0 && !project.scriptConfirmed;
+  const needsPrompts =
+    project.scriptConfirmed &&
+    visibleShots.some(
+      (s) => !s.imagePrompt?.trim() || !s.videoPrompt?.trim(),
     );
-    if (hasMedia) {
-      const ok = await confirmDialog({
-        title: "覆盖现有分镜？",
-        description:
-          "当前分镜已有分镜图或视频。从剧本同步会整表替换镜头列表，已有媒体可能丢失。",
-        confirmText: "仍然同步",
-        cancelText: "取消",
-        destructive: true,
-      });
-      if (!ok) return;
-    }
-    setShots(project.id, shots);
-    autoLinkShotAssets(project.id);
-    toast.success(`已从剧本写入 ${shots.length} 个分镜`);
+  const canGenerateImages =
+    project.scriptConfirmed && !needsPrompts && visibleShots.length > 0;
+
+  const stepTools: ManjuHeaderTools = {
+    add: {
+      label: "新增",
+      onClick: () => {
+        const id = addShot(project.id, undefined, {
+          episodeId: episodeId ?? null,
+        });
+        setEditingId(id);
+      },
+    },
+    secondary: {
+      label: episodeId ? "规划本集" : "规划分镜",
+      onClick: () => void planShots(),
+      disabled: analyzing || project.scriptText.trim().length < 20,
+      loading: analyzing,
+      focus: "plan",
+      emphasis: needsPlan,
+      title: needsPlan
+        ? "先用 AI 按剧本拆镜头"
+        : "可重新规划；已有分镜图会尽量保留",
+    },
+    tertiary: needsConfirm
+      ? {
+          label: "确认脚本",
+          onClick: confirmScript,
+          focus: "confirm",
+          emphasis: true,
+          title: "确认后才能写提示词、生成分镜图",
+        }
+      : staleCount && canGenerateImages
+        ? {
+            label: `重做过期(${staleCount})`,
+            onClick: () => void generateStaleOnly(),
+          }
+        : undefined,
   };
 
-  useRegisterManjuHeaderSlots(
-    null,
-    {
-      label: hasImages ? "重新生成" : "开始生成",
-      onPrimary: () => void generateAll(hasImages),
-      onOpenSettings: () =>
-        router.replace(`/manju/${project.id}?step=video-settings`),
-      disabled: visibleShots.length === 0,
-      loading: shotBusy || analyzing,
-    },
-    {
-      add: {
-        label: "新增",
-        onClick: () => {
-          const id = addShot(project.id, undefined, {
-            episodeId: episodeId ?? null,
-          });
-          setEditingId(id);
-        },
-      },
-      secondary: {
-        label: episodeId ? "规划本集" : "规划分镜",
-        onClick: () => void planShots(),
-        disabled: analyzing || project.scriptText.trim().length < 20,
-        loading: analyzing,
-      },
-      tertiary:
-        project.shots.length > 0 && !project.scriptConfirmed
-          ? {
-              label: "确认脚本",
-              onClick: confirmScript,
-            }
-          : staleCount
-            ? {
-                label: `重做过期(${staleCount})`,
-                onClick: () => void generateStaleOnly(),
-              }
-            : undefined,
-    },
-    `${episodeId ?? "all"}:${visibleShots.length}:${hasImages}:${shotBusy}:${analyzing}:${staleCount}:${project.scriptConfirmed}:${project.settings.mode}`,
-  );
+  const generateBlockedReason = needsPlan
+    ? "先规划或新增分镜"
+    : needsConfirm
+      ? "请先点「确认脚本」"
+      : needsPrompts
+        ? "请先到「提示词」页编写提示词"
+        : analyzing
+          ? "规划中，请稍候"
+          : undefined;
+
+  const stepGenerate: ManjuHeaderGenerateAction = {
+    label: hasImages ? "重新生成" : "开始生成",
+    onPrimary: () => void generateAll(hasImages),
+    onOpenSettings: () =>
+      router.replace(`/manju/${project.id}?step=video-settings`),
+    disabled: !canGenerateImages || analyzing,
+    loading: shotBusy,
+    emphasis: canGenerateImages && !hasImages,
+    title: generateBlockedReason,
+  };
 
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -600,7 +748,7 @@ export function StoryboardScriptStep({
   return (
     <JoyPhotoProvider>
       <div className="manju-panel">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="manju-step-bar">
           <p className="text-sm text-muted-foreground">
             共 {visibleShots.length} 个分镜
             {visibleShots.filter((s) => s.storyboardImageUrl).length > 0
@@ -610,36 +758,31 @@ export function StoryboardScriptStep({
               ? ` · 多宫格 ${project.settings.gridLayout === "3x3" ? "3×3" : "2×2"}（全部生成按批切块）`
               : ""}
             <span className="ml-2 opacity-70">· 拖拽手柄排序</span>
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void fromScript()}
-              disabled={!project.scriptText.trim() || analyzing}
-            >
-              从剧本同步
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                autoLinkShotAssets(project.id);
-                toast.success("已按名称自动关联资产");
-              }}
-              disabled={
-                visibleShots.length === 0 || project.assets.length === 0
-              }
-            >
-              <Link2 className="h-4 w-4" />
-              关联资产
-            </Button>
             {project.scriptConfirmed ? (
-              <span className="self-center text-xs text-muted-foreground">
-                脚本已确认
-              </span>
+              <span className="ml-2 opacity-70">· 脚本已确认</span>
             ) : null}
-          </div>
+          </p>
+          <ManjuStepActions
+            tools={stepTools}
+            generate={stepGenerate}
+            busy={shotBusy}
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              autoLinkShotAssets(project.id);
+              toast.success("已按名称自动关联资产");
+            }}
+            disabled={
+              visibleShots.length === 0 || project.assets.length === 0
+            }
+          >
+            <Link2 className="h-4 w-4" />
+            关联资产
+          </Button>
         </div>
 
         {visibleShots.length === 0 ? (
@@ -656,6 +799,7 @@ export function StoryboardScriptStep({
               <button
                 type="button"
                 className="manju-entry-card manju-entry-card--compact"
+                data-manju-focus="plan"
                 disabled={analyzing || project.scriptText.trim().length < 20}
                 onClick={() => void planShots()}
               >
@@ -697,7 +841,6 @@ export function StoryboardScriptStep({
                     key={shot.id}
                     project={project}
                     shot={shot}
-                    editing={editingId === shot.id}
                     onEdit={setEditingId}
                     onGenerate={(s) => void generateStoryboard(s)}
                   />
@@ -707,6 +850,17 @@ export function StoryboardScriptStep({
           </DndContext>
         )}
       </div>
+
+      <ShotEditDialog
+        project={project}
+        shot={
+          editingId
+            ? (project.shots.find((s) => s.id === editingId) ?? null)
+            : null
+        }
+        open={Boolean(editingId)}
+        onClose={() => setEditingId(null)}
+      />
     </JoyPhotoProvider>
   );
 }

@@ -8,10 +8,12 @@ import {
   ManjuAnalyzeResultSchema,
   ManjuAuthorPromptSchema,
   ManjuEpisodePlanResultSchema,
+  ManjuScriptWriteResultSchema,
   ManjuSeriesMemoryResultSchema,
   QUEUE,
   type LlmJobInput,
   type ManjuAnalyzeResult,
+  type ManjuScriptWriteResult,
 } from "@joyai/shared";
 import { Job } from "../../../database/entities/job.entity";
 import { JobStatus } from "../../../database/enums";
@@ -26,6 +28,7 @@ import {
   PLAN_EPISODES_SYSTEM,
   REVERSE_PROMPT_SYSTEM,
   SCRIPT_PLAN_SYSTEM,
+  SCRIPT_WRITE_SYSTEM,
   SERIES_MEMORY_SYSTEM,
 } from "../llm-prompts";
 
@@ -108,11 +111,13 @@ export class LlmProcessor extends WorkerHost {
                 ? SERIES_MEMORY_SYSTEM
                 : purpose === "plan_episodes"
                   ? PLAN_EPISODES_SYSTEM
-                  : purpose === "reverse_prompt"
-                ? REVERSE_PROMPT_SYSTEM
-                : input.canvasProjectId
-                  ? CANVAS_TEXT_SYSTEM
-                  : "你是有帮助的助手。");
+                  : purpose === "script_write"
+                    ? SCRIPT_WRITE_SYSTEM
+                    : purpose === "reverse_prompt"
+                      ? REVERSE_PROMPT_SYSTEM
+                      : input.canvasProjectId
+                        ? CANVAS_TEXT_SYSTEM
+                        : "你是有帮助的助手。");
 
       const imageUrls = (
         await this.jobs.resolveReferenceMedia(
@@ -154,6 +159,7 @@ export class LlmProcessor extends WorkerHost {
       });
 
       let analyze: ManjuAnalyzeResult | null = null;
+      let scriptWrite: ManjuScriptWriteResult | null = null;
       if (
         purpose === "analyze_assets" ||
         purpose === "split_shots" ||
@@ -228,12 +234,26 @@ export class LlmProcessor extends WorkerHost {
           jobId,
           parsed.data.episodes,
         );
+      } else if (purpose === "script_write") {
+        const raw = extractJsonObject(result.text);
+        const parsed = ManjuScriptWriteResultSchema.safeParse(raw);
+        if (!parsed.success) {
+          throw new Error(`帮写 JSON 不符合约定: ${parsed.error.message}`);
+        }
+        if (
+          (parsed.data.intent === "create" || parsed.data.intent === "revise") &&
+          !parsed.data.script.trim()
+        ) {
+          throw new Error("帮写结果缺少剧本文本");
+        }
+        scriptWrite = parsed.data;
       }
 
       const payload = {
         text: result.text,
         purpose,
         analyze,
+        scriptWrite,
         manjuProjectId: input.manjuProjectId ?? null,
         canvasProjectId: input.canvasProjectId ?? null,
         canvasNodeId: input.canvasNodeId ?? null,

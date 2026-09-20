@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, ChevronLeft } from "lucide-react";
+import { Check, ChevronLeft, PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import {
   MANJU_STEPS,
@@ -83,6 +83,8 @@ export function ManjuStepNav({
   project,
   currentId,
   completed,
+  collapsed,
+  onToggleCollapse,
   onProjectTitleChange,
   onSelect,
   onSuggested,
@@ -90,6 +92,8 @@ export function ManjuStepNav({
   project: ManjuProjectDraft;
   currentId: ManjuStepId;
   completed: Set<ManjuStepId>;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
   onProjectTitleChange: (title: string) => void;
   onSelect: (id: ManjuStepId) => void;
   onSuggested?: () => void;
@@ -100,15 +104,40 @@ export function ManjuStepNav({
   );
 
   return (
-    <aside className="manju-nav">
+    <aside className={cn("manju-nav", collapsed && "manju-nav--collapsed")}>
       <div className="manju-nav__head">
-        <Link href="/manju" className="manju-nav__back" title="全部项目">
-          <ChevronLeft className="h-3.5 w-3.5" />
-        </Link>
-        <EditableTitle
-          value={project.title}
-          onChange={onProjectTitleChange}
-        />
+        {collapsed ? (
+          <button
+            type="button"
+            className="manju-nav__collapse"
+            onClick={onToggleCollapse}
+            title="展开侧栏"
+            aria-label="展开侧栏"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
+        ) : (
+          <>
+            <Link href="/manju" className="manju-nav__back" title="全部项目">
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Link>
+            <EditableTitle
+              value={project.title}
+              onChange={onProjectTitleChange}
+            />
+            {onToggleCollapse ? (
+              <button
+                type="button"
+                className="manju-nav__collapse"
+                onClick={onToggleCollapse}
+                title="收起侧栏"
+                aria-label="收起侧栏"
+              >
+                <PanelLeftClose className="h-4 w-4" />
+              </button>
+            ) : null}
+          </>
+        )}
       </div>
 
       <ol className="manju-nav__steps">
@@ -132,12 +161,14 @@ export function ManjuStepNav({
                   active && "manju-nav__step--active",
                   done && !active && "manju-nav__step--done",
                 )}
+                title={collapsed ? step.label : undefined}
                 onClick={() => onSelect(step.id)}
               >
                 <span
                   className={cn(
                     "manju-nav__step-index",
                     active && "manju-nav__step-index--active",
+                    done && !active && "manju-nav__step-index--done",
                   )}
                 >
                   {step.index}
@@ -173,7 +204,7 @@ export function ManjuStepNav({
             else onSelect(nextAction.stepId);
           }}
         >
-          <span className="font-medium">{nextAction.label}</span>
+          <span>{nextAction.label}</span>
           <span className="mt-0.5 block text-muted-foreground">
             {nextAction.detail}
           </span>

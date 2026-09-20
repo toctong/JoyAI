@@ -169,3 +169,22 @@ export async function submitManjuAnalyzeJob(input: {
     },
   });
 }
+
+export async function submitManjuScriptWriteJob(input: {
+  projectId: string;
+  prompt: string;
+  modelId?: string;
+}) {
+  return api<{ id: string }>("/jobs", {
+    method: "POST",
+    body: {
+      kind: "llm",
+      input: {
+        purpose: "script_write",
+        prompt: input.prompt,
+        manjuProjectId: input.projectId,
+        modelId: input.modelId?.trim() || undefined,
+      },
+    },
+  });
+}

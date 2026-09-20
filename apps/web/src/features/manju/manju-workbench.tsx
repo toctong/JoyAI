@@ -1,15 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, Loader2, Plus } from "lucide-react";
+import { Download, Loader2, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { cn } from "@/shared/lib/utils";
 import { ManjuModelBar } from "./manju-studio";
 import { ManjuStepNav } from "./manju-step-nav";
-import { ManjuGenerateCombo } from "./manju-generate-combo";
+import { ManjuStoryboardViewBar } from "./manju-storyboard-view-bar";
+import { ManjuFlowGuideBar } from "./manju-flow-guide";
 import {
   ManjuHeaderSlotsProvider,
   useManjuHeaderSlotView,
@@ -22,6 +23,7 @@ import {
   type ManjuStepId,
 } from "./config/manju-steps";
 import { stepCanAdvance, getWorkflowNextAction, type ManjuPanel } from "./manju-types";
+import { getStepFlowGuide } from "./lib/flow-guide";
 import { submitWorkflowSkill } from "./lib/workflow-skill";
 import { draftFromProject } from "./manju-api";
 import { ScriptStep } from "./steps/script-step";
@@ -34,6 +36,7 @@ import { PromptsStep } from "./steps/prompts-step";
 import "./manju-chrome.css";
 
 const STEP_IDS = new Set<ManjuStepId>(MANJU_STEPS.map((s) => s.id));
+const NAV_COLLAPSE_KEY = "manju-nav-collapsed";
 
 function stepFromLegacyPanel(panel: string | null): ManjuStepId | null {
   if (panel === "characters" || panel === "scenes" || panel === "props") {
@@ -77,11 +80,8 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
   const saving = useManjuStore((s) => Boolean(s.savingIds[projectId]));
   const analyzing = useManjuStore((s) => Boolean(s.analyzingIds[projectId]));
   const [loading, setLoading] = useState(!project);
-  const { toolbar, generateAction, tools } = useManjuHeaderSlotView();
-  const heldAction = useRef(generateAction);
-  const heldTools = useRef(tools);
-  if (generateAction) heldAction.current = generateAction;
-  if (tools) heldTools.current = tools;
+  const [navCollapsed, setNavCollapsed] = useState(false);
+  const { toolbar } = useManjuHeaderSlotView();
 
   const panel = searchParams.get("panel") as ManjuPanel | null;
   const step = parseStep(searchParams.get("step"), panel);
@@ -104,6 +104,33 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
         : undefined;
 
   useManjuJobBridge(projectId);
+
+  useEffect(() => {
+    try {
+      setNavCollapsed(localStorage.getItem(NAV_COLLAPSE_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleNavCollapsed = useCallback(() => {
+    setNavCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(NAV_COLLAPSE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.manjuChrome = "";
+    return () => {
+      delete document.documentElement.dataset.manjuChrome;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -328,65 +355,79 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
   }
 
   const gate = stepCanAdvance(step, project);
-  const showGenerateSlot =
-    step === "assets" ||
-    (step === "storyboard-script" && view !== "prompts") ||
-    step === "storyboard-video" ||
-    step === "preview";
-  const action = showGenerateSlot
-    ? (generateAction ?? heldAction.current)
-    : null;
-  const headerTools = !showGenerateSlot
-    ? null
-    : tools
-      ? tools
-      : generateAction
-        ? null
-        : heldTools.current;
+  const flowGuide = getStepFlowGuide(step, project, { view });
 
-  const episodeChips =
-    project.episodes.length > 0 &&
-    (step === "storyboard-script" ||
-      step === "storyboard-video" ||
-      step === "preview") ? (
-      <>
-        <span className="mx-1 hidden h-4 w-px bg-border sm:inline-block" />
-        <button
-          type="button"
-          className={cn("manju-chip", !episodeId && "manju-chip--active")}
-          onClick={() =>
-            go(step, {
-              ep: null,
-              view: step === "storyboard-script" ? view : null,
-            })
-          }
-        >
-          全部
-        </button>
-        {project.episodes.map((ep, i) => (
-          <button
-            key={ep.id}
-            type="button"
-            className={cn("manju-chip", episodeId === ep.id && "manju-chip--active")}
-            onClick={() =>
-              go(step, {
-                ep: ep.id,
-                view: step === "storyboard-script" ? view : null,
-              })
-            }
-          >
-            {String(i + 1).padStart(2, "0")} {ep.title}
-          </button>
-        ))}
-      </>
-    ) : null;
+  const runFlowGuide = () => {
+    const pulseFocus = (key: string, tip: string) => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-manju-focus='${key}']`,
+      );
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.classList.add("manju-focus-pulse");
+      window.setTimeout(() => el?.classList.remove("manju-focus-pulse"), 1600);
+      toast.message(tip);
+    };
+
+    switch (flowGuide.intent) {
+      case "next":
+        void advance();
+        return;
+      case "go-script":
+        go("script");
+        return;
+      case "go-assets":
+        go("assets");
+        return;
+      case "go-prompts":
+        go("storyboard-script", { view: "prompts", ep: episodeId });
+        return;
+      case "confirm-script":
+        updateProject(projectId, { scriptConfirmed: true });
+        toast.success("脚本已确认，接下来去写提示词");
+        go("storyboard-script", { view: "prompts", ep: episodeId });
+        return;
+      case "focus-plan":
+        pulseFocus("plan", "请点高亮的「规划分镜」");
+        return;
+      case "focus-generate":
+        if (step === "storyboard-script" && view === "prompts") {
+          go("storyboard-script", { view: null, ep: episodeId });
+          window.setTimeout(
+            () => pulseFocus("generate", "请点高亮的「开始生成」"),
+            120,
+          );
+          return;
+        }
+        pulseFocus("generate", "请点高亮的「开始生成」");
+        return;
+      case "focus-prompts":
+        pulseFocus("prompts", "请点高亮的「AI 编写全部提示词」");
+        return;
+      default:
+        return;
+    }
+  };
+
+  const storyboardView =
+    step === "storyboard-script"
+      ? view === "prompts"
+        ? ("prompts" as const)
+        : ("shots" as const)
+      : undefined;
 
   return (
-    <div className="manju-workbench">
+    <div
+      className={cn(
+        "manju-workbench",
+        navCollapsed && "manju-workbench--nav-collapsed",
+      )}
+    >
       <ManjuStepNav
         project={project}
         currentId={step}
         completed={completed}
+        collapsed={navCollapsed}
+        onToggleCollapse={toggleNavCollapsed}
         onProjectTitleChange={(title) => updateProject(projectId, { title })}
         onSelect={(id) => go(id)}
         onSuggested={() => void runSuggested()}
@@ -394,110 +435,42 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
       <section className="manju-main">
         <header className="manju-main__header">
           <div className="manju-main__header-left">
-            <div className="manju-main__header-toolbar">
-              {step === "storyboard-script" ? (
-                <>
-                  <button
-                    type="button"
-                    className={cn(
-                      "manju-chip",
-                      view !== "prompts" && "manju-chip--active",
-                    )}
-                    onClick={() => go("storyboard-script", { view: null })}
-                  >
-                    分镜
-                  </button>
-                  <button
-                    type="button"
-                    className={cn(
-                      "manju-chip",
-                      view === "prompts" && "manju-chip--active",
-                    )}
-                    onClick={() => go("storyboard-script", { view: "prompts" })}
-                  >
-                    提示词
-                  </button>
-                </>
-              ) : null}
-              {toolbar}
-              {episodeChips}
-            </div>
-          </div>
-          <div className="manju-main__actions">
-            <button
-              type="button"
-              className="manju-tool-btn"
-              onClick={exportJson}
-              title="导出完整草稿 JSON（不含拼接成片）"
+            {navCollapsed ? (
+              <button
+                type="button"
+                className="manju-main__nav-toggle"
+                onClick={toggleNavCollapsed}
+                title="展开侧栏"
+                aria-label="展开侧栏"
+              >
+                <PanelLeft className="size-4" />
+              </button>
+            ) : null}
+            <div className="manju-main__header-toolbar">{toolbar}</div>
+            <span
+              className={cn(
+                "manju-main__save",
+                saving && "is-saving",
+                analyzing && "is-busy",
+              )}
             >
-              <Download className="h-3.5 w-3.5" />
-              <span className="manju-tool-btn__label">导出</span>
-            </button>
-            {headerTools ? (
-              <>
-                <button
-                  type="button"
-                  className="manju-tool-btn"
-                  disabled={headerTools.add.disabled || headerTools.add.loading}
-                  onClick={headerTools.add.onClick}
-                >
-                  {headerTools.add.loading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Plus className="h-3.5 w-3.5" />
-                  )}
-                  <span className="manju-tool-btn__label">
-                    {headerTools.add.label}
-                  </span>
-                </button>
-                {headerTools.secondary ? (
-                  <button
-                    type="button"
-                    className="manju-tool-btn manju-tool-btn--wide"
-                    disabled={
-                      headerTools.secondary.disabled ||
-                      headerTools.secondary.loading
-                    }
-                    onClick={headerTools.secondary.onClick}
-                  >
-                    {headerTools.secondary.loading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : null}
-                    <span className="manju-tool-btn__label">
-                      {headerTools.secondary.label}
-                    </span>
-                  </button>
-                ) : null}
-                {headerTools.tertiary ? (
-                  <button
-                    type="button"
-                    className="manju-tool-btn manju-tool-btn--wide"
-                    disabled={
-                      headerTools.tertiary.disabled ||
-                      headerTools.tertiary.loading
-                    }
-                    onClick={headerTools.tertiary.onClick}
-                  >
-                    {headerTools.tertiary.loading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : null}
-                    <span className="manju-tool-btn__label">
-                      {headerTools.tertiary.label}
-                    </span>
-                  </button>
-                ) : null}
-              </>
-            ) : null}
-            {action ? (
-              <ManjuGenerateCombo
-                label={action.label}
-                onPrimary={action.onPrimary}
-                onOpenSettings={action.onOpenSettings}
-                disabled={action.disabled}
-                primaryDisabled={action.primaryDisabled}
-                loading={action.loading || analyzing}
-              />
-            ) : null}
+              {analyzing ? "处理中…" : saving ? "保存中…" : "已保存"}
+            </span>
+          </div>
+
+          <div className="manju-main__actions">
+            <ManjuModelBar project={project} />
+            <div className="manju-chrome">
+              <button
+                type="button"
+                className="manju-chrome-btn manju-chrome-btn--icon"
+                onClick={exportJson}
+                title="导出完整草稿 JSON"
+                aria-label="导出"
+              >
+                <Download className="size-3.5" />
+              </button>
+            </div>
             {nextStep ? (
               <button
                 type="button"
@@ -514,12 +487,34 @@ function ManjuWorkbenchBody({ projectId }: { projectId: string }) {
           </div>
         </header>
         <div className="manju-main__body">
+          <ManjuFlowGuideBar guide={flowGuide} onCta={runFlowGuide} />
+          {step === "storyboard-script" ||
+          step === "storyboard-video" ||
+          step === "preview" ? (
+            <ManjuStoryboardViewBar
+              project={project}
+              episodeId={episodeId}
+              view={storyboardView}
+              onSelectView={
+                step === "storyboard-script"
+                  ? (next) =>
+                      go("storyboard-script", {
+                        view: next === "prompts" ? "prompts" : null,
+                        ep: episodeId,
+                      })
+                  : undefined
+              }
+              onSelectEpisode={(ep) =>
+                go(step, {
+                  ep,
+                  view: step === "storyboard-script" ? view : null,
+                })
+              }
+            />
+          ) : null}
           {step === "script" ? <ScriptStep project={project} /> : null}
           {step === "video-settings" ? (
-            <div className="flex flex-col gap-4">
-              <ManjuModelBar project={project} />
-              <VideoSettingsStep project={project} />
-            </div>
+            <VideoSettingsStep project={project} />
           ) : null}
           {step === "assets" ? (
             <AssetsStep project={project} lockedKind={assetKind} />

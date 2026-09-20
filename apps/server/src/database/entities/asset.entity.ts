@@ -38,6 +38,11 @@ export class Asset {
   @Column()
   kind!: string;
 
+  /** studio | canvas | manju | upload — null = legacy, infer at read time */
+  @Index()
+  @Column({ type: "varchar", nullable: true })
+  source!: string | null;
+
   @Column()
   url!: string;
 

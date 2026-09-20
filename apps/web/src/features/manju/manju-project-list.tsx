@@ -166,7 +166,7 @@ export function ManjuProjectList() {
         <div className="manju-list__empty">
           <Clapperboard className="h-10 w-10 opacity-40" />
           <div>
-            <p className="font-medium text-foreground">还没有漫剧项目</p>
+            <p className="text-foreground">还没有漫剧项目</p>
             <p className="mt-1 text-sm">
               创建后进入六步流水线：剧本 → 设定 → 资产 → 分镜 → 视频 → 预览
             </p>

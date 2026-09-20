@@ -20,7 +20,6 @@ import {
   buildManjuCanvasSnapshot,
   shotsForCanvasPush,
 } from "../lib/push-to-canvas";
-import { useRegisterManjuHeaderSlots } from "../manju-header-slots";
 
 export function PreviewStep({
   project,
@@ -180,27 +179,6 @@ export function PreviewStep({
     }
   };
 
-  useRegisterManjuHeaderSlots(
-    null,
-    clips.length >= 2
-      ? {
-          label: stitching ? stitchLabel || "拼接中…" : "导出成片",
-          onPrimary: () => void exportFilm(),
-          disabled: busy,
-          loading: stitching,
-        }
-      : canvasShots.length > 0
-        ? {
-            label: "推送到画布",
-            onPrimary: () => void pushToCanvas(),
-            disabled: busy,
-            loading: pushing,
-          }
-        : null,
-    null,
-    `${clips.length}:${canvasShots.length}:${stitching}:${pushing}:${stitchLabel}`,
-  );
-
   if (clips.length === 0) {
     return (
       <div className="manju-card max-w-2xl space-y-4">
@@ -254,7 +232,7 @@ export function PreviewStep({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
               <div className="text-sm">
-                <span className="font-semibold">{project.title}</span>
+                <span>{project.title}</span>
                 <span className="ml-2 text-muted-foreground">
                   {String(current?.index ?? 0).padStart(2, "0")} /{" "}
                   {String(clips.length).padStart(2, "0")}
@@ -355,7 +333,7 @@ export function PreviewStep({
                   )}
                 </span>
                 <span className="min-w-0 text-left">
-                  <span className="block text-xs font-semibold">
+                  <span className="block text-xs">
                     {String(shot.index).padStart(2, "0")}
                     {shot.videoStale ? " · 需重做" : ""}
                   </span>

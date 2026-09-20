@@ -34,6 +34,7 @@ function displayName(asset: LibraryAsset): string {
 type Props = {
   kind: ManjuAssetDraft["kind"];
   disabled?: boolean;
+  className?: string;
   onPick: (picked: {
     assetId: string;
     imageUrl: string;
@@ -42,7 +43,7 @@ type Props = {
 };
 
 /** 从全局素材库引用图片进漫剧资产（不重新上传） */
-export function ManjuLibraryImport({ kind, disabled, onPick }: Props) {
+export function ManjuLibraryImport({ kind, disabled, className, onPick }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<LibraryAsset[]>([]);
@@ -93,6 +94,7 @@ export function ManjuLibraryImport({ kind, disabled, onPick }: Props) {
         type="button"
         variant="outline"
         size="sm"
+        className={cn("manju-asset-card__action", className)}
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
@@ -100,7 +102,7 @@ export function ManjuLibraryImport({ kind, disabled, onPick }: Props) {
         素材库
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="manju-dialog max-w-2xl gap-4 border-border bg-card p-5 shadow-none sm:rounded-xl">
           <DialogHeader>
             <DialogTitle>
               从素材库导入

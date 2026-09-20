@@ -97,6 +97,9 @@ export const SERIES_MEMORY_SYSTEM = `你是连载记忆编辑。只根据原文�
 - hooks 只列尚未兑现的伏笔；用户消息里标记为已回收的，不要再输出
 - 没有新内容就返回空数组和空字符串，不要凑数`;
 
+/** script_write：对话写剧本 / 润色，不自动改项目（见 skills/script-write/） */
+export { SCRIPT_WRITE_SYSTEM } from "./skills/script-write/system";
+
 /**
  * Canvas text jobs — same role as infinite-canvas `systemPrompts.text`.
  * Prepended as the system message; the node text stays the user prompt.

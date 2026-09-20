@@ -19,6 +19,9 @@ export type ManjuHeaderGenerateAction = {
   disabled?: boolean;
   primaryDisabled?: boolean;
   loading?: boolean;
+  /** 流程引导高亮：开始生成 */
+  emphasis?: boolean;
+  title?: string;
 };
 
 export type ManjuHeaderToolButton = {
@@ -26,6 +29,10 @@ export type ManjuHeaderToolButton = {
   onClick: () => void;
   disabled?: boolean;
   loading?: boolean;
+  /** 流程引导：plan / confirm 等，对应 data-manju-focus */
+  focus?: string;
+  emphasis?: boolean;
+  title?: string;
 };
 
 export type ManjuHeaderTools = {
