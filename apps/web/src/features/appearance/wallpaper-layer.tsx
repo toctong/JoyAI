@@ -26,7 +26,6 @@ export function WallpaperLayer({ disabled = false }: WallpaperLayerProps) {
     }
   }, [paused, wallpaper?.id, wallpaper?.src]);
 
-  // Pause when tab hidden (power saving)
   useEffect(() => {
     const onVis = () => {
       const el = videoRef.current;
@@ -40,7 +39,7 @@ export function WallpaperLayer({ disabled = false }: WallpaperLayerProps) {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [wallpaper?.kind]);
 
-  if (disabled || !wallpaper) return null;
+  if (disabled || !wallpaper || wallpaper.kind === "stage") return null;
 
   return (
     <div className="joy-wallpaper" aria-hidden>
@@ -68,7 +67,6 @@ export function WallpaperLayer({ disabled = false }: WallpaperLayerProps) {
           draggable={false}
         />
       )}
-      <div className="joy-wallpaper-scrim" />
     </div>
   );
 }

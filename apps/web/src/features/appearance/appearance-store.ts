@@ -6,6 +6,7 @@ import { useMemo, useState, useEffect } from "react";
 import { BUILTIN_WALLPAPERS } from "./builtin-wallpapers";
 import {
   APPEARANCE_STORAGE_KEY,
+  DEFAULT_WALLPAPER_ID,
   type WallpaperItem,
 } from "./types";
 
@@ -71,7 +72,11 @@ export function useActiveWallpaper(): WallpaperItem | null {
   const id = useAppearanceStore((s) => s.wallpaperId);
 
   return useMemo(() => {
-    if (!id) return null;
-    return BUILTIN_WALLPAPERS.find((w) => w.id === id) ?? null;
+    const resolved = id ?? DEFAULT_WALLPAPER_ID;
+    return (
+      BUILTIN_WALLPAPERS.find((w) => w.id === resolved) ??
+      BUILTIN_WALLPAPERS.find((w) => w.id === DEFAULT_WALLPAPER_ID) ??
+      null
+    );
   }, [id]);
 }

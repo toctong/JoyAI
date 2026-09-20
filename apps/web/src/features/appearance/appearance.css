@@ -35,6 +35,13 @@
   background: rgb(0 0 0 / var(--joy-scrim));
 }
 
+.joy-appearance-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
 /* Wallpaper only on inspire: transparent shell + glass rail */
 html.joy-appearance-active,
 html.joy-appearance-active body {

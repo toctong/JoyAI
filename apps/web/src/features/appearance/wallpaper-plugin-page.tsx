@@ -1,24 +1,35 @@
 "use client";
 
-import { Pause, Play, X } from "lucide-react";
+import { Pause, Play, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/shared/lib/utils";
 import { BUILTIN_WALLPAPERS } from "./builtin-wallpapers";
 import {
   useActiveWallpaper,
   useAppearanceStore,
 } from "./appearance-store";
+import { DEFAULT_WALLPAPER_ID, type WallpaperItem } from "./types";
 import "./appearance.css";
 
-/** Wallpaper plugin module UI — used under /admin/plugins/wallpaper. */
+const GROUPS: { title: string; ids: string[] }[] = [
+  {
+    title: "舞台",
+    ids: ["inspire-stage"],
+  },
+  {
+    title: "其他",
+    ids: ["joy-theme-1", "joy-theme-2", "joy-theme-3", "joy-theme-4"],
+  },
+];
+
+/** Theme picker for the inspire page — /admin/plugins/wallpaper. */
 export function WallpaperPluginPage() {
   const active = useActiveWallpaper();
   const wallpaperId = useAppearanceStore((s) => s.wallpaperId);
   const paused = useAppearanceStore((s) => s.paused);
   const selectWallpaper = useAppearanceStore((s) => s.selectWallpaper);
-  const clearWallpaper = useAppearanceStore((s) => s.clearWallpaper);
   const setPaused = useAppearanceStore((s) => s.setPaused);
+  const selectedId = wallpaperId ?? DEFAULT_WALLPAPER_ID;
 
   return (
     <div className="joy-appearance-panel">
@@ -46,44 +57,61 @@ export function WallpaperPluginPage() {
           type="button"
           variant="outline"
           size="sm"
-          disabled={!wallpaperId}
-          onClick={() => clearWallpaper()}
+          disabled={selectedId === DEFAULT_WALLPAPER_ID}
+          onClick={() => selectWallpaper(DEFAULT_WALLPAPER_ID)}
         >
-          <X className="h-3.5 w-3.5" />
-          关闭壁纸
+          <RotateCcw className="h-3.5 w-3.5" />
+          恢复舞台
         </Button>
       </div>
 
-      <Separator />
+      <p className="joy-appearance-note">
+        选中后铺满灵感页。默认是三幕正放 / 倒放切换。
+      </p>
 
-      <div>
-        <div className="joy-appearance-section-title mb-2">内置主题</div>
-        <div className="joy-appearance-grid">
-          {BUILTIN_WALLPAPERS.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              className={cn(
-                "joy-appearance-thumb",
-                wallpaperId === w.id && "is-active",
-              )}
-              onClick={() => selectWallpaper(w.id)}
-              title={w.title}
-            >
-              {w.preview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={w.preview} alt="" loading="lazy" />
-              ) : (
-                <video src={w.src} muted playsInline preload="metadata" />
-              )}
-              {w.kind === "video" ? (
-                <span className="joy-appearance-thumb-live">LIVE</span>
-              ) : null}
-              <span className="joy-appearance-thumb-label">{w.title}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {GROUPS.map((group) => {
+        const items = group.ids
+          .map((id) => BUILTIN_WALLPAPERS.find((w) => w.id === id))
+          .filter((w): w is WallpaperItem => Boolean(w));
+        if (items.length === 0) return null;
+        return (
+          <div key={group.title}>
+            <div className="joy-appearance-section-title mb-2">{group.title}</div>
+            <div className="joy-appearance-grid">
+              {items.map((w) => (
+                <button
+                  key={w.id}
+                  type="button"
+                  className={cn(
+                    "joy-appearance-thumb",
+                    selectedId === w.id && "is-active",
+                  )}
+                  onClick={() => selectWallpaper(w.id)}
+                  title={w.blurb ?? w.title}
+                >
+                  <ThemePreview item={w} />
+                  <span className="joy-appearance-thumb-live">
+                    {w.kind === "stage"
+                      ? "STAGE"
+                      : w.kind === "video"
+                        ? "LIVE"
+                        : "STILL"}
+                  </span>
+                  <span className="joy-appearance-thumb-label">{w.title}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+function ThemePreview({ item }: { item: WallpaperItem }) {
+  if (item.preview) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={item.preview} alt="" loading="lazy" />;
+  }
+  return <video src={item.src} muted playsInline preload="metadata" />;
 }

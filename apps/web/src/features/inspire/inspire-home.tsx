@@ -10,12 +10,12 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUpRight, Sparkles } from "lucide-react";
+import { useActiveWallpaper } from "@/features/appearance";
 import { InspireScrubVideo } from "./inspire-scrub-video";
 import { InspireDepthCanvas } from "./inspire-depth-canvas";
 import {
   buildTransition,
   clampScene,
-  INSPIRE_MEDIA,
   INSPIRE_SCENE_COUNT,
   lineDelay,
   smoothstep,
@@ -61,6 +61,8 @@ function makeGate(ms = 280) {
 
 export function InspireHome() {
   const router = useRouter();
+  const theme = useActiveWallpaper();
+  const stageMedia = theme?.kind === "stage" ? (theme.stage ?? null) : null;
   const rootRef = useRef<HTMLElement>(null);
   const sceneRef = useRef(0);
   const transitionRef = useRef<InspireTransition | null>(null);
@@ -119,7 +121,7 @@ export function InspireHome() {
       if (next === sceneRef.current) return;
 
       const t = buildTransition(sceneRef.current, next);
-      if (t && !reducedMotion) {
+      if (t && stageMedia && !reducedMotion) {
         transitionRef.current = t;
         setProgress(0);
         setTransition(t);
@@ -129,7 +131,7 @@ export function InspireHome() {
         cooldownUntil.current = performance.now() + 180;
       }
     },
-    [reducedMotion],
+    [reducedMotion, stageMedia],
   );
 
   useEffect(() => {
@@ -256,8 +258,9 @@ export function InspireHome() {
       aria-busy={!!transition}
       style={stageStyle}
     >
+      {stageMedia ? (
       <div className="joy-inspire-stage" aria-hidden>
-        {INSPIRE_MEDIA.heroes.map((src, i) => (
+        {stageMedia.heroes.map((src, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={src}
@@ -299,6 +302,7 @@ export function InspireHome() {
           )),
         )}
       </div>
+      ) : null}
 
       <button
         type="button"
@@ -309,7 +313,7 @@ export function InspireHome() {
         onClick={() => advance(1)}
       />
 
-      {!reducedMotion && !coarsePointer ? (
+      {!reducedMotion && !coarsePointer && stageMedia ? (
         <button
           type="button"
           className="joy-inspire-trail-toggle"
