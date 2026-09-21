@@ -9,6 +9,7 @@ import type { AssetSource } from "@joyai/shared";
 import { api } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { cn } from "@/shared/lib/utils";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import {
   Select,
   SelectContent,
@@ -143,8 +144,11 @@ function AssetCard({
             <span className="joy-assets-file-name">{assetName(asset)}</span>
           </span>
         ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={asset.url} alt="" loading="lazy" />
+          <JoyAssetThumb
+            url={asset.url}
+            size="md"
+            className="size-full object-cover"
+          />
         )}
       </button>
       <LocateLink asset={asset} />
@@ -164,6 +168,7 @@ const SOURCE_OPTIONS: { id: SourceFilter; label: string }[] = [
   { id: "studio", label: "创作" },
   { id: "canvas", label: "画布" },
   { id: "manju", label: "漫剧" },
+  { id: "tools", label: "AI 工具" },
   { id: "upload", label: "上传" },
 ];
 
@@ -194,6 +199,30 @@ function emptyCopy(tab: Tab, source: SourceFilter) {
       hint: "上传的参考素材会出现在这里",
     };
   }
+  if (source === "studio") {
+    return {
+      title: `暂无创作${noun}`,
+      hint: "在创作页生成的内容会出现在这里",
+    };
+  }
+  if (source === "canvas") {
+    return {
+      title: `暂无画布${noun}`,
+      hint: "在画布生成或保存的内容会出现在这里",
+    };
+  }
+  if (source === "manju") {
+    return {
+      title: `暂无漫剧${noun}`,
+      hint: "漫剧流程生成的内容会出现在这里",
+    };
+  }
+  if (source === "tools") {
+    return {
+      title: `暂无 AI 工具${noun}`,
+      hint: "在工具页生成的内容会出现在这里",
+    };
+  }
   if (tab === "audio") {
     return {
       title: "暂无音频",
@@ -208,7 +237,7 @@ function emptyCopy(tab: Tab, source: SourceFilter) {
   }
   return {
     title: `暂无${noun}`,
-    hint: "去创作、画布或漫剧生成第一条内容吧",
+    hint: "去创作、画布、漫剧或 AI 工具生成第一条内容吧",
   };
 }
 

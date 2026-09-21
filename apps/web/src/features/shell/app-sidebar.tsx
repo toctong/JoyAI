@@ -49,11 +49,6 @@ const nav: NavItem[] = [
     icon: JOYAI_BRAND.nav.studio,
   },
   {
-    href: "/tools",
-    label: "工具",
-    Lucide: Wrench,
-  },
-  {
     href: "/canvas",
     label: "画布",
     icon: JOYAI_BRAND.nav.canvas,
@@ -69,6 +64,11 @@ const nav: NavItem[] = [
     href: "/assets",
     label: "资产",
     icon: JOYAI_BRAND.nav.assets,
+  },
+  {
+    href: "/tools",
+    label: "工具",
+    Lucide: Wrench,
   },
 ];
 

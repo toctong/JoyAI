@@ -24,6 +24,63 @@ type JobListRow = Omit<Job, "assignId"> & {
   user?: Pick<User, "id" | "username">;
 };
 
+function inputId(
+  input: Record<string, unknown> | null | undefined,
+  key: string,
+) {
+  const value = input?.[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** 创作 / 画布 / 漫剧 / AI 工具各查各的。未传 scope 时不按产品裁剪。 */
+function matchesJobScope(
+  job: {
+    kind: string;
+    canvasProjectId?: string | null;
+    input?: Record<string, unknown> | null;
+  },
+  scope: string | undefined,
+  ids: {
+    canvasProjectId?: string;
+    manjuProjectId?: string;
+    toolSlug?: string;
+  },
+) {
+  const input = job.input ?? null;
+  const canvasId = job.canvasProjectId || inputId(input, "canvasProjectId");
+  const manjuId = inputId(input, "manjuProjectId");
+  const slug = inputId(input, "toolSlug");
+  const origin = canvasId
+    ? "canvas"
+    : manjuId
+      ? "manju"
+      : slug
+        ? "tools"
+        : null;
+
+  if (!scope) return true;
+  if (scope === "studio") {
+    if (origin) return false;
+    return job.kind === JobKind.image || job.kind === JobKind.video;
+  }
+  if (scope === "canvas") {
+    if (origin !== "canvas") return false;
+    if (ids.canvasProjectId && canvasId !== ids.canvasProjectId) return false;
+    return true;
+  }
+  if (scope === "manju") {
+    if (origin !== "manju") return false;
+    if (ids.manjuProjectId && manjuId !== ids.manjuProjectId) return false;
+    return true;
+  }
+  if (scope === "tools") {
+    if (origin !== "tools") return false;
+    if (ids.toolSlug && slug !== ids.toolSlug) return false;
+    return job.kind === JobKind.image || job.kind === JobKind.video;
+  }
+  return false;
+}
+
 @Injectable()
 export class JobsService {
   constructor(
@@ -154,35 +211,37 @@ export class JobsService {
       take?: number;
       before?: string;
       beforeId?: string;
-      /** studio = 创作台，排除画布 / 漫剧任务 */
+      /** studio | canvas | manju | tools — 各查各的，不传则不按产品过滤（仅资产页走 /assets） */
       scope?: string;
+      canvasProjectId?: string;
+      manjuProjectId?: string;
+      toolSlug?: string;
     } = {},
   ) {
     const take = Math.min(Math.max(Number(opts.take) || 30, 1), 100);
-    const studioOnly = opts.scope === "studio";
+    const scope = opts.scope?.trim();
+    const canvasProjectId = opts.canvasProjectId?.trim();
+    const manjuProjectId = opts.manjuProjectId?.trim();
+    const toolSlug = opts.toolSlug?.trim();
 
     const rows = await this.jobs.find({
-      where: studioOnly
-        ? { userId, canvasProjectId: IsNull() }
-        : { userId },
+      where:
+        scope === "studio" || scope === "manju" || scope === "tools"
+          ? { userId, canvasProjectId: IsNull() }
+          : scope === "canvas" && canvasProjectId
+            ? { userId, canvasProjectId }
+            : { userId },
       order: { createdAt: "DESC" },
       relations: ["assets"],
     });
     const enriched = await this.enrichMany(rows);
 
     const timed = enriched
-      .filter((job) => {
-        if (!studioOnly) return true;
-        if (job.canvasProjectId) return false;
-        const input = job.input as {
-          canvasProjectId?: string;
-          manjuProjectId?: string;
-        } | null;
-        if (input?.canvasProjectId) return false;
-        if (input?.manjuProjectId) return false;
-        // 创作台只展示图/视频生成，不混 LLM/音频
-        return job.kind === JobKind.image || job.kind === JobKind.video;
-      })
+      .filter((job) => matchesJobScope(job, scope, {
+        canvasProjectId,
+        manjuProjectId,
+        toolSlug,
+      }))
       .map((job) => {
         const ms = Date.parse(String(job.finishedAt ?? job.createdAt));
         return {

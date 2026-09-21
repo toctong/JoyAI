@@ -29,6 +29,7 @@ import {
 } from "@/features/studio/generating-thumb";
 import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
 import { useDisplayMediaUrl } from "@/shared/ui/joy-remote-img";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import {
   splitPromptForDisplay,
   type PromptDisplayPart,
@@ -75,7 +76,11 @@ type Job = {
   channelName?: string | null;
   platform?: string | null;
   canvasProjectId?: string | null;
-  input?: JobInput & { canvasProjectId?: string; manjuProjectId?: string };
+  input?: JobInput & {
+    canvasProjectId?: string;
+    manjuProjectId?: string;
+    toolSlug?: string;
+  };
   assets?: Asset[];
   error?: string | null;
 };
@@ -84,6 +89,7 @@ function isStudioFeedJob(job: Job) {
   if (job.canvasProjectId) return false;
   if (job.input?.canvasProjectId) return false;
   if (job.input?.manjuProjectId) return false;
+  if (job.input?.toolSlug) return false;
   return job.kind === "image" || job.kind === "video";
 }
 
@@ -565,32 +571,46 @@ function StudioImageThumb({
   src: string;
   aspectRatio: string;
 }) {
-  const { url, loading } = useDisplayMediaUrl(src);
+  const { url: fullUrl, loading: fullLoading } = useDisplayMediaUrl(src);
+  const previewSrc = fullUrl || src;
+  // Prefer TOS thumb for the grid tile; fall back to original inside JoyAssetThumb.
 
   return (
     <div
       className="joy-studio-thumb-frame"
       style={{ aspectRatio }}
     >
-      {loading || !url ? (
+      {fullLoading && needsProxyPlaceholder(src) ? (
         <span
           aria-busy
           className="block size-full animate-pulse rounded-[inherit] bg-muted/40"
         />
       ) : (
-        <PhotoView src={url}>
+        <PhotoView src={previewSrc}>
           <button
             type="button"
             className="joy-studio-thumb-preview"
             aria-label="预览图片"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt="" />
+            <JoyAssetThumb
+              url={previewSrc}
+              size="md"
+              className="size-full object-cover"
+            />
           </button>
         </PhotoView>
       )}
     </div>
   );
+}
+
+function needsProxyPlaceholder(src: string) {
+  // Only show pulse while proxying flaky CDNs; TOS thumbs load directly.
+  try {
+    return /toapis\.cn/i.test(new URL(src).hostname);
+  } catch {
+    return false;
+  }
 }
 
 /** Video frame that can adopt intrinsic aspect for adaptive/auto jobs. */

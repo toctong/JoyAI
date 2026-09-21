@@ -91,15 +91,15 @@
   text-decoration: none;
   color: inherit;
   transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.15s ease;
+    border-color var(--joy-duration-normal) var(--joy-ease-out),
+    box-shadow var(--joy-duration-normal) var(--joy-ease-out),
+    transform var(--joy-duration-normal) var(--joy-ease-out);
 }
 
 .joy-ai-tool-card:hover {
   border-color: color-mix(in oklab, var(--ring) 35%, var(--border));
-  box-shadow: 0 12px 36px -28px rgb(0 0 0 / 0.35);
-  transform: translateY(-1px);
+  box-shadow: 0 14px 40px -26px rgb(0 0 0 / 0.4);
+  transform: translateY(-2px);
 }
 
 .joy-ai-tool-card.is-disabled {
@@ -161,12 +161,15 @@
   flex-shrink: 0;
   width: 118px;
   height: 88px;
+  overflow: visible;
+  perspective: 520px;
 }
 
 .joy-ai-tool-stack {
   position: relative;
   width: 100%;
   height: 100%;
+  transform-style: preserve-3d;
 }
 
 .joy-ai-tool-stack-layer,
@@ -177,6 +180,12 @@
   border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
   background: color-mix(in oklab, var(--tool-accent) 22%, var(--card));
   box-shadow: 0 8px 18px -14px rgb(0 0 0 / 0.45);
+  transform-origin: 70% 80%;
+  transition:
+    transform var(--joy-duration-normal) var(--joy-ease-out),
+    opacity var(--joy-duration-normal) var(--joy-ease-out),
+    box-shadow var(--joy-duration-normal) var(--joy-ease-out),
+    filter var(--joy-duration-normal) var(--joy-ease-out);
 }
 
 img.joy-ai-tool-stack-layer {
@@ -188,15 +197,17 @@ img.joy-ai-tool-stack-layer {
 }
 
 .joy-ai-tool-stack-layer.is-back {
-  transform: translate(14px, 4px) scale(0.92);
+  transform: translate(14px, 4px) scale(0.92) rotate(0deg);
   opacity: 0.45;
   z-index: 0;
+  filter: saturate(0.85) brightness(0.96);
 }
 
 .joy-ai-tool-stack-layer.is-mid {
-  transform: translate(8px, 2px) scale(0.96);
+  transform: translate(8px, 2px) scale(0.96) rotate(0deg);
   opacity: 0.7;
   z-index: 1;
+  filter: saturate(0.92);
 }
 
 .joy-ai-tool-stack-face {
@@ -240,6 +251,62 @@ img.joy-ai-tool-stack-layer {
 
 .joy-ai-tool-stack-face.is-photo {
   display: block;
+}
+
+.joy-ai-tool-stack.is-photo .joy-ai-tool-stack-face img {
+  transition:
+    transform var(--joy-duration-normal) var(--joy-ease-out),
+    filter var(--joy-duration-normal) var(--joy-ease-out);
+}
+
+/* Hover: fan the cover stack + lift face */
+.joy-ai-tool-card:hover .joy-ai-tool-stack-layer.is-back {
+  transform: translate(22px, -2px) scale(0.9) rotate(10deg);
+  opacity: 0.62;
+  box-shadow: 0 12px 22px -12px rgb(0 0 0 / 0.4);
+  filter: saturate(1) brightness(1);
+}
+
+.joy-ai-tool-card:hover .joy-ai-tool-stack-layer.is-mid {
+  transform: translate(10px, -6px) scale(0.97) rotate(3deg);
+  opacity: 0.88;
+  box-shadow: 0 14px 24px -12px rgb(0 0 0 / 0.42);
+  filter: saturate(1.05);
+}
+
+.joy-ai-tool-card:hover .joy-ai-tool-stack-face {
+  transform: translate(-4px, -10px) scale(1.06) rotate(-6deg);
+  box-shadow:
+    0 16px 28px -12px rgb(0 0 0 / 0.45),
+    0 0 0 1px color-mix(in oklab, var(--tool-accent) 28%, transparent);
+}
+
+.joy-ai-tool-card:hover .joy-ai-tool-stack.is-photo .joy-ai-tool-stack-face img {
+  transform: scale(1.06);
+  filter: saturate(1.08) contrast(1.03);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joy-ai-tool-card,
+  .joy-ai-tool-stack-layer,
+  .joy-ai-tool-stack-face,
+  .joy-ai-tool-stack.is-photo .joy-ai-tool-stack-face img {
+    transition: none;
+  }
+
+  .joy-ai-tool-card:hover {
+    transform: none;
+  }
+
+  .joy-ai-tool-card:hover .joy-ai-tool-stack-layer.is-back,
+  .joy-ai-tool-card:hover .joy-ai-tool-stack-layer.is-mid,
+  .joy-ai-tool-card:hover .joy-ai-tool-stack-face {
+    transform: none;
+  }
+
+  .joy-ai-tool-card:hover .joy-ai-tool-stack.is-photo .joy-ai-tool-stack-face img {
+    transform: none;
+  }
 }
 
 /* —— tool detail (ai-video tool-page structure) —— */
@@ -319,6 +386,47 @@ img.joy-ai-tool-stack-layer {
   font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
+}
+
+.joy-tool-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.joy-tool-example {
+  max-width: 100%;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-micro);
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.joy-tool-example:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.joy-tool-example.is-on {
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.joy-tool-example:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .joy-tool-model-trigger {

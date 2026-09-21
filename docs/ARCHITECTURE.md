@@ -6,8 +6,10 @@
 apps/web       Next.js 创作者端 + 运维 UI（/admin，role 门禁）
 apps/server    NestJS + Fastify API（TypeORM → SQLite sql.db）
 packages/shared        共享类型 / zod / 画板契约
-packages/ai-providers  Provider 适配器（首期 volcengine）
+packages/ai-providers  Provider 适配器（OpenAI-compatible / DashScope / Volcengine）
 ```
+
+创作者端视觉尺度在 `apps/web/src/shared/theme/design-tokens.css`（`--joy-*`），由 `globals.css` 引入。改字号、控件高度、画布工具图标时改 token，不在功能 CSS 里另起一套像素。
 
 数据：SQLite 文件 `apps/server/data/sql.db`（`DATABASE_PATH=./data/sql.db`，TypeORM sql.js + synchronize）。Redis 仍用于 BullMQ。
 
@@ -20,7 +22,7 @@ packages/ai-providers  Provider 适配器（首期 volcengine）
 
 ## Provider
 
-业务模块只依赖 `packages/ai-providers` 接口，禁止在 jobs 里写死火山 URL。
+业务模块只依赖 `packages/ai-providers` 接口，禁止在 jobs / 功能代码里写死厂商 URL。图像、视频、音频、AI 工具都走 `POST /api/jobs`。
 
 ## 画板
 
@@ -34,6 +36,18 @@ packages/ai-providers  Provider 适配器（首期 volcengine）
 
 独立项目，当前不和画布互写。阶段、技能与配置见 [MANJU.md](./MANJU.md)。
 
+## AI 工具
+
+`/tools` 目录来自 `tool-catalog.ts`，一工具一页，不单独开路由模块。图生图填参考图；品牌 / 海报类可以零参考图，但品牌说明必填（`noteRequired` + `brand-brief`）。提交任务时写入 `input.toolSlug`，历史用 `scope=tools&toolSlug=` 查询。
+
+## 任务 / 资产隔离
+
+- `GET /jobs?scope=studio`：仅创作台（排除画布 / 漫剧 / 工具）
+- `GET /jobs?scope=canvas&canvasProjectId=`：仅该画布项目
+- `GET /jobs?scope=manju&manjuProjectId=`：仅该漫剧项目
+- `GET /jobs?scope=tools&toolSlug=`：仅该 AI 工具
+- `GET /assets`：可查全部，或按 `source=studio|canvas|manju|tools|upload` 分类；列表项带 `thumbUrl`（TOS `x-tos-process` 缩略图），详情 / 下载仍用原图 `url`
+
 ## 核心 TypeORM 实体
 
-User · Channel · Model · Job · Asset · CanvasProject · CanvasFolder · AppSetting · AuditLog
+User · Channel · Model · Job · Asset · CanvasProject · CanvasFolder · ProjectChat · ManjuProject · ManjuFolder · AppSetting · AuditLog

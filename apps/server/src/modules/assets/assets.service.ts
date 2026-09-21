@@ -10,6 +10,7 @@ import { StorageService } from "../storage/storage.service";
 import { fetchPublicImage } from "../storage/fetch-public-image";
 import { sanitizeOriginalName } from "../storage/original-name";
 import { sourceFromAsset } from "./asset-source";
+import { tosThumbUrl } from "@joyai/shared";
 
 export type AssetListQuery = {
   take?: number;
@@ -321,6 +322,8 @@ export class AssetsService {
     return {
       ...asset,
       source,
+      thumbUrl:
+        asset.kind === "image" ? tosThumbUrl(asset.url, "md") || null : null,
       job,
     };
   }

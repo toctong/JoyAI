@@ -32,12 +32,18 @@ export class JobsController {
     @Query("before") before?: string,
     @Query("beforeId") beforeId?: string,
     @Query("scope") scope?: string,
+    @Query("canvasProjectId") canvasProjectId?: string,
+    @Query("manjuProjectId") manjuProjectId?: string,
+    @Query("toolSlug") toolSlug?: string,
   ) {
     return this.jobs.list(user.id, {
       take: take ? Number(take) : 30,
       before,
       beforeId,
       scope,
+      canvasProjectId,
+      manjuProjectId,
+      toolSlug,
     });
   }
 

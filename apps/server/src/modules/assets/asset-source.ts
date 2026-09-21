@@ -12,10 +12,13 @@ export function sourceFromJob(job: JobLike): AssetSource {
     (typeof input.canvasProjectId === "string" ? input.canvasProjectId : null);
   const manjuProjectId =
     typeof input.manjuProjectId === "string" ? input.manjuProjectId : null;
+  const toolSlug =
+    typeof input.toolSlug === "string" ? input.toolSlug : null;
   return resolveAssetSource({
     jobId: "job",
     canvasProjectId,
     manjuProjectId,
+    toolSlug,
   });
 }
 
@@ -38,5 +41,6 @@ export function sourceFromAsset(asset: {
         : null),
     manjuProjectId:
       typeof input.manjuProjectId === "string" ? input.manjuProjectId : null,
+    toolSlug: typeof input.toolSlug === "string" ? input.toolSlug : null,
   });
 }

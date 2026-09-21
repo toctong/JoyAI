@@ -13,6 +13,7 @@ import {
 import { api } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import type { ManjuAssetDraft } from "./manju-types";
 
 type LibraryAsset = {
@@ -136,10 +137,9 @@ export function ManjuLibraryImport({ kind, disabled, className, onPick }: Props)
                   )}
                   onClick={() => setSelected(asset.id)}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={asset.url}
-                    alt=""
+                  <JoyAssetThumb
+                    url={asset.url}
+                    size="sm"
                     className="aspect-square w-full object-cover"
                   />
                   <span className="block truncate px-1.5 py-1 text-[10px] text-muted-foreground">

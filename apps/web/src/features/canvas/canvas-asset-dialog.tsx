@@ -10,6 +10,7 @@ import {
 } from "./icons/canvas-icons";
 import { api } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 
 type AssetRow = {
   id: string;
@@ -265,10 +266,9 @@ export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
                         音频
                       </span>
                     ) : (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={asset.url}
-                        alt=""
+                      <JoyAssetThumb
+                        url={asset.url}
+                        size="sm"
                         className="size-full object-cover"
                         draggable={false}
                       />

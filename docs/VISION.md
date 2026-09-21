@@ -9,16 +9,17 @@ JoyAI 是 AIGC 创意工坊：创作者用对话式首页生成图片/视频，�
 无限画板的**正式参考源、竞品差距与 Phase 6 规格**见 [CANVAS.md](./CANVAS.md)。  
 `ai-comic-drama` **不是**画板交互/实现标杆（初版乱、缺小地图与节点小工具等）。
 
-## 首期范围
+## 当前产品面
 
-- 登录 / JWT
-- 首页生图、生视频（异步任务）
-- 资产与历史
-- 无限画板 MVP（image / text / prompt / video 节点）
-- 火山 Ark + TOS
+- 登录 / JWT；灵感、探索、创作、画布、漫剧、资产、工具（侧栏顺序固定，工具在资产下面）
+- 异步生图 / 生视频 / 语音（`POST /jobs` + BullMQ）
+- AI 工具箱：目录配置驱动，不按工具复制页面
+- 无限画板（图像 / 文本 / 提示词 / 视频 / 音频 / 全景 / 导演台截图落资产）
+- 渠道适配：OpenAI-compatible、DashScope、火山 Ark + TOS
 - 运维 UI（`apps/web` `/admin`：渠道、模型、用户、任务；role gate）
+- 视觉：`design-tokens.css` 的 `--joy-*` 为尺度来源；壳层用 `bg-card`，避免和 `bg-background` 接出一条色差
 
-## 明确不做（首期）
+## 明确不做
 
 小说分镜长链路、Hub 同步、Comfy 导入、制作大片流水线、完整 RBAC 菜单树、计费会员。
 

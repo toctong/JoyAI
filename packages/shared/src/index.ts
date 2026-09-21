@@ -103,6 +103,8 @@ export const ImageJobInputSchema = z.object({
   canvasNodeId: z.string().optional(),
   /** 漫剧项目：创作台 scope=studio 会排除 */
   manjuProjectId: z.string().optional(),
+  /** AI 工具 slug：scope=tools 只看该工具，创作台排除 */
+  toolSlug: z.string().max(64).optional(),
   /** Future provider ops; currently treated as generate + reference. */
   operation: ImageEditOperationSchema.optional().default("generate"),
 });
@@ -121,6 +123,7 @@ export const VideoJobInputSchema = z.object({
   canvasProjectId: z.string().optional(),
   canvasNodeId: z.string().optional(),
   manjuProjectId: z.string().optional(),
+  toolSlug: z.string().max(64).optional(),
 });
 export type VideoJobInput = z.infer<typeof VideoJobInputSchema>;
 
@@ -138,11 +141,12 @@ export const AudioJobInputSchema = z.object({
 });
 export type AudioJobInput = z.infer<typeof AudioJobInputSchema>;
 
-/** 用户资产库来源：创作 / 画布 / 漫剧 / 上传 */
+/** 用户资产库来源。创作 / 画布 / 漫剧 / AI 工具各自查询；资产页可查全部或按来源分类。 */
 export const AssetSourceSchema = z.enum([
   "studio",
   "canvas",
   "manju",
+  "tools",
   "upload",
 ]);
 export type AssetSource = z.infer<typeof AssetSourceSchema>;
@@ -152,11 +156,13 @@ export function resolveAssetSource(input: {
   jobId?: string | null;
   canvasProjectId?: string | null;
   manjuProjectId?: string | null;
+  toolSlug?: string | null;
 }): AssetSource {
   if (
     input.source === "studio" ||
     input.source === "canvas" ||
     input.source === "manju" ||
+    input.source === "tools" ||
     input.source === "upload"
   ) {
     return input.source;
@@ -164,6 +170,7 @@ export function resolveAssetSource(input: {
   if (!input.jobId) return "upload";
   if (input.canvasProjectId) return "canvas";
   if (input.manjuProjectId) return "manju";
+  if (input.toolSlug) return "tools";
   return "studio";
 }
 
@@ -436,3 +443,4 @@ export * from "./model-catalog";
 export * from "./pricing-format";
 export * from "./manju/script-write-genres";
 export * from "./project-chat";
+export * from "./media-url";

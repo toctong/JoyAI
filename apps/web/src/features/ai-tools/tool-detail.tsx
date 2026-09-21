@@ -23,8 +23,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { cn } from "@/shared/lib/utils";
-import type { AiToolDef } from "./tool-catalog";
+import { getToolExamples, type AiToolDef } from "./tool-catalog";
 import { useAiToolJob } from "./use-ai-tool-job";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import "@/features/studio/creation-composer.css";
 import "./ai-tools.css";
 
@@ -67,7 +68,9 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
   const canGenerate =
     !locked &&
     refs.length >= tool.refsRequired &&
+    (!tool.noteRequired || Boolean(note.trim())) &&
     (modelId || models.length === 0);
+  const examples = getToolExamples(tool);
   const modelLabel =
     selectedModel?.name ?? (models.length ? "选择模型" : "暂无模型");
   const modelIcon = selectedModel
@@ -126,11 +129,20 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
               </div>
 
               <p className="joy-tool-page-hint">
-                需要 {tool.refsRequired}
-                {tool.refsMax > tool.refsRequired
-                  ? `–${tool.refsMax}`
-                  : ""}{" "}
-                张参考图。不填说明时按工具模板生成。
+                {tool.refsRequired > 0 ? (
+                  <>
+                    需要 {tool.refsRequired}
+                    {tool.refsMax > tool.refsRequired
+                      ? `–${tool.refsMax}`
+                      : ""}{" "}
+                    张参考图。
+                  </>
+                ) : tool.refsMax > 0 ? (
+                  <>参考图可选（0–{tool.refsMax} 张），用于风格参考。</>
+                ) : null}
+                {tool.noteRequired
+                  ? "请先填写品牌说明后再生成。"
+                  : "不填说明时按工具模板生成。"}
               </p>
 
               <div className="joy-tool-page-field">
@@ -203,7 +215,13 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
               </div>
 
               <div className="joy-tool-page-field">
-                <span className="joy-tool-page-label">参考图</span>
+                <span className="joy-tool-page-label">
+                  {tool.refsRequired > 0
+                    ? "参考图"
+                    : tool.refsMax > 0
+                      ? "参考图（可选）"
+                      : "参考图"}
+                </span>
                 <div
                   className={cn(
                     "joy-ai-tool-drop",
@@ -230,7 +248,11 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                       onClick={() => inputRef.current?.click()}
                     >
                       <ImagePlus className="size-5" strokeWidth={1.75} />
-                      <strong>选择或拖入图片</strong>
+                      <strong>
+                        {tool.refsRequired > 0
+                          ? "选择或拖入图片"
+                          : "可选风格参考图"}
+                      </strong>
                       <span>支持 JPG / PNG / WebP</span>
                     </button>
                   ) : (
@@ -368,8 +390,26 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
 
               <div className="joy-tool-page-field">
                 <label className="joy-tool-page-label" htmlFor="tool-note">
-                  补充说明（可选）
+                  {tool.noteRequired ? "品牌说明（必填）" : "补充说明（可选）"}
                 </label>
+                {examples.length ? (
+                  <div className="joy-tool-examples" role="group" aria-label="示例文字">
+                    {examples.map((example) => (
+                      <button
+                        key={example}
+                        type="button"
+                        className={cn(
+                          "joy-tool-example",
+                          note === example && "is-on",
+                        )}
+                        disabled={locked}
+                        onClick={() => setNote(example)}
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <Textarea
                   id="tool-note"
                   value={note}
@@ -453,7 +493,11 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
               ))}
             </div>
           ) : (
-            <div className="joy-ai-tool-empty">上传参考图并生成后在此预览</div>
+            <div className="joy-ai-tool-empty">
+              {tool.noteRequired
+                ? "填写品牌说明并生成后在此预览"
+                : "上传参考图并生成后在此预览"}
+            </div>
           )}
 
           {history.length > results.length ? (
@@ -468,8 +512,7 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                     rel="noreferrer"
                     className="joy-ai-tool-history-item"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={asset.url} alt="" />
+                    <JoyAssetThumb url={asset.url} size="sm" />
                   </a>
                 ))}
               </div>

@@ -31,6 +31,7 @@ import { Crosshair } from "lucide-react";
 import { api } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { cn } from "@/shared/lib/utils";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -503,13 +504,14 @@ function HistoryPane({
 
   async function load() {
     try {
-      const res = await api<{ items: HistoryJob[] }>("/jobs?take=80");
-      const items = Array.isArray(res.items) ? res.items : [];
-      const scoped = items.filter((job) => {
-        const pid = job.canvasProjectId || job.input?.canvasProjectId;
-        return pid === projectId;
+      const qs = new URLSearchParams({
+        take: "80",
+        scope: "canvas",
+        canvasProjectId: projectId,
       });
-      setJobs([...scoped].reverse());
+      const res = await api<{ items: HistoryJob[] }>(`/jobs?${qs}`);
+      const items = Array.isArray(res.items) ? res.items : [];
+      setJobs([...items].reverse());
     } catch {
       setJobs([]);
     } finally {
@@ -553,8 +555,8 @@ function HistoryPane({
         ) : (
           <div className="space-y-0.5">
             {filtered.map((job) => {
-              const thumb = job.assets?.[0]?.url;
               const media = jobMediaKind(job.kind);
+              const thumb = job.assets?.[0]?.url;
               const Icon =
                 media === "video"
                   ? CanvasIconVideo
@@ -599,12 +601,20 @@ function HistoryPane({
                 >
                   <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted">
                     {thumb ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={thumb}
-                        alt=""
-                        className="size-full object-cover"
-                      />
+                      media === "image" ? (
+                        <JoyAssetThumb
+                          url={thumb}
+                          size="sm"
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={thumb}
+                          alt=""
+                          className="size-full object-cover"
+                        />
+                      )
                     ) : (
                       <Icon className="size-4 text-muted-foreground" />
                     )}

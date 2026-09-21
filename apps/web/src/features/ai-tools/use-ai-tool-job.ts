@@ -178,6 +178,29 @@ export function useAiToolJob(tool: AiToolDef) {
   ]);
 
   useEffect(() => {
+    let cancelled = false;
+    void api<{
+      items: Array<{ assets?: ToolResultAsset[] | null }>;
+    }>(
+      `/jobs?take=24&scope=tools&toolSlug=${encodeURIComponent(tool.slug)}`,
+    )
+      .then((res) => {
+        if (cancelled) return;
+        const assets = (res.items ?? [])
+          .flatMap((job) => job.assets ?? [])
+          .filter((asset) => Boolean(asset?.id && asset?.url))
+          .slice(0, 24);
+        setHistory(assets);
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tool.slug]);
+
+  useEffect(() => {
     const socket = getJobsSocket();
     const onCompleted = (payload: {
       jobId?: string;
@@ -293,6 +316,10 @@ export function useAiToolJob(tool: AiToolDef) {
       toast.error(`请至少上传 ${tool.refsRequired} 张参考图`);
       return;
     }
+    if (tool.noteRequired && !note.trim()) {
+      toast.error("请先填写品牌名或品牌说明");
+      return;
+    }
     if (!modelId && kindModels.length > 0) {
       toast.error("请先选择模型");
       return;
@@ -321,6 +348,7 @@ export function useAiToolJob(tool: AiToolDef) {
         modelId: modelId || undefined,
         referenceAssetIds: uploaded.map((item) => item.id),
         referenceUrls: uploaded.map((item) => item.url),
+        toolSlug: tool.slug,
       };
 
       if (tool.kind === "image") {

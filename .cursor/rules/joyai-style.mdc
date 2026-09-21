@@ -1,0 +1,13 @@
+---
+description: JoyAI visual scale, surfaces, and canvas chrome tokens
+globs: apps/web/**/*.{css,tsx,ts}
+alwaysApply: false
+---
+
+# JoyAI style
+
+- Scale and chrome live in `apps/web/src/shared/theme/design-tokens.css`. Bump tokens; do not sprinkle new 10px fonts or one-off control heights in feature CSS.
+- Colors stay on shadcn vars (`bg-background`, `bg-card`, `text-muted-foreground`). Shell and page backgrounds use `bg-card` / `--joy-surface`. Do not abut `bg-background` and `bg-card` or a seam shows.
+- Minimum readable chrome is `--joy-font-micro` (12px). Labels are 14px, body 15px.
+- Canvas toolbars use `--joy-canvas-tool-icon` (20px) and `--joy-canvas-tool-btn` (40px). The node title pencil stays `--joy-canvas-title-edit-icon` (12px). Do not hardcode icon pixel classes on toolbar SVGs.
+- Keep `tokens.ts` (`CANVAS_NODE_SIZE`, `JOY_CONTROL`) in sync when the CSS scale changes.
