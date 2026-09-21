@@ -7,7 +7,8 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "db:reset": "node -e \"const fs=require('fs');const p=require('path');const f=p.resolve(__dirname,'data/sql.db');try{fs.unlinkSync(f);console.log('removed',f)}catch(e){console.log('no db file')}\"",
+    "db:reset": "node scripts/reset-mysql.cjs",
+    "db:import-sqlite": "ts-node --transpile-only --project tsconfig.scripts.json scripts/import-sqlite.ts",
     "postinstall": "node -e \"try{require('fs').copyFileSync(require('path').resolve(__dirname,'../../.env'),require('path').resolve(__dirname,'.env'))}catch(e){}\""
   },
   "dependencies": {
@@ -43,12 +44,12 @@
     "fastify": "^5.2.1",
     "https-proxy-agent": "7",
     "lodash": "^4.17.21",
+    "mysql2": "^3.24.4",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.1",
-    "sql.js": "^1.14.2",
     "typeorm": "0.3.22"
   },
   "devDependencies": {
@@ -58,6 +59,7 @@
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.13.10",
     "@types/passport-jwt": "^4.0.1",
+    "sql.js": "^1.14.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }

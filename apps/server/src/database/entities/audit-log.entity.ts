@@ -19,7 +19,7 @@ export class AuditLog {
   @Column()
   action!: string;
 
-  @Column({ type: "simple-json", nullable: true })
+  @Column({ type: "json", nullable: true })
   detail!: Record<string, unknown> | null;
 
   @Index()

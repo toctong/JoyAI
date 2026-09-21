@@ -38,13 +38,13 @@ export class Model {
   @Column()
   remoteId!: string;
 
-  @Column({ type: "varchar", nullable: true })
+  @Column({ type: "varchar", length: 1024, nullable: true })
   description!: string | null;
 
-  @Column({ type: "simple-json", nullable: true })
+  @Column({ type: "json", nullable: true })
   pricing!: Record<string, unknown> | null;
 
-  @Column({ type: "simple-json", nullable: true })
+  @Column({ type: "json", nullable: true })
   capabilities!: Record<string, unknown> | null;
 
   @Column({ default: true })

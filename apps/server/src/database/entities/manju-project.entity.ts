@@ -41,11 +41,11 @@ export class ManjuProject {
   @Column({ default: "未命名漫剧" })
   title!: string;
 
-  @Column({ type: "varchar", nullable: true })
+  @Column({ type: "varchar", length: 2048, nullable: true })
   coverUrl!: string | null;
 
   /** 完整草稿：script / settings / assets / shots / episodes … */
-  @Column({ type: "simple-json", nullable: true })
+  @Column({ type: "json", nullable: true })
   draft!: Record<string, unknown> | null;
 
   @CreateDateColumn()

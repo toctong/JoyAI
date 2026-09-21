@@ -35,13 +35,13 @@ export class Job {
   @Column({ type: "varchar", default: JobStatus.queued })
   status!: JobStatus;
 
-  @Column({ type: "simple-json" })
+  @Column({ type: "json" })
   input!: Record<string, unknown>;
 
-  @Column({ type: "simple-json", nullable: true })
+  @Column({ type: "json", nullable: true })
   result!: Record<string, unknown> | null;
 
-  @Column({ type: "varchar", nullable: true })
+  @Column({ type: "text", nullable: true })
   error!: string | null;
 
   @Column({ type: "varchar", nullable: true })

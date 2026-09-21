@@ -40,10 +40,10 @@ export class CanvasProject {
   @Column({ default: "未命名项目" })
   title!: string;
 
-  @Column({ type: "varchar", nullable: true })
+  @Column({ type: "varchar", length: 2048, nullable: true })
   coverUrl!: string | null;
 
-  @Column({ type: "simple-json", nullable: true })
+  @Column({ type: "json", nullable: true })
   snapshot!: Record<string, unknown> | null;
 
   @CreateDateColumn()

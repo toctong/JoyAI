@@ -20,7 +20,7 @@
 
 - 生图/视频禁止 HTTP 同步长阻塞
 - poll 退避可配置；失败写 Job.error
-- Redis 生产必需；本地 `docker compose up -d`（仅 Redis；库为 SQLite `apps/server/data/sql.db`）
+- Redis 与 MySQL 本地都由 `docker compose up -d` 提供（库 `joyai`，连接串 `DATABASE_URL`）
 
 ## 画板
 

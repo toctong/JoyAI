@@ -21,16 +21,16 @@ export class Channel {
   @Column()
   platform!: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 2048 })
   apiKey!: string;
 
-  @Column()
+  @Column({ type: "varchar", length: 1024 })
   baseUrl!: string;
 
   @Column({ default: true })
   enabled!: boolean;
 
-  @Column({ type: "simple-json", nullable: true })
+  @Column({ type: "json", nullable: true })
   metadata!: Record<string, unknown> | null;
 
   @CreateDateColumn()

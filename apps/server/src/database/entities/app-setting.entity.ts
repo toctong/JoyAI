@@ -15,7 +15,7 @@ export class AppSetting {
   @Column({ unique: true })
   key!: string;
 
-  @Column({ type: "simple-json" })
+  @Column({ type: "json" })
   value!: unknown;
 
   @UpdateDateColumn()

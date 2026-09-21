@@ -16,3 +16,4 @@
 | 2026-09-14 | 运维 UI 合入 `apps/web` `/admin`（role gate）；移除独立 `apps/admin` |
 | 2026-09-14 | 数据库改 SQLite（`apps/server/prisma/sql.db`）；compose 仅保留 Redis |
 | 2026-09-15 | ORM 从 Prisma 迁到 TypeORM（sql.js + `apps/server/data/sql.db`，清空重建） |
+| 2026-09-21 | 数据库改为 MySQL（`DATABASE_URL`，compose 增加 mysql；旧 `sql.db` 用 `db:import-sqlite` 导入） |

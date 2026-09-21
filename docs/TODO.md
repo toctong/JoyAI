@@ -10,7 +10,7 @@
 
 ## Phase 1 — 核心 API
 
-- [x] TypeORM schema + SQLite synchronize（原 Prisma 已移除）
+- [x] TypeORM schema + MySQL synchronize（原 SQLite / Prisma 已移除）
 - [x] Auth JWT + bootstrap admin
 - [x] Settings
 - [x] TOS Storage + upload

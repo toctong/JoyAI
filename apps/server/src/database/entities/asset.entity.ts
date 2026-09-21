@@ -43,7 +43,7 @@ export class Asset {
   @Column({ type: "varchar", nullable: true })
   source!: string | null;
 
-  @Column()
+  @Column({ type: "varchar", length: 2048 })
   url!: string;
 
   @Index()
@@ -62,7 +62,7 @@ export class Asset {
   @Column({ type: "integer", nullable: true })
   height!: number | null;
 
-  @Column({ type: "simple-json", nullable: true })
+  @Column({ type: "json", nullable: true })
   meta!: Record<string, unknown> | null;
 
   @CreateDateColumn()

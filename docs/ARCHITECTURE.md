@@ -4,14 +4,14 @@
 
 ```
 apps/web       Next.js 创作者端 + 运维 UI（/admin，role 门禁）
-apps/server    NestJS + Fastify API（TypeORM → SQLite sql.db）
+apps/server    NestJS + Fastify API（TypeORM → MySQL）
 packages/shared        共享类型 / zod / 画板契约
 packages/ai-providers  Provider 适配器（OpenAI-compatible / DashScope / Volcengine）
 ```
 
 创作者端视觉尺度在 `apps/web/src/shared/theme/design-tokens.css`（`--joy-*`），由 `globals.css` 引入。改字号、控件高度、画布工具图标时改 token，不在功能 CSS 里另起一套像素。
 
-数据：SQLite 文件 `apps/server/data/sql.db`（`DATABASE_PATH=./data/sql.db`，TypeORM sql.js + synchronize）。Redis 仍用于 BullMQ。
+数据：MySQL（`DATABASE_URL`，本地 `docker compose` 的 `joyai` 库，TypeORM synchronize）。Redis 仍用于 BullMQ。
 
 ## 请求与任务
 

@@ -1,6 +1,6 @@
 # JoyAI
 
-AIGC 创意平台：对话式生图/生视频 + 无限画板。后端 NestJS（Fastify）+ TypeORM（SQLite）+ BullMQ；前端 Next.js + shadcn/ui；首期接入火山引擎 Ark（Seedream / Seedance）与 TOS。
+AIGC 创意平台：对话式生图/生视频 + 无限画板。后端 NestJS（Fastify）+ TypeORM（MySQL）+ BullMQ；前端 Next.js + shadcn/ui；首期接入火山引擎 Ark（Seedream / Seedance）与 TOS。
 
 ## 文档
 
@@ -10,12 +10,12 @@ AIGC 创意平台：对话式生图/生视频 + 无限画板。后端 NestJS（F
 
 ```bash
 cp .env.example .env
-# 编辑 .env：REDIS_URL / JWT_SECRET / ARK_* / TOS_*（DATABASE_PATH 默认 ./data/sql.db）
+# 编辑 .env：REDIS_URL / JWT_SECRET / ARK_* / TOS_*（数据库 DATABASE_URL，默认本机 MySQL joyai）
 
 # 服务端也会读 apps/server/.env，根目录 .env 建议再拷一份：
 cp .env apps/server/.env
 
-docker compose up -d   # 仅 Redis；库文件为 apps/server/data/sql.db
+docker compose up -d   # Redis + MySQL
 pnpm install
 pnpm build:packages
 pnpm dev:server   # :3001  Swagger → /api/docs；健康检查 → /api/health
@@ -24,7 +24,7 @@ pnpm dev:web      # :3000（管理后台在 /admin）
 
 默认管理员：`admin` / `admin123`（`AUTH_BOOTSTRAP_*` 可改）；登录后访问 `/admin`。
 
-清空本地库：`pnpm db:reset` 后重启 `dev:server`。
+清空本地库：`pnpm db:reset` 后重启 `dev:server`（表会按实体重建，并重新 bootstrap 管理员）。若还留着旧的 `apps/server/data/sql.db`，可在空库上执行一次 `pnpm --filter @joyai/server db:import-sqlite`。
 
 服务端插件形态：TypeORM + `@dataui/crud-typeorm`（`TypeOrmCrudService`）+ `@nestjs/mapped-types` / Swagger `PartialType` + `@nestjs/terminus`。
 

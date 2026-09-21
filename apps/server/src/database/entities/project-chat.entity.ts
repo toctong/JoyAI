@@ -26,7 +26,7 @@ export class ProjectChat {
   @Column()
   projectId!: string;
 
-  @Column({ type: "simple-json" })
+  @Column({ type: "json" })
   payload!: Record<string, unknown>;
 
   @CreateDateColumn()

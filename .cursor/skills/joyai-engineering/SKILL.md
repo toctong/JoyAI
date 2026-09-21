@@ -95,5 +95,5 @@ src/
 ## Naming
 
 - Files: `kebab-case.ts` / `PascalCase.tsx` for components.
-- DB: TypeORM entities (`PascalCase` class), `camelCase` columns; SQLite file `apps/server/data/sql.db`.
+- DB: TypeORM entities (`PascalCase` class), `camelCase` columns; MySQL via `DATABASE_URL` (local `docker compose`, database `joyai`).
 - Queues: `image-generation`, `video-submit`, `video-poll`.
