@@ -49,7 +49,7 @@ function ToolBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-35",
+        "joy-canvas-chrome-btn grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-35",
         danger && "hover:bg-destructive/15 hover:text-destructive",
       )}
     >
@@ -127,11 +127,11 @@ export function MultiSelectToolbar({ nodes, viewport, viewportSize }: Props) {
             title="解组 ⇧⌘G"
             onClick={() => run(() => ungroupSelection())}
           >
-            <CanvasIconUngroup className="h-3.5 w-3.5" />
+            <CanvasIconUngroup className="joy-canvas-tool-icon" />
           </ToolBtn>
         ) : (
           <ToolBtn title="成组 ⌘G" onClick={() => run(() => groupSelection())}>
-            <CanvasIconGroup className="h-3.5 w-3.5" />
+            <CanvasIconGroup className="joy-canvas-tool-icon" />
           </ToolBtn>
         )}
         <Sep />
@@ -143,7 +143,7 @@ export function MultiSelectToolbar({ nodes, viewport, viewportSize }: Props) {
               aria-label="布局"
               className="joy-canvas-chrome-btn inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[11px] font-medium"
             >
-              <LayoutGrid className="size-3.5 opacity-80" />
+              <LayoutGrid className="joy-canvas-tool-icon opacity-80" />
               布局
               <ChevronDown className="size-3 opacity-60" />
             </button>
@@ -168,7 +168,7 @@ export function MultiSelectToolbar({ nodes, viewport, viewportSize }: Props) {
                   setLayoutOpen(false);
                 }}
               >
-                <item.Icon className="size-3.5 opacity-80" />
+                <item.Icon className="joy-canvas-tool-icon opacity-80" />
                 {item.label}
               </DropdownMenuItem>
             ))}
@@ -179,14 +179,14 @@ export function MultiSelectToolbar({ nodes, viewport, viewportSize }: Props) {
           title={`复制 ${nodes.length} 个`}
           onClick={() => run(() => duplicateNodes(nodes.map((n) => n.id)))}
         >
-          <CanvasIconCopy className="h-3.5 w-3.5" />
+          <CanvasIconCopy className="joy-canvas-tool-icon" />
         </ToolBtn>
         <ToolBtn
           title={`删除 ${nodes.length} 个`}
           danger
           onClick={() => run(() => removeNodes(nodes.map((n) => n.id)))}
         >
-          <CanvasIconTrash className="h-3.5 w-3.5" />
+          <CanvasIconTrash className="joy-canvas-tool-icon" />
         </ToolBtn>
       </div>
     </div>

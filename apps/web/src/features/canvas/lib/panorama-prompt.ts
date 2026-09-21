@@ -1,4 +1,6 @@
 /** Wrap user text so image models emit an equirectangular 2:1 panorama. */
+import { CANVAS_NODE_SIZE } from "@/shared/theme";
+
 export function wrapPanoramaPrompt(
   userText: string,
   opts?: { hasReference?: boolean },
@@ -29,7 +31,7 @@ export function wrapPanoramaPrompt(
   ].join(" ");
 }
 
-export const PANORAMA_NODE_SIZE = { width: 340, height: 170 } as const;
+export const PANORAMA_NODE_SIZE = CANVAS_NODE_SIZE.panorama;
 
 /** ~2:1 aspect used for upload / convert heuristics. */
 export function isPanoramaAspect(width: number, height: number) {

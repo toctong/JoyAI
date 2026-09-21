@@ -3,6 +3,7 @@ import { toast } from "@/shared/lib/toast";
 import { useCanvasStore } from "../store";
 import { copyUpstreamPrompt } from "./image-node-actions";
 import { mediaRefFromNode } from "./canvas-media-refs";
+import { CANVAS_TEXT_FONT } from "@/shared/theme";
 
 /** Same instruction as infinite-canvas `IMAGE_PROMPT_REVERSE_PRESET`. */
 export const IMAGE_PROMPT_REVERSE_PRESET = `请根据参考图片反推一段适合用于 AI 生图的提示词。
@@ -83,7 +84,7 @@ export async function spawnReversePrompt(nodeId: string) {
     store.updateNodeData(textId, {
       text: known,
       title: "提取的提示词",
-      fontSize: 14,
+      fontSize: CANVAS_TEXT_FONT.default,
       status: "succeeded",
     });
     store.addEdge(node.id, textId);
@@ -106,7 +107,7 @@ export async function spawnReversePrompt(nodeId: string) {
   store.updateNodeData(textId, {
     text: IMAGE_PROMPT_REVERSE_PRESET,
     title: "反推提示词",
-    fontSize: 14,
+    fontSize: CANVAS_TEXT_FONT.default,
     status: "succeeded",
   });
 
@@ -118,7 +119,7 @@ export async function spawnReversePrompt(nodeId: string) {
   store.updateNodeData(resultId, {
     text: "",
     title: "反推结果",
-    fontSize: 14,
+    fontSize: CANVAS_TEXT_FONT.default,
     status: "queued",
   });
   store.addEdge(node.id, textId);

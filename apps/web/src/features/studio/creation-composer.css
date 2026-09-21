@@ -258,7 +258,7 @@
     transparent 100%
   );
   color: #fff;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0;
@@ -297,7 +297,7 @@
 .joy-composer-upload-label {
   max-width: 44px;
   padding: 0 2px;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   line-height: 1.15;
   text-align: center;
   letter-spacing: -0.02em;
@@ -337,7 +337,7 @@
   bottom: -2px;
   z-index: 30;
   width: 28px;
-  height: 28px;
+  height: var(--joy-control-h-sm);
   gap: 0;
   border: 0;
   border-radius: 999px;
@@ -369,7 +369,7 @@
   right: 10px;
   z-index: 50;
   display: inline-flex;
-  height: 28px;
+  height: var(--joy-control-h-sm);
   width: 28px;
   align-items: center;
   justify-content: center;
@@ -392,7 +392,7 @@
 .joy-composer .joy-ai-prompt .ProseMirror {
   min-height: 64px;
   max-height: 180px;
-  font-size: 15px;
+  font-size: var(--joy-font-body);
   line-height: 1.6;
   color: var(--foreground);
 }
@@ -422,13 +422,13 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 32px;
+  height: var(--joy-control-h-md);
   padding: 0 10px;
   border-radius: 999px;
   border: 0;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -501,7 +501,7 @@
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px 4px !important;
-  font-size: 11px !important;
+  font-size: var(--joy-font-micro) !important;
   font-weight: 600 !important;
   letter-spacing: 0.02em;
   color: var(--muted-foreground) !important;
@@ -537,7 +537,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 500;
   color: var(--foreground);
 }
@@ -547,7 +547,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -563,7 +563,7 @@
   border-radius: 999px;
   background: var(--secondary);
   color: var(--secondary-foreground);
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 500;
   line-height: 20px;
 }
@@ -581,13 +581,13 @@
 .joy-chip-params-pill {
   display: inline-flex;
   align-items: center;
-  height: 32px;
+  height: var(--joy-control-h-md);
   padding: 0 4px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 500;
   cursor: pointer;
   outline: none;
@@ -637,7 +637,7 @@
 
 .joy-chip-icon {
   width: 32px;
-  height: 32px;
+  height: var(--joy-control-h-md);
   padding: 0;
   justify-content: center;
   border-radius: 999px;
@@ -648,7 +648,7 @@
   align-items: center;
   gap: 4px;
   margin-right: 2px;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 600;
   color: var(--muted-foreground);
 }
@@ -699,13 +699,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
+  height: var(--joy-control-h-sm);
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
   background: color-mix(in oklab, var(--secondary) 75%, transparent);
   color: var(--foreground);
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 500;
   cursor: pointer;
   transition:
@@ -719,7 +719,7 @@
 }
 
 .joy-composer-skill-badge {
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   font-weight: 700;
   color: #4f8cff;
 }
@@ -745,7 +745,7 @@
 }
 
 .joy-composer-params-label {
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -757,14 +757,14 @@
 }
 
 .joy-composer-params-value {
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 600;
   color: var(--foreground);
   font-variant-numeric: tabular-nums;
 }
 
 .joy-composer-params-slider-fixed {
-  height: 30px;
+  height: var(--joy-control-h-sm);
   display: inline-flex;
   align-items: center;
   padding: 0 12px;
@@ -772,7 +772,7 @@
   border: 1px solid transparent;
   background: var(--foreground);
   color: var(--background);
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   width: fit-content;
 }
 
@@ -875,7 +875,7 @@
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   line-height: 14px;
   color: var(--muted-foreground);
   font-variant-numeric: tabular-nums;
@@ -899,13 +899,13 @@
 }
 
 .joy-composer-params-option {
-  height: 30px;
+  height: var(--joy-control-h-sm);
   padding: 0 12px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--foreground);
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   cursor: pointer;
   flex: 0 0 auto;
 }

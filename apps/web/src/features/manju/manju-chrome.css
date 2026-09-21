@@ -34,7 +34,7 @@
 .manju-ai-panel :is(h1, h2, h3, h4, h5, h6),
 .manju-ai-panel [class*="__title"],
 .manju-ai-panel strong {
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
 }
 
@@ -183,7 +183,7 @@
   min-width: 0;
   width: auto;
   margin: 0;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   letter-spacing: 0;
   color: var(--muted-foreground);
@@ -294,7 +294,7 @@
   border-radius: 50%;
   border: 1.5px solid color-mix(in oklab, var(--foreground) 55%, transparent);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   line-height: 1;
   color: color-mix(in oklab, var(--foreground) 90%, transparent);
@@ -317,7 +317,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   line-height: 1.35;
 }
@@ -351,7 +351,7 @@
 }
 
 .manju-nav__next-label {
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: none;
@@ -360,7 +360,7 @@
 
 .manju-nav__next-text {
   margin-top: 2px;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   line-height: 1.4;
   color: var(--muted-foreground);
 }
@@ -418,7 +418,7 @@
   flex-shrink: 0;
   border-radius: 6px;
   padding: 2px 8px;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -470,7 +470,7 @@
 
 .manju-model-bar-trigger__label {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--foreground);
 }
@@ -480,7 +480,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -500,13 +500,13 @@
 
 .manju-model-bar-panel__head strong {
   display: block;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
 }
 
 .manju-model-bar-panel__head p {
   margin: 4px 0 0;
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   line-height: 1.45;
   color: var(--muted-foreground);
 }
@@ -525,7 +525,7 @@
 }
 
 .manju-model-bar-panel__kind {
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -535,7 +535,7 @@
   width: 100%;
   border-color: var(--border) !important;
   background: var(--input) !important;
-  font-size: 12px !important;
+  font-size: var(--joy-font-micro) !important;
   color: var(--foreground) !important;
   box-shadow: none !important;
 }
@@ -564,7 +564,7 @@
   border-radius: 10px;
   background: var(--secondary);
   padding: 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -608,7 +608,7 @@
   border: 1px solid transparent;
   background: var(--manju-soft-bg);
   padding: 0 14px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: var(--manju-soft);
   cursor: pointer;
 }
@@ -658,7 +658,7 @@
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 14px !important;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   color: var(--manju-soft) !important;
   cursor: pointer;
@@ -718,7 +718,7 @@
   border-radius: 999px !important;
   background: var(--manju-soft-bg) !important;
   padding: 0 14px !important;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   color: var(--manju-soft) !important;
   cursor: pointer;
@@ -783,7 +783,7 @@
 }
 
 .manju-card__title {
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.3;
@@ -792,7 +792,7 @@
 
 .manju-card__desc {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   line-height: 1.55;
   color: var(--muted-foreground);
@@ -814,7 +814,7 @@
   border: 1px solid transparent;
   background: var(--secondary);
   padding: 9px 16px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   color: var(--muted-foreground);
   transition:
@@ -892,7 +892,7 @@
 }
 
 .manju-mode-card__title {
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.35;
@@ -901,7 +901,7 @@
 
 .manju-mode-card__desc {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   line-height: 1.5;
   color: var(--muted-foreground);
@@ -921,7 +921,7 @@
   border: 1px solid var(--border);
   background: var(--secondary);
   padding: 2px 8px;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   letter-spacing: 0.04em;
   color: var(--muted-foreground);
@@ -1034,7 +1034,7 @@
 .manju-mode-tip__text {
   margin: 0;
   padding: 12px 14px 14px;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   line-height: 1.55;
   color: var(--muted-foreground);
@@ -1083,7 +1083,7 @@
   border: 1px solid var(--border);
   background: color-mix(in oklab, var(--background) 72%, transparent);
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   letter-spacing: 0.08em;
   color: var(--foreground);
@@ -1093,7 +1093,7 @@
 .manju-mode-detail__text {
   margin: 0;
   padding: 14px 16px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   line-height: 1.55;
   color: var(--foreground);
 }
@@ -1108,7 +1108,7 @@
 }
 
 .manju-mode-detail__grid-label {
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -1140,7 +1140,7 @@
 
 .manju-settings-block__title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1.3;
@@ -1149,7 +1149,7 @@
 
 .manju-settings-sub {
   margin: -2px 0 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -1158,7 +1158,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -1168,7 +1168,7 @@
   border: 1px solid var(--border);
   background: var(--muted);
   padding: 2px 8px;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -1235,7 +1235,7 @@
   min-height: 100%;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: var(--muted-foreground);
 }
 
@@ -1293,7 +1293,7 @@
   bottom: 0;
   z-index: 1;
   padding: 18px 6px 8px;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   line-height: 1.2;
   color: #fff;
@@ -1465,7 +1465,7 @@
   border-radius: 999px;
   background: var(--manju-soft-bg);
   color: var(--manju-soft);
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   cursor: pointer;
   transition:
@@ -1548,7 +1548,7 @@
   border-radius: 10px;
   background: transparent;
   padding: 0 16px;
-  font-size: 14px;
+  font-size: var(--joy-font-label);
   font-weight: 400;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -1612,7 +1612,7 @@
   border: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
   background: var(--background);
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
 }
 
 .manju-asset-card__tag {
@@ -1628,7 +1628,7 @@
   border: 1px solid transparent;
   background: color-mix(in oklab, var(--background) 78%, transparent);
   padding: 2px 7px;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   line-height: 1.3;
   color: var(--muted-foreground);
@@ -1671,7 +1671,7 @@
   gap: 6px;
   background: color-mix(in oklab, var(--background) 70%, transparent);
   color: var(--foreground);
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   backdrop-filter: blur(2px);
 }
@@ -1693,7 +1693,7 @@
 
 .manju-asset-card__badge {
   margin: 0;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -1702,7 +1702,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   line-height: 1.35;
   color: var(--foreground);
@@ -1717,7 +1717,7 @@
   background: transparent;
   padding: 0;
   text-align: left;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   line-height: 1.45;
   color: var(--foreground);
   cursor: pointer;
@@ -1735,7 +1735,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -1744,7 +1744,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   line-height: 1.35;
   color: var(--muted-foreground);
 }
@@ -1783,7 +1783,7 @@
   align-items: center;
   padding: 0 10px;
   overflow: hidden;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -1798,7 +1798,7 @@
   border: none !important;
   border-radius: 0 !important;
   background: transparent !important;
-  font-size: 12px !important;
+  font-size: var(--joy-font-micro) !important;
   font-weight: 400 !important;
   color: var(--foreground) !important;
   white-space: nowrap;
@@ -1893,7 +1893,7 @@
 
 .manju-prompt-cov {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -1912,7 +1912,7 @@
 
 .manju-shot-card__index {
   margin-bottom: 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
   color: var(--muted-foreground);
@@ -1938,7 +1938,7 @@
   min-height: calc(1.55em * 5);
   max-height: calc(1.55em * 5);
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   line-height: 1.55;
   color: color-mix(in oklab, var(--foreground) 88%, transparent);
   white-space: pre-wrap;
@@ -2039,7 +2039,7 @@
   border-radius: 4px;
   background: var(--muted);
   color: var(--muted-foreground);
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
 }
 
@@ -2066,7 +2066,7 @@
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--muted-foreground);
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
 }
 
@@ -2101,7 +2101,7 @@
 
 .manju-list__title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   letter-spacing: -0.02em;
   line-height: 1.3;
@@ -2110,7 +2110,7 @@
 
 .manju-list__sub {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: var(--muted-foreground);
 }
 
@@ -2130,7 +2130,7 @@
   border: 1px solid transparent;
   background: var(--secondary);
   padding: 0 14px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   color: var(--foreground);
   cursor: pointer;
@@ -2205,12 +2205,12 @@
 }
 
 .manju-list__card-title {
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
 }
 
 .manju-list__card-meta {
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -2268,7 +2268,7 @@
   width: 180px;
   border: none;
   background: transparent;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   color: var(--foreground);
   outline: none;
@@ -2285,7 +2285,7 @@
 .manju-studio__phase {
   border-radius: calc(var(--radius) - 2px);
   padding: 4px 10px;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -2299,7 +2299,7 @@
 }
 
 .manju-studio__save {
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
 }
 
@@ -2349,7 +2349,7 @@
   border-radius: calc(var(--radius) - 4px);
   padding: 8px 10px;
   text-align: left;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: var(--muted-foreground);
 }
 
@@ -2379,7 +2379,7 @@
 .manju-studio__episodes-label,
 .manju-studio__copilot-title {
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2392,7 +2392,7 @@
   gap: 6px;
   text-transform: none;
   letter-spacing: 0;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: var(--foreground);
 }
 
@@ -2470,7 +2470,7 @@
 
 .manju-script-choose__hero p {
   margin: 12px 0 0;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
 }
 
 .manju-script-choose__cards {
@@ -2537,13 +2537,13 @@
 }
 
 .manju-entry-card strong {
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
 }
 
 .manju-entry-card > span:not(.manju-entry-card__icon) {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   line-height: 1.5;
   color: var(--muted-foreground);
 }
@@ -2583,13 +2583,13 @@
   align-items: baseline;
   gap: 6px 10px;
   margin: 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   line-height: 1.5;
 }
 
 .manju-flow-guide__title {
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   color: var(--foreground);
 }
@@ -2608,7 +2608,7 @@
   border-radius: 0;
   background: transparent;
   padding: 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--foreground);
   text-decoration: underline;
@@ -2644,7 +2644,7 @@
 
 .manju-storyboard-view-bar__ep-label {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -2657,7 +2657,7 @@
   border-radius: 10px !important;
   background: var(--secondary) !important;
   padding-inline: 12px 10px !important;
-  font-size: 13px !important;
+  font-size: var(--joy-font-caption) !important;
   font-weight: 400 !important;
   color: var(--foreground) !important;
   box-shadow: none !important;
@@ -2706,7 +2706,7 @@
   height: 36px !important;
   border-radius: 10px !important;
   padding: 0 16px !important;
-  font-size: 14px !important;
+  font-size: var(--joy-font-label) !important;
   font-weight: 400 !important;
   color: var(--muted-foreground);
   transition:
@@ -2775,7 +2775,7 @@
   border-radius: 8px;
   background: color-mix(in oklab, var(--primary) 12%, transparent);
   color: var(--primary);
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   letter-spacing: 0.02em;
 }
@@ -2787,7 +2787,7 @@
   box-shadow: none !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
-  font-size: 16px !important;
+  font-size: var(--joy-font-title) !important;
   font-weight: 400 !important;
   color: var(--foreground) !important;
 }
@@ -2813,7 +2813,7 @@
 }
 
 .manju-episode-card__label {
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
   letter-spacing: 0.02em;
@@ -2823,7 +2823,7 @@
   height: 32px !important;
   border-color: var(--border) !important;
   background: var(--input) !important;
-  font-size: 12px !important;
+  font-size: var(--joy-font-micro) !important;
   color: var(--foreground) !important;
 }
 
@@ -2888,7 +2888,7 @@
 
 .manju-assets-empty__title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   color: var(--foreground);
 }
@@ -2896,7 +2896,7 @@
 .manju-assets-empty__desc {
   margin: 0;
   max-width: 360px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   line-height: 1.55;
   color: var(--muted-foreground);
 }

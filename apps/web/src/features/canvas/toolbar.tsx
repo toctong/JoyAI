@@ -65,7 +65,7 @@ function ToolBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-35",
+        "joy-canvas-chrome-btn grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-35",
         active && "is-active",
         danger && "hover:bg-destructive/15 hover:text-destructive",
       )}
@@ -115,7 +115,7 @@ export function CanvasToolbar({
       <div
         data-canvas-no-zoom
         data-canvas-shortcuts-ignore
-        className="joy-canvas-chrome pointer-events-auto relative flex h-14 items-center gap-0.5 rounded-xl px-2"
+        className="joy-canvas-chrome pointer-events-auto relative flex h-[52px] items-center gap-0.5 rounded-xl px-2"
         onPointerDown={(e) => e.stopPropagation()}
       >
         <ToolBtn
@@ -124,28 +124,28 @@ export function CanvasToolbar({
           onClick={() => onPanModeChange(!panMode)}
         >
           {panMode ? (
-            <CanvasIconHand className="size-4" />
+            <CanvasIconHand className="joy-canvas-tool-icon" />
           ) : (
-            <CanvasIconSelect className="size-4" />
+            <CanvasIconSelect className="joy-canvas-tool-icon" />
           )}
         </ToolBtn>
         <ToolBtn title="撤销 ⌘Z" disabled={!canUndo} onClick={onUndo}>
-          <CanvasIconUndo className="size-4" />
+          <CanvasIconUndo className="joy-canvas-tool-icon" />
         </ToolBtn>
         <ToolBtn title="重做 ⇧⌘Z" disabled={!canRedo} onClick={onRedo}>
-          <CanvasIconRedo className="size-4" />
+          <CanvasIconRedo className="joy-canvas-tool-icon" />
         </ToolBtn>
 
         <Sep />
 
         <ToolBtn title="全景" onClick={() => onAddNode("panorama")}>
-          <CanvasIconPanorama className="size-4" />
+          <CanvasIconPanorama className="joy-canvas-tool-icon" />
         </ToolBtn>
         <ToolBtn title="提示词" onClick={() => onAddNode("prompt")}>
-          <CanvasIconPrompt className="size-4" />
+          <CanvasIconPrompt className="joy-canvas-tool-icon" />
         </ToolBtn>
         <ToolBtn title="成组选中 ⌘G" onClick={onAddGroup}>
-          <CanvasIconGroup className="size-4" />
+          <CanvasIconGroup className="joy-canvas-tool-icon" />
         </ToolBtn>
 
         <Sep />
@@ -156,7 +156,7 @@ export function CanvasToolbar({
             active={appearanceOpen}
             onClick={() => setAppearanceOpen((v) => !v)}
           >
-            <CanvasIconPalette className="size-4" />
+            <CanvasIconPalette className="joy-canvas-tool-icon" />
           </ToolBtn>
           {appearanceOpen ? (
             <div className="joy-canvas-chrome absolute bottom-[calc(100%+10px)] left-1/2 z-30 w-[220px] -translate-x-1/2 rounded-xl p-2">
@@ -180,7 +180,7 @@ export function CanvasToolbar({
                     )}
                     onClick={() => onGridModeChange(mode)}
                   >
-                    <Icon className="size-4" />
+                    <Icon className="joy-canvas-tool-icon" />
                     {label}
                   </button>
                 ))}
@@ -193,7 +193,7 @@ export function CanvasToolbar({
                 )}
                 onClick={onToggleSnap}
               >
-                <CanvasIconSnap className="size-3.5" />
+                <CanvasIconSnap className="joy-canvas-tool-icon" />
                 网格吸附
                 <span className="joy-canvas-chrome-muted ml-auto text-[10px]">
                   {gridModeLabel(gridMode)}
@@ -209,10 +209,10 @@ export function CanvasToolbar({
           disabled={!selectedCount}
           onClick={onDeleteSelected}
         >
-          <CanvasIconTrash className="size-4" />
+          <CanvasIconTrash className="joy-canvas-tool-icon" />
         </ToolBtn>
         <ToolBtn title="清空画布" danger onClick={onClearCanvas}>
-          <CanvasIconEraser className="size-4" />
+          <CanvasIconEraser className="joy-canvas-tool-icon" />
         </ToolBtn>
       </div>
     </div>

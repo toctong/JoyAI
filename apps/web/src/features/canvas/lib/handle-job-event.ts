@@ -4,6 +4,7 @@ import { frameNodeToMedia } from "./fit-node-size";
 import { nodeBox } from "./node-box";
 import { titleFromPrompt } from "./node-title";
 import { flagPanoramaAspect } from "./panorama-prompt";
+import { CANVAS_TEXT_FONT } from "@/shared/theme";
 
 export type JobAssetLike = { id?: string; url?: string | null };
 
@@ -103,7 +104,7 @@ export function handleCanvasJobCompleted(
             text: llmText,
             status: "succeeded",
             title: titleFromPrompt(llmText) || "生成文本",
-            fontSize: 14,
+            fontSize: CANVAS_TEXT_FONT.default,
           });
           live.addEdge(node.id, textId);
         }

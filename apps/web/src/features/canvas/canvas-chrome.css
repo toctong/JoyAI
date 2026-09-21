@@ -26,6 +26,32 @@
   color: color-mix(in oklab, var(--popover-foreground) 78%, transparent);
 }
 
+/* Prefer token sizes over scattered size-3.5 / size-4 on chrome tools */
+.joy-canvas-tool-icon {
+  width: var(--joy-canvas-tool-icon);
+  height: var(--joy-canvas-tool-icon);
+  flex-shrink: 0;
+}
+
+.joy-canvas-chrome-btn > svg,
+.joy-canvas-chrome-btn > .joy-canvas-tool-icon {
+  width: var(--joy-canvas-tool-icon);
+  height: var(--joy-canvas-tool-icon);
+  flex-shrink: 0;
+}
+
+.joy-canvas-float-toolbar .joy-canvas-tool-icon,
+.joy-canvas-float-toolbar .joy-canvas-chrome-btn > svg {
+  width: var(--joy-canvas-float-icon);
+  height: var(--joy-canvas-float-icon);
+}
+
+/* Node title pencil — smaller than chrome tool icons */
+.joy-canvas-title-edit-icon {
+  width: var(--joy-canvas-title-edit-icon) !important;
+  height: var(--joy-canvas-title-edit-icon) !important;
+}
+
 .joy-canvas-chrome-btn:hover:not(:disabled) {
   background: var(--muted);
   color: var(--popover-foreground);
@@ -232,7 +258,7 @@
 }
 
 .joy-media-busy-label {
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   letter-spacing: 0.02em;
   color: rgb(255 255 255 / 0.92);
   text-shadow: 0 1px 8px rgb(0 0 0 / 0.45);
@@ -248,7 +274,7 @@
   border: 1px solid rgb(255 255 255 / 0.28);
   background: rgb(0 0 0 / 0.35);
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
   color: rgb(255 255 255 / 0.92);
   backdrop-filter: blur(6px);
   transition:

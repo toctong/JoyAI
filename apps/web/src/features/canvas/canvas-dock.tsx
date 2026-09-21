@@ -39,7 +39,7 @@ function ChipBtn({
       aria-label={title}
       onClick={onClick}
       className={cn(
-        "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg transition",
+        "joy-canvas-chrome-btn grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg transition",
         active && "is-active",
       )}
     >
@@ -65,7 +65,7 @@ export function CanvasDock({
     <div
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className="joy-canvas-chrome pointer-events-auto absolute bottom-5 left-5 z-20 flex h-14 items-center gap-1 rounded-xl px-2"
+      className="joy-canvas-chrome pointer-events-auto absolute bottom-5 left-5 z-20 flex h-[52px] items-center gap-1 rounded-xl px-2"
       onPointerDown={(e) => e.stopPropagation()}
     >
       <ChipBtn
@@ -73,10 +73,10 @@ export function CanvasDock({
         active={miniMapOpen}
         onClick={onToggleMiniMap}
       >
-        <CanvasIconMinimap className="size-4" />
+        <CanvasIconMinimap className="joy-canvas-tool-icon" />
       </ChipBtn>
       <ChipBtn title="适应内容 0" onClick={onFit}>
-        <CanvasIconFit className="size-4" />
+        <CanvasIconFit className="joy-canvas-tool-icon" />
       </ChipBtn>
       <ChipBtn
         title={
@@ -87,7 +87,7 @@ export function CanvasDock({
         active={focusEdges}
         onClick={onToggleEdgeVisibility}
       >
-        <CanvasIconLink className="size-4" />
+        <CanvasIconLink className="joy-canvas-tool-icon" />
       </ChipBtn>
       <input
         type="range"
@@ -108,7 +108,7 @@ export function CanvasDock({
         active={shortcutsOpen}
         onClick={onToggleShortcuts}
       >
-        <CanvasIconShortcuts className="size-4" />
+        <CanvasIconShortcuts className="joy-canvas-tool-icon" />
       </ChipBtn>
     </div>
   );

@@ -8,7 +8,7 @@
 /* 标题统一 16px，文字一律不加粗 */
 .joy-assets :is(h1, h2, h3, h4, h5, h6),
 .joy-assets [class*="-title"] {
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
 }
 
@@ -56,7 +56,7 @@
   border-radius: 10px;
   border-color: transparent;
   background: var(--secondary);
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   box-shadow: none;
 }
@@ -74,7 +74,7 @@
   border-radius: 10px;
   background: transparent;
   padding: 0 16px;
-  font-size: 14px;
+  font-size: var(--joy-font-label);
   font-weight: 400;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -96,7 +96,7 @@
 
 .joy-assets-group-title {
   margin: 0 0 16px;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   letter-spacing: -0.02em;
   line-height: 1.25;
@@ -243,7 +243,7 @@ img.joy-assets-card {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   line-height: 1.35;
   color: var(--foreground);
   text-align: center;
@@ -285,13 +285,13 @@ img.joy-assets-card {
   justify-content: center;
   gap: 8px;
   color: var(--muted-foreground);
-  font-size: 14px;
+  font-size: var(--joy-font-label);
 }
 
 .joy-assets-end {
   margin-top: 8px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: color-mix(in oklab, var(--muted-foreground) 80%, transparent);
 }
 

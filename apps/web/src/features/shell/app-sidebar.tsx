@@ -97,16 +97,16 @@ export function AppSidebar() {
   const adminActive = pathname === "/admin" || pathname.startsWith("/admin/");
 
   return (
-    <aside className="joy-sidebar sticky top-0 z-40 flex h-svh w-16 shrink-0 flex-col items-center bg-card py-3">
+    <aside className="joy-sidebar sticky top-0 z-40 flex h-svh w-[var(--joy-sidebar-width)] shrink-0 flex-col items-center bg-card py-3">
       <Link
         href="/inspire"
-        className="mb-1 flex h-9 w-9 items-center justify-center"
+        className="mb-1 flex h-10 w-10 items-center justify-center"
         aria-label="JoyAI"
       >
         <BrandImg
           src={JOYAI_BRAND.logo}
           alt="JoyAI"
-          className="h-8 w-8 object-contain"
+          className="h-9 w-9 object-contain"
         />
       </Link>
 
@@ -126,29 +126,32 @@ export function AppSidebar() {
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <span className="relative inline-flex h-8 w-8 items-center justify-center">
+              <span className="relative inline-flex h-9 w-9 items-center justify-center">
                 {Icon ? (
                   <Icon
-                    className={cn("h-5 w-5 transition", !active && "opacity-70")}
+                    className={cn(
+                      "h-[var(--joy-icon-lg)] w-[var(--joy-icon-lg)] transition",
+                      !active && "opacity-70",
+                    )}
                   />
                 ) : item.icon ? (
                   <BrandImg
                     src={item.icon}
                     alt=""
                     className={cn(
-                      "h-7 w-7 object-contain transition",
+                      "h-8 w-8 object-contain transition",
                       !active && "opacity-70",
                       "dark:brightness-0 dark:invert",
                     )}
                   />
                 ) : null}
                 {item.beta ? (
-                  <span className="absolute -bottom-1 -right-3 rounded-[6px] bg-[#7c5cff] px-1 py-[1px] text-[9px] font-semibold leading-none text-white shadow-sm">
+                  <span className="absolute -bottom-1 -right-3 rounded-[6px] bg-[#7c5cff] px-1 py-[1px] text-[length:var(--joy-font-micro)] font-semibold leading-none text-white shadow-sm">
                     Beta
                   </span>
                 ) : null}
               </span>
-              <span className="max-w-full truncate text-center text-[13px] font-medium leading-5 tracking-[-0.42px]">
+              <span className="max-w-full truncate text-center text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px]">
                 {item.label}
               </span>
             </Link>
@@ -169,10 +172,10 @@ export function AppSidebar() {
             aria-label="管理后台"
             title="管理后台"
           >
-            <span className="inline-flex h-8 w-8 items-center justify-center">
-              <Shield className="h-5 w-5" />
+            <span className="inline-flex h-9 w-9 items-center justify-center">
+              <Shield className="h-[var(--joy-icon-lg)] w-[var(--joy-icon-lg)]" />
             </span>
-            <span className="max-w-full truncate text-center text-[13px] font-medium leading-5 tracking-[-0.42px]">
+            <span className="max-w-full truncate text-center text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px]">
               管理
             </span>
           </Link>
@@ -182,15 +185,15 @@ export function AppSidebar() {
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="flex flex-col items-center gap-1 px-1 py-1.5 text-[12px] text-muted-foreground outline-none hover:text-foreground"
+              className="flex flex-col items-center gap-1 px-1 py-1.5 text-[length:var(--joy-font-caption)] text-muted-foreground outline-none hover:text-foreground"
             >
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-9 w-9">
                 <AvatarImage src={JOYAI_BRAND.remote.avatar} alt="" />
-                <AvatarFallback className="bg-muted text-xs text-foreground">
+                <AvatarFallback className="bg-muted text-[length:var(--joy-font-caption)] text-foreground">
                   {initial}
                 </AvatarFallback>
               </Avatar>
-              <span className="max-w-[56px] truncate">
+              <span className="max-w-[64px] truncate">
                 {user?.username ?? "我"}
               </span>
             </button>

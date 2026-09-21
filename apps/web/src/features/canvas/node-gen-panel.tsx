@@ -61,6 +61,7 @@ import { toast } from "@/shared/lib/toast";
 import { isBusyStatus } from "./node-registry";
 import "@/features/studio/creation-composer.css";
 import "./node-gen-panel.css";
+import { CANVAS_TEXT_FONT } from "@/shared/theme";
 
 type Props = {
   node: CanvasNode;
@@ -465,7 +466,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           status: "queued",
           error: "",
           text: "",
-          fontSize: 14,
+          fontSize: CANVAS_TEXT_FONT.default,
           ...(named ? { title: named } : { title: "生成文本" }),
         });
         const job = await api<{ id: string }>("/jobs", {

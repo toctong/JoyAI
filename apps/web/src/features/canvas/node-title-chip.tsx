@@ -66,7 +66,7 @@ export function NodeTitleChip({
         data-canvas-no-zoom
         data-canvas-shortcuts-ignore
         className={cn(
-          "absolute left-0 top-0 z-[4] w-full -translate-y-[calc(100%+2px)] border-0 border-b border-foreground/30 bg-transparent px-0.5 py-0 text-[12px] text-foreground outline-none",
+          "absolute left-0 top-0 z-[4] w-full -translate-y-[calc(100%+2px)] border-0 border-b border-foreground/30 bg-transparent px-0.5 py-0 text-[length:var(--joy-canvas-chrome-font)] text-foreground outline-none",
           className,
         )}
         onPointerDown={(event) => event.stopPropagation()}
@@ -92,7 +92,7 @@ export function NodeTitleChip({
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
       className={cn(
-        "absolute left-0 top-0 z-[3] flex w-full -translate-y-[calc(100%+4px)] items-center gap-1 px-0.5 text-[12px] font-normal leading-none text-muted-foreground",
+        "absolute left-0 top-0 z-[3] flex w-full -translate-y-[calc(100%+4px)] items-center gap-1 px-0.5 text-[length:var(--joy-canvas-chrome-font)] font-normal leading-none text-muted-foreground",
         className,
       )}
     >
@@ -114,7 +114,7 @@ export function NodeTitleChip({
           }}
         >
           {icon ? (
-            <span className="inline-flex shrink-0 text-muted-foreground [&>*]:size-4">
+            <span className="inline-flex shrink-0 text-muted-foreground [&>*]:size-[length:var(--joy-icon-sm)]">
               {icon}
             </span>
           ) : null}
@@ -135,7 +135,7 @@ export function NodeTitleChip({
             beginEdit();
           }}
         >
-          <CanvasIconPencil className="size-3" />
+          <CanvasIconPencil className="joy-canvas-title-edit-icon" />
         </button>
       </div>
       {meta ? (

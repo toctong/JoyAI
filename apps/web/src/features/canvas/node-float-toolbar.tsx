@@ -55,6 +55,7 @@ import { uploadFileIntoNode, uploadFileToNewNode } from "./lib/upload-to-node";
 import { api } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { CANVAS_TEXT_FONT } from "@/shared/theme";
 import type { ImageToolMode } from "./image-tool-dialog";
 import {
   copyUpstreamPrompt,
@@ -118,14 +119,14 @@ function ToolBtn({
       aria-label={title}
       onClick={onClick}
       className={cn(
-        "joy-canvas-chrome-btn inline-flex h-7 items-center justify-center rounded-md transition",
-        label ? "gap-1 px-1.5" : "size-7",
+        "joy-canvas-chrome-btn inline-flex h-[var(--joy-canvas-float-btn)] items-center justify-center rounded-md transition",
+        label ? "gap-1 px-2" : "size-[length:var(--joy-canvas-float-btn)]",
         danger && "hover:bg-destructive/15 hover:text-destructive",
       )}
     >
       {children}
       {label ? (
-        <span className="whitespace-nowrap text-[11px] font-medium leading-none tracking-wide">
+        <span className="whitespace-nowrap text-[length:var(--joy-canvas-chrome-font-sm)] font-medium leading-none tracking-wide">
           {label}
         </span>
       ) : null}
@@ -379,8 +380,11 @@ export function NodeFloatToolbar({
   function adjustFont(delta: number) {
     if (!node || node.type !== "text") return;
     const current = Number(node.data.fontSize);
-    const size = Number.isFinite(current) ? current : 14;
-    const next = Math.min(32, Math.max(10, size + delta));
+    const size = Number.isFinite(current) ? current : CANVAS_TEXT_FONT.default;
+    const next = Math.min(
+      CANVAS_TEXT_FONT.max,
+      Math.max(CANVAS_TEXT_FONT.min, size + delta),
+    );
     if (next === size) return;
     pushHistory();
     updateNodeData(node.id, { fontSize: next });
@@ -519,7 +523,7 @@ export function NodeFloatToolbar({
             label={url ? "替换" : "上传"}
             onClick={() => fileRef.current?.click()}
           >
-            <CanvasIconUpload className="size-3.5" />
+            <CanvasIconUpload className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "download":
@@ -531,7 +535,7 @@ export function NodeFloatToolbar({
             label="下载"
             onClick={() => void onDownload()}
           >
-            <CanvasIconDownload className="h-3.5 w-3.5" />
+            <CanvasIconDownload className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "spawn-prompt":
@@ -579,7 +583,7 @@ export function NodeFloatToolbar({
               )
             }
           >
-            <CanvasIconSparkles className="size-3.5" />
+            <CanvasIconSparkles className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "extract-audio":
@@ -591,7 +595,7 @@ export function NodeFloatToolbar({
             label="分离音频"
             onClick={() => void extractAudio()}
           >
-            <CanvasIconAudio className="h-3.5 w-3.5" />
+            <CanvasIconAudio className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "to-panorama":
@@ -606,7 +610,7 @@ export function NodeFloatToolbar({
               convertImagePanoramaType(node.id, "panorama");
             }}
           >
-            <CanvasIconPanorama className="h-3.5 w-3.5" />
+            <CanvasIconPanorama className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "to-image":
@@ -621,7 +625,7 @@ export function NodeFloatToolbar({
               convertImagePanoramaType(node.id, "image");
             }}
           >
-            <CanvasIconImage className="h-3.5 w-3.5" />
+            <CanvasIconImage className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "open-director":
@@ -633,7 +637,7 @@ export function NodeFloatToolbar({
             label="导演台"
             onClick={() => onOpenDirector?.(node.id)}
           >
-            <CanvasIconDirector className="h-3.5 w-3.5" />
+            <CanvasIconDirector className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "spawn-video":
@@ -647,7 +651,7 @@ export function NodeFloatToolbar({
               spawnPromptBeside("基于参考图生成视频", "generate", "video")
             }
           >
-            <CanvasIconDirector className="h-3.5 w-3.5" />
+            <CanvasIconDirector className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "capture-frame":
@@ -659,7 +663,7 @@ export function NodeFloatToolbar({
             label="截帧"
             onClick={() => void captureFrame()}
           >
-            <CanvasIconFrame className="h-3.5 w-3.5" />
+            <CanvasIconFrame className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "outpaint":
@@ -676,7 +680,7 @@ export function NodeFloatToolbar({
               )
             }
           >
-            <CanvasIconOutpaint className="size-3.5" />
+            <CanvasIconOutpaint className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "inpaint":
@@ -688,7 +692,7 @@ export function NodeFloatToolbar({
             label="局部重绘"
             onClick={() => onOpenMask?.()}
           >
-            <CanvasIconInpaint className="size-3.5" />
+            <CanvasIconInpaint className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "font-down":
@@ -700,7 +704,7 @@ export function NodeFloatToolbar({
             label="缩小"
             onClick={() => adjustFont(-2)}
           >
-            <CanvasIconMinus className="h-3.5 w-3.5" />
+            <CanvasIconMinus className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "font-up":
@@ -712,7 +716,7 @@ export function NodeFloatToolbar({
             label="放大"
             onClick={() => adjustFont(2)}
           >
-            <CanvasIconPlus className="h-3.5 w-3.5" />
+            <CanvasIconPlus className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "trim-audio":
@@ -729,7 +733,7 @@ export function NodeFloatToolbar({
             label={node.type === "video" ? "剪辑" : "截取"}
             onClick={() => onOpenAudioTrim?.()}
           >
-            <CanvasIconScissors className="h-3.5 w-3.5" />
+            <CanvasIconScissors className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "text-to-prompt":
@@ -743,7 +747,7 @@ export function NodeFloatToolbar({
               spawnPromptBeside(String(node.data.text ?? "").trim())
             }
           >
-            <CanvasIconMessage className="h-3.5 w-3.5" />
+            <CanvasIconMessage className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "clear-prompt":
@@ -763,7 +767,7 @@ export function NodeFloatToolbar({
               });
             }}
           >
-            <CanvasIconEraser className="h-3.5 w-3.5" />
+            <CanvasIconEraser className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "retry":
@@ -777,7 +781,7 @@ export function NodeFloatToolbar({
             label="重试"
             onClick={() => void retryPrompt()}
           >
-            <CanvasIconRetry className="h-3.5 w-3.5" />
+            <CanvasIconRetry className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "duplicate":
@@ -791,7 +795,7 @@ export function NodeFloatToolbar({
               duplicateNodes(nodes.map((n) => n.id));
             }}
           >
-            <CanvasIconCopy className="h-3.5 w-3.5" />
+            <CanvasIconCopy className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "delete":
@@ -806,7 +810,7 @@ export function NodeFloatToolbar({
               removeNodes(nodes.map((n) => n.id));
             }}
           >
-            <CanvasIconTrash className="h-3.5 w-3.5" />
+            <CanvasIconTrash className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       default:
@@ -843,7 +847,7 @@ export function NodeFloatToolbar({
       primaryItems.push({
         id: "to-image",
         label: "转图像",
-        icon: <CanvasIconImage className="size-3.5 opacity-70" />,
+        icon: <CanvasIconImage className="joy-canvas-tool-icon opacity-70" />,
         run: () => {
           pushHistory();
           convertImagePanoramaType(node.id, "image");
@@ -854,7 +858,7 @@ export function NodeFloatToolbar({
       primaryItems.push({
         id: "upload",
         label: url ? "替换全景" : "上传全景",
-        icon: <CanvasIconUpload className="size-3.5 opacity-70" />,
+        icon: <CanvasIconUpload className="joy-canvas-tool-icon opacity-70" />,
         run: () => fileRef.current?.click(),
       });
     }
@@ -865,7 +869,7 @@ export function NodeFloatToolbar({
       editItems.push({
         id: "crop",
         label: "裁剪",
-        icon: <CanvasIconScissors className="size-3.5 opacity-70" />,
+        icon: <CanvasIconScissors className="joy-canvas-tool-icon opacity-70" />,
         run: () => onOpenImageTool?.("crop"),
       });
     }
@@ -873,7 +877,7 @@ export function NodeFloatToolbar({
       editItems.push({
         id: "split",
         label: "切图",
-        icon: <CanvasIconGrid className="size-3.5 opacity-70" />,
+        icon: <CanvasIconGrid className="joy-canvas-tool-icon opacity-70" />,
         run: () => onOpenImageTool?.("split"),
       });
     }
@@ -881,7 +885,7 @@ export function NodeFloatToolbar({
       editItems.push({
         id: "upscale",
         label: "本地放大",
-        icon: <CanvasIconZoomIn className="size-3.5 opacity-70" />,
+        icon: <CanvasIconZoomIn className="joy-canvas-tool-icon opacity-70" />,
         run: () => onOpenImageTool?.("upscale"),
       });
     }
@@ -889,7 +893,7 @@ export function NodeFloatToolbar({
       editItems.push({
         id: "angle",
         label: "多角度",
-        icon: <CanvasIconWand className="size-3.5 opacity-70" />,
+        icon: <CanvasIconWand className="joy-canvas-tool-icon opacity-70" />,
         run: () => onOpenAngle?.(),
       });
     }
@@ -902,7 +906,7 @@ export function NodeFloatToolbar({
       editItems.push({
         id: "outpaint",
         label: "扩图",
-        icon: <CanvasIconOutpaint className="size-3.5 opacity-70" />,
+        icon: <CanvasIconOutpaint className="joy-canvas-tool-icon opacity-70" />,
         run: () =>
           spawnPromptBeside("扩图：保持主体，向四周合理延伸画面", "outpaint"),
       });
@@ -916,7 +920,7 @@ export function NodeFloatToolbar({
       editItems.push({
         id: "inpaint",
         label: "局部重绘",
-        icon: <CanvasIconInpaint className="size-3.5 opacity-70" />,
+        icon: <CanvasIconInpaint className="joy-canvas-tool-icon opacity-70" />,
         run: () => onOpenMask?.(),
       });
     }
@@ -924,7 +928,7 @@ export function NodeFloatToolbar({
       editItems.push({
         id: "view-image",
         label: "查看大图",
-        icon: <CanvasIconMaximize className="size-3.5 opacity-70" />,
+        icon: <CanvasIconMaximize className="joy-canvas-tool-icon opacity-70" />,
         run: () => onOpenImageTool?.("view"),
       });
     }
@@ -940,7 +944,7 @@ export function NodeFloatToolbar({
       moreItems.push({
         id: "save-asset",
         label: "存素材",
-        icon: <CanvasIconFolderPlus className="size-3.5 opacity-70" />,
+        icon: <CanvasIconFolderPlus className="joy-canvas-tool-icon opacity-70" />,
         run: () => void saveNodeAsset(node.id),
       });
     }
@@ -962,7 +966,7 @@ export function NodeFloatToolbar({
               : node.type === "panorama"
                 ? "替换全景"
                 : "替换图片",
-        icon: <CanvasIconUpload className="size-3.5 opacity-70" />,
+        icon: <CanvasIconUpload className="joy-canvas-tool-icon opacity-70" />,
         run: () => fileRef.current?.click(),
       });
     }
@@ -970,7 +974,7 @@ export function NodeFloatToolbar({
       moreItems.push({
         id: "to-panorama",
         label: "转全景",
-        icon: <CanvasIconPanorama className="size-3.5 opacity-70" />,
+        icon: <CanvasIconPanorama className="joy-canvas-tool-icon opacity-70" />,
         run: () => {
           pushHistory();
           convertImagePanoramaType(node.id, "panorama");
@@ -987,9 +991,9 @@ export function NodeFloatToolbar({
         id: "toggle-resize",
         label: freeResize ? "锁定比例" : "自由比例",
         icon: freeResize ? (
-          <CanvasIconUnlock className="size-3.5 opacity-70" />
+          <CanvasIconUnlock className="joy-canvas-tool-icon opacity-70" />
         ) : (
-          <CanvasIconLock className="size-3.5 opacity-70" />
+          <CanvasIconLock className="joy-canvas-tool-icon opacity-70" />
         ),
         run: () => toggleFreeResize(node.id),
       });
@@ -998,7 +1002,7 @@ export function NodeFloatToolbar({
       moreItems.push({
         id: "reverse-prompt",
         label: "反推提示词",
-        icon: <CanvasIconMessage className="size-3.5 opacity-70" />,
+        icon: <CanvasIconMessage className="joy-canvas-tool-icon opacity-70" />,
         run: () => void spawnReversePrompt(node.id),
       });
     }
@@ -1006,14 +1010,14 @@ export function NodeFloatToolbar({
       moreItems.push({
         id: "copy-prompt",
         label: "复制提示词",
-        icon: <CanvasIconFile className="size-3.5 opacity-70" />,
+        icon: <CanvasIconFile className="joy-canvas-tool-icon opacity-70" />,
         run: () => copyUpstreamPrompt(node.id),
       });
     }
     moreItems.push({
       id: "info",
       label: "信息",
-      icon: <CanvasIconInfo className="size-3.5 opacity-70" />,
+      icon: <CanvasIconInfo className="joy-canvas-tool-icon opacity-70" />,
       run: () => onOpenInfo?.(),
     });
     if (
@@ -1028,7 +1032,7 @@ export function NodeFloatToolbar({
         icon: (
           <CanvasIconPanelBottom
             className={cn(
-              "size-3.5 opacity-70",
+              "joy-canvas-tool-icon opacity-70",
               genPanelOpen && "text-primary opacity-100",
             )}
           />
@@ -1052,7 +1056,7 @@ export function NodeFloatToolbar({
               {
                 id: "save-asset",
                 label: "存素材",
-                icon: <CanvasIconFolderPlus className="size-3.5 opacity-70" />,
+                icon: <CanvasIconFolderPlus className="joy-canvas-tool-icon opacity-70" />,
                 run: () => void saveNodeAsset(node.id),
               },
             ]
@@ -1062,7 +1066,7 @@ export function NodeFloatToolbar({
               {
                 id: "download",
                 label: "下载",
-                icon: <CanvasIconDownload className="size-3.5 opacity-70" />,
+                icon: <CanvasIconDownload className="joy-canvas-tool-icon opacity-70" />,
                 run: () => void onDownload(),
               },
             ]
@@ -1075,9 +1079,9 @@ export function NodeFloatToolbar({
             danger: action === "delete",
             icon:
               action === "delete" ? (
-                <CanvasIconTrash className="size-3.5 opacity-70" />
+                <CanvasIconTrash className="joy-canvas-tool-icon opacity-70" />
               ) : (
-                <CanvasIconCopy className="size-3.5 opacity-70" />
+                <CanvasIconCopy className="joy-canvas-tool-icon opacity-70" />
               ),
             run: () => {
               pushHistory();
@@ -1143,7 +1147,7 @@ export function NodeFloatToolbar({
             {
               id: "configure-tools",
               label: "配置快捷工具",
-              icon: <CanvasIconMore className="size-3.5 opacity-70" />,
+              icon: <CanvasIconMore className="joy-canvas-tool-icon opacity-70" />,
               run: () => {
                 setDraftIds(quickConfig.ids);
                 setDraftLabels(quickConfig.showLabels);
@@ -1184,11 +1188,11 @@ export function NodeFloatToolbar({
     <div
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className="pointer-events-auto absolute z-30 -translate-x-1/2 -translate-y-full"
+      className="joy-canvas-float-toolbar pointer-events-auto absolute z-30 -translate-x-1/2 -translate-y-full"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="joy-canvas-chrome flex flex-nowrap items-center justify-center gap-0.5 rounded-xl px-0.5 py-0.5">
+      <div className="joy-canvas-chrome flex flex-nowrap items-center justify-center gap-1 rounded-xl px-1 py-1">
         {multi ? (
           <span className="joy-canvas-chrome-muted px-1.5 text-[11px] tabular-nums">
             {nodes.length}
@@ -1200,7 +1204,7 @@ export function NodeFloatToolbar({
               <ToolDrop
                 label={quickConfig.showLabels ? "编辑" : undefined}
                 title="编辑"
-                icon={<CanvasIconPencil className="h-3.5 w-3.5" />}
+                icon={<CanvasIconPencil className="joy-canvas-tool-icon" />}
                 items={editMenuItems}
               />
             ) : null}
@@ -1232,7 +1236,7 @@ export function NodeFloatToolbar({
               <ToolDrop
                 label={quickConfig.showLabels ? "更多" : undefined}
                 title="更多功能"
-                icon={<CanvasIconMore className="h-3.5 w-3.5" />}
+                icon={<CanvasIconMore className="joy-canvas-tool-icon" />}
                 groups={overflowGroups}
                 cascade
               />
@@ -1245,7 +1249,7 @@ export function NodeFloatToolbar({
               <ToolDrop
                 label="编辑"
                 title="编辑"
-                icon={<CanvasIconPencil className="h-3.5 w-3.5" />}
+                icon={<CanvasIconPencil className="joy-canvas-tool-icon" />}
                 items={editItems}
               />
             ) : null}
@@ -1260,11 +1264,11 @@ export function NodeFloatToolbar({
                     title="加入我的素材"
                     onClick={() => void saveNodeAsset(node.id)}
                   >
-                    <CanvasIconFolderPlus className="h-3.5 w-3.5" />
+                    <CanvasIconFolderPlus className="joy-canvas-tool-icon" />
                   </ToolBtn>
                 ) : null}
                 <ToolBtn title="下载" onClick={() => void onDownload()}>
-                  <CanvasIconDownload className="h-3.5 w-3.5" />
+                  <CanvasIconDownload className="joy-canvas-tool-icon" />
                 </ToolBtn>
               </>
             ) : null}
@@ -1473,7 +1477,7 @@ function ToolDrop({
         caret={
           <ChevronDown
             className={cn(
-              "size-3.5 shrink-0 text-muted-foreground transition-transform duration-150",
+              "joy-canvas-tool-icon shrink-0 text-muted-foreground transition-transform duration-150",
               open && "rotate-180",
             )}
             aria-hidden
@@ -1524,7 +1528,7 @@ function ToolDrop({
                   >
                     <span>{group.label || "菜单"}</span>
                     <ChevronRight
-                      className="size-3.5 shrink-0 text-muted-foreground"
+                      className="joy-canvas-tool-icon shrink-0 text-muted-foreground"
                       aria-hidden
                     />
                   </button>

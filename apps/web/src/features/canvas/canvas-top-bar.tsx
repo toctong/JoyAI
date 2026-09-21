@@ -145,46 +145,46 @@ export function CanvasTopBar({
               type="button"
               title="菜单"
               aria-label="菜单"
-              className="grid size-8 place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
+              className="grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
             >
-              <CanvasIconMenu className="size-4" />
+              <CanvasIconMenu className="joy-canvas-tool-icon" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
             <DropdownMenuLabel>画布</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => router.push("/")}>
-              <CanvasIconHome className="size-4" />
+              <CanvasIconHome className="joy-canvas-tool-icon" />
               首页
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push("/canvas")}>
-              <CanvasIconFolder className="size-4" />
+              <CanvasIconFolder className="joy-canvas-tool-icon" />
               项目列表
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onImport}>
-              <CanvasIconUpload className="size-4" />
+              <CanvasIconUpload className="joy-canvas-tool-icon" />
               导入素材
             </DropdownMenuItem>
             <DropdownMenuItem onClick={exportProject}>
-              <Download className="size-4" />
+              <Download className="joy-canvas-tool-icon" />
               导出项目 JSON
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => jsonImportRef.current?.click()}>
-              <FileJson className="size-4" />
+              <FileJson className="joy-canvas-tool-icon" />
               导入项目 JSON
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onOpenShortcuts}>
-              <CanvasIconKeyboard className="size-4" />
+              <CanvasIconKeyboard className="joy-canvas-tool-icon" />
               快捷键
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled={!canUndo} onClick={onUndo}>
-              <CanvasIconUndo className="size-4" />
+              <CanvasIconUndo className="joy-canvas-tool-icon" />
               撤销
               <DropdownMenuShortcut>⌘Z</DropdownMenuShortcut>
             </DropdownMenuItem>
             <DropdownMenuItem disabled={!canRedo} onClick={onRedo}>
-              <CanvasIconRedo className="size-4" />
+              <CanvasIconRedo className="joy-canvas-tool-icon" />
               重做
               <DropdownMenuShortcut>⇧⌘Z</DropdownMenuShortcut>
             </DropdownMenuItem>
@@ -253,11 +253,11 @@ export function CanvasTopBar({
             aria-pressed={rightMode === "nodes"}
             onClick={() => toggleRight("nodes")}
             className={cn(
-              "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg",
+              "joy-canvas-chrome-btn grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg",
               rightMode === "nodes" && "is-active",
             )}
           >
-            <CanvasIconSearch className="size-4" />
+            <CanvasIconSearch className="joy-canvas-tool-icon" />
           </button>
           <button
             type="button"
@@ -267,11 +267,11 @@ export function CanvasTopBar({
             aria-pressed={rightMode === "history"}
             onClick={() => toggleRight("history")}
             className={cn(
-              "joy-canvas-chrome-btn grid size-8 place-items-center rounded-lg",
+              "joy-canvas-chrome-btn grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg",
               rightMode === "history" && "is-active",
             )}
           >
-            <CanvasIconHistory className="size-4" />
+            <CanvasIconHistory className="joy-canvas-tool-icon" />
           </button>
         </div>
         <Link
@@ -285,9 +285,9 @@ export function CanvasTopBar({
           title="快捷键"
           aria-label="快捷键"
           onClick={onOpenShortcuts}
-          className="grid size-8 place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
+          className="grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
         >
-          <CanvasIconShortcuts className="size-4" />
+          <CanvasIconShortcuts className="joy-canvas-tool-icon" />
         </button>
       </div>
     </div>

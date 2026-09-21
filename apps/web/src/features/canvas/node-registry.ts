@@ -1,4 +1,5 @@
 import type { CanvasNodeType } from "@joyai/shared";
+import { CANVAS_NODE_SIZE } from "@/shared/theme";
 
 /** Toolbar actions declared per node type (rendered by NodeFloatToolbar). */
 export type NodeToolbarAction =
@@ -44,8 +45,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   text: {
     type: "text",
     label: "文本",
-    defaultWidth: 360,
-    defaultHeight: 160,
+    defaultWidth: CANVAS_NODE_SIZE.text.width,
+    defaultHeight: CANVAS_NODE_SIZE.text.height,
     defaultData: () => ({ text: "双击编辑文本" }),
     toolbar: [
       "font-down",
@@ -59,8 +60,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   image: {
     type: "image",
     label: "图像",
-    defaultWidth: 340,
-    defaultHeight: 240,
+    defaultWidth: CANVAS_NODE_SIZE.image.width,
+    defaultHeight: CANVAS_NODE_SIZE.image.height,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
     toolbar: [
       "upload",
@@ -86,8 +87,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   video: {
     type: "video",
     label: "视频",
-    defaultWidth: 420,
-    defaultHeight: 236,
+    defaultWidth: CANVAS_NODE_SIZE.video.width,
+    defaultHeight: CANVAS_NODE_SIZE.video.height,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
     toolbar: [
       "upload",
@@ -105,8 +106,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   prompt: {
     type: "prompt",
     label: "提示词",
-    defaultWidth: 280,
-    defaultHeight: 180,
+    defaultWidth: CANVAS_NODE_SIZE.prompt.width,
+    defaultHeight: CANVAS_NODE_SIZE.prompt.height,
     defaultData: () => ({
       prompt: "",
       status: "idle",
@@ -120,8 +121,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   panorama: {
     type: "panorama",
     label: "全景",
-    defaultWidth: 340,
-    defaultHeight: 170,
+    defaultWidth: CANVAS_NODE_SIZE.panorama.width,
+    defaultHeight: CANVAS_NODE_SIZE.panorama.height,
     defaultData: () => ({
       url: "",
       assetId: "",
@@ -149,8 +150,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   audio: {
     type: "audio",
     label: "音频",
-    defaultWidth: 380,
-    defaultHeight: 200,
+    defaultWidth: CANVAS_NODE_SIZE.audio.width,
+    defaultHeight: CANVAS_NODE_SIZE.audio.height,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
     toolbar: [
       "upload",
@@ -165,8 +166,8 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   director: {
     type: "director",
     label: "导演台",
-    defaultWidth: 280,
-    defaultHeight: 180,
+    defaultWidth: CANVAS_NODE_SIZE.director.width,
+    defaultHeight: CANVAS_NODE_SIZE.director.height,
     defaultData: () => ({ directorProject: { version: 1, shots: [] } }),
     toolbar: ["open-director", "duplicate", "delete"],
   },

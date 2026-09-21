@@ -100,7 +100,10 @@ export function CanvasSvg({ name, className, title }: Props) {
       aria-label={title}
       aria-hidden={title ? undefined : true}
       title={title}
-      className={cn("inline-block size-[18px] shrink-0 bg-current", className)}
+      className={cn(
+        "joy-canvas-tool-icon inline-block shrink-0 bg-current",
+        className,
+      )}
       style={{
         WebkitMaskImage: `url(/canvas-icons/${name}.svg?v=${CANVAS_ICON_REV})`,
         maskImage: `url(/canvas-icons/${name}.svg?v=${CANVAS_ICON_REV})`,
@@ -123,7 +126,7 @@ export function BrandOpenAiIcon({ className }: { className?: string }) {
       src="/canvas-icons/brand-openai-default.svg"
       alt=""
       aria-hidden
-      className={cn("size-[18px] object-contain", className)}
+      className={cn("joy-canvas-tool-icon object-contain", className)}
       draggable={false}
     />
   );

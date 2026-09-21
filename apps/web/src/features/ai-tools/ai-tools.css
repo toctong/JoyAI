@@ -48,7 +48,7 @@
   border-radius: 10px;
   background: transparent;
   padding: 0 16px;
-  font-size: 14px;
+  font-size: var(--joy-font-label);
   font-weight: 400;
   color: var(--muted-foreground);
   cursor: pointer;
@@ -68,7 +68,7 @@
 
 .joy-ai-tools-toolbar-hint {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: var(--muted-foreground);
 }
 
@@ -122,7 +122,7 @@
 
 .joy-ai-tool-card-title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   line-height: 1.35;
   color: var(--foreground);
 }
@@ -133,7 +133,7 @@
   height: 18px;
   border-radius: 4px;
   padding: 0 6px;
-  font-size: 10px;
+  font-size: var(--joy-font-micro);
   letter-spacing: 0.04em;
   color: var(--primary-foreground);
   background: var(--primary);
@@ -152,7 +152,7 @@
 .joy-ai-tool-card-desc {
   margin: 0;
   max-width: 28em;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   line-height: 1.55;
   color: var(--muted-foreground);
 }
@@ -253,8 +253,8 @@ img.joy-ai-tool-stack-layer {
 }
 
 .joy-tool-page-sidebar {
-  flex: 0 0 360px;
-  width: 360px;
+  flex: 0 0 var(--joy-tool-sidebar-width);
+  width: var(--joy-tool-sidebar-width);
   height: 100%;
   min-height: 0;
   border-right: 1px solid var(--border);
@@ -284,27 +284,27 @@ img.joy-ai-tool-stack-layer {
 
 .joy-tool-page :is(h1, h2, h3),
 .joy-tool-page [class*="-title"] {
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
 }
 
 .joy-tool-page-heading h1 {
   margin: 0 0 6px;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
   line-height: 1.35;
 }
 
 .joy-tool-page-heading p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   line-height: 1.5;
   color: var(--muted-foreground);
 }
 
 .joy-tool-page-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   line-height: 1.5;
   color: var(--muted-foreground);
 }
@@ -316,7 +316,7 @@ img.joy-ai-tool-stack-layer {
 }
 
 .joy-tool-page-label {
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   font-weight: 400;
   color: var(--muted-foreground);
 }
@@ -332,7 +332,7 @@ img.joy-ai-tool-stack-layer {
   border-radius: 10px;
   background: var(--secondary);
   color: var(--foreground);
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   text-align: left;
   cursor: pointer;
@@ -402,7 +402,7 @@ img.joy-ai-tool-stack-layer {
   background: var(--secondary);
   padding: 8px 4px;
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   cursor: pointer;
   transition:
@@ -413,7 +413,7 @@ img.joy-ai-tool-stack-layer {
 
 .joy-tool-options.is-ratio .joy-tool-option {
   min-height: 58px;
-  font-size: 11px;
+  font-size: var(--joy-font-micro);
 }
 
 .joy-tool-option:hover:not(:disabled) {
@@ -460,7 +460,7 @@ img.joy-ai-tool-stack-layer {
   width: 100%;
   height: 44px;
   border-radius: 10px;
-  font-size: 14px;
+  font-size: var(--joy-font-label);
   font-weight: 500;
 }
 
@@ -539,7 +539,7 @@ img.joy-ai-tool-stack-layer {
   align-items: center;
   gap: 6px;
   margin-bottom: 0;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   color: var(--muted-foreground);
   text-decoration: none;
@@ -569,13 +569,13 @@ img.joy-ai-tool-stack-layer {
 
 .joy-ai-tool-detail-title {
   margin: 0 0 6px;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   line-height: 1.35;
 }
 
 .joy-ai-tool-detail-desc {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   line-height: 1.6;
   color: var(--muted-foreground);
 }
@@ -585,7 +585,7 @@ img.joy-ai-tool-stack-layer {
   border-radius: 14px;
   padding: 28px 20px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: var(--muted-foreground);
   background: var(--card);
 }
@@ -606,13 +606,13 @@ img.joy-ai-tool-stack-layer {
 
 .joy-ai-tool-panel-title {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-size: var(--joy-font-title);
   font-weight: 400;
 }
 
 .joy-ai-tool-panel-hint {
   margin: 0 0 14px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   line-height: 1.5;
   color: var(--muted-foreground);
 }
@@ -688,12 +688,12 @@ img.joy-ai-tool-stack-layer {
 
 .joy-ai-tool-drop-zone strong {
   color: var(--foreground);
-  font-size: 14px;
+  font-size: var(--joy-font-label);
   font-weight: 400;
 }
 
 .joy-ai-tool-drop-zone span {
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
 }
 
 .joy-ai-tool-drop-zone:hover,
@@ -764,7 +764,7 @@ img.joy-ai-tool-stack-layer {
   margin-bottom: 0;
   resize: vertical;
   border-radius: 12px;
-  font-size: 14px;
+  font-size: var(--joy-font-label);
   font-weight: 400;
   line-height: 1.6;
 }
@@ -788,7 +788,7 @@ img.joy-ai-tool-stack-layer {
   gap: 8px;
   border-radius: 12px;
   background: var(--secondary);
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   color: var(--muted-foreground);
 }
 
@@ -825,7 +825,7 @@ img.joy-ai-tool-stack-layer {
   border-radius: 8px;
   background: var(--secondary);
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--joy-font-micro);
   color: var(--foreground);
   text-decoration: none;
 }
@@ -842,7 +842,7 @@ img.joy-ai-tool-stack-layer {
 
 .joy-tool-page .joy-ai-tool-history-title {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--joy-font-caption);
   font-weight: 400;
   color: var(--muted-foreground);
 }

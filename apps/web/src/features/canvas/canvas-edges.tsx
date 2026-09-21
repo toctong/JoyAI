@@ -236,7 +236,7 @@ export function NodeHandles({
 }: HandleProps) {
   const box = nodeBox(node);
   const portClass = cn(
-    "joy-canvas-port absolute z-[2] grid size-5 -translate-y-1/2 place-items-center rounded-full border border-foreground/75 bg-background text-foreground shadow-sm",
+    "joy-canvas-port absolute z-[2] grid size-[length:var(--joy-canvas-port)] -translate-y-1/2 place-items-center rounded-full border border-foreground/75 bg-background text-foreground shadow-sm",
     visible && "is-visible",
   );
 
@@ -310,7 +310,7 @@ export function SelectionConnectHandle({
       aria-label="批量输出连接点"
       data-canvas-no-zoom
       className={cn(
-        "joy-canvas-port is-visible absolute z-[20001] grid size-5 -translate-y-1/2 place-items-center rounded-full border border-foreground/75 bg-background text-foreground shadow-sm hover:scale-110",
+        "joy-canvas-port is-visible absolute z-[20001] grid size-[length:var(--joy-canvas-port)] -translate-y-1/2 place-items-center rounded-full border border-foreground/75 bg-background text-foreground shadow-sm hover:scale-110",
       )}
       style={{ left, top }}
       onPointerDown={(e) => {

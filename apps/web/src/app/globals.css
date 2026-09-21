@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../shared/theme/design-tokens.css";
 @import "../features/appearance/appearance.css";
 @import "../features/appearance/theme-transition.css";
 
@@ -7,8 +8,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 *:focus {
-  outline-color:#eee;
+  outline-color: #eee;
 }
+
 /* Light — chrome uses previous sidebar white (#fff) */
 :root {
   --background: #ffffff;
@@ -22,7 +24,8 @@
   --secondary: #f4f4f5;
   --secondary-foreground: #27272a;
   --muted: #f4f4f5;
-  --muted-foreground: #5d5d5d;
+  /* Slightly stronger secondary text for readability at larger sizes */
+  --muted-foreground: #52525b;
   --accent: #f4f4f5;
   --accent-foreground: #0d0d0d;
   --destructive: #dc2626;
@@ -47,7 +50,7 @@
   --secondary: #1f1f24;
   --secondary-foreground: #e4e4e7;
   --muted: #1c1c21;
-  --muted-foreground: #a1a1aa;
+  --muted-foreground: #a8a8b3;
   --accent: #1c1c21;
   --accent-foreground: #f4f4f5;
   --destructive: #f87171;
@@ -83,6 +86,15 @@
   --radius-lg: var(--radius);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Joy semantic type → Tailwind text-* if needed later */
+  --text-joy-micro: var(--joy-font-micro);
+  --text-joy-caption: var(--joy-font-caption);
+  --text-joy-label: var(--joy-font-label);
+  --text-joy-body: var(--joy-font-body);
+  --text-joy-title: var(--joy-font-title);
+  --text-joy-heading: var(--joy-font-heading);
+  --text-joy-display: var(--joy-font-display);
 }
 
 @layer base {
@@ -91,6 +103,27 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-size: var(--joy-font-body);
+    line-height: var(--joy-leading-normal);
+  }
+
+  h1 {
+    font-size: var(--joy-font-heading);
+    font-weight: var(--joy-weight-regular);
+    line-height: var(--joy-leading-tight);
+  }
+
+  h2 {
+    font-size: var(--joy-font-title);
+    font-weight: var(--joy-weight-regular);
+    line-height: var(--joy-leading-snug);
+  }
+
+  h3,
+  h4 {
+    font-size: var(--joy-font-subtitle);
+    font-weight: var(--joy-weight-regular);
+    line-height: var(--joy-leading-snug);
   }
 }
 

@@ -74,7 +74,7 @@ export function ThemeToggle({
   if (!mounted) {
     return (
       <Button variant={variant} size={size} className={className} aria-label="主题">
-        <Sun className="h-4 w-4" />
+        <Sun className="h-[var(--joy-icon-md)] w-[var(--joy-icon-md)]" />
       </Button>
     );
   }
@@ -109,7 +109,7 @@ export function ThemeToggle({
         });
       }}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-[var(--joy-icon-md)] w-[var(--joy-icon-md)]" />
     </Button>
   );
 }

@@ -104,17 +104,17 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
 
   function renderTool(tool: (typeof TOOLS)[number]) {
     return (
-      <div key={tool.id} className="relative flex h-9 items-center">
+      <div key={tool.id} className="relative flex h-[var(--joy-canvas-tool-btn)] items-center">
         <button
           type="button"
           title={labelsOpen ? undefined : tool.title}
           aria-label={tool.title}
           onClick={() => runTool(tool)}
-          className="joy-canvas-chrome-btn relative grid size-9 place-items-center rounded-xl"
+          className="joy-canvas-chrome-btn relative grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-xl"
         >
-          <tool.Icon className="size-4 shrink-0 opacity-90" />
+          <tool.Icon className="joy-canvas-tool-icon shrink-0 opacity-90" />
           {tool.beta ? (
-            <span className="absolute -right-1 -top-1 rounded bg-sky-500 px-1 py-[1px] text-[8px] font-semibold leading-none text-white">
+            <span className="absolute -right-1 -top-1 rounded bg-sky-500 px-1 py-[1px] text-[length:var(--joy-font-micro)] font-semibold leading-none text-white">
               Beta
             </span>
           ) : null}
@@ -125,7 +125,7 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
           aria-hidden={!labelsOpen}
           onClick={() => runTool(tool)}
           className={cn(
-            "absolute left-full ml-4 whitespace-nowrap text-[13px] font-medium text-muted-foreground transition-[opacity,transform] duration-200 ease-out hover:text-foreground",
+            "absolute left-full ml-4 whitespace-nowrap text-[length:var(--joy-font-label)] font-medium text-muted-foreground transition-[opacity,transform] duration-200 ease-out hover:text-foreground",
             labelsOpen
               ? "translate-x-0 opacity-100"
               : "pointer-events-none -translate-x-2 opacity-0",
@@ -152,7 +152,7 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
         onMouseEnter={() => setLabelsOpen(true)}
         onMouseLeave={() => setLabelsOpen(false)}
       >
-        <div className="joy-canvas-chrome flex w-12 flex-col gap-0.5 rounded-2xl p-1.5">
+        <div className="joy-canvas-chrome flex w-[var(--joy-canvas-tool-rail-width)] flex-col gap-1 rounded-2xl p-1.5">
           {PRIMARY.map(renderTool)}
           <div className="joy-canvas-chrome-sep mx-1.5 my-1 h-px" />
           {SECONDARY.map(renderTool)}

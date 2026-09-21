@@ -14,6 +14,7 @@ import { NodeRuntimeBadge } from "../node-runtime-badge";
 import { MarkdownEditorDialog } from "../markdown-editor-dialog";
 import { nodeChromeClass, nodeTitleLabel } from "../lib/node-chrome";
 import { cn } from "@/shared/lib/utils";
+import { CANVAS_TEXT_FONT } from "@/shared/theme";
 
 type Props = {
   node: CanvasNode;
@@ -119,6 +120,6 @@ export function TextNode({ node, onPointerDown }: Props) {
 
 function clampFontSize(value: unknown) {
   const size = Number(value);
-  if (!Number.isFinite(size)) return 14;
-  return Math.min(32, Math.max(10, size));
+  if (!Number.isFinite(size)) return CANVAS_TEXT_FONT.default;
+  return Math.min(CANVAS_TEXT_FONT.max, Math.max(CANVAS_TEXT_FONT.min, size));
 }

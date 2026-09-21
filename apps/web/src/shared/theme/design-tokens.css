@@ -1,0 +1,224 @@
+/**
+ * JoyAI design tokens — single source for chrome, type, color, controls, canvas.
+ * Swap skins by overriding these variables on :root / .dark / [data-skin="…"].
+ *
+ * Semantic aliases (`--joy-*`) sit on top of shadcn color vars so existing
+ * `bg-card` / `text-muted-foreground` keep working while feature CSS can migrate.
+ */
+
+:root {
+  /* ── Typography scale (slightly larger than previous 10–13px chrome) ── */
+  --joy-font-micro: 12px;
+  --joy-font-caption: 13px;
+  --joy-font-label: 14px;
+  --joy-font-body: 15px;
+  --joy-font-subtitle: 15px;
+  --joy-font-title: 16px;
+  --joy-font-heading: 18px;
+  --joy-font-display: 22px;
+  --joy-font-hero: 28px;
+
+  --joy-leading-tight: 1.25;
+  --joy-leading-snug: 1.35;
+  --joy-leading-normal: 1.5;
+  --joy-leading-relaxed: 1.65;
+
+  --joy-weight-regular: 400;
+  --joy-weight-medium: 500;
+  --joy-weight-semibold: 600;
+
+  /* ── Icon sizes ── */
+  --joy-icon-xs: 14px;
+  --joy-icon-sm: 16px;
+  --joy-icon-md: 18px;
+  --joy-icon-lg: 20px;
+  --joy-icon-xl: 24px;
+
+  /* ── Spacing ── */
+  --joy-space-1: 4px;
+  --joy-space-2: 8px;
+  --joy-space-3: 12px;
+  --joy-space-4: 16px;
+  --joy-space-5: 20px;
+  --joy-space-6: 24px;
+  --joy-space-7: 28px;
+  --joy-space-8: 32px;
+  --joy-space-page-x: 32px;
+  --joy-space-page-y: 28px;
+  --joy-space-section: 28px;
+  --joy-space-stack: 16px;
+  --joy-space-field: 8px;
+
+  /* ── Radius ── */
+  --joy-radius-sm: 8px;
+  --joy-radius-md: 10px;
+  --joy-radius-lg: 12px;
+  --joy-radius-xl: 16px;
+  --joy-radius-pill: 999px;
+
+  /* ── Control heights ── */
+  --joy-control-h-sm: 32px;
+  --joy-control-h-md: 36px;
+  --joy-control-h-lg: 40px;
+  --joy-control-h-xl: 44px;
+
+  /* ── Motion ── */
+  --joy-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --joy-duration-fast: 140ms;
+  --joy-duration-normal: 220ms;
+
+  /* ── Layout chrome ── */
+  --joy-sidebar-width: 72px;
+  --joy-tool-sidebar-width: 360px;
+
+  /* ── Canvas ── */
+  --joy-canvas-chrome-font: var(--joy-font-label);
+  --joy-canvas-chrome-font-sm: var(--joy-font-caption);
+  --joy-canvas-port: 22px;
+  --joy-canvas-text-default: 16px;
+  /* Left rail / bottom dock / float toolbars */
+  --joy-canvas-tool-icon: 20px;
+  --joy-canvas-tool-btn: 40px;
+  --joy-canvas-tool-rail-width: 56px;
+  --joy-canvas-float-icon: 18px;
+  --joy-canvas-float-btn: 36px;
+  --joy-canvas-title-edit-icon: 12px;
+
+  /* ── Semantic surfaces (light) — skin by overriding these ── */
+  --joy-bg: var(--background);
+  --joy-fg: var(--foreground);
+  --joy-surface: var(--card);
+  --joy-surface-fg: var(--card-foreground);
+  --joy-surface-muted: var(--secondary);
+  --joy-surface-hover: color-mix(in oklab, var(--muted) 88%, var(--foreground) 6%);
+  --joy-surface-selected: color-mix(in oklab, var(--muted) 75%, var(--foreground) 10%);
+  --joy-surface-elevated: var(--popover);
+  --joy-border: var(--border);
+  --joy-border-strong: color-mix(in oklab, var(--foreground) 18%, var(--border));
+  --joy-text: var(--foreground);
+  --joy-text-secondary: var(--muted-foreground);
+  --joy-text-subtle: color-mix(in oklab, var(--muted-foreground) 78%, var(--background));
+  --joy-ring: var(--ring);
+  --joy-primary: var(--primary);
+  --joy-primary-fg: var(--primary-foreground);
+  --joy-danger: var(--destructive);
+  --joy-danger-fg: var(--destructive-foreground);
+}
+
+.dark {
+  --joy-surface-hover: color-mix(in oklab, var(--muted) 80%, #fff 8%);
+  --joy-surface-selected: color-mix(in oklab, var(--muted) 70%, #fff 12%);
+  --joy-border-strong: color-mix(in oklab, #fff 16%, var(--border));
+  --joy-text-subtle: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+}
+
+/* ── Semantic text utilities (use across pages / features) ── */
+
+.joy-text-micro {
+  font-size: var(--joy-font-micro);
+  font-weight: var(--joy-weight-regular);
+  line-height: var(--joy-leading-normal);
+}
+
+.joy-text-caption {
+  font-size: var(--joy-font-caption);
+  font-weight: var(--joy-weight-regular);
+  line-height: var(--joy-leading-normal);
+  color: var(--joy-text-secondary);
+}
+
+.joy-text-label {
+  font-size: var(--joy-font-label);
+  font-weight: var(--joy-weight-regular);
+  line-height: var(--joy-leading-normal);
+  color: var(--joy-text-secondary);
+}
+
+.joy-text-body {
+  font-size: var(--joy-font-body);
+  font-weight: var(--joy-weight-regular);
+  line-height: var(--joy-leading-relaxed);
+  color: var(--joy-text);
+}
+
+.joy-text-subtitle {
+  font-size: var(--joy-font-subtitle);
+  font-weight: var(--joy-weight-regular);
+  line-height: var(--joy-leading-normal);
+  color: var(--joy-text-secondary);
+}
+
+.joy-text-title {
+  font-size: var(--joy-font-title);
+  font-weight: var(--joy-weight-regular);
+  line-height: var(--joy-leading-snug);
+  color: var(--joy-text);
+}
+
+.joy-text-heading {
+  font-size: var(--joy-font-heading);
+  font-weight: var(--joy-weight-regular);
+  line-height: var(--joy-leading-tight);
+  color: var(--joy-text);
+}
+
+.joy-text-display {
+  font-size: var(--joy-font-display);
+  font-weight: var(--joy-weight-regular);
+  line-height: var(--joy-leading-tight);
+  color: var(--joy-text);
+}
+
+/* ── Surface / interaction helpers ── */
+
+.joy-surface {
+  background: var(--joy-surface);
+  color: var(--joy-surface-fg);
+}
+
+.joy-surface-muted {
+  background: var(--joy-surface-muted);
+}
+
+.joy-surface-interactive {
+  background: var(--joy-surface-muted);
+  border: 1px solid var(--joy-border);
+  transition:
+    background var(--joy-duration-fast) var(--joy-ease-out),
+    border-color var(--joy-duration-fast) var(--joy-ease-out),
+    color var(--joy-duration-fast) var(--joy-ease-out);
+}
+
+.joy-surface-interactive:hover {
+  background: var(--joy-surface-hover);
+  border-color: var(--joy-border-strong);
+}
+
+.joy-surface-interactive.is-selected,
+.joy-surface-interactive[aria-selected="true"],
+.joy-surface-interactive[data-state="on"],
+.joy-surface-interactive[data-state="active"] {
+  background: var(--joy-surface-selected);
+  border-color: var(--joy-border-strong);
+  color: var(--joy-text);
+  box-shadow: inset 0 0 0 1px var(--joy-border-strong);
+}
+
+.joy-control {
+  height: var(--joy-control-h-lg);
+  border-radius: var(--joy-radius-md);
+  font-size: var(--joy-font-label);
+  font-weight: var(--joy-weight-regular);
+}
+
+.joy-control-sm {
+  height: var(--joy-control-h-sm);
+  border-radius: var(--joy-radius-sm);
+  font-size: var(--joy-font-caption);
+}
+
+.joy-control-xl {
+  height: var(--joy-control-h-xl);
+  border-radius: var(--joy-radius-md);
+  font-size: var(--joy-font-body);
+}
