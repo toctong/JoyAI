@@ -7,6 +7,7 @@ import {
   CanvasIconVideo,
 } from "./icons/canvas-icons";
 import { JoyRemoteImg } from "@/shared/ui/joy-remote-img";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -33,16 +34,15 @@ export function CanvasRefThumb({ kind, url, className }: Props) {
   }
 
   if (kind === "video" && visual) {
-    const frame = src.includes("#") ? src : `${src}#t=0.1`;
     return (
-      <video
-        src={frame}
-        muted
-        playsInline
-        preload="metadata"
-        draggable={false}
-        className={cn("pointer-events-none size-full select-none object-cover", className)}
-        onDragStart={(event) => event.preventDefault()}
+      <JoyVideoPoster
+        url={src}
+        size="sm"
+        fallback="video"
+        className={cn(
+          "pointer-events-none size-full select-none object-cover",
+          className,
+        )}
       />
     );
   }

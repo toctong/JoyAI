@@ -70,6 +70,7 @@ type HistoryJob = {
   id: string;
   kind: string;
   status: string;
+  progress?: number;
   createdAt: string;
   error?: string | null;
   canvasProjectId?: string | null;
@@ -522,14 +523,35 @@ function HistoryPane({
   useEffect(() => {
     void load();
     const socket = getJobsSocket();
-    const refresh = () => void load();
-    socket.on("job:completed", refresh);
-    socket.on("job:failed", refresh);
-    socket.on("job:progress", refresh);
+    const reload = () => void load();
+    const onProgress = (payload: {
+      jobId?: string;
+      status?: string;
+      progress?: number;
+    }) => {
+      if (!payload.jobId) return;
+      setJobs((prev) => {
+        const idx = prev.findIndex((job) => job.id === payload.jobId);
+        if (idx < 0) return prev;
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          status: payload.status ?? copy[idx].status,
+          progress:
+            typeof payload.progress === "number"
+              ? payload.progress
+              : copy[idx].progress,
+        };
+        return copy;
+      });
+    };
+    socket.on("job:completed", reload);
+    socket.on("job:failed", reload);
+    socket.on("job:progress", onProgress);
     return () => {
-      socket.off("job:completed", refresh);
-      socket.off("job:failed", refresh);
-      socket.off("job:progress", refresh);
+      socket.off("job:completed", reload);
+      socket.off("job:failed", reload);
+      socket.off("job:progress", onProgress);
     };
   }, [projectId]);
 

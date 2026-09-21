@@ -10,6 +10,7 @@ import { api } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import {
   Select,
   SelectContent,
@@ -122,7 +123,12 @@ function AssetCard({
       <button type="button" className="joy-assets-card" onClick={onOpen}>
         {isVideo ? (
           <>
-            <video src={asset.url} muted preload="metadata" playsInline />
+            <JoyVideoPoster
+              url={asset.url}
+              size="md"
+              fallback="video"
+              className="size-full object-cover"
+            />
             <span className="joy-assets-play">
               <span className="joy-assets-play-dot">
                 <Play fill="currentColor" />

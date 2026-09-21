@@ -3,6 +3,7 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import "@/features/canvas/canvas-ref-preview.css";
 
 export type MentionTagAttrs = {
@@ -72,13 +73,11 @@ function MentionTagView({ node, selected, deleteNode }: NodeViewProps) {
       >
         {showThumb ? (
           kind === "video" ? (
-            <video
-              src={url}
-              muted
-              playsInline
-              preload="metadata"
+            <JoyVideoPoster
+              url={url}
+              size="sm"
+              fallback="video"
               className="mention-thumb"
-              draggable={false}
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

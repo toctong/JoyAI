@@ -4,21 +4,24 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, MoreThanOrEqual, type FindOptionsWhere, Repository } from "typeorm";
+import { In, IsNull, MoreThanOrEqual, Not, type FindOptionsWhere, Repository } from "typeorm";
 import { Asset } from "../../database/entities/asset.entity";
 import { StorageService } from "../storage/storage.service";
 import { fetchPublicImage } from "../storage/fetch-public-image";
 import { sanitizeOriginalName } from "../storage/original-name";
 import { sourceFromAsset } from "./asset-source";
-import { tosThumbUrl } from "@joyai/shared";
+import { AssetSourceSchema, tosThumbUrl } from "@joyai/shared";
 
 export type AssetListQuery = {
   take?: number;
+  skip?: number;
   kind?: string;
   source?: string;
   /** ISO date or relative: 1d | 7d | 30d */
   from?: string;
   sort?: "newest" | "oldest";
+  /** 1 = no job (uploads); 0 = generated (has job) */
+  uploaded?: "0" | "1";
 };
 
 @Injectable()
@@ -40,6 +43,54 @@ export class AssetsService {
       where: { userId, url: url.trim() },
       order: { createdAt: "DESC" },
     });
+  }
+
+  /**
+   * Another asset already mirrored this remote origin into TOS —
+   * reuse its public URL / fingerprints without re-downloading.
+   */
+  async findMirroredByOriginUrl(originUrl: string) {
+    const origin = originUrl.trim();
+    if (!origin) return null;
+    // Prefer recent TOS mirrors; filter originUrl in memory (meta is JSON).
+    const rows = await this.assets
+      .createQueryBuilder("a")
+      .where("a.url LIKE :tos", { tos: "%/uploads/by-hash/%" })
+      .orderBy("a.createdAt", "DESC")
+      .take(80)
+      .getMany();
+    for (const row of rows) {
+      const meta = row.meta ?? {};
+      if (meta.originUrl !== origin) continue;
+      if (meta.storageStatus && meta.storageStatus !== "ready") continue;
+      return row;
+    }
+    return null;
+  }
+
+  /** Keys / MD5s still referenced by Asset rows (for TOS GC). */
+  async collectStorageReferences(): Promise<{
+    keys: Set<string>;
+    md5s: Set<string>;
+  }> {
+    const rows = await this.assets.find({
+      select: ["url", "md5", "meta"],
+    });
+    const keys = new Set<string>();
+    const md5s = new Set<string>();
+    for (const row of rows) {
+      const fromUrl = this.storage.keyFromPublicUrl(row.url);
+      if (fromUrl) keys.add(fromUrl);
+      const storageKey = row.meta?.storageKey;
+      if (typeof storageKey === "string" && storageKey.trim()) {
+        keys.add(storageKey.trim());
+      }
+      if (row.md5?.trim()) md5s.add(row.md5.trim().toLowerCase());
+      const metaMd5 =
+        typeof row.meta?.md5 === "string" ? row.meta.md5.trim() : "";
+      if (metaMd5) md5s.add(metaMd5.toLowerCase());
+    }
+    return { keys, md5s };
   }
 
   async getOwned(userId: string, id: string) {
@@ -274,11 +325,17 @@ export class AssetsService {
 
   async list(userId: string, query: AssetListQuery = {}) {
     const take = Math.min(Math.max(Number(query.take) || 50, 1), 300);
+    const skip = Math.min(Math.max(Number(query.skip) || 0, 0), 10_000);
     const sort = query.sort === "oldest" ? "ASC" : "DESC";
     const kind = query.kind?.trim().toLowerCase();
     const sourceFilter = query.source?.trim().toLowerCase();
     const fromDate = parseFromFilter(query.from);
+    const knownSource = AssetSourceSchema.safeParse(sourceFilter).success
+      ? sourceFilter
+      : undefined;
 
+    // Prefer DB `source` when set; still oversample a bit and re-check via
+    // resolveAssetSource for legacy rows that only infer source from job links.
     const where: FindOptionsWhere<Asset> = { userId };
     if (
       kind === "image" ||
@@ -291,18 +348,67 @@ export class AssetsService {
     if (fromDate) {
       where.createdAt = MoreThanOrEqual(fromDate);
     }
+    if (knownSource) {
+      where.source = knownSource;
+    }
+    if (query.uploaded === "1") {
+      where.jobId = IsNull();
+    } else if (query.uploaded === "0") {
+      where.jobId = Not(IsNull());
+    }
+
+    const fetchTake = knownSource
+      ? Math.min(take + 40, 300)
+      : take;
 
     const rows = await this.assets.find({
       where,
       order: { createdAt: sort },
-      take: sourceFilter ? Math.min(take * 4, 800) : take,
+      skip,
+      take: fetchTake,
       relations: ["job"],
     });
 
     const items = rows.map((a) => this.toListItem(a));
-    const filtered = sourceFilter
-      ? items.filter((a) => a.source === sourceFilter)
+    const filtered = knownSource
+      ? items.filter((a) => a.source === knownSource)
       : items;
+
+    if (filtered.length >= take || !knownSource) {
+      return filtered.slice(0, take);
+    }
+
+    // Legacy rows may have null source — fill remaining slots from inferred matches.
+    const have = new Set(filtered.map((a) => a.id));
+    const legacyWhere: FindOptionsWhere<Asset> = {
+      userId,
+      source: IsNull(),
+    };
+    if (
+      kind === "image" ||
+      kind === "video" ||
+      kind === "audio" ||
+      kind === "text"
+    ) {
+      legacyWhere.kind = kind;
+    }
+    if (fromDate) {
+      legacyWhere.createdAt = MoreThanOrEqual(fromDate);
+    }
+    const legacyRows = await this.assets.find({
+      where: legacyWhere,
+      order: { createdAt: sort },
+      take: Math.min(take * 3, 400),
+      relations: ["job"],
+    });
+    for (const row of legacyRows) {
+      if (have.has(row.id)) continue;
+      const item = this.toListItem(row);
+      if (item.source !== knownSource) continue;
+      filtered.push(item);
+      have.add(row.id);
+      if (filtered.length >= take) break;
+    }
     return filtered.slice(0, take);
   }
 

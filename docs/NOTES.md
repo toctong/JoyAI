@@ -6,6 +6,8 @@
 - `putObject` 前 `headObject`，已存在则跳过实际上传
 - 同用户同 MD5 资产直接复用（`/upload/check` + `/upload`）
 - SHA-256 写入 Asset.meta 备用
+- Mirror（`putFromUrl`）可跳过下载：① URL 已是本桶 by-hash；② 远端 HEAD 的 Content-MD5/ETag 已对应本地对象；③ 其它 Asset 已镜像同一 `originUrl`
+- 未引用清理：`StorageGcSweeper` 定期扫描 `uploads/by-hash/`；默认 dry-run。Admin：`GET /admin/storage/gc` 预览，`POST /admin/storage/gc?confirm=1` 删除。自动删需 `STORAGE_GC_DELETE=true`
 
 ## 安全
 

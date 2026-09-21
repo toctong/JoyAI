@@ -41,9 +41,17 @@ export function isTosProcessableUrl(url: string): boolean {
   return false;
 }
 
-function isLikelyRasterImage(url: string): boolean {
+function pathOf(url: string): string {
   const parsed = parseHttpUrl(url);
-  const path = (parsed?.pathname ?? url).toLowerCase();
+  return (parsed?.pathname ?? url).toLowerCase();
+}
+
+function isLikelyVideo(url: string): boolean {
+  return /\.(mp4|webm|mov|m4v)(\/?|$)/i.test(pathOf(url));
+}
+
+function isLikelyRasterImage(url: string): boolean {
+  const path = pathOf(url);
   if (/\.(mp4|webm|mov|m4v|mp3|wav|ogg|flac|aac|pdf|json|txt)(\/?|$)/i.test(path)) {
     return false;
   }
@@ -65,6 +73,23 @@ export function tosThumbUrl(
   // Keep the process chain minimal — quality variants differ by product line
   // and a bad param can 400 the whole object (broken <img> in asset grids).
   const process = `image/resize,w_${w}/format,webp`;
+  const sep = raw.includes("?") ? "&" : "?";
+  return `${raw}${sep}x-tos-process=${process}`;
+}
+
+/**
+ * TOS video snapshot for list posters. Empty when the URL is not a TOS video
+ * (caller should keep the original player, not this string).
+ * Preview / download still use the raw mp4.
+ */
+export function tosVideoPosterUrl(
+  url: string | null | undefined,
+  size: MediaThumbSize = "md",
+): string {
+  const raw = String(url ?? "").trim();
+  if (!raw || !isTosProcessableUrl(raw) || !isLikelyVideo(raw)) return "";
+  const w = THUMB_WIDTH[size] ?? THUMB_WIDTH.md;
+  const process = `video/snapshot,t_0,w_${w},f_jpg,m_fast`;
   const sep = raw.includes("?") ? "&" : "?";
   return `${raw}${sep}x-tos-process=${process}`;
 }

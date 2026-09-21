@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CanvasIconImage, CanvasIconPlay } from "./icons/canvas-icons";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -47,21 +48,11 @@ export function ProjectCover({
   if (mode === "video") {
     return (
       <span className={cn("joy-projects-cover-wrap", className)}>
-        <video
-          src={url}
+        <JoyVideoPoster
+          url={url}
+          size="md"
+          fallback="video"
           className="joy-projects-cover"
-          muted
-          playsInline
-          preload="metadata"
-          draggable={false}
-          onLoadedMetadata={(event) => {
-            try {
-              event.currentTarget.currentTime = 0.05;
-            } catch {
-              /* ignore seek failures */
-            }
-          }}
-          onError={() => setMode("empty")}
         />
         {showVideoMark ? (
           <span className="joy-projects-cover-play" aria-hidden>

@@ -41,21 +41,45 @@ export class AssetMirrorProcessor extends WorkerHost {
     }
 
     try {
-      const put = await this.storage.putFromUrl(payload.originUrl, payload.ext);
+      const reused = await this.assets.findMirroredByOriginUrl(payload.originUrl);
+      const put = reused
+        ? {
+            key:
+              (typeof reused.meta?.storageKey === "string" &&
+                reused.meta.storageKey) ||
+              this.storage.keyFromPublicUrl(reused.url) ||
+              "",
+            url: reused.url,
+            md5: reused.md5 ?? "",
+            sha256:
+              typeof reused.meta?.sha256 === "string" ? reused.meta.sha256 : "",
+            size: reused.size ?? 0,
+            deduplicated: true,
+            skippedDownload: true,
+          }
+        : await this.storage.putFromUrl(payload.originUrl, payload.ext);
+
+      if (reused) {
+        this.logger.debug(
+          `Asset mirror reuse originUrl → asset ${reused.id} for ${payload.assetId}`,
+        );
+      }
+
       const existing = await this.assets.findById(payload.assetId);
       const nextMeta: Record<string, unknown> = {
         ...(existing?.meta ?? {}),
         originUrl: payload.originUrl,
         storageStatus: "ready",
-        sha256: put.sha256,
-        storageKey: put.key,
+        ...(put.sha256 ? { sha256: put.sha256 } : {}),
+        ...(put.key ? { storageKey: put.key } : {}),
         tosDeduplicated: put.deduplicated,
+        ...(put.skippedDownload ? { mirrorSkippedDownload: true } : {}),
       };
 
       const asset = await this.assets.updateMirrored(payload.assetId, {
         url: put.url,
-        md5: put.md5,
-        size: put.size,
+        md5: put.md5 || undefined,
+        size: put.size || undefined,
         meta: nextMeta,
       });
       if (!asset) {

@@ -30,6 +30,7 @@ import {
 import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
 import { useDisplayMediaUrl } from "@/shared/ui/joy-remote-img";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import {
   splitPromptForDisplay,
   type PromptDisplayPart,
@@ -498,7 +499,12 @@ function StudioJobRefs({ urls }: { urls: string[] }) {
               title={`参考${i + 1}`}
             >
               {kind === "video" ? (
-                <video src={url} muted playsInline preload="metadata" />
+                <JoyVideoPoster
+                  url={url}
+                  size="sm"
+                  fallback="video"
+                  className="size-full object-cover"
+                />
               ) : kind === "audio" ? (
                 <span className="joy-studio-ref-audio">音</span>
               ) : (
@@ -838,6 +844,31 @@ function StudioInner() {
     void loadInitial();
     const socket = getJobsSocket();
     const refresh = () => void refreshLatest();
+    const onProgress = (payload: {
+      jobId?: string;
+      status?: string;
+      progress?: number;
+    }) => {
+      if (!payload.jobId) return;
+      setJobs((prev) => {
+        const idx = prev.findIndex((job) => job.id === payload.jobId);
+        if (idx < 0) {
+          // New job not in the window yet — pull a fresh page once.
+          void refreshLatest();
+          return prev;
+        }
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          status: payload.status ?? copy[idx].status,
+          progress:
+            typeof payload.progress === "number"
+              ? payload.progress
+              : copy[idx].progress,
+        };
+        return copy;
+      });
+    };
     const onAssetUpdated = (payload: {
       asset?: Asset;
       jobId?: string | null;
@@ -858,12 +889,12 @@ function StudioInner() {
     };
     socket.on("job:completed", refresh);
     socket.on("job:failed", refresh);
-    socket.on("job:progress", refresh);
+    socket.on("job:progress", onProgress);
     socket.on("asset:updated", onAssetUpdated);
     return () => {
       socket.off("job:completed", refresh);
       socket.off("job:failed", refresh);
-      socket.off("job:progress", refresh);
+      socket.off("job:progress", onProgress);
       socket.off("asset:updated", onAssetUpdated);
     };
   }, [loadInitial, refreshLatest]);

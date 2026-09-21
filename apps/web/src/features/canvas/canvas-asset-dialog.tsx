@@ -11,6 +11,7 @@ import {
 import { api } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 
 type AssetRow = {
   id: string;
@@ -50,6 +51,21 @@ type Props = {
   ) => void;
 };
 
+const PAGE = 48;
+
+function listQuery(kind: KindTab, skip: number) {
+  const params = new URLSearchParams({
+    take: String(PAGE),
+    skip: String(skip),
+  });
+  if (kind === "upload") params.set("uploaded", "1");
+  else {
+    params.set("kind", kind);
+    params.set("uploaded", "0");
+  }
+  return `/assets?${params.toString()}`;
+}
+
 /** Asset picker. Contents match the assets page, not canvas nodes or explore prompts. */
 export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
   const [main, setMain] = useState<MainTab>("assets");
@@ -57,6 +73,8 @@ export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
   const [keyword, setKeyword] = useState("");
   const [items, setItems] = useState<AssetRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
@@ -65,11 +83,20 @@ export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
     setKind("image");
     setKeyword("");
     setSelected([]);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || main !== "assets") return;
     let alive = true;
     setLoading(true);
-    void api<AssetRow[]>("/assets?take=200")
+    setItems([]);
+    setHasMore(false);
+    void api<AssetRow[]>(listQuery(kind, 0))
       .then((rows) => {
-        if (alive) setItems(Array.isArray(rows) ? rows : []);
+        if (!alive) return;
+        const next = Array.isArray(rows) ? rows : [];
+        setItems(next);
+        setHasMore(next.length >= PAGE);
       })
       .catch(() => {
         if (alive) setItems([]);
@@ -80,7 +107,7 @@ export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
     return () => {
       alive = false;
     };
-  }, [open]);
+  }, [open, main, kind]);
 
   useEffect(() => {
     if (!open) return;
@@ -114,6 +141,28 @@ export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
         ? current.filter((item) => item !== id)
         : [...current, id],
     );
+  }
+
+  function loadMore() {
+    if (loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    void api<AssetRow[]>(listQuery(kind, items.length))
+      .then((rows) => {
+        const next = Array.isArray(rows) ? rows : [];
+        setItems((current) => {
+          const seen = new Set(current.map((item) => item.id));
+          const merged = [...current];
+          for (const row of next) {
+            if (seen.has(row.id)) continue;
+            seen.add(row.id);
+            merged.push(row);
+          }
+          return merged;
+        });
+        setHasMore(next.length >= PAGE);
+      })
+      .catch(() => setHasMore(false))
+      .finally(() => setLoadingMore(false));
   }
 
   function confirm() {
@@ -250,11 +299,10 @@ export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
                   >
                     {asset.kind === "video" ? (
                       <>
-                        <video
-                          src={asset.url}
-                          muted
-                          preload="metadata"
-                          playsInline
+                        <JoyVideoPoster
+                          url={asset.url}
+                          size="sm"
+                          fallback="video"
                           className="size-full object-cover"
                         />
                         <span className="pointer-events-none absolute bottom-1.5 right-1.5 grid size-5 place-items-center rounded-full bg-black/55 text-white">
@@ -288,6 +336,18 @@ export function CanvasAssetDialog({ open, onClose, onConfirm }: Props) {
               })}
             </div>
           )}
+          {main === "assets" && !loading && hasMore ? (
+            <div className="flex justify-center py-4">
+              <button
+                type="button"
+                className="h-8 rounded-full bg-muted px-4 text-sm text-foreground disabled:opacity-60"
+                disabled={loadingMore}
+                onClick={loadMore}
+              >
+                {loadingMore ? "加载中…" : "加载更多"}
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between border-t border-border px-6 py-4">

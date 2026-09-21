@@ -42,11 +42,19 @@ packages/ai-providers  Provider 适配器（OpenAI-compatible / DashScope / Volc
 
 ## 任务 / 资产隔离
 
-- `GET /jobs?scope=studio`：仅创作台（排除画布 / 漫剧 / 工具）
+- `GET /jobs?scope=studio`：仅创作台（排除画布 / 漫剧 / 工具）；SQL 先收窄再分页，避免一次拉全量任务
 - `GET /jobs?scope=canvas&canvasProjectId=`：仅该画布项目
 - `GET /jobs?scope=manju&manjuProjectId=`：仅该漫剧项目
 - `GET /jobs?scope=tools&toolSlug=`：仅该 AI 工具
-- `GET /assets`：可查全部，或按 `source=studio|canvas|manju|tools|upload` 分类；列表项带 `thumbUrl`（TOS `x-tos-process` 缩略图），详情 / 下载仍用原图 `url`
+- `GET /assets`：可查全部，或按 `source=studio|canvas|manju|tools|upload` 分类（优先按列过滤）；列表项带 `thumbUrl`（TOS `x-tos-process` 缩略图），详情 / 下载仍用原图 `url`
+- 前端：`job:progress` 只更新本地进度，完成 / 失败再拉列表
+
+## 对象存储
+
+- 上传 / mirror 走内容寻址 `uploads/by-hash/{md5}.{ext}`；同 MD5 不重复 put
+- Mirror 尽量不拉字节：本桶 URL、远端 Content-MD5 命中、或已有 Asset 镜像过同一 `originUrl`
+- 列表缩略图用 TOS `x-tos-process`（见 `@joyai/shared` `tosThumbUrl`），不另存缩略文件；视频列表用 `video/snapshot` 封面，不在格子里拉整段 mp4
+- 未引用 GC：`GET/POST /admin/storage/gc`；定时 sweeper 默认只扫描日志，见 `STORAGE_GC_*`
 
 ## 核心 TypeORM 实体
 

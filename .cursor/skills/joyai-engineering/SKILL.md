@@ -16,7 +16,8 @@ description: >-
 3. **Generation is always async** via BullMQ; HTTP returns job id immediately. Image, video, audio, and AI tools all go through `POST /jobs`.
 4. **Canvas snapshots** store `assetId`/URL only — no base64 blobs. Agent chat for a canvas project lives in `project_chat`, not inside the snapshot.
 5. **Product scopes stay separate.** Studio / canvas / manju / AI tools each query their own jobs (`scope=studio|canvas|manju|tools`). Only `/assets` may list everything or filter by `source` (including `tools`). Do not load another product's feed into Studio history or a tool page.
-6. **List images use TOS thumbs; preview uses originals.** Use `tosThumbUrl` / `assetListImageUrl` from `@joyai/shared` for grids and cards. Lightbox, download, canvas nodes, and detail preview keep the full `asset.url`. Do not store a second file unless process-on-read is unavailable.
+6. **List images use TOS thumbs; preview uses originals.** Use `tosThumbUrl` / `assetListImageUrl` from `@joyai/shared` for grids and cards. Lightbox, download, canvas nodes, and detail preview keep the full `asset.url`. Do not store a second file unless process-on-read is unavailable. Video grids use `tosVideoPosterUrl` / `JoyVideoPoster` (snapshot), not a `<video>` of the mp4.
+7. **Storage is content-addressed + GC-aware.** Uploads land at `uploads/by-hash/{md5}.{ext}`. Mirror skips download when the URL is already ours, remote Content-MD5 hits an existing object, or another Asset already mirrored the same `originUrl`. Unreferenced cleanup is admin `GET/POST /admin/storage/gc` (and optional `STORAGE_GC_DELETE`); never delete on Asset row remove alone.
 
 ## Frontend layout (`apps/web`)
 

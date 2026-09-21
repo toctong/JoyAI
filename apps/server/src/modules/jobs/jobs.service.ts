@@ -7,7 +7,7 @@ import {
 import { InjectQueue } from "@nestjs/bullmq";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Queue } from "bullmq";
-import { In, IsNull, Repository } from "typeorm";
+import { In, IsNull, Repository, type SelectQueryBuilder } from "typeorm";
 import { CreateJobSchema, QUEUE } from "@joyai/shared";
 import { Job } from "../../database/entities/job.entity";
 import { Model } from "../../database/entities/model.entity";
@@ -79,6 +79,69 @@ function matchesJobScope(
     return job.kind === JobKind.image || job.kind === JobKind.video;
   }
   return false;
+}
+
+/** Narrow the SQL window before in-memory scope checks (json fields still need a second pass). */
+function applyJobScopeQuery(
+  qb: SelectQueryBuilder<Job>,
+  scope: string | undefined,
+  ids: {
+    canvasProjectId?: string;
+    manjuProjectId?: string;
+    toolSlug?: string;
+  },
+) {
+  if (!scope) return;
+  if (scope === "studio") {
+    qb.andWhere("job.canvasProjectId IS NULL");
+    qb.andWhere("job.kind IN (:...studioKinds)", {
+      studioKinds: [JobKind.image, JobKind.video],
+    });
+    return;
+  }
+  if (scope === "canvas") {
+    if (ids.canvasProjectId) {
+      qb.andWhere(
+        "(job.canvasProjectId = :canvasProjectId OR job.input LIKE :canvasInput)",
+        {
+          canvasProjectId: ids.canvasProjectId,
+          canvasInput: `%"canvasProjectId":"${ids.canvasProjectId}"%`,
+        },
+      );
+    } else {
+      qb.andWhere(
+        "(job.canvasProjectId IS NOT NULL OR job.input LIKE :canvasAny)",
+        { canvasAny: '%"canvasProjectId":"%' },
+      );
+    }
+    return;
+  }
+  if (scope === "manju") {
+    qb.andWhere("job.canvasProjectId IS NULL");
+    if (ids.manjuProjectId) {
+      qb.andWhere("job.input LIKE :manjuInput", {
+        manjuInput: `%"manjuProjectId":"${ids.manjuProjectId}"%`,
+      });
+    } else {
+      qb.andWhere("job.input LIKE :manjuAny", {
+        manjuAny: '%"manjuProjectId":"%',
+      });
+    }
+    return;
+  }
+  if (scope === "tools") {
+    qb.andWhere("job.canvasProjectId IS NULL");
+    qb.andWhere("job.kind IN (:...toolKinds)", {
+      toolKinds: [JobKind.image, JobKind.video],
+    });
+    if (ids.toolSlug) {
+      qb.andWhere("job.input LIKE :toolSlugInput", {
+        toolSlugInput: `%"toolSlug":"${ids.toolSlug}"%`,
+      });
+    } else {
+      qb.andWhere("job.input LIKE :toolAny", { toolAny: '%"toolSlug":"%' });
+    }
+  }
 }
 
 @Injectable()
@@ -198,12 +261,9 @@ export class JobsService {
   }
 
   /**
-   * Studio chat feed: returns a page of jobs sorted ASC by generation time
-   * (finishedAt ?? createdAt). Initial call (no before) = newest window.
-   * Pass before/beforeId of the oldest visible job to load earlier history.
-   *
-   * Sort/paginate in memory — sql.js + TypeORM does not reliably support
-   * COALESCE(...) in ORDER BY.
+   * Paged job feed. Scope is applied in SQL (not “load every job then filter”).
+   * Windows are ordered by createdAt; a short in-memory pass still prefers
+   * finishedAt for the studio chat cursor.
    */
   async list(
     userId: string,
@@ -223,61 +283,59 @@ export class JobsService {
     const canvasProjectId = opts.canvasProjectId?.trim();
     const manjuProjectId = opts.manjuProjectId?.trim();
     const toolSlug = opts.toolSlug?.trim();
+    const ids = { canvasProjectId, manjuProjectId, toolSlug };
 
-    const rows = await this.jobs.find({
-      where:
-        scope === "studio" || scope === "manju" || scope === "tools"
-          ? { userId, canvasProjectId: IsNull() }
-          : scope === "canvas" && canvasProjectId
-            ? { userId, canvasProjectId }
-            : { userId },
-      order: { createdAt: "DESC" },
-      relations: ["assets"],
-    });
-    const enriched = await this.enrichMany(rows);
+    const beforeRaw = opts.before?.trim();
+    const beforeMs = beforeRaw ? Date.parse(beforeRaw) : NaN;
+    const beforeId = opts.beforeId?.trim() || "";
+    const hasCursor = Number.isFinite(beforeMs);
 
-    const timed = enriched
-      .filter((job) => matchesJobScope(job, scope, {
-        canvasProjectId,
-        manjuProjectId,
-        toolSlug,
-      }))
-      .map((job) => {
+    const batchSize = Math.min(Math.max(take * 2, 40), 120);
+    const matched: Array<{ job: JobListRow; ms: number }> = [];
+    let cursor: Date | undefined;
+
+    for (let round = 0; round < 6 && matched.length <= take; round += 1) {
+      const qb = this.jobs
+        .createQueryBuilder("job")
+        .leftJoinAndSelect("job.assets", "assets")
+        .where("job.userId = :userId", { userId })
+        .orderBy("job.createdAt", "DESC")
+        .addOrderBy("job.id", "DESC")
+        .take(batchSize);
+      applyJobScopeQuery(qb, scope, ids);
+      if (cursor) {
+        qb.andWhere("job.createdAt < :cursor", { cursor });
+      }
+      const rows = await qb.getMany();
+      if (!rows.length) break;
+
+      const enriched = await this.enrichMany(rows);
+      for (const job of enriched) {
+        if (!matchesJobScope(job, scope, ids)) continue;
         const ms = Date.parse(String(job.finishedAt ?? job.createdAt));
-        return {
-          job,
-          ms: Number.isFinite(ms) ? ms : 0,
-        };
-      });
+        const time = Number.isFinite(ms) ? ms : 0;
+        if (hasCursor) {
+          if (time > beforeMs) continue;
+          if (time === beforeMs && String(job.id).localeCompare(beforeId) >= 0) {
+            continue;
+          }
+        }
+        matched.push({ job, ms: time });
+      }
 
-    // Newest first for cursor window
-    timed.sort((a, b) => {
+      const last = rows[rows.length - 1];
+      cursor = last?.createdAt ? new Date(last.createdAt) : undefined;
+      if (rows.length < batchSize || !cursor) break;
+    }
+
+    matched.sort((a, b) => {
       if (a.ms !== b.ms) return b.ms - a.ms;
       return String(b.job.id).localeCompare(String(a.job.id));
     });
 
-    let filtered = timed;
-    const beforeRaw = opts.before?.trim();
-    if (beforeRaw) {
-      const beforeMs = Date.parse(beforeRaw);
-      if (Number.isFinite(beforeMs)) {
-        const beforeId = opts.beforeId?.trim() || "";
-        filtered = timed.filter((row) => {
-          if (row.ms < beforeMs) return true;
-          if (row.ms > beforeMs) return false;
-          return String(row.job.id).localeCompare(beforeId) < 0;
-        });
-      }
-    }
-
-    const hasMore = filtered.length > take;
-    const pageDesc = hasMore ? filtered.slice(0, take) : filtered;
-
-    // Chat layout: older at top → ASC
-    const items = pageDesc
-      .map((row) => row.job)
-      .reverse();
-
+    const hasMore = matched.length > take;
+    const pageDesc = hasMore ? matched.slice(0, take) : matched;
+    const items = pageDesc.map((row) => row.job).reverse();
     return { items, hasMore };
   }
 

@@ -3,5 +3,6 @@ export {
   assetListImageUrl,
   isTosProcessableUrl,
   tosThumbUrl,
+  tosVideoPosterUrl,
   type MediaThumbSize,
 } from "@joyai/shared";
