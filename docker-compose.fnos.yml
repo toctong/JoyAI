@@ -1,0 +1,131 @@
+# 飞牛 fnOS 全套：web + server + MySQL + Redis
+# 在仓库根目录执行（.env 放在同目录，密钥只用于变量替换，不会打进镜像）：
+#   docker compose -f docker-compose.fnos.yml up -d --build
+#
+# 浏览器打开 http://<飞牛IP>:18080
+# 页面里的 localhost:18081 会自动改成这台机器的 IP，API 走 18081。
+# 本地开发仍用 docker-compose.yml（只要 MySQL 和 Redis）。
+
+name: joyai-fnos
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-18081}/api
+        NEXT_PUBLIC_WS_URL: http://localhost:${API_PORT:-18081}
+    image: joyai-web:latest
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-18080}:3000"
+    depends_on:
+      - server
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    image: joyai-server:latest
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-18081}:3001"
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      TZ: Asia/Shanghai
+      DATABASE_URL: mysql://joyai:${MYSQL_PASSWORD:-joyai}@mysql:3306/joyai
+      REDIS_URL: redis://redis:6379
+      # 不用 .env 里的 CORS_ORIGINS（那是本机 3000 端口）。* 表示按浏览器地址放行。
+      # 暴露到公网时改成 FNOS_CORS_ORIGINS=http://你的域名:18080
+      CORS_ORIGINS: ${FNOS_CORS_ORIGINS:-*}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-long-random-string}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      AUTH_BOOTSTRAP_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
+      AUTH_BOOTSTRAP_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD:-admin123}
+      ELSER_FEED_BASE_URL: ${ELSER_FEED_BASE_URL:-https://api.tool.elser.ai/v1}
+      ELSER_FEED_CACHE_TTL_MS: ${ELSER_FEED_CACHE_TTL_MS:-21600000}
+      EXPLORE_FEED_WARM_MS: ${EXPLORE_FEED_WARM_MS:-10800000}
+      EXPLORE_FEED_WARM_PAGES: ${EXPLORE_FEED_WARM_PAGES:-3}
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      ARK_BASE_URL: ${ARK_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
+      ARK_IMAGE_MODEL: ${ARK_IMAGE_MODEL:-}
+      ARK_VIDEO_MODEL: ${ARK_VIDEO_MODEL:-}
+      APIMART_API_KEY: ${APIMART_API_KEY:-}
+      APIMART_BASE_URL: ${APIMART_BASE_URL:-}
+      TOAPIS_API_KEY: ${TOAPIS_API_KEY:-}
+      TOAPIS_BASE_URL: ${TOAPIS_BASE_URL:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-}
+      JOB_IMAGE_CONCURRENCY: ${JOB_IMAGE_CONCURRENCY:-5}
+      JOB_VIDEO_TIMEOUT_MS: ${JOB_VIDEO_TIMEOUT_MS:-3000000}
+      JOB_IMAGE_TIMEOUT_MS: ${JOB_IMAGE_TIMEOUT_MS:-900000}
+      JOB_QUEUED_TIMEOUT_MS: ${JOB_QUEUED_TIMEOUT_MS:-1200000}
+      JOB_TIMEOUT_SWEEP_MS: ${JOB_TIMEOUT_SWEEP_MS:-60000}
+      TOS_ACCESS_KEY: ${TOS_ACCESS_KEY:-}
+      TOS_SECRET_KEY: ${TOS_SECRET_KEY:-}
+      TOS_REGION: ${TOS_REGION:-cn-beijing}
+      TOS_ENDPOINT: ${TOS_ENDPOINT:-tos-cn-beijing.volces.com}
+      TOS_BUCKET: ${TOS_BUCKET:-}
+      TOS_PUBLIC_BASE_URL: ${TOS_PUBLIC_BASE_URL:-}
+      STORAGE_GC_ENABLED: ${STORAGE_GC_ENABLED:-true}
+      STORAGE_GC_DELETE: ${STORAGE_GC_DELETE:-false}
+      STORAGE_GC_SWEEP_MS: ${STORAGE_GC_SWEEP_MS:-21600000}
+      STORAGE_GC_MIN_AGE_MS: ${STORAGE_GC_MIN_AGE_MS:-604800000}
+      SETTINGS_SECRET: ${SETTINGS_SECRET:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    ports:
+      - "${MYSQL_PORT:-13306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-joyai}
+      MYSQL_DATABASE: joyai
+      MYSQL_USER: joyai
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-joyai}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-allowed-packet=67108864
+    volumes:
+      - ${JOYAI_DATA_DIR:-./data}/mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-joyai}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-16379}:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ${JOYAI_DATA_DIR:-./data}/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
