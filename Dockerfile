@@ -1,4 +1,31 @@
-FROM node:22-alpine AS build
+# JoyAI web + server in one image. Page listens on 3000, API on 3001.
+
+FROM node:22-alpine AS web-build
+
+WORKDIR /app
+
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com \
+    NEXT_TELEMETRY_DISABLED=1 \
+    CI=true
+
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+ARG NEXT_PUBLIC_API_URL=http://localhost:18081/api
+ARG NEXT_PUBLIC_WS_URL=http://localhost:18081
+
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+COPY . .
+
+RUN pnpm config set registry "${NPM_REGISTRY}" \
+    && pnpm install --frozen-lockfile --filter @joyai/web...
+
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL}
+
+RUN pnpm --filter @joyai/shared build \
+    && pnpm --filter @joyai/web build
+
+FROM node:22-alpine AS server-build
 
 WORKDIR /app
 
@@ -35,10 +62,17 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1
 
-COPY --from=build /out ./
+COPY --from=server-build /out /app/server
+COPY --from=web-build /app/apps/web/.next/standalone /app/web
+COPY --from=web-build /app/apps/web/.next/static /app/web/apps/web/.next/static
+COPY --from=web-build /app/apps/web/public /app/web/apps/web/public
+COPY docker/entrypoint.sh /entrypoint.sh
 
-EXPOSE 3001
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
-CMD ["node", "dist/main.js"]
+EXPOSE 3000 3001
+
+CMD ["/entrypoint.sh"]

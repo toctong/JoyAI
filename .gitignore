@@ -12,6 +12,7 @@ coverage
 uploads
 tmp
 data/
+release/
 *.tsbuildinfo
 apps/server/prisma/*.db
 apps/server/prisma/*.db-journal

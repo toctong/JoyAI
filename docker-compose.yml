@@ -1,3 +1,6 @@
+# 本机开发用：只起 MySQL（3306）和 Redis（6379）。
+# 飞牛不要用这个文件。飞牛面板用 deploy/fnos/db 和 deploy/fnos/app，各是一个 Compose 项目。
+
 services:
   redis:
     image: redis:7-alpine

@@ -1,0 +1,73 @@
+# 飞牛 Docker 面板：把本目录建成第二个 Compose 项目。
+# 先启动 db 那个项目，再启动这个。本目录不要放源码，面板只拉镜像。
+# 把本机 .env 复制到这个目录，和 docker-compose.yml 放在一起。
+
+name: joyai-fnos
+
+services:
+  app:
+    image: liuxiaodi2026/joyai:latest
+    restart: unless-stopped
+    ports:
+      - "18080:3000"
+      - "18081:3001"
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      TZ: Asia/Shanghai
+      DATABASE_URL: mysql://joyai:${MYSQL_PASSWORD:-joyai}@mysql:3306/joyai
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGINS: ${FNOS_CORS_ORIGINS:-*}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-long-random-string}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      AUTH_BOOTSTRAP_USERNAME: ${AUTH_BOOTSTRAP_USERNAME:-admin}
+      AUTH_BOOTSTRAP_PASSWORD: ${AUTH_BOOTSTRAP_PASSWORD:-admin123}
+      ELSER_FEED_BASE_URL: ${ELSER_FEED_BASE_URL:-https://api.tool.elser.ai/v1}
+      ELSER_FEED_CACHE_TTL_MS: ${ELSER_FEED_CACHE_TTL_MS:-21600000}
+      EXPLORE_FEED_WARM_MS: ${EXPLORE_FEED_WARM_MS:-10800000}
+      EXPLORE_FEED_WARM_PAGES: ${EXPLORE_FEED_WARM_PAGES:-3}
+      ARK_API_KEY: ${ARK_API_KEY:-}
+      ARK_BASE_URL: ${ARK_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}
+      ARK_IMAGE_MODEL: ${ARK_IMAGE_MODEL:-}
+      ARK_VIDEO_MODEL: ${ARK_VIDEO_MODEL:-}
+      APIMART_API_KEY: ${APIMART_API_KEY:-}
+      APIMART_BASE_URL: ${APIMART_BASE_URL:-}
+      TOAPIS_API_KEY: ${TOAPIS_API_KEY:-}
+      TOAPIS_BASE_URL: ${TOAPIS_BASE_URL:-}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-}
+      JOB_IMAGE_CONCURRENCY: ${JOB_IMAGE_CONCURRENCY:-5}
+      JOB_VIDEO_TIMEOUT_MS: ${JOB_VIDEO_TIMEOUT_MS:-3000000}
+      JOB_IMAGE_TIMEOUT_MS: ${JOB_IMAGE_TIMEOUT_MS:-900000}
+      JOB_QUEUED_TIMEOUT_MS: ${JOB_QUEUED_TIMEOUT_MS:-1200000}
+      JOB_TIMEOUT_SWEEP_MS: ${JOB_TIMEOUT_SWEEP_MS:-60000}
+      TOS_ACCESS_KEY: ${TOS_ACCESS_KEY:-}
+      TOS_SECRET_KEY: ${TOS_SECRET_KEY:-}
+      TOS_REGION: ${TOS_REGION:-cn-beijing}
+      TOS_ENDPOINT: ${TOS_ENDPOINT:-tos-cn-beijing.volces.com}
+      TOS_BUCKET: ${TOS_BUCKET:-}
+      TOS_PUBLIC_BASE_URL: ${TOS_PUBLIC_BASE_URL:-}
+      STORAGE_GC_ENABLED: ${STORAGE_GC_ENABLED:-true}
+      STORAGE_GC_DELETE: ${STORAGE_GC_DELETE:-false}
+      STORAGE_GC_SWEEP_MS: ${STORAGE_GC_SWEEP_MS:-21600000}
+      STORAGE_GC_MIN_AGE_MS: ${STORAGE_GC_MIN_AGE_MS:-604800000}
+      SETTINGS_SECRET: ${SETTINGS_SECRET:-}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)throw 0;return fetch('http://127.0.0.1:3000/')}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+    networks:
+      - joyai
+
+networks:
+  joyai:
+    name: joyai-data
+    external: true
