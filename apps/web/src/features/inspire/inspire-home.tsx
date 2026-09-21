@@ -304,15 +304,6 @@ export function InspireHome() {
       </div>
       ) : null}
 
-      <button
-        type="button"
-        className="joy-inspire-advance"
-        aria-label={transition ? "画面切换中" : "进入下一个画面"}
-        tabIndex={-1}
-        disabled={!!transition}
-        onClick={() => advance(1)}
-      />
-
       {!reducedMotion && !coarsePointer && stageMedia ? (
         <button
           type="button"

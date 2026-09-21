@@ -291,7 +291,7 @@ export function InspireDepthCanvas({ scene, paused, strength }: Props) {
     });
 
     let strengthSmooth = 0;
-    const host = canvas.closest(".joy-inspire");
+    const host = canvas.closest(".joy-inspire") as HTMLElement | null;
 
     const onMove = (e: PointerEvent) => {
       if (propsRef.current.paused || e.pointerType === "touch") return;
