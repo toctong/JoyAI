@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Download,
   ExternalLink,
+  Film,
   ImagePlus,
   Loader2,
   Trash2,
@@ -26,6 +27,7 @@ import { cn } from "@/shared/lib/utils";
 import { getToolExamples, type AiToolDef } from "./tool-catalog";
 import { useAiToolJob } from "./use-ai-tool-job";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import "@/features/studio/creation-composer.css";
 import "./ai-tools.css";
 
@@ -35,9 +37,12 @@ import "./ai-tools.css";
  */
 export function AiToolDetail({ tool }: { tool: AiToolDef }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [videoDragOver, setVideoDragOver] = useState(false);
   const {
     refs,
+    videos,
     note,
     setNote,
     busy,
@@ -59,15 +64,21 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
     chooseN,
     addFiles,
     removeRef,
+    addVideos,
+    removeVideo,
     clearResults,
     submit,
   } = useAiToolJob(tool);
 
+  const videosMax = tool.videosMax ?? 0;
+  const videosRequired = tool.videosRequired ?? 0;
   const locked = busy || tool.status !== "available";
   const canAdd = refs.length < tool.refsMax && !locked;
+  const canAddVideo = videos.length < videosMax && !locked;
   const canGenerate =
     !locked &&
     refs.length >= tool.refsRequired &&
+    videos.length >= videosRequired &&
     (!tool.noteRequired || Boolean(note.trim())) &&
     (modelId || models.length === 0);
   const examples = getToolExamples(tool);
@@ -101,7 +112,14 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                 <h1>{tool.name}</h1>
                 <p>{tool.description}</p>
               </div>
-              <div className="joy-ai-tool-soon">该工具即将上线</div>
+              <div className="joy-ai-tool-soon">
+                <strong>即将上线</strong>
+                <p>
+                  {tool.slug === "upscale"
+                    ? "上线后会走独立的放大任务：上传 1 张图，选 2× 或 4×，尽量保住脸、线条和构图。不会用普通生图重画一张来冒充高清。"
+                    : "上线后可以在这里提交任务，结果会显示在右侧。"}
+                </p>
+              </div>
             </div>
           </div>
         </aside>
@@ -129,7 +147,12 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
               </div>
 
               <p className="joy-tool-page-hint">
-                {tool.refsRequired > 0 ? (
+                {videosRequired > 0 ? (
+                  <>
+                    需要 {tool.refsRequired} 张角色图，以及 {videosRequired}{" "}
+                    段动作参考视频。图里的角色会跟着视频做动作，不会换成视频里的人。
+                  </>
+                ) : tool.refsRequired > 0 ? (
                   <>
                     需要 {tool.refsRequired}
                     {tool.refsMax > tool.refsRequired
@@ -141,8 +164,10 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                   <>参考图可选（0–{tool.refsMax} 张），用于风格参考。</>
                 ) : null}
                 {tool.noteRequired
-                  ? "请先填写品牌说明后再生成。"
-                  : "不填说明时按工具模板生成。"}
+                  ? "请先填写说明后再生成。"
+                  : videosRequired > 0
+                    ? "不填说明时，动作完全跟参考视频。"
+                    : "不填说明时按工具模板生成。"}
               </p>
 
               <div className="joy-tool-page-field">
@@ -299,6 +324,79 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                 />
               </div>
 
+              {videosMax > 0 ? (
+                <div className="joy-tool-page-field">
+                  <span className="joy-tool-page-label">动作参考视频</span>
+                  <div
+                    className={cn(
+                      "joy-ai-tool-drop",
+                      !videos.length && "is-empty",
+                      videoDragOver && "is-dragging",
+                      !canAddVideo && "is-full",
+                    )}
+                    onDragEnter={(event) => {
+                      event.preventDefault();
+                      if (canAddVideo) setVideoDragOver(true);
+                    }}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      if (canAddVideo) setVideoDragOver(true);
+                    }}
+                    onDragLeave={() => setVideoDragOver(false)}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      setVideoDragOver(false);
+                      if (!canAddVideo) return;
+                      if (event.dataTransfer.files?.length) {
+                        addVideos(event.dataTransfer.files);
+                      }
+                    }}
+                  >
+                    {!videos.length ? (
+                      <button
+                        type="button"
+                        className="joy-ai-tool-drop-zone"
+                        disabled={!canAddVideo}
+                        onClick={() => videoInputRef.current?.click()}
+                      >
+                        <Film className="size-5" strokeWidth={1.75} />
+                        <strong>选择或拖入动作视频</strong>
+                        <span>MP4 / WebM / MOV，建议 15 秒内</span>
+                      </button>
+                    ) : (
+                      <div className="joy-ai-tool-refs">
+                        {videos.map((item) => (
+                          <div key={item.localId} className="joy-ai-tool-ref">
+                            <video src={item.previewUrl} muted playsInline />
+                            <button
+                              type="button"
+                              className="joy-ai-tool-ref-remove"
+                              aria-label="移除视频"
+                              disabled={locked}
+                              onClick={() => removeVideo(item.localId)}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/quicktime"
+                    className="hidden"
+                    onChange={(event) => {
+                      if (event.target.files?.length) {
+                        addVideos(event.target.files);
+                      }
+                      event.target.value = "";
+                    }}
+                  />
+                </div>
+              ) : null}
+
               {layout.showRatio && layout.aspects.length > 0 ? (
                 <div className="joy-tool-page-field">
                   <span className="joy-tool-page-label">比例</span>
@@ -390,7 +488,11 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
 
               <div className="joy-tool-page-field">
                 <label className="joy-tool-page-label" htmlFor="tool-note">
-                  {tool.noteRequired ? "品牌说明（必填）" : "补充说明（可选）"}
+                  {tool.noteRequired
+                    ? tool.promptMode === "brand-brief"
+                      ? "品牌说明（必填）"
+                      : "补充说明（必填）"
+                    : "补充说明（可选）"}
                 </label>
                 {examples.length ? (
                   <div className="joy-tool-examples" role="group" aria-label="示例文字">
@@ -494,9 +596,13 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
             </div>
           ) : (
             <div className="joy-ai-tool-empty">
-              {tool.noteRequired
-                ? "填写品牌说明并生成后在此预览"
-                : "上传参考图并生成后在此预览"}
+              {videosRequired > 0
+                ? "上传角色图和动作视频后，结果会显示在这里"
+                : tool.kind === "video"
+                  ? "上传参考图并生成后，短片会显示在这里"
+                  : tool.noteRequired
+                    ? "填写说明并生成后在此预览"
+                    : "上传参考图并生成后在此预览"}
             </div>
           )}
 
@@ -512,7 +618,11 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                     rel="noreferrer"
                     className="joy-ai-tool-history-item"
                   >
-                    <JoyAssetThumb url={asset.url} size="sm" />
+                    {isVideoUrl(asset.url) ? (
+                      <JoyVideoPoster url={asset.url} size="sm" />
+                    ) : (
+                      <JoyAssetThumb url={asset.url} size="sm" />
+                    )}
                   </a>
                 ))}
               </div>
@@ -547,11 +657,20 @@ function RatioMark({ id }: { id: string }) {
   );
 }
 
+function isVideoUrl(url: string) {
+  return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+}
+
 function ResultCard({ url }: { url: string }) {
+  const video = isVideoUrl(url);
   return (
     <div className="joy-ai-tool-result">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="生成结果" />
+      {video ? (
+        <video src={url} controls playsInline preload="metadata" />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="生成结果" />
+      )}
       <div className="joy-ai-tool-result-actions">
         <a href={url} target="_blank" rel="noreferrer" download>
           <Download className="size-3.5" />

@@ -7,6 +7,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "JoyAI",
   description: "JoyAI creation studio",
+  icons: {
+    icon: [{ url: "/brand/mirora-mark.png", type: "image/png" }],
+    apple: [{ url: "/brand/mirora-mark.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

@@ -76,6 +76,7 @@ function pickIn<T extends { id: string }>(
 
 export function useAiToolJob(tool: AiToolDef) {
   const [refs, setRefs] = useState<PendingRef[]>([]);
+  const [videos, setVideos] = useState<PendingRef[]>([]);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -90,8 +91,10 @@ export function useAiToolJob(tool: AiToolDef) {
   const [modelsReady, setModelsReady] = useState(false);
   const jobIdRef = useRef<string | null>(null);
   const refsRef = useRef(refs);
+  const videosRef = useRef(videos);
   jobIdRef.current = jobId;
   refsRef.current = refs;
+  videosRef.current = videos;
 
   const kindModels = useMemo(
     () => models.filter((item) => item.kind === tool.kind),
@@ -119,6 +122,7 @@ export function useAiToolJob(tool: AiToolDef) {
   useEffect(() => {
     return () => {
       for (const item of refsRef.current) URL.revokeObjectURL(item.previewUrl);
+      for (const item of videosRef.current) URL.revokeObjectURL(item.previewUrl);
     };
   }, []);
 
@@ -305,6 +309,42 @@ export function useAiToolJob(tool: AiToolDef) {
     });
   }, []);
 
+  const videosMax = tool.videosMax ?? 0;
+
+  const addVideos = useCallback(
+    (files: FileList | File[]) => {
+      const list = Array.from(files).filter((file) =>
+        file.type.startsWith("video/"),
+      );
+      if (!list.length) {
+        toast.error("请选择视频文件");
+        return;
+      }
+      setVideos((prev) => {
+        const room = Math.max(0, videosMax - prev.length);
+        const next = list.slice(0, room).map((file) => ({
+          localId: `vid_${crypto.randomUUID().slice(0, 8)}`,
+          file,
+          previewUrl: URL.createObjectURL(file),
+        }));
+        if (!next.length) {
+          toast.error(`最多上传 ${videosMax} 段参考视频`);
+          return prev;
+        }
+        return [...prev, ...next];
+      });
+    },
+    [videosMax],
+  );
+
+  const removeVideo = useCallback((localId: string) => {
+    setVideos((prev) => {
+      const hit = prev.find((item) => item.localId === localId);
+      if (hit) URL.revokeObjectURL(hit.previewUrl);
+      return prev.filter((item) => item.localId !== localId);
+    });
+  }, []);
+
   const clearResults = useCallback(() => setResults([]), []);
 
   const submit = useCallback(async () => {
@@ -314,6 +354,11 @@ export function useAiToolJob(tool: AiToolDef) {
     }
     if (refs.length < tool.refsRequired) {
       toast.error(`请至少上传 ${tool.refsRequired} 张参考图`);
+      return;
+    }
+    const videosRequired = tool.videosRequired ?? 0;
+    if (videos.length < videosRequired) {
+      toast.error(`请上传 ${videosRequired} 段动作参考视频`);
       return;
     }
     if (tool.noteRequired && !note.trim()) {
@@ -334,7 +379,7 @@ export function useAiToolJob(tool: AiToolDef) {
     setResults([]);
     try {
       const uploaded: { id: string; url: string }[] = [];
-      for (const item of refs) {
+      for (const item of [...refs, ...videos]) {
         const asset = await apiUpload<{ id: string; url: string }>(
           "/upload",
           item.file,
@@ -395,6 +440,7 @@ export function useAiToolJob(tool: AiToolDef) {
     n,
     note,
     refs,
+    videos,
     selectedAspect,
     selectedResolution,
     selectedSize,
@@ -403,6 +449,7 @@ export function useAiToolJob(tool: AiToolDef) {
 
   return {
     refs,
+    videos,
     note,
     setNote,
     busy,
@@ -424,6 +471,8 @@ export function useAiToolJob(tool: AiToolDef) {
     chooseN,
     addFiles,
     removeRef,
+    addVideos,
+    removeVideo,
     clearResults,
     submit,
   };

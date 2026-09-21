@@ -20,6 +20,10 @@ export type AiToolDef = {
   refsRequired: number;
   /** Max reference images. */
   refsMax: number;
+  /** Driving / reference videos the user must upload. */
+  videosRequired?: number;
+  /** Max reference videos. */
+  videosMax?: number;
   /** Default aspect for the job. */
   ratio?: string;
   /** Accent for card art (CSS color). */
@@ -266,45 +270,96 @@ export const AI_TOOLS: AiToolDef[] = [
       "Rebuild the character from the reference as a plastic brick minifigure / brick-built figure. Studs and brick seams visible, toy plastic materials, studio lighting, still recognizable colors and costume cues, playful product shot.",
   },
   {
+    slug: "motion-mimic",
+    name: "动作模仿",
+    description:
+      "上传一张角色图和一段动作视频，让图里的角色跟着视频做同样的动作。",
+    category: "video",
+    status: "available",
+    kind: "video",
+    refsRequired: 1,
+    refsMax: 1,
+    videosRequired: 1,
+    videosMax: 1,
+    ratio: "16:9",
+    accent: "#74c0fc",
+    covers: [
+      "/tools/cover-ai-hug-0.webp",
+      "/tools/cover-ai-hug-1.webp",
+      "/tools/cover-ai-hug-2.webp",
+    ],
+    tags: ["视频", "动作"],
+    badge: "new",
+    prompt:
+      "Motion transfer: the character in the reference image performs the same body movement, timing, and gesture as the driving reference video. Keep the image subject's face, hairstyle, outfit, body proportions, and art style. Do not copy the identity of the person in the driving video. Stable limbs, natural motion, coherent lighting, no extra people, no text, no watermark.",
+    examples: ["舞蹈跟拍", "走路转身", "挥手打招呼"],
+    noteHint: "可写镜头或场景，例如「舞蹈跟拍 / 走路转身」。动作以参考视频为准。",
+  },
+  {
     slug: "ai-kiss",
     name: "AI 接吻影片",
-    description: "上传两张角色图，生成自然亲吻短片（即将上线）。",
+    description: "上传两张角色图，生成自然亲吻短片，两边长相都保持不变。",
     category: "video",
-    status: "coming_soon",
+    status: "available",
     kind: "video",
     refsRequired: 2,
     refsMax: 2,
+    ratio: "16:9",
     accent: "#e891a8",
-    covers: ["/tools/cover-ai-kiss-0.webp", "/tools/cover-ai-kiss-1.webp", "/tools/cover-ai-kiss-2.webp"],
+    covers: [
+      "/tools/cover-ai-kiss-0.webp",
+      "/tools/cover-ai-kiss-1.webp",
+      "/tools/cover-ai-kiss-2.webp",
+    ],
     tags: ["视频", "互动"],
-    prompt: "",
+    badge: "new",
+    prompt:
+      "Create a short cinematic video of the two people from the two reference images sharing a gentle, natural kiss. Keep each face, hair, and outfit recognizable and distinct. Soft lighting, medium close-up, smooth motion, no third person, no text, no watermark.",
+    examples: ["侧脸轻吻", "雨中亲吻", "慢镜头特写"],
+    noteHint: "可写镜头，例如「侧脸轻吻 / 雨中亲吻」。",
   },
   {
     slug: "ai-hug",
     name: "AI 拥抱影片",
-    description: "把静态角色图变成温暖拥抱短片（即将上线）。",
+    description: "把角色图变成温暖拥抱短片。一张图是单人入镜，两张图是两人互拥。",
     category: "video",
-    status: "coming_soon",
+    status: "available",
     kind: "video",
     refsRequired: 1,
     refsMax: 2,
+    ratio: "16:9",
     accent: "#f0b4a0",
-    covers: ["/tools/cover-ai-hug-0.webp", "/tools/cover-ai-hug-1.webp", "/tools/cover-ai-hug-2.webp"],
+    covers: [
+      "/tools/cover-ai-hug-0.webp",
+      "/tools/cover-ai-hug-1.webp",
+      "/tools/cover-ai-hug-2.webp",
+    ],
     tags: ["视频", "互动"],
-    prompt: "",
+    badge: "new",
+    prompt:
+      "Create a short warm video of a natural hug. If two reference images are provided, those two characters hug each other and both identities stay clear. If only one reference is provided, that character gives a gentle hug while staying recognizable. Coherent lighting, smooth motion, no extra people, no text, no watermark.",
+    examples: ["朋友拥抱", "久别重逢", "侧身环抱"],
+    noteHint: "可写关系或镜头，例如「朋友拥抱 / 久别重逢」。",
   },
   {
     slug: "upscale",
     name: "影像高画质",
-    description: "一键提升解析度并尽量保持细节（即将上线）。",
+    description:
+      "上传一张图，按 2× 或 4× 提升解析度，尽量保住脸、线条和原有构图。该能力需要独立的放大任务，目前还不能用普通生图代替。",
     category: "other",
     status: "coming_soon",
     kind: "image",
     refsRequired: 1,
     refsMax: 1,
     accent: "#8ab4d4",
-    covers: ["/tools/cover-upscale-0.webp", "/tools/cover-upscale-1.webp", "/tools/cover-upscale-2.webp"],
+    covers: [
+      "/tools/cover-upscale-0.webp",
+      "/tools/cover-upscale-1.webp",
+      "/tools/cover-upscale-2.webp",
+    ],
     tags: ["放大", "修复"],
+    examples: ["2× 清晰", "4× 细节"],
+    noteHint: "上线后可选 2× 或 4×。不会改画风，也不会重画人物。",
     prompt: "",
   },
 
