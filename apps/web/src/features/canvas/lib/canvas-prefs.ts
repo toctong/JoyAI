@@ -58,6 +58,53 @@ export function writeEdgeVisibilityPreference(mode: CanvasEdgeVisibility) {
   }
 }
 
+export type CanvasAgentMode = "assist" | "auto";
+
+const AGENT_MODE_KEY = "joyai.canvas.agentMode";
+
+export function readAgentModePreference(
+  fallback: CanvasAgentMode = "assist",
+): CanvasAgentMode {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const v = localStorage.getItem(AGENT_MODE_KEY);
+    if (v === "assist" || v === "auto") return v;
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+export function writeAgentModePreference(mode: CanvasAgentMode) {
+  try {
+    localStorage.setItem(AGENT_MODE_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+}
+
+const AGENT_MODEL_KEY = "joyai.canvas.agentModelId";
+
+export function readAgentModelIdPreference(fallback = ""): string {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const v = localStorage.getItem(AGENT_MODEL_KEY);
+    if (v?.trim()) return v.trim();
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+export function writeAgentModelIdPreference(modelId: string) {
+  try {
+    if (!modelId.trim()) localStorage.removeItem(AGENT_MODEL_KEY);
+    else localStorage.setItem(AGENT_MODEL_KEY, modelId.trim());
+  } catch {
+    /* ignore */
+  }
+}
+
 const AGENT_WIDTH_KEY = "joyai.canvas.agentDrawerWidth";
 export const AGENT_DRAWER_MIN_WIDTH = 300;
 export const AGENT_DRAWER_DEFAULT_WIDTH = 380;

@@ -1,0 +1,184 @@
+/* Agent chat composer — reuses .joy-chip from creation-composer.css */
+
+.joy-agent-composer {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px 12px;
+}
+
+.joy-agent-composer-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--muted) 35%, var(--background));
+  padding: 10px 10px 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.joy-agent-composer-shell:focus-within {
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 12%, transparent);
+}
+
+.joy-agent-composer-input {
+  min-height: 64px;
+  max-height: 160px;
+  width: 100%;
+  resize: none;
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--foreground);
+  outline: none;
+}
+
+.joy-agent-composer-input::placeholder {
+  color: color-mix(in oklab, var(--muted-foreground) 85%, transparent);
+}
+
+.joy-agent-composer-input:disabled {
+  opacity: 0.6;
+}
+
+.joy-agent-composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.joy-agent-composer-bar-left {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.joy-agent-composer-send {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 10px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  transition: opacity 0.15s ease, transform 0.12s ease;
+}
+
+.joy-agent-composer-send:hover:not(:disabled) {
+  transform: translateY(-0.5px);
+}
+
+.joy-agent-composer-send:disabled {
+  opacity: 0.4;
+}
+
+.joy-agent-composer-send.is-stop {
+  background: color-mix(in oklab, var(--destructive) 88%, var(--foreground));
+  color: var(--destructive-foreground);
+}
+
+.joy-agent-history {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--popover);
+}
+
+.joy-agent-history-head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 12px;
+}
+
+.joy-agent-history-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.joy-agent-history-item {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding: 8px 10px;
+  text-align: left;
+  color: var(--foreground);
+}
+
+.joy-agent-history-item strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.joy-agent-history-item span {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+
+.joy-agent-history-item:hover,
+.joy-agent-history-item.is-active {
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+}
+
+.joy-agent-history-delete {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.joy-agent-history-delete:hover {
+  background: color-mix(in oklab, var(--destructive) 12%, transparent);
+  color: var(--destructive);
+}
+
+.joy-agent-mode-chip {
+  height: 28px;
+  padding-inline: 4px;
+  gap: 2px;
+}
+
+.joy-agent-mode-chip button {
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 3px 8px;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted-foreground);
+}
+
+.joy-agent-mode-chip button[aria-pressed="true"] {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 80%, transparent);
+}

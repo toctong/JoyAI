@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -142,6 +143,20 @@ export class ManjuController {
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateManjuDto) {
     return this.manju.create(user.id, dto.title, dto.folderId);
+  }
+
+  @Get(":id/script-chat")
+  scriptChat(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.manju.getScriptChat(user.id, id);
+  }
+
+  @Put(":id/script-chat")
+  saveScriptChat(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    return this.manju.saveScriptChat(user.id, id, body);
   }
 
   @Get(":id")

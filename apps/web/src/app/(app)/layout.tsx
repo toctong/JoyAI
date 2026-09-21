@@ -30,6 +30,8 @@ export default function AppShellLayout({
   const isCanvasEditor = /^\/canvas\/[^/]+$/.test(pathname);
   /** 漫剧六步工作台自管全高布局（对照制作大片 / namistory） */
   const isManjuWorkbench = /^\/manju\/[^/]+$/.test(pathname);
+  /** Specialty tool detail owns full-height left/right split. */
+  const isToolDetail = /^\/tools\/[^/]+$/.test(pathname);
   const isAdmin =
     pathname === "/admin" || pathname.startsWith("/admin/");
   /** Wallpaper plugin only paints the inspire home (updream-style). */
@@ -107,6 +109,7 @@ export default function AppShellLayout({
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
           {isCanvasEditor ||
           isManjuWorkbench ||
+          isToolDetail ||
           isAdmin ||
           isInspireHome ||
           isExplore ? (

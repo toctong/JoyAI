@@ -191,6 +191,16 @@ type Props = {
   refSeed?: string[];
   refAssetIdSeed?: string[];
   kindSeed?: "image" | "video";
+  /** Lock image/video (AI tools detail). */
+  lockedKind?: "image" | "video";
+  /** Wrap / replace the editor text before POST /jobs. */
+  buildPrompt?: (userText: string) => string;
+  placeholder?: string;
+  /** Require at least this many image refs before send. */
+  minImageRefs?: number;
+  preferredAspect?: string;
+  /** Fired after the job is queued (for tool result panes). */
+  onJobCreated?: (jobId: string) => void;
 };
 
 const COMPOSER_PREFS_KEY = "joyai.studio.composer.prefs";
@@ -353,6 +363,12 @@ export function CreationComposer({
   refSeed,
   refAssetIdSeed,
   kindSeed,
+  lockedKind,
+  buildPrompt,
+  placeholder: placeholderProp,
+  minImageRefs = 0,
+  preferredAspect,
+  onJobCreated,
 }: Props) {
   const search = useSearchParams();
   const bootRef = useRef<ComposerBoot | null>(null);
@@ -374,14 +390,17 @@ export function CreationComposer({
   refsRef.current = refs;
   const [prompt, setPrompt] = useState(() => boot.prompt);
   const [kind, setKind] = useState<"image" | "video">(() =>
-    boot.type === "video" || boot.type === "image"
+    lockedKind ??
+    (boot.type === "video" || boot.type === "image"
       ? boot.type
-      : initialComposerKind(search.get("type")),
+      : initialComposerKind(search.get("type"))),
   );
   const [aspect, setAspect] = useState(() =>
-    (boot.type ?? initialComposerKind(search.get("type"))) === "video"
+    preferredAspect ||
+    ((boot.type ?? lockedKind ?? initialComposerKind(search.get("type"))) ===
+    "video"
       ? "16:9"
-      : "1:1",
+      : "1:1"),
   );
   const [n, setN] = useState(() =>
     (boot.type ?? initialComposerKind(search.get("type"))) === "video" ? 1 : 2,
@@ -518,8 +537,10 @@ export function CreationComposer({
   // Clamp params when model / catalog options change
   useEffect(() => {
     if (!showRatio || !aspectOptions.length) return;
-    setAspect((prev) => pickAspect(aspectOptions, prev, kind));
-  }, [showRatio, aspectOptions, kind]);
+    setAspect((prev) =>
+      pickAspect(aspectOptions, preferredAspect ?? prev, kind),
+    );
+  }, [showRatio, aspectOptions, kind, preferredAspect]);
 
   useEffect(() => {
     if (!layout.showResolution || !resolutionOptions.length) return;
@@ -598,11 +619,13 @@ export function CreationComposer({
   }, [refs]);
 
   const placeholder =
-    kind === "video"
+    placeholderProp ??
+    (kind === "video"
       ? "上传文字、图片/视频/音频或 @ 素材，创造你想生成的视频"
-      : "上传文字、图片或 @ 不同图片，创造你想生成的图片";
+      : "上传文字、图片或 @ 不同图片，创造你想生成的图片");
 
   function applyKindPrefs(next: "image" | "video", kp: KindPrefs = {}) {
+    if (lockedKind && next !== lockedKind) return;
     setKind(next);
     const nextCaps =
       models.find((m) => m.id === (kp.modelId ?? modelId) && m.kind === next)
@@ -977,11 +1000,17 @@ export function CreationComposer({
 
   async function submit() {
     const payload = getGeneratePayload(editorRef.current);
-    const promptText = normalizeOmniWireMentions(
+    const userText = normalizeOmniWireMentions(
       payload.prompt.trim() || prompt.trim(),
     );
+    const promptText = buildPrompt ? buildPrompt(userText).trim() : userText;
     if (!promptText) {
-      toast.error("请输入提示词");
+      toast.error(buildPrompt ? "工具提示词未配置" : "请输入提示词");
+      return;
+    }
+    const imageRefCount = refs.filter((r) => r.mediaKind === "image").length;
+    if (minImageRefs > 0 && imageRefCount < minImageRefs) {
+      toast.error(`请至少上传 ${minImageRefs} 张参考图`);
       return;
     }
     if (refModes.length > 0 && refMode === "first_last" && refs.length < 1) {
@@ -989,7 +1018,6 @@ export function CreationComposer({
       return;
     }
     const remoteId = selectedModel?.remoteId ?? "";
-    const imageRefCount = refs.filter((r) => r.mediaKind === "image").length;
     if (
       /gemini[_-]?omni[_-]?flash/i.test(remoteId) &&
       !/official/i.test(remoteId) &&
@@ -1075,10 +1103,11 @@ export function CreationComposer({
           input.width = selectedSize.width;
           input.height = selectedSize.height;
         }
-        await api("/jobs", {
+        const job = await api<{ id: string }>("/jobs", {
           method: "POST",
           body: { kind: "image", input },
         });
+        onJobCreated?.(job.id);
       } else {
         const input: Record<string, unknown> = {
           prompt: promptText,
@@ -1096,10 +1125,11 @@ export function CreationComposer({
         if (resolutionOpt) {
           input.resolution = resolutionOpt.id;
         }
-        await api("/jobs", {
+        const job = await api<{ id: string }>("/jobs", {
           method: "POST",
           body: { kind: "video", input },
         });
+        onJobCreated?.(job.id);
       }
       toast.success("任务已提交");
       onSubmitted?.();
@@ -1120,6 +1150,9 @@ export function CreationComposer({
     slotOpen(refLimits.videos, videoRefCount) ||
     slotOpen(refLimits.audios, audioRefCount);
   const canClearComposer = Boolean(prompt.trim()) || refs.length > 0;
+  const canSend = buildPrompt
+    ? imageRefCount >= minImageRefs && Boolean(buildPrompt(prompt).trim())
+    : Boolean(prompt.trim());
 
   function clearComposer() {
     for (const r of refsRef.current) revokeIfBlob(r.url);
@@ -1314,6 +1347,7 @@ export function CreationComposer({
                 placeholder={placeholder}
                 onPlainChange={setPrompt}
                 onKindCommand={(next) => {
+                  if (lockedKind) return;
                   if (next === "image" || next === "video") applyKind(next);
                 }}
               />
@@ -1323,6 +1357,16 @@ export function CreationComposer({
 
         <div className="joy-composer-toolbar">
           <div className="joy-composer-toolbar-left">
+            {lockedKind ? (
+              <button type="button" className="joy-chip joy-chip-kind" disabled>
+                {kind === "image" ? (
+                  <ImageGenIcon className="h-4 w-4 text-[16px]" />
+                ) : (
+                  <VideoGenIcon className="h-4 w-4 text-[16px]" />
+                )}
+                {kind === "image" ? "图片生成" : "视频生成"}
+              </button>
+            ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button type="button" className="joy-chip joy-chip-kind">
@@ -1352,6 +1396,7 @@ export function CreationComposer({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            )}
 
             <DropdownMenu
               open={modelMenuOpen}
@@ -1665,8 +1710,8 @@ export function CreationComposer({
             </span>
             <button
               type="button"
-              className={cn("joy-composer-send", prompt.trim() && "is-ready")}
-              disabled={submitting || !prompt.trim()}
+              className={cn("joy-composer-send", canSend && "is-ready")}
+              disabled={submitting || !canSend}
               onClick={() => void submit()}
               aria-label="生成"
             >

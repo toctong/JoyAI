@@ -5,10 +5,17 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, IsNull, Repository } from "typeorm";
-import { normalizeManjuDraft, type ManjuDraft } from "@joyai/shared";
+import { normalizeManjuDraft, normalizeScriptProjectChat, type ManjuDraft } from "@joyai/shared";
 import { ManjuProject } from "../../database/entities/manju-project.entity";
 import { ManjuFolder } from "../../database/entities/manju-folder.entity";
+import { ProjectChat } from "../../database/entities/project-chat.entity";
 import { newId } from "../../database/id";
+import {
+  PROJECT_CHAT_SCOPE,
+  deleteProjectChats,
+  readProjectChat,
+  writeProjectChat,
+} from "../../database/project-chat.store";
 
 function extractCoverUrl(draft: ManjuDraft): string | null {
   for (const shot of draft.shots) {
@@ -46,6 +53,8 @@ export class ManjuService {
     private readonly projects: Repository<ManjuProject>,
     @InjectRepository(ManjuFolder)
     private readonly folders: Repository<ManjuFolder>,
+    @InjectRepository(ProjectChat)
+    private readonly chats: Repository<ProjectChat>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -199,6 +208,7 @@ export class ManjuService {
   async deleteProjects(userId: string, ids: string[]) {
     if (!ids.length) throw new BadRequestException("未选择项目");
     const result = await this.projects.delete({ userId, id: In(ids) });
+    await deleteProjectChats(this.chats, PROJECT_CHAT_SCOPE.manjuScript, ids);
     return { ok: true, count: result.affected ?? 0 };
   }
 
@@ -290,7 +300,36 @@ export class ManjuService {
     const project = await this.projects.findOne({ where: { id, userId } });
     if (!project) throw new NotFoundException("漫剧项目不存在");
     await this.projects.delete({ id, userId });
+    await deleteProjectChats(this.chats, PROJECT_CHAT_SCOPE.manjuScript, [id]);
     return { ok: true };
+  }
+
+  async getScriptChat(userId: string, projectId: string) {
+    const project = await this.projects.findOne({ where: { id: projectId, userId } });
+    if (!project) throw new NotFoundException("漫剧项目不存在");
+    const row = await readProjectChat(
+      this.chats,
+      userId,
+      PROJECT_CHAT_SCOPE.manjuScript,
+      projectId,
+    );
+    if (!row) return null;
+    return normalizeScriptProjectChat(row.payload);
+  }
+
+  async saveScriptChat(userId: string, projectId: string, raw: unknown) {
+    const project = await this.projects.findOne({ where: { id: projectId, userId } });
+    if (!project) throw new NotFoundException("漫剧项目不存在");
+    const chat = normalizeScriptProjectChat(raw);
+    if (!chat) throw new BadRequestException("会话格式无效");
+    await writeProjectChat(
+      this.chats,
+      userId,
+      PROJECT_CHAT_SCOPE.manjuScript,
+      projectId,
+      chat as unknown as Record<string, unknown>,
+    );
+    return chat;
   }
 
   /** LLM 分析完成后合并进草稿（服务端权威回写） */

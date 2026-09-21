@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -154,6 +155,20 @@ export class CanvasController {
   @Post("batch-delete")
   batchDelete(@CurrentUser() user: AuthUser, @Body() dto: BatchIdsDto) {
     return this.canvas.deleteProjects(user.id, dto.ids);
+  }
+
+  @Get(":id/agent-chat")
+  agentChat(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.canvas.getAgentChat(user.id, id);
+  }
+
+  @Put(":id/agent-chat")
+  saveAgentChat(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    return this.canvas.saveAgentChat(user.id, id, body);
   }
 
   @Get(":id")

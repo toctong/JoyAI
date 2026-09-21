@@ -7,6 +7,7 @@ import {
   Compass,
   LogOut,
   Shield,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
@@ -46,6 +47,11 @@ const nav: NavItem[] = [
     href: "/studio",
     label: "创作",
     icon: JOYAI_BRAND.nav.studio,
+  },
+  {
+    href: "/tools",
+    label: "工具",
+    Lucide: Wrench,
   },
   {
     href: "/canvas",

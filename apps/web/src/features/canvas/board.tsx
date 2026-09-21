@@ -1811,7 +1811,7 @@ export function CanvasBoard({
 
   return (
     <div className="joy-canvas-board flex h-full min-h-[480px] overflow-hidden">
-      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
       <CanvasTopBar
         projectId={projectId}
         canUndo={past.length > 0}

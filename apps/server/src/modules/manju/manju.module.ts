@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { ManjuProject } from "../../database/entities/manju-project.entity";
 import { ManjuFolder } from "../../database/entities/manju-folder.entity";
+import { ProjectChat } from "../../database/entities/project-chat.entity";
 import { ManjuService } from "./manju.service";
 import {
   ManjuController,
@@ -10,7 +11,7 @@ import {
 } from "./manju.controller";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ManjuProject, ManjuFolder])],
+  imports: [TypeOrmModule.forFeature([ManjuProject, ManjuFolder, ProjectChat])],
   controllers: [ManjuLibraryController, ManjuFoldersController, ManjuController],
   providers: [ManjuService],
   exports: [ManjuService],

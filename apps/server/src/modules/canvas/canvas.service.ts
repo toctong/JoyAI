@@ -5,10 +5,17 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, IsNull, Repository } from "typeorm";
-import { CanvasSnapshotSchema, normalizeCanvasSnapshot } from "@joyai/shared";
+import { CanvasSnapshotSchema, normalizeCanvasSnapshot, normalizeCanvasAgentChat } from "@joyai/shared";
 import type { CanvasNode, CanvasSnapshot } from "@joyai/shared";
 import { CanvasFolder } from "../../database/entities/canvas-folder.entity";
 import { CanvasProject } from "../../database/entities/canvas-project.entity";
+import { ProjectChat } from "../../database/entities/project-chat.entity";
+import {
+  PROJECT_CHAT_SCOPE,
+  deleteProjectChats,
+  readProjectChat,
+  writeProjectChat,
+} from "../../database/project-chat.store";
 
 function extractCoverUrl(snapshot: unknown): string | null {
   const normalized = normalizeCanvasSnapshot(snapshot);
@@ -76,6 +83,8 @@ export class CanvasService {
     private readonly folders: Repository<CanvasFolder>,
     @InjectRepository(CanvasProject)
     private readonly projects: Repository<CanvasProject>,
+    @InjectRepository(ProjectChat)
+    private readonly chats: Repository<ProjectChat>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -342,6 +351,7 @@ export class CanvasService {
   async delete(userId: string, id: string) {
     await this.get(userId, id);
     await this.projects.delete(id);
+    await deleteProjectChats(this.chats, PROJECT_CHAT_SCOPE.canvasAgent, [id]);
     return { ok: true };
   }
 
@@ -365,7 +375,34 @@ export class CanvasService {
       userId,
       id: In(ids),
     });
+    await deleteProjectChats(this.chats, PROJECT_CHAT_SCOPE.canvasAgent, ids);
     return { ok: true, count: result.affected ?? 0 };
+  }
+
+  async getAgentChat(userId: string, projectId: string) {
+    await this.get(userId, projectId);
+    const row = await readProjectChat(
+      this.chats,
+      userId,
+      PROJECT_CHAT_SCOPE.canvasAgent,
+      projectId,
+    );
+    if (!row) return null;
+    return normalizeCanvasAgentChat(row.payload);
+  }
+
+  async saveAgentChat(userId: string, projectId: string, raw: unknown) {
+    await this.get(userId, projectId);
+    const chat = normalizeCanvasAgentChat(raw);
+    if (!chat) throw new BadRequestException("会话格式无效");
+    await writeProjectChat(
+      this.chats,
+      userId,
+      PROJECT_CHAT_SCOPE.canvasAgent,
+      projectId,
+      chat as unknown as Record<string, unknown>,
+    );
+    return chat;
   }
 
   async patchNodeAsset(

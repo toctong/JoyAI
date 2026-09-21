@@ -110,6 +110,8 @@
 - [x] 生图张数 1–4 + 多结果落点
 - [x] 项目 JSON 导出/导入（顶栏 + 项目库）；创建可带 snapshot
 - [x] 画布 Agent MVP（右侧 AI 面板，JSON actions，无 Codex/MCP）
+- [x] 多轮工具循环 + inspect/update + 生成 Assist/Auto（仍无 MCP）
+- [x] Agent 会话：按项目存在服务端（`project_chat`，不进快照）；同一会话多轮上下文。无 MCP。界面偏好仍留本机
 
 ## Phase 18 — 摄像机 / 选区历史 / 视频首尾帧
 
@@ -126,6 +128,13 @@
 - [x] `kind:audio` Job + OpenAI-compatible `/audio/speech`
 - [x] 画布音频节点：文本 → 语音（音色 / 格式 / 语速）
 - [ ] 全量 TTS 供应商面板（Gemini / MiMo / Grok / GLM…）— 明确不做
+
+## Phase 21 — AI 工具箱（MVP）
+
+- [x] `/tools` 目录 + `/tools/[slug]` 详情；侧栏入口
+- [x] 首批图生图工具（拍立得 / 公仔 / 杂志封面 / 立牌 / 徽章 / 卡牌等）走 `POST /jobs` + 参考图
+- [x] 工具详情：对照 ai-video `tool-page`（左侧栏表单 + 底部生成 + 右侧预览）；控件用 JoyAI 模型/参数组件；目录卡真实封面叠层
+- [ ] 接吻/拥抱视频、高清放大等（目录已占位）
 
 ## 本地启动（需自行安装依赖）
 

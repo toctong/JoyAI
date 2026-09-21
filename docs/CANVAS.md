@@ -214,6 +214,8 @@
 - [x] **项目 JSON**：顶栏与项目库可导出/导入快照（只含 `assetId`/URL，剥离 data URL 与进行中 job）
 - [x] **创建可带 snapshot**：`POST /canvas/projects` 支持初始快照
 - [x] **画布 Agent（MVP）**：右侧 AI 面板；`kind:llm` + JSON actions；客户端执行创建节点/连线/提交图视频文本任务（不做 Codex/MCP/Skills）
+- [x] **多轮工具循环**：最多 6 轮，短 id（`n1`…）；`inspect_node` 之后才能改已有节点；生成默认 Assist 确认，可切 Auto
+- [x] **会话记忆**：按项目存在服务端 `project_chat`（与画布快照分开；历史列表、新对话、同一会话把近期用户/助手轮次写进提示词）。工具步骤仍只属于当前这一轮。不做 MCP。网格、吸附、小地图、连线显示、侧栏宽度、Assist/Auto、上次模型仍留在本机
 
 **仍明确不做：** 插件 / URL 装节点、Codex / MCP / Skills 市场、Ant Design 皮、IndexedDB 本地项目模型、TTS 全量供应商面板、Comfy、换 `@xyflow/react`。
 

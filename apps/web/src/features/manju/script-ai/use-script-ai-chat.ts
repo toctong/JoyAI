@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { normalizeScriptProjectChat, type ScriptProjectChatState } from "@joyai/shared";
+import { api, isApiCancelError } from "@/shared/lib/api";
 import { getJobsSocket } from "@/shared/lib/socket";
 import { toast } from "@/shared/lib/toast";
 import { submitManjuScriptWriteJob } from "../manju-api";
@@ -27,11 +29,6 @@ export type ScriptAiConversation = {
   aiType: ScriptAiType;
 };
 
-type StoredState = {
-  activeId: string;
-  conversations: ScriptAiConversation[];
-};
-
 function storageKey(projectId: string) {
   return `joyai.manju.script-ai.${projectId}`;
 }
@@ -50,38 +47,42 @@ function blankConversation(aiType: ScriptAiType = "都市情感"): ScriptAiConve
   };
 }
 
-function loadState(projectId: string): StoredState {
+function readLegacy(projectId: string): ScriptProjectChatState | null {
   try {
     const raw = localStorage.getItem(storageKey(projectId));
-    if (!raw) {
-      const conv = blankConversation();
-      return { activeId: conv.id, conversations: [conv] };
-    }
-    const parsed = JSON.parse(raw) as StoredState;
-    if (!parsed.conversations?.length) {
-      const conv = blankConversation();
-      return { activeId: conv.id, conversations: [conv] };
-    }
-    return {
-      activeId: parsed.activeId || parsed.conversations[0].id,
-      conversations: parsed.conversations.map((c) => ({
-        ...c,
-        messages: c.messages.map((m) =>
-          m.pending
-            ? {
-                ...m,
-                pending: false,
-                error: true,
-                content: m.content || "生成中断，请重试",
-              }
-            : m,
-        ),
-      })),
-    };
+    if (!raw) return null;
+    return normalizeScriptProjectChat(JSON.parse(raw) as unknown);
   } catch {
-    const conv = blankConversation();
-    return { activeId: conv.id, conversations: [conv] };
+    return null;
   }
+}
+
+function recoverInterrupted(state: ScriptProjectChatState): ScriptProjectChatState {
+  return {
+    ...state,
+    conversations: state.conversations.map((conversation) => ({
+      ...conversation,
+      messages: conversation.messages.map((message) =>
+        message.pending
+          ? {
+              ...message,
+              pending: false,
+              error: true,
+              content: message.content || "生成中断，请重试",
+            }
+          : message,
+      ),
+    })),
+  };
+}
+
+function blankState(aiType: ScriptAiConversation["aiType"] = "都市情感"): ScriptProjectChatState {
+  const conv = blankConversation(aiType);
+  return { activeId: conv.id, conversations: [conv] };
+}
+
+function hasMessages(state: ScriptProjectChatState | null) {
+  return Boolean(state?.conversations.some((item) => item.messages.length > 0));
 }
 
 function titleFromPrompt(prompt: string) {
@@ -136,18 +137,72 @@ export function useScriptAiChat(input: {
   const [scriptRefEnabled, setScriptRefEnabled] = useState(false);
   const [sending, setSending] = useState(false);
   const pendingJobRef = useRef<string | null>(null);
+  const loadedForRef = useRef<string | null>(null);
+  const hadRemoteRef = useRef(false);
 
   useEffect(() => {
-    const state = loadState(input.projectId);
-    setConversations(state.conversations);
-    setActiveId(state.activeId);
-    setHydrated(true);
+    let cancelled = false;
+    loadedForRef.current = null;
+    hadRemoteRef.current = false;
+    setHydrated(false);
+    setHistoryOpen(false);
+    setConversations([]);
+    setActiveId("");
+
+    void (async () => {
+      try {
+        const remote = await api<unknown>(
+          `/manju/projects/${input.projectId}/script-chat`,
+        );
+        if (cancelled) return;
+        const remoteState = normalizeScriptProjectChat(remote);
+        const legacy = readLegacy(input.projectId);
+        const useLegacy = !hasMessages(remoteState) && hasMessages(legacy);
+        const state = recoverInterrupted(
+          (useLegacy ? legacy : remoteState) ?? blankState(),
+        );
+        hadRemoteRef.current = Boolean(remoteState);
+        setConversations(state.conversations as ScriptAiConversation[]);
+        setActiveId(state.activeId);
+        loadedForRef.current = input.projectId;
+        setHydrated(true);
+      } catch (error) {
+        if (cancelled || isApiCancelError(error)) return;
+        toast.error("会话加载失败");
+        const blank = blankState();
+        setConversations(blank.conversations);
+        setActiveId(blank.activeId);
+        loadedForRef.current = input.projectId;
+        setHydrated(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [input.projectId]);
 
   useEffect(() => {
-    if (!hydrated) return;
-    const payload: StoredState = { activeId, conversations };
-    localStorage.setItem(storageKey(input.projectId), JSON.stringify(payload));
+    if (!hydrated || loadedForRef.current !== input.projectId) return;
+    const payload: ScriptProjectChatState = { activeId, conversations };
+    const hasAny = hasMessages(payload);
+    if (!hasAny && !hadRemoteRef.current) return;
+    const legacyKey = hasAny ? storageKey(input.projectId) : null;
+    const timer = window.setTimeout(() => {
+      void api(`/manju/projects/${input.projectId}/script-chat`, {
+        method: "PUT",
+        body: payload,
+      })
+        .then(() => {
+          if (loadedForRef.current === input.projectId) hadRemoteRef.current = true;
+          if (legacyKey) localStorage.removeItem(legacyKey);
+        })
+        .catch((error) => {
+          if (isApiCancelError(error)) return;
+          toast.error("会话保存失败");
+        });
+    }, 400);
+    return () => window.clearTimeout(timer);
   }, [activeId, conversations, hydrated, input.projectId]);
 
   const activeConversation = useMemo(

@@ -15,6 +15,7 @@ description: >-
 | 题材 + 空状态示例 | `packages/shared/src/manju/script-write-genres.ts` |
 | LLM 入口 re-export | `apps/server/src/modules/jobs/llm-prompts.ts` → `SCRIPT_WRITE_SYSTEM` |
 | 前端面板 | `apps/web/src/features/manju/script-ai/` |
+| 会话存储 | 服务端 `project_chat`（scope=`manju-script`），不进漫剧草稿 |
 | 正文整理 | `apps/web/src/features/manju/lib/sanitize-script-text.ts`（钩子迁出正文） |
 | Job purpose | `script_write`（结果不自动回写草稿，用户点「应用修改」；JSON 含可选 `hook`） |
 

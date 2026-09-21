@@ -27,7 +27,7 @@ export default function CanvasProjectPage({
   const { id } = use(params);
 
   return (
-    <div className="relative h-svh overflow-hidden">
+    <div className="relative h-full overflow-hidden">
       <Suspense
         fallback={
           <div className="grid h-full place-items-center text-sm text-white/40">

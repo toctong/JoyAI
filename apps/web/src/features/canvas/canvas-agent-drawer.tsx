@@ -98,7 +98,7 @@ export function CanvasAgentDrawer({ projectId }: Props) {
         <aside
           data-canvas-no-zoom
           data-canvas-shortcuts-ignore
-          className="joy-canvas-chrome pointer-events-auto absolute bottom-0 right-0 top-0 z-40 flex flex-col border-l border-border shadow-xl"
+          className="joy-canvas-chrome pointer-events-auto fixed inset-y-0 right-0 z-40 flex h-svh flex-col overflow-hidden border-l border-border shadow-xl"
           style={{ width }}
           onPointerDown={(event) => event.stopPropagation()}
         >
@@ -120,7 +120,7 @@ export function CanvasAgentDrawer({ projectId }: Props) {
               document.body.style.userSelect = "none";
             }}
           />
-          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5 pl-4">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5 pl-4">
             <div className="inline-flex min-w-0 items-center gap-2">
               <Sparkles className="size-3.5 shrink-0 text-primary" />
               <span className="truncate text-sm font-semibold">与 AI 对话</span>
@@ -135,7 +135,7 @@ export function CanvasAgentDrawer({ projectId }: Props) {
               <CanvasIconClose className="size-3.5" />
             </button>
           </div>
-          <div className="min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <CanvasAgentPanel projectId={projectId} compactHeader />
           </div>
         </aside>

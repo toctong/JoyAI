@@ -1,0 +1,898 @@
+/* AI tools — layout aligned with assets / plugins; cards inspired by specialty-tool catalogs */
+
+.joy-ai-tools {
+  /* Match app shell (`bg-card`); do not paint --background or a seam appears under short pages. */
+  min-height: 100%;
+  padding: 28px 32px 64px;
+  background: transparent;
+  color: var(--foreground);
+}
+
+.joy-ai-tool-detail {
+  min-height: 100%;
+  padding: 0;
+  background: transparent;
+  color: var(--foreground);
+}
+
+.joy-ai-tools :is(h1, h2, h3, h4),
+.joy-ai-tool-detail :is(h1, h2, h3, h4),
+.joy-ai-tools [class*="-title"],
+.joy-ai-tool-detail [class*="-title"] {
+  font-weight: 400;
+}
+
+.joy-ai-tools-inner,
+.joy-ai-tool-detail-inner {
+  width: 100%;
+}
+
+.joy-ai-tools-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 28px;
+}
+
+.joy-ai-tools-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.joy-ai-tools-tabs button {
+  height: 36px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.joy-ai-tools-tabs button:hover {
+  color: var(--foreground);
+}
+
+.joy-ai-tools-tabs button.is-active {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+.joy-ai-tools-toolbar-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.joy-ai-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+
+.joy-ai-tool-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 132px;
+  padding: 22px 24px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  border-radius: 16px;
+  background: var(--card);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.joy-ai-tool-card:hover {
+  border-color: color-mix(in oklab, var(--ring) 35%, var(--border));
+  box-shadow: 0 12px 36px -28px rgb(0 0 0 / 0.35);
+  transform: translateY(-1px);
+}
+
+.joy-ai-tool-card.is-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.joy-ai-tool-card-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.joy-ai-tool-card-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.joy-ai-tool-card-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--foreground);
+}
+
+.joy-ai-tool-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.joy-ai-tool-badge.is-soon {
+  background: var(--secondary);
+  color: var(--muted-foreground);
+  letter-spacing: 0;
+}
+
+.joy-ai-tool-badge.is-new {
+  font-weight: 600;
+}
+
+.joy-ai-tool-card-desc {
+  margin: 0;
+  max-width: 28em;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.joy-ai-tool-card-preview {
+  flex-shrink: 0;
+  width: 118px;
+  height: 88px;
+}
+
+.joy-ai-tool-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.joy-ai-tool-stack-layer,
+.joy-ai-tool-stack-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: color-mix(in oklab, var(--tool-accent) 22%, var(--card));
+  box-shadow: 0 8px 18px -14px rgb(0 0 0 / 0.45);
+}
+
+img.joy-ai-tool-stack-layer {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  padding: 0;
+}
+
+.joy-ai-tool-stack-layer.is-back {
+  transform: translate(14px, 4px) scale(0.92);
+  opacity: 0.45;
+  z-index: 0;
+}
+
+.joy-ai-tool-stack-layer.is-mid {
+  transform: translate(8px, 2px) scale(0.96);
+  opacity: 0.7;
+  z-index: 1;
+}
+
+.joy-ai-tool-stack-face {
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  padding: 6px;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in oklab, var(--tool-accent) 34%, var(--card)),
+      color-mix(in oklab, var(--muted) 55%, var(--card))
+    );
+}
+
+.joy-ai-tool-stack-face span {
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--background) 55%, transparent);
+  aspect-ratio: 1;
+}
+
+.joy-ai-tool-stack-face span:nth-child(odd) {
+  background: color-mix(in oklab, var(--tool-accent) 28%, var(--background));
+}
+
+.joy-ai-tool-stack.is-photo .joy-ai-tool-stack-layer,
+.joy-ai-tool-stack.is-photo .joy-ai-tool-stack-face {
+  padding: 0;
+  overflow: hidden;
+  background: var(--card);
+}
+
+.joy-ai-tool-stack.is-photo .joy-ai-tool-stack-layer,
+.joy-ai-tool-stack.is-photo .joy-ai-tool-stack-face img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-ai-tool-stack-face.is-photo {
+  display: block;
+}
+
+/* —— tool detail (ai-video tool-page structure) —— */
+
+.joy-tool-page {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.joy-tool-page-sidebar {
+  flex: 0 0 360px;
+  width: 360px;
+  height: 100%;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+}
+
+.joy-tool-page-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.joy-tool-page-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.joy-tool-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 18px 8px;
+}
+
+.joy-tool-page :is(h1, h2, h3),
+.joy-tool-page [class*="-title"] {
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.joy-tool-page-heading h1 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.joy-tool-page-heading p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.joy-tool-page-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.joy-tool-page-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.joy-tool-page-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+.joy-tool-model-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--secondary);
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 400;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.joy-tool-model-trigger:hover:not(:disabled),
+.joy-tool-model-trigger[data-state="open"] {
+  border-color: color-mix(in oklab, var(--foreground) 24%, var(--border));
+  background: var(--muted);
+}
+
+.joy-tool-model-trigger:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.joy-tool-model-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-tool-model-chevron {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+}
+
+.joy-tool-model-menu {
+  width: var(--radix-dropdown-menu-trigger-width);
+  min-width: 240px;
+}
+
+.joy-tool-options {
+  display: grid;
+  gap: 6px;
+}
+
+.joy-tool-options.is-mode {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.joy-tool-options.is-ratio {
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+}
+
+.joy-tool-options.is-count {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.joy-tool-option {
+  display: flex;
+  min-height: 40px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--secondary);
+  padding: 8px 4px;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.joy-tool-options.is-ratio .joy-tool-option {
+  min-height: 58px;
+  font-size: 11px;
+}
+
+.joy-tool-option:hover:not(:disabled) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.joy-tool-option.is-on {
+  background: var(--muted);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 28%, var(--border));
+}
+
+.joy-tool-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.joy-tool-ratio-mark {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+}
+
+.joy-tool-ratio-mark span {
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.joy-tool-ratio-mark.is-smart span {
+  width: 14px;
+  height: 14px;
+  border-style: dashed;
+}
+
+.joy-tool-page-actions {
+  flex-shrink: 0;
+  padding: 12px 18px 20px;
+  background: var(--card);
+}
+
+.joy-tool-page-generate {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.joy-tool-page-preview {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  background: var(--card);
+}
+
+.joy-tool-page-preview-inner {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 100%;
+  padding: 24px;
+}
+
+.joy-tool-page-preview-inner.is-empty {
+  align-items: center;
+  justify-content: center;
+}
+
+.joy-tool-page-preview-inner.is-empty .joy-ai-tool-empty {
+  flex: none;
+  width: min(100%, 420px);
+  min-height: 240px;
+}
+
+.joy-tool-page-preview .joy-ai-tool-empty {
+  flex: 1;
+  min-height: 280px;
+}
+
+.joy-ai-tool-detail {
+  min-height: 100%;
+  padding: 0;
+}
+
+@media (max-width: 900px) {
+  .joy-tool-page {
+    flex-direction: column;
+    overflow: auto;
+  }
+
+  .joy-tool-page-sidebar {
+    flex: none;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .joy-tool-page-sidebar-inner {
+    height: auto;
+  }
+
+  .joy-tool-page-scroll {
+    flex: none;
+    overflow: visible;
+  }
+
+  .joy-tool-page-preview {
+    min-height: 360px;
+  }
+}
+
+/* —— detail —— */
+
+.joy-ai-tool-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  text-decoration: none;
+}
+
+.joy-ai-tool-back:hover {
+  color: var(--foreground);
+}
+
+.joy-ai-tool-detail-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.joy-ai-tool-detail-mark {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--tool-accent) 28%, var(--secondary));
+  color: var(--foreground);
+}
+
+.joy-ai-tool-detail-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.joy-ai-tool-detail-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+}
+
+.joy-ai-tool-soon {
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  padding: 28px 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted-foreground);
+  background: var(--card);
+}
+
+.joy-ai-tool-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.joy-ai-tool-panel {
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 18px;
+}
+
+.joy-ai-tool-panel-title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.joy-ai-tool-panel-hint {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.joy-ai-tool-panel-composer {
+  overflow: visible;
+}
+
+.joy-ai-tool-composer {
+  width: 100%;
+}
+
+.joy-ai-tool-composer .joy-composer-wrap {
+  width: 100%;
+}
+
+.joy-ai-tool-composer .joy-composer.is-dock {
+  width: 100%;
+  max-width: none;
+}
+
+.joy-ai-tool-composer-skeleton {
+  min-height: 168px;
+  border-radius: 20px;
+  background: var(--secondary);
+}
+
+.joy-ai-tool-result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.joy-ai-tool-result-head .joy-ai-tool-panel-hint {
+  margin-bottom: 0;
+}
+
+.joy-ai-tool-result-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.joy-ai-tool-drop {
+  margin-bottom: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.joy-ai-tool-drop-zone {
+  display: flex;
+  width: 100%;
+  min-height: 112px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px dashed color-mix(in oklab, var(--foreground) 16%, var(--border));
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--secondary) 70%, transparent);
+  padding: 16px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.joy-ai-tool-drop-zone strong {
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.joy-ai-tool-drop-zone span {
+  font-size: 12px;
+}
+
+.joy-ai-tool-drop-zone:hover,
+.joy-ai-tool-drop.is-dragging .joy-ai-tool-drop-zone {
+  border-color: color-mix(in oklab, var(--foreground) 32%, var(--border));
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+.joy-ai-tool-drop-zone:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.joy-ai-tool-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.joy-ai-tool-ref,
+.joy-ai-tool-ref-add {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+}
+
+.joy-ai-tool-ref img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-ai-tool-ref-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--background) 82%, transparent);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.joy-ai-tool-ref-add {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.joy-ai-tool-ref-add:hover {
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+}
+
+.joy-ai-tool-note {
+  min-height: 120px;
+  margin-bottom: 0;
+  resize: vertical;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+.joy-ai-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.joy-ai-tool-actions .joy-btn,
+.joy-ai-tool-actions button {
+  border-radius: 10px;
+}
+
+.joy-ai-tool-empty {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: var(--secondary);
+  font-size: 13px;
+  color: var(--muted-foreground);
+}
+
+.joy-ai-tool-results {
+  display: grid;
+  gap: 12px;
+}
+
+.joy-ai-tool-result {
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  background: var(--background);
+}
+
+.joy-ai-tool-result img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.joy-ai-tool-result-actions {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding: 8px 10px;
+}
+
+.joy-ai-tool-result-actions a {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+  background: var(--secondary);
+  padding: 0 10px;
+  font-size: 12px;
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.joy-ai-tool-result-actions a:hover {
+  background: color-mix(in oklab, var(--secondary) 70%, var(--muted));
+}
+
+.joy-ai-tool-history {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.joy-tool-page .joy-ai-tool-history-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+.joy-ai-tool-history-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.joy-ai-tool-history-item {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.joy-ai-tool-history-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 1100px) {
+  .joy-ai-tools-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .joy-ai-tool-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .joy-ai-tools,
+  .joy-ai-tool-detail {
+    padding-inline: 16px;
+  }
+
+  .joy-ai-tools-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .joy-ai-tool-card {
+    padding: 18px;
+  }
+
+  .joy-ai-tool-card-preview {
+    width: 96px;
+    height: 72px;
+  }
+}
