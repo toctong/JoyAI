@@ -16,7 +16,6 @@ function loadEnv(file) {
   }
 }
 
-loadEnv(path.resolve(__dirname, "../.env"));
 loadEnv(path.resolve(__dirname, "../../.env"));
 
 const url =

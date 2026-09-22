@@ -14,7 +14,7 @@
 - 密钥进 Channel / 加密 Settings，勿提交 `.env`
 - JWT_SECRET 生产必须更换
 - Admin 与创作者共用 API，用 role 区分
-- Server 会读 `apps/server/.env` 与仓库根目录 `.env`
+- Server 只读仓库根目录 `.env`
 
 ## 任务与并发
 

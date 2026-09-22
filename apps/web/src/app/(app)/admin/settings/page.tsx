@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-type Setting = { key: string; value: unknown };
+type Setting = { key: string; value: unknown; fromEnv?: boolean };
 
 const TOS_KEYS: Array<{ key: string; label: string; secret?: boolean }> = [
   { key: "tos.accessKey", label: "Access Key", secret: true },
@@ -207,8 +207,8 @@ export default function SettingsPage() {
         <TabsContent value="tos" className="mt-0">
           <ListPageCard className="p-6">
             <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
-              也可继续使用环境变量 <code className="text-xs">TOS_*</code>
-              ；此处写入便于运营热更新（服务端需已读 Settings）。
+              未写入库时会回填环境变量 <code className="text-xs">TOS_*</code>
+              。点保存后写入 Settings，便于运营热更新。
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               {TOS_KEYS.map((item) => (
@@ -250,8 +250,8 @@ export default function SettingsPage() {
             <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
               用于拉取 <strong>Elser</strong> / <strong>PixAI</strong> /{" "}
               <strong>Civitai</strong>{" "}
-              探索上游。留空则直连（或回退环境变量{" "}
-              <code className="text-xs">EXPLORE_MARKET_PROXY</code>）。
+              探索上游。留空则直连；未入库时回填环境变量{" "}
+              <code className="text-xs">EXPLORE_MARKET_PROXY</code>。
             </p>
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground">
@@ -338,7 +338,14 @@ export default function SettingsPage() {
                   key={item.key}
                   className="rounded-lg border border-border bg-muted/30 px-3 py-2"
                 >
-                  <p className="font-mono text-sm text-primary">{item.key}</p>
+                  <p className="font-mono text-sm text-primary">
+                    {item.key}
+                    {item.fromEnv ? (
+                      <span className="ml-2 font-sans text-xs text-muted-foreground">
+                        （来自 .env）
+                      </span>
+                    ) : null}
+                  </p>
                   <ScrollArea className="max-h-48 w-full" type="hover">
                     <pre className="text-xs text-muted-foreground">
                       {JSON.stringify(item.value, null, 2)}

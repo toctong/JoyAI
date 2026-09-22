@@ -8,9 +8,7 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "db:reset": "node scripts/reset-mysql.cjs",
-    "db:import-sqlite": "ts-node --transpile-only --project tsconfig.scripts.json scripts/import-sqlite.ts",
-    "postinstall": "node -e \"try{require('fs').copyFileSync(require('path').resolve(__dirname,'../../.env'),require('path').resolve(__dirname,'.env'))}catch(e){}\""
+    "db:reset": "node scripts/reset-mysql.cjs"
   },
   "dependencies": {
     "@dataui/crud": "5.3.4",
@@ -60,8 +58,6 @@
     "@types/lodash": "^4.17.16",
     "@types/node": "^22.13.10",
     "@types/passport-jwt": "^4.0.1",
-    "sql.js": "^1.14.2",
-    "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   }
 }
