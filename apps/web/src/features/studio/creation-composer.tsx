@@ -687,9 +687,6 @@ export function CreationComposer({
     void api<PublicModel[]>("/models")
       .then((list) => {
         setModels(list);
-        if (list.length === 0) {
-          toast.message("暂无可用模型，请先在运维后台启用渠道与模型");
-        }
       })
       .catch(() => {
         toast.error("加载模型列表失败");

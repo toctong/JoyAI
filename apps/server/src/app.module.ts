@@ -18,6 +18,7 @@ import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { HealthModule } from "./modules/health/health.module";
 import { ExploreModule } from "./modules/explore/explore.module";
+import { ChangelogModule } from "./modules/changelog/changelog.module";
 import { BootstrapService } from "./common/bootstrap.service";
 
 @Module({
@@ -41,6 +42,7 @@ import { BootstrapService } from "./common/bootstrap.service";
     CommonModule,
     HealthModule,
     ExploreModule,
+    ChangelogModule,
     AuthModule,
     UsersModule,
     ChannelsModule,

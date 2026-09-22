@@ -40,7 +40,17 @@ export default function AppShellLayout({
   /** Explore owns its scroll so sticky header + infinite load stay correct. */
   const isExplore =
     pathname === "/explore" || pathname.startsWith("/explore/");
+  /** Studio owns scroll (chat feed sticks to bottom); avoid shell ScrollArea remount flash. */
+  const isStudio = pathname === "/studio" || pathname.startsWith("/studio/");
   const wallpaperActive = isInspireHome && !isCanvasEditor;
+  const ownScroll =
+    isCanvasEditor ||
+    isManjuWorkbench ||
+    isToolDetail ||
+    isAdmin ||
+    isInspireHome ||
+    isExplore ||
+    isStudio;
 
   useEffect(() => {
     if (hydrated && !token) router.replace("/login");
@@ -107,12 +117,7 @@ export default function AppShellLayout({
       >
         <AppSidebar />
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-          {isCanvasEditor ||
-          isManjuWorkbench ||
-          isToolDetail ||
-          isAdmin ||
-          isInspireHome ||
-          isExplore ? (
+          {ownScroll ? (
             children
           ) : (
             <ScrollArea className="h-full" type="hover">

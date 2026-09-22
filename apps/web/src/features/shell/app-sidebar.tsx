@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Clapperboard,
   Compass,
+  Github,
   LogOut,
   Shield,
   Wrench,
@@ -69,6 +70,11 @@ const nav: NavItem[] = [
     href: "/tools",
     label: "工具",
     Lucide: Wrench,
+  },
+  {
+    href: "/github",
+    label: "GitHub",
+    Lucide: Github,
   },
 ];
 

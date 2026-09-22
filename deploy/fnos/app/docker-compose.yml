@@ -52,6 +52,9 @@ services:
       STORAGE_GC_SWEEP_MS: ${STORAGE_GC_SWEEP_MS:-21600000}
       STORAGE_GC_MIN_AGE_MS: ${STORAGE_GC_MIN_AGE_MS:-604800000}
       SETTINGS_SECRET: ${SETTINGS_SECRET:-}
+      GITHUB_OWNER: ${GITHUB_OWNER:-toctong}
+      GITHUB_REPO: ${GITHUB_REPO:-JoyAI}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     healthcheck:
       test:
         [

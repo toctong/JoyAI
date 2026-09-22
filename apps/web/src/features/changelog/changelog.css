@@ -1,0 +1,367 @@
+/* GitHub commit timeline — JoyAI tokens, soft reading width */
+
+.joy-changelog {
+  box-sizing: border-box;
+  min-height: 100%;
+  width: 100%;
+  padding: var(--joy-space-page-y) var(--joy-space-page-x) 64px;
+  background: transparent;
+  color: var(--foreground);
+}
+
+.joy-changelog-inner {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.joy-changelog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--joy-space-4);
+  margin-bottom: var(--joy-space-section);
+  padding-bottom: var(--joy-space-5);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+}
+
+.joy-changelog-kicker {
+  margin: 0 0 6px;
+  font-size: var(--joy-font-caption);
+  font-weight: var(--joy-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.joy-changelog-title {
+  margin: 0;
+  font-size: var(--joy-font-heading);
+  font-weight: var(--joy-weight-medium);
+  line-height: var(--joy-leading-tight);
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.joy-changelog-desc {
+  margin: 6px 0 0;
+  font-size: var(--joy-font-body);
+  line-height: var(--joy-leading-normal);
+  color: var(--muted-foreground);
+}
+
+.joy-changelog-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: var(--joy-weight-medium);
+  color: var(--foreground);
+  text-decoration: none;
+  transition: color var(--joy-duration-fast) var(--joy-ease-out);
+}
+
+.joy-changelog-repo:hover {
+  color: var(--primary);
+}
+
+.joy-changelog-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 280px;
+  padding: 40px 24px;
+  text-align: center;
+  font-size: var(--joy-font-body);
+  color: var(--muted-foreground);
+  border: 1px dashed color-mix(in oklab, var(--border) 90%, transparent);
+  border-radius: var(--joy-radius-xl);
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+}
+
+.joy-changelog-status.is-error {
+  color: var(--foreground);
+  border-style: solid;
+  background: color-mix(in oklab, var(--destructive) 6%, var(--card));
+}
+
+.joy-changelog-status code {
+  font-size: var(--joy-font-caption);
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--muted);
+}
+
+.joy-changelog-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.joy-changelog-day {
+  position: relative;
+}
+
+.joy-changelog-day-label {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0 10px;
+  /* Opaque so sticky header does not blend over the first card border. */
+  background: var(--card);
+}
+
+.joy-changelog-day-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--joy-radius-pill);
+  background: color-mix(in oklab, var(--foreground) 72%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.joy-changelog-day-label h2 {
+  margin: 0;
+  font-size: var(--joy-font-title);
+  font-weight: var(--joy-weight-medium);
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+}
+
+.joy-changelog-list {
+  list-style: none;
+  margin: 0;
+  /* Top gap so the first card border clears the sticky day label. */
+  padding: 6px 0 12px 5px;
+  border-left: 1px solid color-mix(in oklab, var(--border) 75%, transparent);
+}
+
+.joy-changelog-item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 0 0 12px 20px;
+  animation: joy-changelog-in var(--joy-duration-normal) var(--joy-ease-out) both;
+}
+
+.joy-changelog-item:first-child {
+  padding-top: 2px;
+}
+
+.joy-changelog-item:nth-child(1) {
+  animation-delay: 0ms;
+}
+.joy-changelog-item:nth-child(2) {
+  animation-delay: 30ms;
+}
+.joy-changelog-item:nth-child(3) {
+  animation-delay: 60ms;
+}
+.joy-changelog-item:nth-child(4) {
+  animation-delay: 90ms;
+}
+.joy-changelog-item:nth-child(n + 5) {
+  animation-delay: 110ms;
+}
+
+@keyframes joy-changelog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joy-changelog-item {
+    animation: none;
+  }
+}
+
+.joy-changelog-rail {
+  position: absolute;
+  left: -10px;
+  top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--joy-radius-pill);
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: var(--card);
+  color: var(--muted-foreground);
+}
+
+.joy-changelog-rail-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.joy-changelog-card {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in oklab, var(--border) 78%, transparent);
+  border-radius: var(--joy-radius-lg);
+  background: color-mix(in oklab, var(--card) 70%, transparent);
+  transition:
+    border-color var(--joy-duration-fast) var(--joy-ease-out),
+    background var(--joy-duration-fast) var(--joy-ease-out);
+}
+
+.joy-changelog-card:hover {
+  border-color: color-mix(in oklab, var(--foreground) 14%, var(--border));
+  background: var(--card);
+}
+
+.joy-changelog-card-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.joy-changelog-msg {
+  display: block;
+  font-size: var(--joy-font-body);
+  font-weight: var(--joy-weight-medium);
+  line-height: var(--joy-leading-snug);
+  color: var(--foreground);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: color var(--joy-duration-fast) var(--joy-ease-out);
+}
+
+.joy-changelog-msg:hover {
+  color: var(--primary);
+}
+
+.joy-changelog-body {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  max-height: 8.5em;
+  overflow: auto;
+  border-radius: var(--joy-radius-sm);
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--joy-font-caption);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  color: var(--muted-foreground);
+}
+
+.joy-changelog-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: var(--joy-font-caption);
+  color: var(--muted-foreground);
+}
+
+.joy-changelog-author {
+  font-weight: var(--joy-weight-medium);
+  color: var(--foreground);
+}
+
+.joy-changelog-sep {
+  opacity: 0.4;
+}
+
+.joy-changelog-sha {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 1px;
+  padding: 4px 9px;
+  border-radius: var(--joy-radius-sm);
+  border: 1px solid transparent;
+  background: var(--secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--joy-font-micro);
+  font-weight: var(--joy-weight-medium);
+  letter-spacing: 0.03em;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition:
+    color var(--joy-duration-fast) var(--joy-ease-out),
+    background var(--joy-duration-fast) var(--joy-ease-out),
+    border-color var(--joy-duration-fast) var(--joy-ease-out);
+}
+
+.joy-changelog-sha:hover {
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--border) 90%, transparent);
+  background: var(--muted);
+}
+
+.joy-changelog-back-top {
+  position: fixed;
+  right: 28px;
+  bottom: 28px;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  width: var(--joy-control-h-lg);
+  height: var(--joy-control-h-lg);
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  border-radius: var(--joy-radius-pill);
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  color: var(--foreground);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--foreground) 10%, transparent);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition:
+    background var(--joy-duration-fast) var(--joy-ease-out),
+    border-color var(--joy-duration-fast) var(--joy-ease-out),
+    transform var(--joy-duration-fast) var(--joy-ease-out);
+}
+
+.joy-changelog-back-top:hover {
+  background: var(--muted);
+  border-color: color-mix(in oklab, var(--foreground) 16%, var(--border));
+  transform: translateY(-1px);
+}
+
+.joy-changelog-more,
+.joy-changelog-end {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0 8px;
+}
+
+.joy-changelog-end {
+  margin: 0;
+  font-size: var(--joy-font-caption);
+  color: var(--muted-foreground);
+}
+
+@media (max-width: 720px) {
+  .joy-changelog {
+    padding: 20px 16px 48px;
+  }
+
+  .joy-changelog-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .joy-changelog-card {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .joy-changelog-sha {
+    align-self: flex-start;
+  }
+}

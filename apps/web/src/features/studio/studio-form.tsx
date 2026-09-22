@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, Suspense, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  Suspense,
+  type CSSProperties,
+} from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -305,16 +314,9 @@ function mergeJobsAsc(prev: Job[], incoming: Job[]) {
   return sortJobsAsc([...map.values()]);
 }
 
-function getAppScrollViewport(): HTMLElement | null {
-  return document.querySelector(
-    "[data-app-shell] main [data-radix-scroll-area-viewport]",
-  );
-}
-
-function scrollFeedToBottom() {
-  const vp = getAppScrollViewport();
-  if (!vp) return;
-  vp.scrollTop = vp.scrollHeight;
+function scrollElToBottom(el: HTMLElement | null) {
+  if (!el) return;
+  el.scrollTop = el.scrollHeight;
 }
 
 function PromptInlineParts({
@@ -755,6 +757,8 @@ function StudioInner() {
   const [now, setNow] = useState(() => Date.now());
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [bootstrapped, setBootstrapped] = useState(false);
+  const [feedVisible, setFeedVisible] = useState(false);
   const [remixKey, setRemixKey] = useState(0);
   const [remixPrompt, setRemixPrompt] = useState<string | undefined>();
   const [remixRefs, setRemixRefs] = useState<string[]>([]);
@@ -766,7 +770,9 @@ function StudioInner() {
   const hasMoreRef = useRef(false);
   const jobsRef = useRef<Job[]>([]);
   const topSentinelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+  const didInitRef = useRef(false);
 
   useEffect(() => {
     hasMoreRef.current = hasMore;
@@ -776,15 +782,22 @@ function StudioInner() {
     jobsRef.current = jobs;
   }, [jobs]);
 
+  const scrollFeedToBottom = useCallback(() => {
+    scrollElToBottom(scrollRef.current);
+  }, []);
+
   const loadInitial = useCallback(async () => {
-    const res = await api<JobsPage>(`/jobs?take=${JOBS_PAGE}&scope=studio`);
-    setJobs(sortJobsAsc(res.items.filter(isStudioFeedJob)));
-    setHasMore(res.hasMore);
-    stickToBottomRef.current = true;
-    requestAnimationFrame(() => {
-      scrollFeedToBottom();
-      requestAnimationFrame(scrollFeedToBottom);
-    });
+    try {
+      const res = await api<JobsPage>(`/jobs?take=${JOBS_PAGE}&scope=studio`);
+      const next = sortJobsAsc(res.items.filter(isStudioFeedJob));
+      setJobs(next);
+      setHasMore(res.hasMore);
+      stickToBottomRef.current = true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "加载创作记录失败");
+    } finally {
+      setBootstrapped(true);
+    }
   }, []);
 
   const loadOlder = useCallback(async () => {
@@ -796,7 +809,7 @@ function StudioInner() {
     loadingMoreRef.current = true;
     setLoadingMore(true);
 
-    const viewport = getAppScrollViewport();
+    const viewport = scrollRef.current;
     const prevHeight = viewport?.scrollHeight ?? 0;
     const prevTop = viewport?.scrollTop ?? 0;
 
@@ -836,12 +849,25 @@ function StudioInner() {
       ),
     );
     if (stickToBottomRef.current) {
-      requestAnimationFrame(scrollFeedToBottom);
+      requestAnimationFrame(() => scrollElToBottom(scrollRef.current));
     }
   }, []);
 
+  // First mount only.
   useEffect(() => {
+    if (didInitRef.current) return;
+    didInitRef.current = true;
     void loadInitial();
+  }, [loadInitial]);
+
+  // Pin to bottom before first paint of the feed (avoids top→bottom flash).
+  useLayoutEffect(() => {
+    if (!bootstrapped || feedVisible) return;
+    if (jobs.length > 0) scrollFeedToBottom();
+    setFeedVisible(true);
+  }, [bootstrapped, feedVisible, jobs.length, scrollFeedToBottom]);
+
+  useEffect(() => {
     const socket = getJobsSocket();
     const refresh = () => void refreshLatest();
     const onProgress = (payload: {
@@ -853,7 +879,6 @@ function StudioInner() {
       setJobs((prev) => {
         const idx = prev.findIndex((job) => job.id === payload.jobId);
         if (idx < 0) {
-          // New job not in the window yet — pull a fresh page once.
           void refreshLatest();
           return prev;
         }
@@ -897,7 +922,7 @@ function StudioInner() {
       socket.off("job:progress", onProgress);
       socket.off("asset:updated", onAssetUpdated);
     };
-  }, [loadInitial, refreshLatest]);
+  }, [refreshLatest]);
 
   const hasJobs = jobs.length > 0;
   const hasBusyJobs = jobs.some((j) => isBusy(j.status));
@@ -912,9 +937,9 @@ function StudioInner() {
 
   // 向上滚到顶部 → 加载更早
   useEffect(() => {
-    if (!hasJobs) return;
+    if (!hasJobs || !feedVisible) return;
     const sentinel = topSentinelRef.current;
-    const root = getAppScrollViewport();
+    const root = scrollRef.current;
     if (!sentinel || !root) return;
 
     const onScroll = () => {
@@ -939,7 +964,7 @@ function StudioInner() {
       root.removeEventListener("scroll", onScroll);
       io.disconnect();
     };
-  }, [loadOlder, hasJobs]);
+  }, [loadOlder, hasJobs, feedVisible]);
 
   function applyPrompt(job: Job) {
     const prompt = job.input?.prompt?.trim();
@@ -1023,7 +1048,10 @@ function StudioInner() {
   const feed = useMemo(() => jobs, [jobs]);
 
   return (
-    <div className="joy-studio">
+    <div
+      ref={scrollRef}
+      className={cn("joy-studio", !feedVisible && "is-pending")}
+    >
       <div className="joy-studio-top">
         <Link href="/assets" className="joy-studio-assets-btn">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1037,7 +1065,9 @@ function StudioInner() {
         </Link>
       </div>
 
-      {!hasJobs ? (
+      {!bootstrapped ? (
+        <div className="joy-studio-boot" aria-hidden />
+      ) : !hasJobs ? (
         <div className="joy-studio-empty">
           <Sparkles className="mb-1 h-8 w-8 text-muted-foreground/50" />
           <h2>开始你的创作</h2>
@@ -1192,7 +1222,6 @@ function StudioInner() {
       )}
 
       <div className="joy-studio-dock">
-        <div className="joy-studio-dock-glow" aria-hidden />
         <div className="joy-studio-dock-inner">
           <CreationComposer
             key={`dock-${remixKey}`}
@@ -1216,14 +1245,16 @@ function StudioInner() {
 
 export function StudioForm() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-svh items-center justify-center text-muted-foreground">
-          加载中…
-        </div>
-      }
-    >
-      <StudioInner />
-    </Suspense>
+    <div className="h-full min-h-0">
+      <Suspense
+        fallback={
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            加载中…
+          </div>
+        }
+      >
+        <StudioInner />
+      </Suspense>
+    </div>
   );
 }
