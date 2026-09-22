@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Post, UseGuards } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { IsString, MinLength } from "class-validator";
 import { AuthService } from "./auth.service";
@@ -12,16 +12,6 @@ class LoginDto {
 
   @IsString()
   @MinLength(4)
-  password!: string;
-}
-
-class RegisterDto {
-  @IsString()
-  @MinLength(3)
-  username!: string;
-
-  @IsString()
-  @MinLength(6)
   password!: string;
 }
 
@@ -59,8 +49,8 @@ export class AuthController {
   }
 
   @Post("register")
-  register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto.username, dto.password);
+  register() {
+    throw new ForbiddenException("注册已关闭，请联系管理员创建账号");
   }
 
   @ApiBearerAuth()

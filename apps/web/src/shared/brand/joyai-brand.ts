@@ -1,8 +1,8 @@
 /** Brand chrome — all assets served from `public/brand/` (no remote URLs). */
 export const JOYAI_BRAND = {
-  /** Sidebar / compact mark */
+  /** Sidebar / compact mark (also used on login) */
   logo: "/brand/mirora-mark.png",
-  /** Full wordmark for login etc. */
+  /** @deprecated Prefer `logo` + text; kept for older call sites */
   logoFull: "/brand/mirora-logo.png",
   mascot: "/brand/mascot.png",
   heroBg: "/brand/hero-bg.png",

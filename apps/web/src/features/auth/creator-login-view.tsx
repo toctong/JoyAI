@@ -68,7 +68,6 @@ export function CreatorLoginView() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [hydrated, setHydrated] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [mode, setMode] = useState<"login" | "register">("login");
   const [compact, setCompact] = useState(false);
   const [mediaWidth, setMediaWidth] = useState<number | null>(null);
   const [agreement, setAgreement] = useState<"user" | "privacy" | null>(null);
@@ -109,21 +108,6 @@ export function CreatorLoginView() {
 
   async function onSubmit(values: FormValues) {
     try {
-      if (mode === "register") {
-        const res = await api<{
-          accessToken: string;
-          user: AuthUser;
-        }>("/auth/register", {
-          method: "POST",
-          body: values,
-          token: null,
-        });
-        setAuth(res.accessToken, res.user);
-        toast.success("注册成功");
-        router.replace("/inspire");
-        return;
-      }
-
       const res = await api<{
         requiresTotp?: boolean;
         challengeToken?: string;
@@ -217,24 +201,19 @@ export function CreatorLoginView() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={JOYAI_BRAND.logoFull}
-                alt="JoyAI"
-                className="login-page__logo-img login-page__logo-img--full"
+                src={JOYAI_BRAND.logo}
+                alt=""
+                className="login-page__logo-img"
               />
+              <span className="login-page__logo-word">JoyAI</span>
             </Link>
             <h1 className="login-page__title">
-              {totpChallenge
-                ? "身份验证"
-                : mode === "login"
-                  ? "欢迎登录"
-                  : "创建账号"}
+              {totpChallenge ? "身份验证" : "欢迎登录"}
             </h1>
             <p className="login-page__subtitle">
               {totpChallenge
                 ? `请输入 ${totpUser ?? ""} 的动态验证码`
-                : mode === "login"
-                  ? "继续你的创作之旅"
-                  : "开启 JoyAI 创意世界"}
+                : "继续你的创作之旅"}
             </p>
           </div>
 
@@ -270,27 +249,6 @@ export function CreatorLoginView() {
             </form>
           ) : (
             <>
-          <div className="login-page__tabs" role="tablist" aria-label="登录方式">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "login"}
-              className={`login-page__tab${mode === "login" ? " login-page__tab--active" : ""}`}
-              onClick={() => setMode("login")}
-            >
-              密码登录
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "register"}
-              className={`login-page__tab${mode === "register" ? " login-page__tab--active" : ""}`}
-              onClick={() => setMode("register")}
-            >
-              注册账号
-            </button>
-          </div>
-
           <form
             className="login-page__fields"
             onSubmit={form.handleSubmit(onSubmit)}
@@ -311,9 +269,7 @@ export function CreatorLoginView() {
               <input
                 className="login-page__input"
                 type={showPassword ? "text" : "password"}
-                autoComplete={
-                  mode === "login" ? "current-password" : "new-password"
-                }
+                autoComplete="current-password"
                 placeholder="密码"
                 maxLength={64}
                 {...form.register("password")}
@@ -337,13 +293,7 @@ export function CreatorLoginView() {
               type="submit"
               disabled={form.formState.isSubmitting}
             >
-              {form.formState.isSubmitting
-                ? mode === "login"
-                  ? "登录中..."
-                  : "注册中..."
-                : mode === "login"
-                  ? "登录"
-                  : "注册"}
+              {form.formState.isSubmitting ? "登录中..." : "登录"}
             </button>
           </form>
 
