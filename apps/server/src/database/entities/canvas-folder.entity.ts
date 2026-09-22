@@ -1,16 +1,15 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryColumn,
-  UpdateDateColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcCreateDateColumn, UtcUpdateDateColumn } from "../utc-date-columns";
 import { User } from "./user.entity";
 import type { CanvasProject } from "./canvas-project.entity";
 
@@ -43,10 +42,10 @@ export class CanvasFolder {
   @Column({ default: "新建文件夹" })
   title!: string;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @OneToMany("CanvasProject", (p: CanvasProject) => p.folder)

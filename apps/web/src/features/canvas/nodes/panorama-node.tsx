@@ -243,8 +243,12 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
           icon={<CanvasIconPanorama />}
           onDragPointerDown={onPointerDown}
         />
-        <div className="relative h-full w-full overflow-hidden rounded-md bg-black/80">
-          {framed ? (
+        <div
+          className={cn(
+            "relative h-full w-full overflow-hidden rounded-md",
+            framed && "bg-black",
+          )}
+        >          {framed ? (
             showNodeViewer ? (
               <PanoramaViewer
                 url={url}

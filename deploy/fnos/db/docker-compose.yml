@@ -15,11 +15,13 @@ services:
       MYSQL_DATABASE: joyai
       MYSQL_USER: joyai
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-joyai}
-      TZ: Asia/Shanghai
+      # UTC so CURRENT_TIMESTAMP / DATETIME match TypeORM timezone: Z (avoid +8h UI skew).
+      TZ: UTC
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --max-allowed-packet=67108864
+      - --default-time-zone=+00:00
     volumes:
       - ./data/mysql:/var/lib/mysql
     healthcheck:

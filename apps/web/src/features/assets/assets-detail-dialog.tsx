@@ -26,10 +26,19 @@ import { copyText } from "@/shared/lib/clipboard";
 import { downloadAsset } from "@/shared/lib/download-asset";
 import { cn } from "@/shared/lib/utils";
 import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import { ExplorePlyrPlayer } from "@/features/explore/explore-plyr-player";
 import { ExploreDialogSkeleton } from "@/features/explore/explore-skeleton";
 import "@/features/explore/explore-detail-dialog.css";
 import "./assets-detail-dialog.css";
+
+function isVideoRefUrl(url: string) {
+  return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+}
+
+function isAudioRefUrl(url: string) {
+  return /\.(mp3|wav|m4a|aac|ogg|flac)(\?|$)/i.test(url);
+}
 
 export type AssetsPreviewItem = {
   id: string;
@@ -330,21 +339,60 @@ export function AssetsDetailDialog({
                     {refUrls.length > 0 ? (
                       <div className="joy-assets-dialog-refs">
                         <div className="joy-assets-dialog-refs-label">
-                          参考图 · {refUrls.length}
+                          参考 · {refUrls.length}
                         </div>
                         <div className="joy-assets-dialog-refs-grid">
-                          {refUrls.map((url) => (
-                            <PhotoView key={url} src={url}>
-                              <button
-                                type="button"
-                                className="joy-assets-dialog-ref"
-                                aria-label="预览参考图"
-                              >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={url} alt="" />
-                              </button>
-                            </PhotoView>
-                          ))}
+                          {refUrls.map((url) => {
+                            const video = isVideoRefUrl(url);
+                            const audio = isAudioRefUrl(url);
+                            if (video) {
+                              return (
+                                <a
+                                  key={url}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="joy-assets-dialog-ref is-video"
+                                  aria-label="打开参考视频"
+                                  title="参考视频"
+                                >
+                                  <JoyVideoPoster
+                                    url={url}
+                                    size="sm"
+                                    fallback="video"
+                                    className="size-full object-cover"
+                                  />
+                                </a>
+                              );
+                            }
+                            if (audio) {
+                              return (
+                                <a
+                                  key={url}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="joy-assets-dialog-ref is-audio"
+                                  aria-label="打开参考音频"
+                                  title="参考音频"
+                                >
+                                  <Music className="joy-assets-dialog-ref-icon" />
+                                </a>
+                              );
+                            }
+                            return (
+                              <PhotoView key={url} src={url}>
+                                <button
+                                  type="button"
+                                  className="joy-assets-dialog-ref"
+                                  aria-label="预览参考图"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={url} alt="" />
+                                </button>
+                              </PhotoView>
+                            );
+                          })}
                         </div>
                       </div>
                     ) : null}

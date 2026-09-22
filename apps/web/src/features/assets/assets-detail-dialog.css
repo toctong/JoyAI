@@ -74,11 +74,28 @@
   cursor: zoom-in;
 }
 
-.joy-assets-dialog-ref img {
+.joy-assets-dialog-ref.is-video,
+.joy-assets-dialog-ref.is-audio {
+  cursor: pointer;
+}
+
+.joy-assets-dialog-ref.is-audio {
+  display: grid;
+  place-items: center;
+}
+
+.joy-assets-dialog-ref img,
+.joy-assets-dialog-ref video {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.joy-assets-dialog-ref-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--muted-foreground);
 }
 
 .joy-explore-dialog-stage > video.joy-explore-dialog-blur {

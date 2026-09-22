@@ -11,6 +11,8 @@ export function databaseOptions(env: {
     type: "mysql",
     url: env.get("DATABASE_URL") ?? DEFAULT_DATABASE_URL,
     charset: "utf8mb4",
+    // Treat DATETIME as UTC on the wire. Must match MySQL session/default UTC
+    // (see docker --default-time-zone and pool SET time_zone).
     timezone: "Z",
     entities: [...ENTITIES],
     synchronize: true,

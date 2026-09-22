@@ -1,7 +1,6 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -9,6 +8,7 @@ import {
   PrimaryColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcCreateDateColumn } from "../utc-date-columns";
 import { User } from "./user.entity";
 import { Job } from "./job.entity";
 
@@ -65,7 +65,7 @@ export class Asset {
   @Column({ type: "json", nullable: true })
   meta!: Record<string, unknown> | null;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
   @BeforeInsert()

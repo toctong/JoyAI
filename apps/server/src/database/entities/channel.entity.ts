@@ -1,13 +1,12 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   OneToMany,
   PrimaryColumn,
-  UpdateDateColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcCreateDateColumn, UtcUpdateDateColumn } from "../utc-date-columns";
 import type { Model } from "./model.entity";
 
 @Entity("channel")
@@ -33,10 +32,10 @@ export class Channel {
   @Column({ type: "json", nullable: true })
   metadata!: Record<string, unknown> | null;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @OneToMany("Model", (m: Model) => m.channel)

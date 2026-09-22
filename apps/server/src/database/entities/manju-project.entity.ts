@@ -1,15 +1,14 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
-  UpdateDateColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcCreateDateColumn, UtcUpdateDateColumn } from "../utc-date-columns";
 import { User } from "./user.entity";
 import { ManjuFolder } from "./manju-folder.entity";
 
@@ -48,10 +47,10 @@ export class ManjuProject {
   @Column({ type: "json", nullable: true })
   draft!: Record<string, unknown> | null;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @BeforeInsert()

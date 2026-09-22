@@ -1,13 +1,12 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   PrimaryColumn,
-  UpdateDateColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcCreateDateColumn, UtcUpdateDateColumn } from "../utc-date-columns";
 
 /** Per-project chat JSON, kept off canvas snapshots and manju drafts. */
 @Entity("project_chat")
@@ -29,10 +28,10 @@ export class ProjectChat {
   @Column({ type: "json" })
   payload!: Record<string, unknown>;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @BeforeInsert()

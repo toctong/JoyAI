@@ -1,17 +1,16 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
   Unique,
-  UpdateDateColumn,
 } from "typeorm";
 import { JobKind } from "../enums";
 import { newId } from "../id";
+import { UtcCreateDateColumn, UtcUpdateDateColumn } from "../utc-date-columns";
 import { Channel } from "./channel.entity";
 
 @Entity("model")
@@ -53,10 +52,10 @@ export class Model {
   @Column({ default: false })
   isDefault!: boolean;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @BeforeInsert()

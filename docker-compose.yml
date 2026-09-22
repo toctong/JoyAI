@@ -20,10 +20,12 @@ services:
       MYSQL_DATABASE: joyai
       MYSQL_USER: joyai
       MYSQL_PASSWORD: joyai
+      TZ: UTC
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --max-allowed-packet=67108864
+      - --default-time-zone=+00:00
     volumes:
       - joyai_mysql:/var/lib/mysql
     healthcheck:

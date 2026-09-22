@@ -3,9 +3,9 @@ import {
   Column,
   Entity,
   PrimaryColumn,
-  UpdateDateColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcUpdateDateColumn } from "../utc-date-columns";
 
 /**
  * mysql2 + TypeORM `json` columns blow up on primitive string values:
@@ -68,7 +68,7 @@ export class AppSetting {
   @Column({ type: "text", nullable: true, transformer: settingValueText })
   value!: unknown;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @BeforeInsert()

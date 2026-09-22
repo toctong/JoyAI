@@ -1,15 +1,14 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
-  UpdateDateColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcCreateDateColumn, UtcUpdateDateColumn } from "../utc-date-columns";
 import { User } from "./user.entity";
 import { CanvasFolder } from "./canvas-folder.entity";
 
@@ -46,10 +45,10 @@ export class CanvasProject {
   @Column({ type: "json", nullable: true })
   snapshot!: Record<string, unknown> | null;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @BeforeInsert()

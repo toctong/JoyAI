@@ -1,12 +1,12 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   PrimaryColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcCreateDateColumn } from "../utc-date-columns";
 
 @Entity("audit_log")
 export class AuditLog {
@@ -23,7 +23,7 @@ export class AuditLog {
   detail!: Record<string, unknown> | null;
 
   @Index()
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
   @BeforeInsert()

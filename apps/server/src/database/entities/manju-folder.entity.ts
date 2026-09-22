@@ -1,16 +1,15 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   ManyToOne,
   OneToMany,
   PrimaryColumn,
-  UpdateDateColumn,
   JoinColumn,
 } from "typeorm";
 import { newId } from "../id";
+import { UtcCreateDateColumn, UtcUpdateDateColumn } from "../utc-date-columns";
 import type { ManjuProject } from "./manju-project.entity";
 
 /** 漫剧合集（文件夹） */
@@ -39,10 +38,10 @@ export class ManjuFolder {
   @Column({ default: "新建合集" })
   title!: string;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @OneToMany("ManjuProject", (p: ManjuProject) => p.folder)

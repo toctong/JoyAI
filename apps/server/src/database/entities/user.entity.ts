@@ -1,15 +1,14 @@
 import {
   BeforeInsert,
   Column,
-  CreateDateColumn,
   Entity,
   Index,
   OneToMany,
   PrimaryColumn,
-  UpdateDateColumn,
 } from "typeorm";
 import { UserRole } from "../enums";
 import { newId } from "../id";
+import { UtcCreateDateColumn, UtcUpdateDateColumn } from "../utc-date-columns";
 import type { Job } from "./job.entity";
 import type { Asset } from "./asset.entity";
 import type { CanvasProject } from "./canvas-project.entity";
@@ -36,10 +35,10 @@ export class User {
   @Column({ type: "boolean", default: false })
   totpEnabled!: boolean;
 
-  @CreateDateColumn()
+  @UtcCreateDateColumn()
   createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UtcUpdateDateColumn()
   updatedAt!: Date;
 
   @OneToMany("Job", (job: Job) => job.user)
