@@ -25,6 +25,21 @@ class RegisterDto {
   password!: string;
 }
 
+class TotpLoginDto {
+  @IsString()
+  challengeToken!: string;
+
+  @IsString()
+  @MinLength(6)
+  code!: string;
+}
+
+class TotpCodeDto {
+  @IsString()
+  @MinLength(6)
+  code!: string;
+}
+
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
@@ -36,6 +51,11 @@ export class AuthController {
   @Post("login")
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto.username, dto.password);
+  }
+
+  @Post("login/totp")
+  loginTotp(@Body() dto: TotpLoginDto) {
+    return this.auth.loginWithTotp(dto.challengeToken, dto.code);
   }
 
   @Post("register")
@@ -52,7 +72,30 @@ export class AuthController {
       id: full!.id,
       username: full!.username,
       role: full!.role,
+      totpEnabled: Boolean(full!.totpEnabled),
       createdAt: full!.createdAt,
     };
+  }
+
+  /** Start TOTP bind — returns secret + otpauth / QR (腾讯身份验证器兼容). */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post("totp/setup")
+  totpSetup(@CurrentUser() user: AuthUser) {
+    return this.auth.totpSetup(user.id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post("totp/enable")
+  totpEnable(@CurrentUser() user: AuthUser, @Body() dto: TotpCodeDto) {
+    return this.auth.totpEnable(user.id, dto.code);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post("totp/disable")
+  totpDisable(@CurrentUser() user: AuthUser, @Body() dto: TotpCodeDto) {
+    return this.auth.totpDisable(user.id, dto.code);
   }
 }

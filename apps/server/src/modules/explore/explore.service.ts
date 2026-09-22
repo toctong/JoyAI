@@ -91,6 +91,7 @@ export class ExploreService implements OnModuleInit {
       const raw = row?.value;
       if (typeof raw === "string") return raw.trim() || null;
       if (raw == null) return null;
+      if (typeof raw === "object") return null;
       return String(raw).trim() || null;
     });
   }

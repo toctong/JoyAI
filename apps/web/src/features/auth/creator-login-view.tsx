@@ -72,6 +72,9 @@ export function CreatorLoginView() {
   const [compact, setCompact] = useState(false);
   const [mediaWidth, setMediaWidth] = useState<number | null>(null);
   const [agreement, setAgreement] = useState<"user" | "privacy" | null>(null);
+  const [totpChallenge, setTotpChallenge] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [totpUser, setTotpUser] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -106,17 +109,74 @@ export function CreatorLoginView() {
 
   async function onSubmit(values: FormValues) {
     try {
-      const path = mode === "login" ? "/auth/login" : "/auth/register";
-      const res = await api<{ accessToken: string; user: AuthUser }>(path, {
+      if (mode === "register") {
+        const res = await api<{
+          accessToken: string;
+          user: AuthUser;
+        }>("/auth/register", {
+          method: "POST",
+          body: values,
+          token: null,
+        });
+        setAuth(res.accessToken, res.user);
+        toast.success("注册成功");
+        router.replace("/inspire");
+        return;
+      }
+
+      const res = await api<{
+        requiresTotp?: boolean;
+        challengeToken?: string;
+        accessToken?: string;
+        user: AuthUser & { username: string };
+      }>("/auth/login", {
         method: "POST",
         body: values,
         token: null,
       });
+
+      if (res.requiresTotp && res.challengeToken) {
+        setTotpChallenge(res.challengeToken);
+        setTotpUser(res.user.username);
+        setTotpCode("");
+        toast.success("请输入身份验证器验证码");
+        return;
+      }
+
+      if (!res.accessToken) {
+        toast.error("登录响应异常");
+        return;
+      }
       setAuth(res.accessToken, res.user);
-      toast.success(mode === "login" ? "登录成功" : "注册成功");
+      toast.success("登录成功");
       router.replace("/inspire");
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "操作失败");
+    }
+  }
+
+  async function onTotpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!totpChallenge) return;
+    if (totpCode.trim().length < 6) {
+      toast.error("请输入 6 位验证码");
+      return;
+    }
+    try {
+      const res = await api<{ accessToken: string; user: AuthUser }>(
+        "/auth/login/totp",
+        {
+          method: "POST",
+          body: { challengeToken: totpChallenge, code: totpCode.trim() },
+          token: null,
+        },
+      );
+      setAuth(res.accessToken, res.user);
+      setTotpChallenge(null);
+      toast.success("登录成功");
+      router.replace("/inspire");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "验证失败");
     }
   }
 
@@ -163,13 +223,53 @@ export function CreatorLoginView() {
               />
             </Link>
             <h1 className="login-page__title">
-              {mode === "login" ? "欢迎登录" : "创建账号"}
+              {totpChallenge
+                ? "身份验证"
+                : mode === "login"
+                  ? "欢迎登录"
+                  : "创建账号"}
             </h1>
             <p className="login-page__subtitle">
-              {mode === "login" ? "继续你的创作之旅" : "开启 JoyAI 创意世界"}
+              {totpChallenge
+                ? `请输入 ${totpUser ?? ""} 的动态验证码`
+                : mode === "login"
+                  ? "继续你的创作之旅"
+                  : "开启 JoyAI 创意世界"}
             </p>
           </div>
 
+          {totpChallenge ? (
+            <form className="login-page__fields" onSubmit={onTotpSubmit}>
+              <label className="login-page__field">
+                <Lock className="login-page__field-icon" aria-hidden />
+                <input
+                  className="login-page__input"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="6 位验证码"
+                  maxLength={6}
+                  value={totpCode}
+                  onChange={(e) =>
+                    setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                />
+              </label>
+              <button type="submit" className="login-page__submit">
+                验证并登录
+              </button>
+              <button
+                type="button"
+                className="login-page__switch"
+                onClick={() => {
+                  setTotpChallenge(null);
+                  setTotpCode("");
+                }}
+              >
+                返回密码登录
+              </button>
+            </form>
+          ) : (
+            <>
           <div className="login-page__tabs" role="tablist" aria-label="登录方式">
             <button
               type="button"
@@ -265,6 +365,8 @@ export function CreatorLoginView() {
               《JoyAI 隐私政策》
             </button>
           </p>
+            </>
+          )}
         </div>
 
         <footer className="login-page__footer">

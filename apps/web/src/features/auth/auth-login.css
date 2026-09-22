@@ -286,6 +286,20 @@
   cursor: not-allowed;
 }
 
+.login-page__switch {
+  margin-top: 10px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.login-page__switch:hover {
+  color: var(--foreground);
+}
+
 .login-page__agreement {
   margin: 16px 0 0;
   color: var(--muted-foreground);

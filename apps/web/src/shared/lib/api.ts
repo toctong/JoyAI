@@ -5,26 +5,45 @@ import axios, {
 } from "axios";
 import { useAuthStore } from "./auth-store";
 
+export function isLoopbackHost(host: string): boolean {
+  return (
+    host === "localhost" || host === "127.0.0.1" || host === "[::1]"
+  );
+}
+
 /**
- * Build-time default (often localhost). When the page is opened via LAN IP
- * (e.g. http://192.168.x.x:3000) but API still points at localhost, the
- * colleague's browser would hit *their* machine — rewrite host to match the page.
+ * Build-time default is often localhost:3001 / :18081.
+ *
+ * - Relative `/api` → same origin (Next rewrites to Nest). Needed for 飞牛
+ *   HTTPS / domain reverse proxy (only 80/443 published; :18081 is blocked).
+ * - Absolute localhost while the page is LAN IP or a domain → also same
+ *   origin. Do **not** only swap hostname (that yields `https://domain:18081`
+ *   mixed-content / firewall failures). Direct `:18081` stays for local
+ *   loopback pages only.
  */
 export function resolveApiBase(configured?: string): string {
   const raw =
     (configured ?? process.env.NEXT_PUBLIC_API_URL)?.trim() ||
     "http://localhost:3001/api";
+
+  if (raw.startsWith("/")) {
+    if (typeof window === "undefined") {
+      return raw.replace(/\/$/, "") || "/api";
+    }
+    return `${window.location.origin}${raw}`.replace(/\/$/, "");
+  }
+
   if (typeof window === "undefined") return raw.replace(/\/$/, "");
+
   try {
     const u = new URL(raw);
     const pageHost = window.location.hostname;
     if (
       pageHost &&
-      pageHost !== "localhost" &&
-      pageHost !== "127.0.0.1" &&
-      (u.hostname === "localhost" || u.hostname === "127.0.0.1")
+      !isLoopbackHost(pageHost) &&
+      isLoopbackHost(u.hostname)
     ) {
-      u.hostname = pageHost;
+      return `${window.location.origin}/api`.replace(/\/$/, "");
     }
     return u.toString().replace(/\/$/, "");
   } catch {

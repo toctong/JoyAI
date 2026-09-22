@@ -11,8 +11,7 @@
 
 param(
   [string]$User = $(if ($env:DOCKERHUB_USER) { $env:DOCKERHUB_USER } else { "liuxiaodi2026" }),
-  [string]$Tag = $(if ($env:IMAGE_TAG) { $env:IMAGE_TAG } else { "latest" }),
-  [string]$ApiPort = $(if ($env:API_PORT) { $env:API_PORT } else { "18081" })
+  [string]$Tag = $(if ($env:IMAGE_TAG) { $env:IMAGE_TAG } else { "latest" })
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,10 +25,12 @@ Set-Location $Root
 
 $Image = "$($User.Trim())/joyai:$($Tag.Trim())"
 
+# Same-origin /api + /socket.io (Next rewrites → Nest). Works for LAN IP and
+# domain/HTTPS reverse proxy; do not bake :18081 into the client bundle.
 Write-Host "Building $Image ..."
 docker build -f Dockerfile -t $Image `
-  --build-arg "NEXT_PUBLIC_API_URL=http://localhost:${ApiPort}/api" `
-  --build-arg "NEXT_PUBLIC_WS_URL=http://localhost:${ApiPort}" `
+  --build-arg "NEXT_PUBLIC_API_URL=/api" `
+  --build-arg "NEXT_PUBLIC_WS_URL=" `
   .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

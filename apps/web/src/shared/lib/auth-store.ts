@@ -9,6 +9,7 @@ export type AuthUser = {
   id: string;
   username: string;
   role: UserRole;
+  totpEnabled?: boolean;
 };
 
 type AuthState = {

@@ -2,22 +2,25 @@
 
 import { io, type Socket } from "socket.io-client";
 import { useAuthStore } from "./auth-store";
-import { resolveApiBase } from "./api";
+import { isLoopbackHost, resolveApiBase } from "./api";
 
 function resolveWsBase(): string {
   const fromEnv = process.env.NEXT_PUBLIC_WS_URL?.trim();
   if (fromEnv) {
+    if (fromEnv.startsWith("/")) {
+      return typeof window !== "undefined" ? window.location.origin : "";
+    }
     try {
       const u = new URL(fromEnv);
       if (typeof window !== "undefined") {
         const pageHost = window.location.hostname;
         if (
           pageHost &&
-          pageHost !== "localhost" &&
-          pageHost !== "127.0.0.1" &&
-          (u.hostname === "localhost" || u.hostname === "127.0.0.1")
+          !isLoopbackHost(pageHost) &&
+          isLoopbackHost(u.hostname)
         ) {
-          u.hostname = pageHost;
+          // Same origin → Next `/socket.io` rewrite (domain / HTTPS proxy).
+          return window.location.origin;
         }
       }
       return u.toString().replace(/\/$/, "");

@@ -30,6 +30,12 @@ const TOS_KEYS: Array<{ key: string; label: string; secret?: boolean }> = [
 
 const EXPLORE_MARKET_PROXY_KEY = "explore.marketProxy";
 
+const GITHUB_KEYS: Array<{ key: string; label: string; secret?: boolean }> = [
+  { key: "github.owner", label: "Owner" },
+  { key: "github.repo", label: "Repository" },
+  { key: "github.token", label: "Token（repo 读权限）", secret: true },
+];
+
 function asString(v: unknown) {
   if (v == null) return "";
   if (typeof v === "string") return v;
@@ -39,6 +45,7 @@ function asString(v: unknown) {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Setting[]>([]);
   const [tos, setTos] = useState<Record<string, string>>({});
+  const [github, setGithub] = useState<Record<string, string>>({});
   const [marketProxy, setMarketProxy] = useState("");
   const [rawKey, setRawKey] = useState("");
   const [rawValue, setRawValue] = useState("{}");
@@ -55,6 +62,12 @@ export default function SettingsPage() {
       map[item.key] = asString(found?.value);
     }
     setTos(map);
+    const gh: Record<string, string> = {};
+    for (const item of GITHUB_KEYS) {
+      const found = list.find((s) => s.key === item.key);
+      gh[item.key] = asString(found?.value);
+    }
+    setGithub(gh);
     const proxyRow = list.find((s) => s.key === EXPLORE_MARKET_PROXY_KEY);
     setMarketProxy(asString(proxyRow?.value));
   }, []);
@@ -78,6 +91,22 @@ export default function SettingsPage() {
         if (val) await saveKey(item.key, val);
       }
       toast.success("TOS 设置已保存");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "保存失败");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveGithub() {
+    setSaving(true);
+    try {
+      for (const item of GITHUB_KEYS) {
+        const val = github[item.key]?.trim() ?? "";
+        if (val) await saveKey(item.key, val);
+      }
+      toast.success("GitHub 设置已保存");
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "保存失败");
@@ -191,12 +220,17 @@ export default function SettingsPage() {
             探索
           </TabsTrigger>
           <TabsTrigger
+            value="github"
+            className="h-9 rounded-[10px] px-3.5 data-[state=active]:bg-secondary data-[state=active]:shadow-none"
+          >
+            GitHub
+          </TabsTrigger>
+          <TabsTrigger
             value="raw"
             className="h-9 rounded-[10px] px-3.5 data-[state=active]:bg-secondary data-[state=active]:shadow-none"
           >
             高级键值
-          </TabsTrigger>
-          <TabsTrigger
+          </TabsTrigger>          <TabsTrigger
             value="all"
             className="h-9 rounded-[10px] px-3.5 data-[state=active]:bg-secondary data-[state=active]:shadow-none"
           >
@@ -296,8 +330,55 @@ export default function SettingsPage() {
           </ListPageCard>
         </TabsContent>
 
-        <TabsContent value="raw" className="mt-0">
+        <TabsContent value="github" className="mt-0">
           <ListPageCard className="max-w-xl p-6">
+            <p className="mb-5 text-sm leading-relaxed text-muted-foreground">
+              侧栏「GitHub」更新日志用。私有仓需有{" "}
+              <code className="text-xs">repo</code>{" "}
+              读权限的 Token。未写入库时回填{" "}
+              <code className="text-xs">GITHUB_*</code> 环境变量。
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {GITHUB_KEYS.map((item) => (
+                <div
+                  key={item.key}
+                  className={
+                    item.secret ? "space-y-2 sm:col-span-2" : "space-y-2"
+                  }
+                >
+                  <Label className="text-xs text-muted-foreground">
+                    {item.label}
+                  </Label>
+                  <Input
+                    className="h-8 font-mono text-xs"
+                    type={item.secret ? "password" : "text"}
+                    value={github[item.key] ?? ""}
+                    onChange={(e) =>
+                      setGithub((prev) => ({
+                        ...prev,
+                        [item.key]: e.target.value,
+                      }))
+                    }
+                    placeholder={item.key}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-5 flex justify-end">
+              <Button
+                size="sm"
+                className="h-9 rounded-xl"
+                disabled={saving}
+                onClick={() => void saveGithub()}
+              >
+                <Save className="size-3.5" />
+                保存 GitHub
+              </Button>
+            </div>
+          </ListPageCard>
+        </TabsContent>
+
+        <TabsContent value="raw" className="mt-0">          <ListPageCard className="max-w-xl p-6">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Key</Label>

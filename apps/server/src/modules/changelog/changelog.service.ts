@@ -1,5 +1,16 @@
-import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  ServiceUnavailableException,
+} from "@nestjs/common";
+import {
+  configureSettingInvalidate,
+  GITHUB_OWNER_SETTING_KEY,
+  GITHUB_REPO_SETTING_KEY,
+  GITHUB_TOKEN_SETTING_KEY,
+  SettingsService,
+} from "../settings/settings.service";
 
 export type ChangelogCommit = {
   sha: string;
@@ -40,35 +51,53 @@ type GhCommit = {
 type CacheEntry = { at: number; data: ChangelogPage };
 
 @Injectable()
-export class ChangelogService {
+export class ChangelogService implements OnModuleInit {
   private readonly logger = new Logger(ChangelogService.name);
   private cache = new Map<string, CacheEntry>();
   private readonly cacheTtlMs = 60_000;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly settings: SettingsService) {}
 
-  private owner() {
+  onModuleInit() {
+    configureSettingInvalidate((key) => {
+      if (
+        key === GITHUB_OWNER_SETTING_KEY ||
+        key === GITHUB_REPO_SETTING_KEY ||
+        key === GITHUB_TOKEN_SETTING_KEY
+      ) {
+        this.clearCache();
+      }
+    });
+  }
+
+  clearCache() {
+    this.cache.clear();
+  }
+
+  private async owner() {
     return (
-      this.config.get<string>("GITHUB_OWNER")?.trim() ||
+      (await this.settings.resolveString(GITHUB_OWNER_SETTING_KEY, "GITHUB_OWNER")) ||
       "toctong"
     );
   }
 
-  private repo() {
-    return this.config.get<string>("GITHUB_REPO")?.trim() || "JoyAI";
-  }
-
-  private token() {
+  private async repo() {
     return (
-      this.config.get<string>("GITHUB_TOKEN")?.trim() ||
-      this.config.get<string>("GH_TOKEN")?.trim() ||
-      ""
+      (await this.settings.resolveString(GITHUB_REPO_SETTING_KEY, "GITHUB_REPO")) ||
+      "JoyAI"
     );
   }
 
+  private async token() {
+    return this.settings.resolveString(GITHUB_TOKEN_SETTING_KEY, [
+      "GITHUB_TOKEN",
+      "GH_TOKEN",
+    ]);
+  }
+
   async listCommits(page = 1, perPage = 30): Promise<ChangelogPage> {
-    const owner = this.owner();
-    const repo = this.repo();
+    const owner = await this.owner();
+    const repo = await this.repo();
     const safePage = Math.max(1, Math.min(page, 50));
     const safePer = Math.max(1, Math.min(perPage, 50));
     const cacheKey = `${owner}/${repo}:${safePage}:${safePer}`;
@@ -77,7 +106,7 @@ export class ChangelogService {
       return hit.data;
     }
 
-    const token = this.token();
+    const token = await this.token();
     const headers: Record<string, string> = {
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
@@ -103,7 +132,7 @@ export class ChangelogService {
       throw new ServiceUnavailableException(
         token
           ? "GitHub Token 无效或权限不足（私有仓需要 repo 读权限）"
-          : "私有仓库需要配置 GITHUB_TOKEN",
+          : "私有仓库需要配置 GITHUB_TOKEN（管理设置或 .env）",
       );
     }
     if (res.status === 404) {

@@ -9,8 +9,9 @@ ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com \
     CI=true
 
 ARG NPM_REGISTRY=https://registry.npmmirror.com
-ARG NEXT_PUBLIC_API_URL=http://localhost:18081/api
-ARG NEXT_PUBLIC_WS_URL=http://localhost:18081
+# Relative /api → browser same-origin; Next rewrites to Nest (see next.config).
+ARG NEXT_PUBLIC_API_URL=/api
+ARG NEXT_PUBLIC_WS_URL=
 
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 

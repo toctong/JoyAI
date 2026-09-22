@@ -8,12 +8,15 @@ import {
   Github,
   LogOut,
   Shield,
+  ShieldCheck,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/lib/auth-store";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
+import { TotpSecurityDialog } from "@/features/auth/totp-security-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -101,8 +104,10 @@ export function AppSidebar() {
   const initial = (user?.username ?? "U").slice(0, 1).toUpperCase();
   const isAdmin = user?.role === "admin";
   const adminActive = pathname === "/admin" || pathname.startsWith("/admin/");
+  const [totpOpen, setTotpOpen] = useState(false);
 
   return (
+    <>
     <aside className="joy-sidebar sticky top-0 z-40 flex h-svh w-[var(--joy-sidebar-width)] shrink-0 flex-col items-center bg-card py-3">
       <Link
         href="/inspire"
@@ -215,6 +220,15 @@ export function AppSidebar() {
                 管理后台
               </DropdownMenuItem>
             ) : null}
+            <DropdownMenuItem onClick={() => setTotpOpen(true)}>
+              <ShieldCheck className="h-4 w-4" />
+              身份验证器
+              {user?.totpEnabled ? (
+                <span className="ml-auto text-[10px] text-muted-foreground">
+                  已开
+                </span>
+              ) : null}
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
                 logout();
@@ -228,5 +242,7 @@ export function AppSidebar() {
         </DropdownMenu>
       </div>
     </aside>
+    <TotpSecurityDialog open={totpOpen} onOpenChange={setTotpOpen} />
+    </>
   );
 }

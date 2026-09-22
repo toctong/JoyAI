@@ -170,9 +170,9 @@ export function ChangelogPage() {
           <div className="joy-changelog-status is-error">
             <p>{error}</p>
             <p className="text-muted-foreground">
-              私有仓请在服务端 <code>.env</code> 配置{" "}
-              <code>GITHUB_TOKEN</code>（需 repo 读权限），以及{" "}
-              <code>GITHUB_OWNER</code> / <code>GITHUB_REPO</code>。
+              私有仓请在 <strong>管理 → 设置 → GitHub</strong> 配置 Token（需
+              repo 读权限）与 Owner / Repo；也可写服务端{" "}
+              <code>.env</code> 的 <code>GITHUB_*</code>。
             </p>
             <Button
               type="button"

@@ -29,6 +29,13 @@ export class User {
   @Column({ type: "varchar", default: UserRole.creator })
   role!: UserRole;
 
+  /** Base32 TOTP secret (Tencent / Google Authenticator). Null until setup. */
+  @Column({ type: "varchar", nullable: true })
+  totpSecret!: string | null;
+
+  @Column({ type: "boolean", default: false })
+  totpEnabled!: boolean;
+
   @CreateDateColumn()
   createdAt!: Date;
 

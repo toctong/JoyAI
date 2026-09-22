@@ -69,12 +69,14 @@ export default function AppShellLayout({
           !current ||
           current.id !== me.id ||
           current.username !== me.username ||
-          current.role !== me.role
+          current.role !== me.role ||
+          Boolean(current.totpEnabled) !== Boolean(me.totpEnabled)
         ) {
           setAuth(token, {
             id: me.id,
             username: me.username,
             role: me.role,
+            totpEnabled: Boolean(me.totpEnabled),
           });
         }
       } catch (error) {
