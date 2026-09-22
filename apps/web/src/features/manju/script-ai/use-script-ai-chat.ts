@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { normalizeScriptProjectChat, type ScriptProjectChatState } from "@joyai/shared";
 import { api, isApiCancelError } from "@/shared/lib/api";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { toast } from "@/shared/lib/toast";
 import { submitManjuScriptWriteJob } from "../manju-api";
 import type { ScriptAiType } from "./script-ai-templates";
@@ -300,37 +300,28 @@ export function useScriptAiChat(input: {
     [patchActive],
   );
 
-  useEffect(() => {
-    const socket = getJobsSocket();
-    const onCompleted = (payload: {
-      jobId?: string;
-      result?: {
-        purpose?: string;
-        scriptWrite?: { reply?: string; script?: string; hook?: string };
-      };
-    }) => {
+  useJobLifecycle({
+    getBusyJobIds: () => {
+      const id = pendingJobRef.current;
+      return id ? [id] : [];
+    },
+    onCompleted: (payload) => {
       const jobId = payload.jobId;
       if (!jobId || pendingJobRef.current !== jobId) return;
       if (payload.result?.purpose && payload.result.purpose !== "script_write") {
         return;
       }
       finishAssistant(jobId, payload.result?.scriptWrite ?? {});
-    };
-    const onFailed = (payload: { jobId?: string; error?: string }) => {
+    },
+    onFailed: (payload) => {
       const jobId = payload.jobId;
       if (!jobId || pendingJobRef.current !== jobId) return;
       finishAssistant(jobId, {
         error: payload.error?.trim() || "生成失败，请重试",
       });
       toast.error(payload.error?.trim() || "AI 帮写失败");
-    };
-    socket.on("job:completed", onCompleted);
-    socket.on("job:failed", onFailed);
-    return () => {
-      socket.off("job:completed", onCompleted);
-      socket.off("job:failed", onFailed);
-    };
-  }, [finishAssistant]);
+    },
+  });
 
   const sendMessage = useCallback(
     async (text: string, opts?: { scriptRef?: boolean }) => {

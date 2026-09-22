@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dayjs from "dayjs";
 import { Crosshair } from "lucide-react";
 import { api } from "@/shared/lib/api";
 import { formatDurationMs } from "@/shared/lib/format-duration";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import {
   Card,
   CardContent,
@@ -30,6 +30,10 @@ type Job = {
   assets?: { id: string; url: string }[];
 };
 
+function isBusyStatus(status: string) {
+  return status === "queued" || status === "running" || status === "polling";
+}
+
 function locateHref(job: Job) {
   const projectId = job.canvasProjectId || job.input?.canvasProjectId;
   if (!projectId) return null;
@@ -45,26 +49,85 @@ function locateHref(job: Job) {
 
 export default function HistoryPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const jobsRef = useRef(jobs);
+  jobsRef.current = jobs;
 
   async function load() {
     const res = await api<{ items: Job[] }>("/jobs?take=50");
-    // 历史页：新的在前
     setJobs([...res.items].reverse());
   }
 
   useEffect(() => {
     void load();
-    const socket = getJobsSocket();
-    const refresh = () => void load();
-    socket.on("job:completed", refresh);
-    socket.on("job:failed", refresh);
-    socket.on("job:progress", refresh);
-    return () => {
-      socket.off("job:completed", refresh);
-      socket.off("job:failed", refresh);
-      socket.off("job:progress", refresh);
-    };
   }, []);
+
+  useJobLifecycle({
+    getBusyJobIds: () =>
+      jobsRef.current.filter((j) => isBusyStatus(j.status)).map((j) => j.id),
+    onProgress: (payload) => {
+      if (!payload.jobId) return;
+      setJobs((prev) => {
+        const idx = prev.findIndex((job) => job.id === payload.jobId);
+        if (idx < 0) {
+          void load();
+          return prev;
+        }
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          status: payload.status ?? copy[idx].status,
+          progress:
+            typeof payload.progress === "number"
+              ? payload.progress
+              : copy[idx].progress,
+        };
+        return copy;
+      });
+    },
+    onCompleted: (payload) => {
+      const jobId = payload.jobId;
+      if (!jobId) return;
+      const assets = (payload.assets ?? [])
+        .filter((a): a is { id: string; url: string } =>
+          Boolean(a?.id && a?.url),
+        )
+        .map((a) => ({ id: a.id, url: String(a.url) }));
+      let found = false;
+      setJobs((prev) => {
+        const idx = prev.findIndex((job) => job.id === jobId);
+        if (idx < 0) return prev;
+        found = true;
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          status: "succeeded",
+          progress: 100,
+          assets: assets.length ? assets : copy[idx].assets,
+          error: null,
+        };
+        return copy;
+      });
+      if (!found) void load();
+    },
+    onFailed: (payload) => {
+      const jobId = payload.jobId;
+      if (!jobId) return;
+      let found = false;
+      setJobs((prev) => {
+        const idx = prev.findIndex((job) => job.id === jobId);
+        if (idx < 0) return prev;
+        found = true;
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          status: payload.status === "cancelled" ? "cancelled" : "failed",
+          error: payload.error ?? copy[idx].error ?? "生成失败",
+        };
+        return copy;
+      });
+      if (!found) void load();
+    },
+  });
 
   return (
     <div className="space-y-6">

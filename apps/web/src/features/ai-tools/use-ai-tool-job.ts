@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ModelCapabilities } from "@joyai/shared";
 import { api, apiUpload, isApiCancelError } from "@/shared/lib/api";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { toast } from "@/shared/lib/toast";
 import {
   layoutControlsFromCapabilities,
@@ -204,14 +204,17 @@ export function useAiToolJob(tool: AiToolDef) {
     };
   }, [tool.slug]);
 
-  useEffect(() => {
-    const socket = getJobsSocket();
-    const onCompleted = (payload: {
-      jobId?: string;
-      assets?: ToolResultAsset[];
-    }) => {
+  useJobLifecycle({
+    getBusyJobIds: () => {
+      const id = jobIdRef.current;
+      return id ? [id] : [];
+    },
+    onCompleted: (payload) => {
       if (!payload.jobId || payload.jobId !== jobIdRef.current) return;
-      const assets = payload.assets ?? [];
+      const assets = (payload.assets ?? []).filter(
+        (asset): asset is ToolResultAsset =>
+          Boolean(asset?.id && asset?.url),
+      ).map((asset) => ({ id: asset.id, url: String(asset.url) }));
       setResults(assets);
       if (assets.length) {
         setHistory((prev) => [...assets, ...prev].slice(0, 24));
@@ -219,20 +222,14 @@ export function useAiToolJob(tool: AiToolDef) {
       setBusy(false);
       setJobId(null);
       toast.success("生成完成");
-    };
-    const onFailed = (payload: { jobId?: string; error?: string }) => {
+    },
+    onFailed: (payload) => {
       if (!payload.jobId || payload.jobId !== jobIdRef.current) return;
       setBusy(false);
       setJobId(null);
       toast.error(payload.error || "生成失败");
-    };
-    socket.on("job:completed", onCompleted);
-    socket.on("job:failed", onFailed);
-    return () => {
-      socket.off("job:completed", onCompleted);
-      socket.off("job:failed", onFailed);
-    };
-  }, []);
+    },
+  });
 
   const chooseModel = useCallback(
     (next: string) => {

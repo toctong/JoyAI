@@ -29,7 +29,7 @@ import { copyText } from "@/shared/lib/clipboard";
 import dayjs from "dayjs";
 import { api } from "@/shared/lib/api";
 import { formatDurationMs } from "@/shared/lib/format-duration";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -867,14 +867,10 @@ function StudioInner() {
     setFeedVisible(true);
   }, [bootstrapped, feedVisible, jobs.length, scrollFeedToBottom]);
 
-  useEffect(() => {
-    const socket = getJobsSocket();
-    const refresh = () => void refreshLatest();
-    const onProgress = (payload: {
-      jobId?: string;
-      status?: string;
-      progress?: number;
-    }) => {
+  useJobLifecycle({
+    getBusyJobIds: () =>
+      jobsRef.current.filter((j) => isBusy(j.status)).map((j) => j.id),
+    onProgress: (payload) => {
       if (!payload.jobId) return;
       setJobs((prev) => {
         const idx = prev.findIndex((job) => job.id === payload.jobId);
@@ -893,49 +889,72 @@ function StudioInner() {
         };
         return copy;
       });
-    };
-    const onAssetUpdated = (payload: {
-      asset?: Asset;
-      jobId?: string | null;
-    }) => {
+    },
+    onCompleted: (payload) => {
+      const jobId = payload.jobId;
+      if (!jobId) return;
+      const assets = (payload.assets ?? [])
+        .filter((a): a is Asset => Boolean(a?.id && a?.url))
+        .map((a) => ({ id: a.id, url: String(a.url), kind: a.kind }));
+      let found = false;
+      setJobs((prev) => {
+        const idx = prev.findIndex((job) => job.id === jobId);
+        if (idx < 0) return prev;
+        found = true;
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          status: "succeeded",
+          progress: 100,
+          assets: assets.length ? assets : copy[idx].assets,
+          error: null,
+        };
+        return copy;
+      });
+      if (!found || !assets.length) void refreshLatest();
+      else if (stickToBottomRef.current) {
+        requestAnimationFrame(() => scrollElToBottom(scrollRef.current));
+      }
+    },
+    onFailed: (payload) => {
+      const jobId = payload.jobId;
+      if (!jobId) return;
+      let found = false;
+      setJobs((prev) => {
+        const idx = prev.findIndex((job) => job.id === jobId);
+        if (idx < 0) return prev;
+        found = true;
+        const copy = [...prev];
+        copy[idx] = {
+          ...copy[idx],
+          status: payload.status === "cancelled" ? "cancelled" : "failed",
+          error: payload.error ?? copy[idx].error ?? "生成失败",
+        };
+        return copy;
+      });
+      if (!found) void refreshLatest();
+    },
+    onAssetUpdated: (payload) => {
       const next = payload.asset;
       if (!next?.id || !next.url) return;
+      const id = String(next.id);
+      const url = String(next.url);
       setJobs((prev) =>
         prev.map((job) => {
-          if (!job.assets?.some((a) => a.id === next.id)) return job;
+          if (!job.assets?.some((a) => a.id === id)) return job;
           return {
             ...job,
             assets: job.assets.map((a) =>
-              a.id === next.id ? { ...a, url: next.url } : a,
+              a.id === id ? { ...a, url } : a,
             ),
           };
         }),
       );
-    };
-    socket.on("job:completed", refresh);
-    socket.on("job:failed", refresh);
-    socket.on("job:progress", onProgress);
-    socket.on("asset:updated", onAssetUpdated);
-    return () => {
-      socket.off("job:completed", refresh);
-      socket.off("job:failed", refresh);
-      socket.off("job:progress", onProgress);
-      socket.off("asset:updated", onAssetUpdated);
-    };
-  }, [refreshLatest]);
+    },
+  });
 
   const hasJobs = jobs.length > 0;
   const hasBusyJobs = jobs.some((j) => isBusy(j.status));
-
-  // Safety net (same idea as canvas): if WS events are missed behind a reverse
-  // proxy, keep pulling latest studio jobs while any are still in-flight.
-  useEffect(() => {
-    if (!hasBusyJobs) return;
-    const tick = () => void refreshLatest();
-    tick();
-    const timer = window.setInterval(tick, 4000);
-    return () => window.clearInterval(timer);
-  }, [hasBusyJobs, refreshLatest]);
 
   // 进行中任务：每秒从 0s 起跳累计用时
   useEffect(() => {

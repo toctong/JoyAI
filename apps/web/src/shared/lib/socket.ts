@@ -19,7 +19,7 @@ function resolveWsBase(): string {
           !isLoopbackHost(pageHost) &&
           isLoopbackHost(u.hostname)
         ) {
-          // Same origin → Next `/socket.io` rewrite (domain / HTTPS proxy).
+          // Same origin → container nginx `/socket.io` (or Next rewrite in local dev).
           return window.location.origin;
         }
       }
@@ -54,8 +54,8 @@ export function getJobsSocket(): Socket {
 
   socket = io(`${resolveWsBase()}/jobs`, {
     auth: { token },
-    // Prefer polling first: Feiniu / Next HTTPS reverse proxies often break
-    // WebSocket upgrade; polling still reaches Nest via /socket.io rewrite.
+    // Prefer polling first: outer HTTPS proxies may still break Upgrade;
+    // Docker nginx proxies /socket.io to Nest so polling always works.
     transports: ["polling", "websocket"],
     autoConnect: true,
     reconnection: true,

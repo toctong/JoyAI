@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { api } from "@/shared/lib/api";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { toast } from "@/shared/lib/toast";
 import { useManjuStore } from "./manju-store";
 import { isBusyStatus, type ManjuJobStatus } from "./manju-types";
@@ -56,16 +56,39 @@ function resolveJobId(payload: {
   return payload.jobId ?? payload.job?.id ?? payload.id ?? null;
 }
 
+function collectBusyJobIds(projectId: string): string[] {
+  const project = useManjuStore
+    .getState()
+    .projects.find((p) => p.id === projectId);
+  if (!project) return [];
+  const jobIds = new Set<string>();
+  for (const asset of project.assets) {
+    if (isBusyStatus(asset.status) && asset.jobId?.trim()) {
+      jobIds.add(asset.jobId.trim());
+    }
+  }
+  for (const shot of project.shots) {
+    if (
+      isBusyStatus(shot.storyboardStatus) &&
+      shot.storyboardJobId?.trim()
+    ) {
+      jobIds.add(shot.storyboardJobId.trim());
+    }
+    if (isBusyStatus(shot.videoStatus) && shot.videoJobId?.trim()) {
+      jobIds.add(shot.videoJobId.trim());
+    }
+  }
+  return [...jobIds];
+}
+
 /** 监听全局 job 事件，回写到漫剧草稿；LLM 分析完成则重新拉项目 */
 export function useManjuJobBridge(activeProjectId?: string) {
   const applyJobResult = useManjuStore((s) => s.applyJobResult);
   const loadProject = useManjuStore((s) => s.loadProject);
   const setAnalyzing = useManjuStore((s) => s.setAnalyzing);
 
-  useEffect(() => {
-    const socket = getJobsSocket();
-
-    const onProgress = (payload: {
+  const onProgress = useCallback(
+    (payload: {
       jobId?: string;
       status?: string;
       job?: { id?: string; status?: string };
@@ -73,7 +96,6 @@ export function useManjuJobBridge(activeProjectId?: string) {
       const jobId = resolveJobId(payload);
       const status = payload.status ?? payload.job?.status;
       if (!jobId || !status) return;
-      // 宫格整图：只更新状态，等 completed 再切块
       if (peekGridJob(jobId)) {
         applyJobResult({ jobId, status: mapStatus(status) });
         return;
@@ -82,9 +104,12 @@ export function useManjuJobBridge(activeProjectId?: string) {
         jobId,
         status: mapStatus(status),
       });
-    };
+    },
+    [applyJobResult],
+  );
 
-    const onCompleted = (payload: {
+  const onCompleted = useCallback(
+    (payload: {
       jobId?: string;
       status?: string;
       assets?: JobAsset[];
@@ -153,9 +178,12 @@ export function useManjuJobBridge(activeProjectId?: string) {
         url: media.url,
         assetId: media.assetId,
       });
-    };
+    },
+    [applyJobResult, loadProject, setAnalyzing],
+  );
 
-    const onFailed = (payload: {
+  const onFailed = useCallback(
+    (payload: {
       jobId?: string;
       error?: string;
       status?: string;
@@ -181,9 +209,12 @@ export function useManjuJobBridge(activeProjectId?: string) {
       } else {
         toast.error(err);
       }
-    };
+    },
+    [activeProjectId, applyJobResult, setAnalyzing],
+  );
 
-    const onAssetUpdated = (payload: {
+  const onAssetUpdated = useCallback(
+    (payload: {
       asset?: { id?: string; url?: string | null };
       jobId?: string | null;
     }) => {
@@ -192,7 +223,6 @@ export function useManjuJobBridge(activeProjectId?: string) {
       const assetId = payload.asset?.id;
       if (!jobId || !url) return;
       if (peekGridJob(jobId)) {
-        // 宫格等 job:completed 统一切块，避免半成品写进单镜
         return;
       }
       applyJobResult({
@@ -201,27 +231,27 @@ export function useManjuJobBridge(activeProjectId?: string) {
         url,
         assetId: assetId ?? null,
       });
-    };
+    },
+    [applyJobResult],
+  );
 
-    socket.on("job:progress", onProgress);
-    socket.on("job:completed", onCompleted);
-    socket.on("job:failed", onFailed);
-    socket.on("asset:updated", onAssetUpdated);
+  useJobLifecycle({
+    enabled: Boolean(activeProjectId),
+    getBusyJobIds: () =>
+      activeProjectId ? collectBusyJobIds(activeProjectId) : [],
+    onProgress,
+    onCompleted,
+    onFailed,
+    onAssetUpdated,
+  });
 
-    return () => {
-      socket.off("job:progress", onProgress);
-      socket.off("job:completed", onCompleted);
-      socket.off("job:failed", onFailed);
-      socket.off("asset:updated", onAssetUpdated);
-    };
-  }, [activeProjectId, applyJobResult, loadProject, setAnalyzing]);
-
-  // 对账：WS 丢事件时，按 jobId 拉终态，避免资产/镜头一直转圈
+  // Clear busy flags left without a jobId (refresh residue / aborted submit).
   useEffect(() => {
     if (!activeProjectId) return;
     let cancelled = false;
 
-    async function reconcileBusyJobs() {
+    function scrubOrphans() {
+      if (cancelled) return;
       const project = useManjuStore
         .getState()
         .projects.find((p) => p.id === activeProjectId);
@@ -230,7 +260,6 @@ export function useManjuJobBridge(activeProjectId?: string) {
       const updateAsset = useManjuStore.getState().updateAsset;
       const updateShot = useManjuStore.getState().updateShot;
 
-      // 无 jobId 却 busy：刷新残留；跳过正在提交、尚未绑 jobId 的卡
       for (const asset of project.assets) {
         if (
           isBusyStatus(asset.status) &&
@@ -260,78 +289,15 @@ export function useManjuJobBridge(activeProjectId?: string) {
           });
         }
       }
-
-      const fresh = useManjuStore
-        .getState()
-        .projects.find((p) => p.id === activeProjectId);
-      if (!fresh) return;
-
-      const jobIds = new Set<string>();
-      for (const asset of fresh.assets) {
-        if (isBusyStatus(asset.status) && asset.jobId?.trim()) {
-          jobIds.add(asset.jobId.trim());
-        }
-      }
-      for (const shot of fresh.shots) {
-        if (
-          isBusyStatus(shot.storyboardStatus) &&
-          shot.storyboardJobId?.trim()
-        ) {
-          jobIds.add(shot.storyboardJobId.trim());
-        }
-        if (isBusyStatus(shot.videoStatus) && shot.videoJobId?.trim()) {
-          jobIds.add(shot.videoJobId.trim());
-        }
-      }
-      if (jobIds.size === 0) return;
-
-      await Promise.all(
-        [...jobIds].map(async (jobId) => {
-          if (cancelled) return;
-          try {
-            const job = await api<{
-              id: string;
-              status: string;
-              error?: string | null;
-              assets?: JobAsset[];
-            }>(`/jobs/${jobId}`);
-            if (cancelled) return;
-            if (job.status === "succeeded") {
-              const media = pickMedia(job.assets);
-              const grid = peekGridJob(jobId);
-              if (grid) {
-                if (media.url) {
-                  void applyGridJobSplit(jobId, grid, media.url, "succeeded");
-                }
-                return;
-              }
-              applyJobResult({
-                jobId: job.id,
-                status: "succeeded",
-                url: media.url,
-                assetId: media.assetId,
-              });
-            } else if (
-              job.status === "failed" ||
-              job.status === "cancelled"
-            ) {
-              if (peekGridJob(jobId)) takeGridJob(jobId);
-              applyJobResult({ jobId: job.id, status: "failed" });
-            }
-          } catch {
-            /* ignore transient */
-          }
-        }),
-      );
     }
 
-    void reconcileBusyJobs();
-    const timer = window.setInterval(() => void reconcileBusyJobs(), 4000);
+    scrubOrphans();
+    const timer = window.setInterval(scrubOrphans, 4000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [activeProjectId, applyJobResult]);
+  }, [activeProjectId]);
 }
 
 export async function submitImageJob(input: {

@@ -29,7 +29,7 @@ import {
 } from "./right-panel-store";
 import { Crosshair } from "lucide-react";
 import { api } from "@/shared/lib/api";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { Input } from "@/components/ui/input";
@@ -502,6 +502,8 @@ function HistoryPane({
   const [tab, setTab] = useState<HistoryTab>("all");
   const [jobs, setJobs] = useState<HistoryJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const jobsRef = useRef(jobs);
+  jobsRef.current = jobs;
 
   async function load() {
     try {
@@ -522,13 +524,16 @@ function HistoryPane({
 
   useEffect(() => {
     void load();
-    const socket = getJobsSocket();
-    const reload = () => void load();
-    const onProgress = (payload: {
-      jobId?: string;
-      status?: string;
-      progress?: number;
-    }) => {
+  }, [projectId]);
+
+  useJobLifecycle({
+    getBusyJobIds: () =>
+      jobsRef.current
+        .filter((j) =>
+          ["queued", "running", "polling"].includes(j.status),
+        )
+        .map((j) => j.id),
+    onProgress: (payload) => {
       if (!payload.jobId) return;
       setJobs((prev) => {
         const idx = prev.findIndex((job) => job.id === payload.jobId);
@@ -544,16 +549,14 @@ function HistoryPane({
         };
         return copy;
       });
-    };
-    socket.on("job:completed", reload);
-    socket.on("job:failed", reload);
-    socket.on("job:progress", onProgress);
-    return () => {
-      socket.off("job:completed", reload);
-      socket.off("job:failed", reload);
-      socket.off("job:progress", onProgress);
-    };
-  }, [projectId]);
+    },
+    onCompleted: () => {
+      void load();
+    },
+    onFailed: () => {
+      void load();
+    },
+  });
 
   const filtered = useMemo(() => {
     if (tab === "all") return jobs;

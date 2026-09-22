@@ -17,8 +17,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
-  // Browser → same origin (/api, /socket.io) → Nest. Avoids mixed-content on
-  // Feiniu HTTPS reverse proxy (page https, baked API was http://…:18081).
+  // Local / non-Docker: browser → Next → Nest. In the production image,
+  // container nginx owns /api and /socket.io (WebSocket-safe); these rewrites
+  // remain for `next dev` / standalone without nginx.
   async rewrites() {
     return [
       {

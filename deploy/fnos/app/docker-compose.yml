@@ -1,6 +1,9 @@
 # 飞牛 Docker 面板：把本目录建成第二个 Compose 项目。
 # 先启动 db 那个项目，再启动这个。本目录不要放源码，面板只拉镜像。
 # 把本机 .env 复制到这个目录，和 docker-compose.yml 放在一起。
+#
+# 镜像内 nginx 监听 3000，已正确转发 /api 与 /socket.io（含 WebSocket）。
+# 飞牛外层反代只需 HTTPS → 本机 18080，不必再单独配 WS / 3001。
 
 name: joyai-fnos
 
@@ -61,7 +64,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3001/api/health').then(r=>{if(!r.ok)throw 0;return fetch('http://127.0.0.1:3000/')}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)throw 0;return fetch('http://127.0.0.1:3000/')}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 15s
       timeout: 5s

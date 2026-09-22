@@ -1,4 +1,5 @@
-# JoyAI web + server in one image. Page listens on 3000, API on 3001.
+# JoyAI web + server + nginx in one image.
+# Public: nginx :3000 → Next :3002 + Nest :3001 (/api, /socket.io with WS).
 
 FROM node:22-alpine AS web-build
 
@@ -9,7 +10,7 @@ ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com \
     CI=true
 
 ARG NPM_REGISTRY=https://registry.npmmirror.com
-# Relative /api → browser same-origin; Next rewrites to Nest (see next.config).
+# Relative /api → browser same-origin; Docker nginx (or Next rewrite) → Nest.
 ARG NEXT_PUBLIC_API_URL=/api
 ARG NEXT_PUBLIC_WS_URL=
 
@@ -66,13 +67,19 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
 
+RUN apk add --no-cache nginx \
+    && mkdir -p /var/cache/nginx /var/log/nginx /tmp/nginx \
+    && rm -f /etc/nginx/http.d/default.conf
+
 COPY --from=server-build /out /app/server
 COPY --from=web-build /app/apps/web/.next/standalone /app/web
 COPY --from=web-build /app/apps/web/.next/static /app/web/apps/web/.next/static
 COPY --from=web-build /app/apps/web/public /app/web/apps/web/public
+COPY docker/nginx.conf /etc/nginx/joyai.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 
-RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh \
+    && nginx -t -c /etc/nginx/joyai.conf
 
 EXPOSE 3000 3001
 

@@ -7,7 +7,7 @@ import "dayjs/locale/zh-cn";
 import { Crosshair, Music, Play } from "lucide-react";
 import type { AssetSource } from "@joyai/shared";
 import { api } from "@/shared/lib/api";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
@@ -279,27 +279,25 @@ export function AssetsLibrary() {
     };
   }, [tab, source, time, sort]);
 
-  useEffect(() => {
-    const socket = getJobsSocket();
-    const onAssetUpdated = (payload: { asset?: Asset }) => {
+  useJobLifecycle({
+    getBusyJobIds: () => [],
+    onAssetUpdated: (payload) => {
       const next = payload.asset;
       if (!next?.id || !next.url) return;
+      const id = String(next.id);
+      const url = String(next.url);
       setAssets((prev) => {
-        const idx = prev.findIndex((a) => a.id === next.id);
+        const idx = prev.findIndex((a) => a.id === id);
         if (idx < 0) return prev;
         const copy = [...prev];
-        copy[idx] = { ...copy[idx], ...next, url: next.url };
+        copy[idx] = { ...copy[idx], ...next, id, url } as Asset;
         return copy;
       });
       setPreview((cur) =>
-        cur?.id === next.id ? { ...cur, ...next, url: next.url } : cur,
+        cur?.id === id ? ({ ...cur, ...next, id, url } as Asset) : cur,
       );
-    };
-    socket.on("asset:updated", onAssetUpdated);
-    return () => {
-      socket.off("asset:updated", onAssetUpdated);
-    };
-  }, []);
+    },
+  });
 
   const groups = useMemo(() => groupAssets(assets), [assets]);
 

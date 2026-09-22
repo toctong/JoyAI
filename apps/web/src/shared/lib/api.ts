@@ -14,8 +14,8 @@ export function isLoopbackHost(host: string): boolean {
 /**
  * Build-time default is often localhost:3001 / :18081.
  *
- * - Relative `/api` → same origin (Next rewrites to Nest). Needed for 飞牛
- *   HTTPS / domain reverse proxy (only 80/443 published; :18081 is blocked).
+ * - Relative `/api` → same origin (Docker nginx → Nest; local Next rewrite).
+ *   Needed for 飞牛 HTTPS / domain reverse proxy (only 80/443; :18081 blocked).
  * - Absolute localhost while the page is LAN IP or a domain → also same
  *   origin. Do **not** only swap hostname (that yields `https://domain:18081`
  *   mixed-content / firewall failures). Direct `:18081` stays for local

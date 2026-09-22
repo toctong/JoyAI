@@ -77,7 +77,7 @@ import {
   type VideoFrameAt,
 } from "./lib/capture-video-frame";
 import { api } from "@/shared/lib/api";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import {
   titleFromPrompt,
   mediaNamePatch,
@@ -379,26 +379,24 @@ export function CanvasBoard({
     return () => save.cancel();
   }, [dirty, save]);
 
-  useEffect(() => {
-    const socket = getJobsSocket();
-    const onCompleted = (payload: {
-      jobId?: string;
-      assets?: { id: string; url: string }[];
-      result?: { text?: string };
-    }) => {
+  useJobLifecycle({
+    enabled: projectReady,
+    getBusyJobIds: () =>
+      useCanvasStore
+        .getState()
+        .nodes.filter((node) => {
+          const status = String(node.data.status ?? "");
+          const jobId = String(node.data.jobId ?? "").trim();
+          return isBusyStatus(status) && Boolean(jobId);
+        })
+        .map((node) => String(node.data.jobId).trim()),
+    onCompleted: (payload) => {
       handleCanvasJobCompleted(payload);
-    };
-    const onFailed = (payload: {
-      jobId?: string;
-      error?: string;
-      status?: string;
-    }) => {
+    },
+    onFailed: (payload) => {
       handleCanvasJobFailed(payload);
-    };
-    const onAssetUpdated = (payload: {
-      asset?: { id: string; url: string };
-      jobId?: string | null;
-    }) => {
+    },
+    onAssetUpdated: (payload) => {
       const asset = payload.asset;
       if (!asset?.id || !asset.url) return;
       const state = useCanvasStore.getState();
@@ -409,75 +407,13 @@ export function CanvasBoard({
         if (!byAsset && !byJob) continue;
         const busy = isBusyStatus(String(node.data.status ?? ""));
         updateNodeData(node.id, {
-          url: asset.url,
-          assetId: asset.id,
+          url: String(asset.url),
+          assetId: String(asset.id),
           ...(busy ? { status: "succeeded", error: "" } : {}),
         });
       }
-    };
-    socket.on("job:completed", onCompleted);
-    socket.on("job:failed", onFailed);
-    socket.on("asset:updated", onAssetUpdated);
-    return () => {
-      socket.off("job:completed", onCompleted);
-      socket.off("job:failed", onFailed);
-      socket.off("asset:updated", onAssetUpdated);
-    };
-  }, [updateNodeData]);
-
-  // Safety net: if a WS event was missed, pull terminal job state for busy nodes.
-  useEffect(() => {
-    if (!projectReady) return;
-    let cancelled = false;
-
-    async function reconcileBusyJobs() {
-      const busy = useCanvasStore.getState().nodes.filter((node) => {
-        const status = String(node.data.status ?? "");
-        const jobId = String(node.data.jobId ?? "").trim();
-        return isBusyStatus(status) && Boolean(jobId);
-      });
-      if (!busy.length) return;
-
-      await Promise.all(
-        busy.map(async (node) => {
-          const jobId = String(node.data.jobId ?? "").trim();
-          if (!jobId || cancelled) return;
-          try {
-            const job = await api<{
-              id: string;
-              status: string;
-              error?: string | null;
-              assets?: { id: string; url: string }[];
-              result?: { text?: string };
-            }>(`/jobs/${jobId}`);
-            if (cancelled) return;
-            if (job.status === "succeeded") {
-              handleCanvasJobCompleted({
-                jobId: job.id,
-                assets: job.assets,
-                result: job.result,
-              });
-            } else if (job.status === "failed" || job.status === "cancelled") {
-              handleCanvasJobFailed({
-                jobId: job.id,
-                error: job.error ?? undefined,
-                status: job.status,
-              });
-            }
-          } catch {
-            /* ignore transient fetch errors */
-          }
-        }),
-      );
-    }
-
-    void reconcileBusyJobs();
-    const timer = window.setInterval(() => void reconcileBusyJobs(), 4000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [projectReady]);
+    },
+  });
 
   const ingestFiles = useCallback(
     async (files: FileList | File[], at?: { x: number; y: number }) => {

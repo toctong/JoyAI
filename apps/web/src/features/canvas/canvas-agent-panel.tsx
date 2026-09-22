@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "@/shared/lib/api";
-import { getJobsSocket } from "@/shared/lib/socket";
+import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
@@ -176,20 +176,20 @@ export function CanvasAgentPanel({ projectId, compactHeader = false }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, busy, pending, status]);
 
-  useEffect(() => {
-    const socket = getJobsSocket();
-    const onCompleted = (payload: {
-      jobId: string;
-      result?: { text?: string };
-    }) => {
-      if (pendingJobRef.current !== payload.jobId) return;
+  useJobLifecycle({
+    getBusyJobIds: () => {
+      const id = pendingJobRef.current;
+      return id ? [id] : [];
+    },
+    onCompleted: (payload) => {
+      if (!payload.jobId || pendingJobRef.current !== payload.jobId) return;
       pendingJobRef.current = null;
       const resolve = resolveRef.current;
       resolveRef.current = null;
       resolve?.(String(payload.result?.text ?? ""));
-    };
-    const onFailed = (payload: { jobId: string; error?: string }) => {
-      if (pendingJobRef.current !== payload.jobId) return;
+    },
+    onFailed: (payload) => {
+      if (!payload.jobId || pendingJobRef.current !== payload.jobId) return;
       pendingJobRef.current = null;
       const resolve = resolveRef.current;
       resolveRef.current = null;
@@ -199,14 +199,8 @@ export function CanvasAgentPanel({ projectId, compactHeader = false }: Props) {
           actions: [],
         }),
       );
-    };
-    socket.on("job:completed", onCompleted);
-    socket.on("job:failed", onFailed);
-    return () => {
-      socket.off("job:completed", onCompleted);
-      socket.off("job:failed", onFailed);
-    };
-  }, []);
+    },
+  });
 
   function pushMessage(
     role: "user" | "assistant" | "system",
