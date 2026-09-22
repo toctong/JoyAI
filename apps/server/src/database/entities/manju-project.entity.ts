@@ -15,6 +15,8 @@ import { ManjuFolder } from "./manju-folder.entity";
 @Entity("manju_project")
 @Index("IDX_manju_user_updated", ["userId", "updatedAt"])
 @Index("IDX_manju_user_folder_updated", ["userId", "folderId", "updatedAt"])
+@Index("IDX_manju_project_userId", ["userId"])
+@Index("IDX_manju_project_folderId", ["folderId"])
 export class ManjuProject {
   @PrimaryColumn("varchar")
   id!: string;

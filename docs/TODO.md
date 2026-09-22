@@ -134,7 +134,24 @@
 - [x] `/tools` 目录 + `/tools/[slug]` 详情；侧栏入口
 - [x] 工具目录：拍立得 / 公仔 / 杂志 / Logo / 线稿上色 / 贴纸 / 像素 / 海报等，走 `POST /jobs` + `tool-catalog.ts`（新工具只加目录项）
 - [x] 工具详情：左侧栏表单 + 底部生成 + 右侧预览；控件用 JoyAI 模型/参数组件；目录卡本地封面叠层
-- [ ] 接吻/拥抱视频、高清放大等（目录已占位，不靠图生图提示词冒充）
+- [x] 接吻 / 拥抱视频（`ai-kiss` / `ai-hug`，走 image→video Job，目录已 `available`）
+- [ ] 高清放大 `upscale`（目录 `coming_soon`；需独立 job kind + 供应商，禁止用图生图提示词冒充）
+
+## Phase 22 — 部署与任务可靠性（2026-09-22）
+
+- [x] 单镜像内 nginx：`:3000` 反代 Next + Nest，`/socket.io` 带 WebSocket Upgrade（飞牛外层只需 HTTPS→18080）
+- [x] 共享 `useJobLifecycle`：Socket 推送 + `GET /jobs/:id` 对账；创作 / 画布 / 漫剧 / 工具 / 历史 / 资产统一接入
+- [x] Socket 优先 polling，不依赖飞牛单独开 WS
+- [x] MySQL / TypeORM UTC：`timezone: Z`、连接 `SET time_zone=+00:00`、`CURRENT_TIMESTAMP(3)` 列（会话 UTC 下等价于墙钟无关）；compose `--default-time-zone=+00:00`
+- [x] 资产详情弹框参考素材支持视频封面（及音频占位）
+- [x] 画布全景节点空态去掉硬编码深色底，与浅色卡片一致
+
+## 下一步（未排期）
+
+- [ ] Admin 仓储 GC 页面（API 已有 `GET/POST /admin/storage/gc`）
+- [ ] 审计日志后台浏览（实体已有）
+- [ ] 最小自动化测试（shared / job lifecycle / jobs 冒烟）
+- [ ] 生产 TypeORM migration（逐步摆脱纯 synchronize）
 
 ## 本地启动（需自行安装依赖）
 
@@ -148,3 +165,5 @@ pnpm dev:web
 ```
 
 填写 `.env` 中 `ARK_*` 与 `TOS_*` 后，以 admin 角色登录 web 访问 `/admin` 可补渠道/模型，或依赖 bootstrap 自动建渠道。
+
+飞牛部署：先起 `deploy/fnos/db`，再起 `deploy/fnos/app`（拉 `liuxiaodi2026/joyai:latest`）。改过 MySQL 时区后需按新 compose **重启 db**，之后新任务时间按 UTC 存、本地正确显示。不做历史行校正。

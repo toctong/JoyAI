@@ -47,9 +47,6 @@ export function AiToolsHome() {
               </button>
             ))}
           </div>
-          <p className="joy-ai-tools-toolbar-hint">
-            一个工具一种能力 · 结果写入资产库
-          </p>
         </header>
 
         <div className="joy-ai-tools-grid">

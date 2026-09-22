@@ -16,6 +16,7 @@ import type { Asset } from "./asset.entity";
 
 @Entity("job")
 @Index("IDX_job_user_created", ["userId", "createdAt"])
+@Index("IDX_job_userId", ["userId"])
 export class Job {
   @PrimaryColumn("varchar")
   id!: string;

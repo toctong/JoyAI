@@ -167,7 +167,7 @@ export class SettingsService
     const existing = await this.getRaw(key);
     if (existing) {
       await this.repo.query(
-        "UPDATE `app_setting` SET `value` = ?, `updatedAt` = UTC_TIMESTAMP(3) WHERE `key` = ?",
+        "UPDATE `app_setting` SET `value` = ?, `updatedAt` = CURRENT_TIMESTAMP(3) WHERE `key` = ?",
         [encoded, key],
       );
       existing.value = value;
@@ -176,7 +176,7 @@ export class SettingsService
     }
     const id = newId();
     await this.repo.query(
-      "INSERT INTO `app_setting` (`id`, `key`, `value`, `updatedAt`) VALUES (?, ?, ?, UTC_TIMESTAMP(3))",
+      "INSERT INTO `app_setting` (`id`, `key`, `value`, `updatedAt`) VALUES (?, ?, ?, CURRENT_TIMESTAMP(3))",
       [id, key, encoded],
     );
     this.afterSet(key);

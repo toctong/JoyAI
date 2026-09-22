@@ -22,6 +22,10 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
 import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
+import {
+  isJoyPhotoOpen,
+  useDialogPhotoGuard,
+} from "@/shared/ui/use-dialog-photo-guard";
 import { ExplorePlyrPlayer } from "./explore-plyr-player";
 import { ExploreDialogSkeleton } from "./explore-skeleton";
 import type { ExploreFeedItem } from "./types";
@@ -54,6 +58,8 @@ export function ExploreDetailDialog({
   onRemix,
 }: Props) {
   const [ready, setReady] = useState(false);
+  const { photoOpen, onPhotoVisibleChange, guardOpenChange, contentProps } =
+    useDialogPhotoGuard();
 
   useEffect(() => {
     if (!open) return;
@@ -63,6 +69,11 @@ export function ExploreDetailDialog({
       document.body.style.overflow = prev;
     };
   }, [open]);
+
+  useEffect(() => {
+    if (open) return;
+    onPhotoVisibleChange(false);
+  }, [open, onPhotoVisibleChange]);
 
   useEffect(() => {
     setReady(false);
@@ -92,7 +103,11 @@ export function ExploreDetailDialog({
   const isVideo = item?.type === "video";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      modal={false}
+      onOpenChange={(next) => guardOpenChange(next, onOpenChange)}
+    >
       <DialogPortal>
         <DialogOverlay className="joy-explore-dialog-overlay" />
         <DialogPrimitive.Content
@@ -102,8 +117,16 @@ export function ExploreDetailDialog({
             "outline-none data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+            photoOpen && "pointer-events-none",
           )}
           aria-describedby={undefined}
+          onPointerDownOutside={(event) => {
+            if (photoOpen || isJoyPhotoOpen()) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (photoOpen || isJoyPhotoOpen()) event.preventDefault();
+          }}
+          {...contentProps}
         >
           <DialogTitle className="sr-only">
             {item?.title || "作品详情"}
@@ -114,7 +137,7 @@ export function ExploreDetailDialog({
           </DialogClose>
 
           {item ? (
-            <JoyPhotoProvider>
+            <JoyPhotoProvider onVisibleChange={onPhotoVisibleChange}>
             <div className="joy-explore-dialog-inner">
               <div className="joy-explore-dialog-media">
                 <div className="joy-explore-dialog-stage">
@@ -145,6 +168,7 @@ export function ExploreDetailDialog({
                           style={{ cursor: "zoom-in" }}
                           onLoad={markReady}
                           onError={markReady}
+                          onClick={(event) => event.stopPropagation()}
                         />
                       </PhotoView>
                     )}

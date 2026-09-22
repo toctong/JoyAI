@@ -18,3 +18,8 @@
 | 2026-09-15 | ORM 从 Prisma 迁到 TypeORM（sql.js + `apps/server/data/sql.db`，清空重建） |
 | 2026-09-21 | 数据库改为 MySQL（`DATABASE_URL`，compose 增加 mysql） |
 | 2026-09-22 | 旧 `sql.db` 已导入 MySQL；移除 sql.js / `db:import-sqlite` |
+| 2026-09-22 | 漫剧闭环 MVP、AI 工具箱目录、探索 feed、资产库等产品面收口（见各 feature） |
+| 2026-09-22 | Phase 21：接吻 / 拥抱工具上线（`ai-kiss` / `ai-hug`） |
+| 2026-09-22 | Phase 22：镜像内 nginx（`/api` + `/socket.io`）；`useJobLifecycle` 全产品任务对账 |
+| 2026-09-22 | Phase 22：MySQL/TypeORM UTC 对齐，修复创作页时间 +8h |
+| 2026-09-22 | 资产详情参考素材支持视频；画布全景空态背景与浅色主题一致 |

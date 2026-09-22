@@ -4,8 +4,9 @@ import { ConfigService } from "@nestjs/config";
 import { DataSource, type DataSourceOptions } from "typeorm";
 import { ENTITIES } from "./entities";
 import { databaseOptions } from "./data-source-options";
+import { ensureMysqlFkCoveringIndexes } from "./ensure-fk-indexes";
 
-/** Ensure every pooled connection uses UTC so CURRENT_TIMESTAMP / UTC_TIMESTAMP agree with timezone: Z. */
+/** Ensure every pooled connection uses UTC so CURRENT_TIMESTAMP agrees with timezone: Z. */
 function attachUtcSession(dataSource: DataSource) {
   const pool = (
     dataSource.driver as { pool?: { on?: (ev: string, fn: (conn: { query: (sql: string) => void }) => void) => void } }
@@ -21,6 +22,8 @@ function attachUtcSession(dataSource: DataSource) {
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         ...databaseOptions(config),
+        // Defer schema sync until FK covering indexes exist (dataSourceFactory).
+        synchronize: false,
         retryAttempts: 10,
         retryDelay: 3000,
       }),
@@ -28,9 +31,15 @@ function attachUtcSession(dataSource: DataSource) {
         if (!options) {
           throw new Error("TypeORM options missing");
         }
-        const dataSource = await new DataSource(options).initialize();
+        const dataSource = await new DataSource({
+          ...options,
+          synchronize: false,
+        }).initialize();
         attachUtcSession(dataSource);
         await dataSource.query("SET time_zone = '+00:00'");
+        await ensureMysqlFkCoveringIndexes(dataSource);
+        // Matches data-source-options synchronize: true (dev/docker).
+        await dataSource.synchronize();
         return dataSource;
       },
     }),

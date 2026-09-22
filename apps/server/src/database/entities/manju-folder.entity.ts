@@ -15,6 +15,7 @@ import type { ManjuProject } from "./manju-project.entity";
 /** 漫剧合集（文件夹） */
 @Entity("manju_folder")
 @Index("IDX_manju_folder_user_parent", ["userId", "parentId", "updatedAt"])
+@Index("IDX_manju_folder_parentId", ["parentId"])
 export class ManjuFolder {
   @PrimaryColumn("varchar")
   id!: string;

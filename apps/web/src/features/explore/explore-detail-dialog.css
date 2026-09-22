@@ -1,6 +1,6 @@
 .joy-explore-dialog-overlay {
-  background: color-mix(in oklab, var(--background) 35%, #000 65%) !important;
-  backdrop-filter: blur(10px);
+  background: color-mix(in oklab, #000 28%, transparent) !important;
+  backdrop-filter: none;
 }
 
 /* 固定弹框尺寸：图片 / 视频统一，避免一大一小 */

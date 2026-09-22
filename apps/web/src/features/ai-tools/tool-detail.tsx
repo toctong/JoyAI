@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import dayjs from "dayjs";
 import {
   ArrowLeft,
   Box,
   ChevronDown,
+  Copy,
   Download,
   ExternalLink,
   Film,
   ImagePlus,
   Loader2,
+  RefreshCw,
   Trash2,
 } from "lucide-react";
 import { BrandAvatar } from "@/components/admin/brand-avatar";
@@ -23,12 +26,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
+import { copyText } from "@/shared/lib/clipboard";
+import { downloadAsset } from "@/shared/lib/download-asset";
+import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 import { getToolExamples, type AiToolDef } from "./tool-catalog";
 import { useAiToolJob } from "./use-ai-tool-job";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
+import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
+import {
+  AssetsDetailDialog,
+  type AssetsPreviewItem,
+} from "@/features/assets/assets-detail-dialog";
+import { GeneratingThumb } from "@/features/studio/generating-thumb";
+import type {
+  ToolHistoryEntry,
+  ToolHistoryMeta,
+  ToolResultAsset,
+} from "./use-ai-tool-job";
 import "@/features/studio/creation-composer.css";
+import "@/features/studio/studio-workspace.css";
 import "./ai-tools.css";
 
 /**
@@ -38,16 +56,26 @@ import "./ai-tools.css";
 export function AiToolDetail({ tool }: { tool: AiToolDef }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  const historyScrollRef = useRef<HTMLDivElement>(null);
+  const historySentinelRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [videoDragOver, setVideoDragOver] = useState(false);
+  const [preview, setPreview] = useState<AssetsPreviewItem | null>(null);
   const {
     refs,
     videos,
     note,
     setNote,
-    busy,
     results,
+    selected,
+    selectedId,
+    selectHistory,
     history,
+    pendingCount,
+    historyHasMore,
+    historyLoading,
+    historyLoadingMore,
+    loadMoreHistory,
     models,
     modelsReady,
     modelId,
@@ -66,13 +94,29 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
     removeRef,
     addVideos,
     removeVideo,
-    clearResults,
     submit,
+    regenerate,
   } = useAiToolJob(tool);
+
+  useEffect(() => {
+    const root = historyScrollRef.current;
+    const sentinel = historySentinelRef.current;
+    if (!root || !sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          void loadMoreHistory();
+        }
+      },
+      { root, rootMargin: "80px", threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMoreHistory, history.length, historyHasMore]);
 
   const videosMax = tool.videosMax ?? 0;
   const videosRequired = tool.videosRequired ?? 0;
-  const locked = busy || tool.status !== "available";
+  const locked = tool.status !== "available";
   const canAdd = refs.length < tool.refsMax && !locked;
   const canAddVideo = videos.length < videosMax && !locked;
   const canGenerate =
@@ -81,6 +125,8 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
     videos.length >= videosRequired &&
     (!tool.noteRequired || Boolean(note.trim())) &&
     (modelId || models.length === 0);
+  const previewPending = selected?.status === "pending";
+  const previewFailed = selected?.status === "failed";
   const examples = getToolExamples(tool);
   const modelLabel =
     selectedModel?.name ?? (models.length ? "选择模型" : "暂无模型");
@@ -124,7 +170,13 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
           </div>
         </aside>
         <section className="joy-tool-page-preview">
-          <div className="joy-ai-tool-empty">上线后结果会显示在这里</div>
+          <div className="joy-ai-tool-empty">
+            <span className="joy-ai-tool-empty-icon" aria-hidden>
+              <Box className="size-5" />
+            </span>
+            <p className="joy-ai-tool-empty-title">即将上线</p>
+            <p className="joy-ai-tool-empty-hint">上线后结果会显示在这里</p>
+          </div>
         </section>
       </div>
     );
@@ -533,14 +585,7 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
               disabled={!canGenerate}
               onClick={() => void submit()}
             >
-              {busy ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" />
-                  生成中…
-                </>
-              ) : (
-                "开始生成"
-              )}
+              {pendingCount > 0 ? "再抽一张" : "开始生成"}
             </Button>
           </div>
         </div>
@@ -550,86 +595,132 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
         <div
           className={cn(
             "joy-tool-page-preview-inner",
-            !results.length && !busy && !history.length && "is-empty",
+            !results.length && !previewPending && !previewFailed && "is-empty",
           )}
         >
-          {results.length || busy || history.length ? (
-            <div className="joy-ai-tool-result-head">
-              <div>
-                <h2 className="joy-ai-tool-panel-title">结果预览</h2>
-                <p className="joy-ai-tool-panel-hint">
-                  完成后会写入资产库，也可在这里下载。
-                </p>
+          <JoyPhotoProvider>
+            {selected ? (
+              <ToolResultHead
+                entry={selected}
+                onPreviewAsset={(asset) => setPreview(toPreviewItem(asset))}
+                onRegenerate={() => void regenerate(selected)}
+              />
+            ) : null}
+
+            {previewPending ? (
+              <div className="joy-ai-tool-pending">
+                <GeneratingThumb
+                  className="joy-ai-tool-pending-gen"
+                  aspectRatio="1 / 1"
+                />
               </div>
-              <div className="joy-ai-tool-result-head-actions">
-                {results.length ? (
+            ) : previewFailed ? (
+              <div className="joy-ai-tool-empty">
+                <span className="joy-ai-tool-empty-icon" aria-hidden>
+                  <Box className="size-5" />
+                </span>
+                <p className="joy-ai-tool-empty-title">生成失败</p>
+                <p className="joy-ai-tool-empty-hint">
+                  {selected?.error || "请稍后重试"}
+                </p>
+                {selected?.meta?.prompt ? (
                   <Button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={busy}
-                    onClick={clearResults}
+                    className="joy-ai-tool-empty-action"
+                    onClick={() => void regenerate(selected)}
                   >
-                    清空本次
+                    <RefreshCw className="size-3.5" />
+                    重新生成
                   </Button>
                 ) : null}
-                <Button type="button" variant="ghost" size="sm" asChild>
-                  <Link href="/assets">
-                    <ExternalLink className="size-3.5" />
-                    资产库
-                  </Link>
-                </Button>
               </div>
-            </div>
-          ) : null}
+            ) : results.length ? (
+              <div className="joy-ai-tool-results">
+                {results.map((asset) => (
+                  <ResultCard
+                    key={asset.id}
+                    url={asset.url}
+                    onPreview={() => setPreview(toPreviewItem(asset))}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="joy-ai-tool-empty">
+                <span className="joy-ai-tool-empty-icon" aria-hidden>
+                  {videosRequired > 0 || tool.kind === "video" ? (
+                    <Film className="size-5" />
+                  ) : (
+                    <ImagePlus className="size-5" />
+                  )}
+                </span>
+                <p className="joy-ai-tool-empty-title">结果预览</p>
+                <p className="joy-ai-tool-empty-hint">
+                  {videosRequired > 0
+                    ? "上传角色图和动作视频后，结果会显示在这里"
+                    : tool.kind === "video"
+                      ? "上传参考图并生成后，短片会显示在这里"
+                      : tool.noteRequired
+                        ? "填写说明并生成后在此预览"
+                        : "上传参考图并生成后在此预览"}
+                </p>
+              </div>
+            )}
+          </JoyPhotoProvider>
+        </div>
+      </section>
 
-          {busy && !results.length ? (
-            <div className="joy-ai-tool-empty">
-              <Loader2 className="size-5 animate-spin" />
-              任务已提交，等待模型返回…
+      <aside className="joy-tool-page-history">
+        <div className="joy-tool-page-history-head">
+          <h2 className="joy-tool-page-history-title">历史记录</h2>
+        </div>
+        <div ref={historyScrollRef} className="joy-tool-page-history-scroll">
+          {historyLoading && !history.length ? (
+            <div className="joy-tool-page-history-status">
+              <Loader2 className="size-4 animate-spin" />
+              加载中…
             </div>
-          ) : results.length ? (
-            <div className="joy-ai-tool-results">
-              {results.map((asset) => (
-                <ResultCard key={asset.id} url={asset.url} />
+          ) : history.length ? (
+            <div className="joy-ai-tool-history-grid">
+              {history.map((entry) => (
+                <HistoryThumb
+                  key={entry.id}
+                  entry={entry}
+                  active={entry.id === selectedId}
+                  onSelect={() => selectHistory(entry.id)}
+                  onPreviewAsset={(asset) => setPreview(toPreviewItem(asset))}
+                />
               ))}
             </div>
           ) : (
-            <div className="joy-ai-tool-empty">
-              {videosRequired > 0
-                ? "上传角色图和动作视频后，结果会显示在这里"
-                : tool.kind === "video"
-                  ? "上传参考图并生成后，短片会显示在这里"
-                  : tool.noteRequired
-                    ? "填写说明并生成后在此预览"
-                    : "上传参考图并生成后在此预览"}
+            <div className="joy-tool-page-history-status is-muted">
+              暂无历史
             </div>
           )}
-
-          {history.length > results.length ? (
-            <div className="joy-ai-tool-history">
-              <h3 className="joy-ai-tool-history-title">本次会话历史</h3>
-              <div className="joy-ai-tool-history-grid">
-                {history.map((asset) => (
-                  <a
-                    key={`h_${asset.id}`}
-                    href={asset.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="joy-ai-tool-history-item"
-                  >
-                    {isVideoUrl(asset.url) ? (
-                      <JoyVideoPoster url={asset.url} size="sm" />
-                    ) : (
-                      <JoyAssetThumb url={asset.url} size="sm" />
-                    )}
-                  </a>
-                ))}
-              </div>
+          {historyHasMore ? (
+            <div
+              ref={historySentinelRef}
+              className="joy-tool-page-history-sentinel"
+            >
+              {historyLoadingMore ? (
+                <span className="joy-tool-page-history-status">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  加载更多…
+                </span>
+              ) : null}
             </div>
           ) : null}
         </div>
-      </section>
+      </aside>
+
+      <AssetsDetailDialog
+        asset={preview}
+        open={Boolean(preview)}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null);
+        }}
+        createdLabel="工具生成"
+        locateHref={null}
+      />
     </div>
   );
 }
@@ -661,26 +752,338 @@ function isVideoUrl(url: string) {
   return /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
 }
 
-function ResultCard({ url }: { url: string }) {
+function toPreviewItem(asset: ToolResultAsset): AssetsPreviewItem {
+  return {
+    id: asset.id,
+    kind: isVideoUrl(asset.url) ? "video" : "image",
+    url: asset.url,
+    createdAt: "",
+    source: "tools",
+  };
+}
+
+function toolMetaParts(meta?: ToolHistoryMeta, assetCount = 0): string[] {
+  if (!meta) return [];
+  const model =
+    meta.modelName?.trim() ||
+    meta.channelName?.trim() ||
+    (meta.kind === "video" ? "视频生成" : "图片生成");
+  const channel =
+    meta.channelName &&
+    meta.modelName &&
+    meta.channelName.trim() !== meta.modelName.trim()
+      ? meta.channelName.trim()
+      : null;
+  const count =
+    meta.kind !== "video" && (meta.n ?? assetCount) > 1
+      ? `${meta.n ?? assetCount}张`
+      : null;
+  const time = meta.finishedAt || meta.createdAt
+    ? dayjs(meta.finishedAt || meta.createdAt).format("M月D日 HH:mm")
+    : null;
+  return [
+    model,
+    meta.resolution,
+    meta.ratio,
+    count,
+    channel,
+    time,
+  ].filter((part): part is string => Boolean(part));
+}
+
+function ToolResultHead({
+  entry,
+  onPreviewAsset,
+  onRegenerate,
+}: {
+  entry: ToolHistoryEntry;
+  onPreviewAsset: (asset: ToolResultAsset) => void;
+  onRegenerate: () => void;
+}) {
+  const meta = entry.meta;
+  const refs = meta?.referenceUrls ?? [];
+  const prompt = meta?.prompt?.trim() || "";
+  const parts = useMemo(
+    () => toolMetaParts(meta, entry.assets.length),
+    [meta, entry.assets.length],
+  );
+  const canDownload = entry.status === "succeeded" && entry.assets.length > 0;
+  const canRegenerate = Boolean(prompt);
+
+  async function onCopyPrompt() {
+    if (!prompt) {
+      toast.error("没有可复制的提示词");
+      return;
+    }
+    if (await copyText(prompt)) {
+      toast.success("提示词已复制");
+    } else {
+      toast.error("复制失败");
+    }
+  }
+
+  async function onDownload() {
+    if (!canDownload) {
+      toast.error("暂无可下载的生成结果");
+      return;
+    }
+    try {
+      for (const asset of entry.assets) {
+        await downloadAsset(
+          asset.url,
+          isVideoUrl(asset.url) ? "video" : "image",
+        );
+      }
+      toast.success(
+        entry.assets.length > 1 ? "已开始下载全部生成结果" : "已开始下载生成结果",
+      );
+    } catch {
+      toast.error("下载失败");
+    }
+  }
+
+  return (
+    <div className="joy-ai-tool-result-head">
+      <div
+        className={cn(
+          "joy-studio-prompt-row joy-ai-tool-prompt-row",
+          refs.length > 0 && "has-refs",
+        )}
+      >
+        {refs.length > 0 ? (
+          <div
+            className={cn(
+              "joy-studio-refs",
+              refs.length > 1 && "is-stack",
+            )}
+            data-count={Math.min(refs.length, 4)}
+            aria-label="参考素材"
+          >
+            <div className="joy-studio-refs-fan">
+              {refs.slice(0, 4).map((url, index) => {
+                const video = isVideoUrl(url);
+                const tilt =
+                  refs.length === 1
+                    ? "is-tilt-solo"
+                    : index % 2 === 0
+                      ? "is-tilt-a"
+                      : "is-tilt-b";
+                const thumb = (
+                  <div
+                    className={cn(
+                      "joy-studio-ref-card",
+                      video ? "is-video" : "is-image",
+                      tilt,
+                    )}
+                  >
+                    {video ? (
+                      <JoyVideoPoster
+                        url={url}
+                        size="sm"
+                        fallback="video"
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={url} alt={`参考${index + 1}`} />
+                    )}
+                    {index === 0 ? (
+                      <span className="joy-studio-ref-index">{index + 1}</span>
+                    ) : null}
+                  </div>
+                );
+                return video ? (
+                  <div
+                    key={`${url}-${index}`}
+                    className="joy-studio-ref-hit"
+                    style={{ ["--ref-i" as string]: String(index) }}
+                  >
+                    {thumb}
+                  </div>
+                ) : (
+                  <PhotoView key={`${url}-${index}`} src={url}>
+                    <button
+                      type="button"
+                      className="joy-studio-ref-hit"
+                      style={{ ["--ref-i" as string]: String(index) }}
+                      aria-label={`预览参考${index + 1}`}
+                    >
+                      {thumb}
+                    </button>
+                  </PhotoView>
+                );
+              })}
+            </div>
+            {refs.length > 4 ? (
+              <span className="joy-studio-ref-more">+{refs.length - 4}</span>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="joy-studio-prompt-col">
+          <div className="joy-ai-tool-prompt-line">
+            <p className="joy-ai-tool-prompt-text" title={prompt || undefined}>
+              {prompt ||
+                (entry.status === "pending"
+                  ? "生成中…"
+                  : entry.status === "failed"
+                    ? entry.error || "生成失败"
+                    : "未命名结果")}
+            </p>
+            {prompt ? (
+              <button
+                type="button"
+                className="joy-ai-tool-prompt-copy"
+                aria-label="复制提示词"
+                title="复制提示词"
+                onClick={() => void onCopyPrompt()}
+              >
+                <Copy className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
+          {parts.length > 0 ? (
+            <p className="joy-studio-meta joy-studio-meta-sub">
+              {parts.map((part, index) => (
+                <span key={`${entry.id}-meta-${index}`}>
+                  {index > 0 ? (
+                    <span className="joy-studio-meta-sep" aria-hidden>
+                      {" "}
+                      |{" "}
+                    </span>
+                  ) : null}
+                  <span className="joy-studio-meta-part">{part}</span>
+                </span>
+              ))}
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="joy-ai-tool-result-head-actions">
+        <button
+          type="button"
+          className="joy-studio-action"
+          disabled={!canRegenerate || entry.status === "pending"}
+          title="用相同参数再生成一次"
+          onClick={onRegenerate}
+        >
+          <RefreshCw strokeWidth={1.75} className="h-3.5 w-3.5" />
+          重新生成
+        </button>
+        <button
+          type="button"
+          className="joy-studio-action"
+          disabled={!canDownload}
+          title="下载本次生成结果"
+          onClick={() => void onDownload()}
+        >
+          <Download strokeWidth={1.75} className="h-3.5 w-3.5" />
+          下载
+        </button>
+        {entry.assets[0] ? (
+          <button
+            type="button"
+            className="joy-studio-action"
+            onClick={() => onPreviewAsset(entry.assets[0]!)}
+          >
+            <ExternalLink strokeWidth={1.75} className="h-3.5 w-3.5" />
+            预览
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function HistoryThumb({
+  entry,
+  active,
+  onSelect,
+  onPreviewAsset,
+}: {
+  entry: ToolHistoryEntry;
+  active: boolean;
+  onSelect: () => void;
+  onPreviewAsset: (asset: ToolResultAsset) => void;
+}) {
+  if (entry.status === "pending") {
+    return (
+      <button
+        type="button"
+        className={cn("joy-ai-tool-history-item is-pending", active && "is-active")}
+        aria-label="生成中"
+        aria-current={active ? "true" : undefined}
+        onClick={onSelect}
+      >
+        <GeneratingThumb className="joy-ai-tool-history-gen" aspectRatio="1 / 1" />
+      </button>
+    );
+  }
+
+  if (entry.status === "failed") {
+    return (
+      <button
+        type="button"
+        className={cn("joy-ai-tool-history-item is-failed", active && "is-active")}
+        aria-label="生成失败"
+        aria-current={active ? "true" : undefined}
+        onClick={onSelect}
+      >
+        <span className="joy-ai-tool-history-failed">失败</span>
+      </button>
+    );
+  }
+
+  const asset = entry.assets[0];
+  if (!asset) return null;
+
+  return (
+    <button
+      type="button"
+      className={cn("joy-ai-tool-history-item", active && "is-active")}
+      aria-label="预览历史结果"
+      aria-current={active ? "true" : undefined}
+      onClick={onSelect}
+      onDoubleClick={() => onPreviewAsset(asset)}
+    >
+      {isVideoUrl(asset.url) ? (
+        <JoyVideoPoster url={asset.url} size="sm" />
+      ) : (
+        <JoyAssetThumb url={asset.url} size="sm" />
+      )}
+      {entry.assets.length > 1 ? (
+        <span className="joy-ai-tool-history-count">{entry.assets.length}</span>
+      ) : null}
+    </button>
+  );
+}
+
+function ResultCard({
+  url,
+  onPreview,
+}: {
+  url: string;
+  onPreview: () => void;
+}) {
   const video = isVideoUrl(url);
   return (
     <div className="joy-ai-tool-result">
       {video ? (
-        <video src={url} controls playsInline preload="metadata" />
+        <div className="joy-ai-tool-result-media">
+          <video src={url} controls playsInline preload="metadata" />
+        </div>
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="生成结果" />
+        <button
+          type="button"
+          className="joy-ai-tool-result-media"
+          aria-label="放大预览"
+          onClick={onPreview}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={url} alt="生成结果" />
+        </button>
       )}
-      <div className="joy-ai-tool-result-actions">
-        <a href={url} target="_blank" rel="noreferrer" download>
-          <Download className="size-3.5" />
-          下载
-        </a>
-        <a href={url} target="_blank" rel="noreferrer">
-          <ExternalLink className="size-3.5" />
-          打开
-        </a>
-      </div>
     </div>
   );
 }

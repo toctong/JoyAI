@@ -13,13 +13,26 @@ export { PhotoView };
 type Props = {
   children: ReactNode;
   className?: string;
+  onVisibleChange?: (visible: boolean) => void;
 };
 
 /** Photo lightbox: click opens preview; download lives in the toolbar only. */
-export function JoyPhotoProvider({ children, className }: Props) {
+export function JoyPhotoProvider({
+  children,
+  className,
+  onVisibleChange,
+}: Props) {
   return (
     <PhotoProvider
       className={className}
+      onVisibleChange={(visible) => {
+        if (visible) {
+          document.documentElement.setAttribute("data-joy-photo-open", "1");
+        } else {
+          document.documentElement.removeAttribute("data-joy-photo-open");
+        }
+        onVisibleChange?.(visible);
+      }}
       toolbarRender={({ images, index, onScale, scale, onRotate, rotate }) => {
         const src = images[index]?.src;
         return (

@@ -15,6 +15,8 @@ import type { CanvasProject } from "./canvas-project.entity";
 
 @Entity("canvas_folder")
 @Index("IDX_folder_user_parent_updated", ["userId", "parentId", "updatedAt"])
+@Index("IDX_canvas_folder_userId", ["userId"])
+@Index("IDX_canvas_folder_parentId", ["parentId"])
 export class CanvasFolder {
   @PrimaryColumn("varchar")
   id!: string;

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
-import { Crosshair, Music, Play } from "lucide-react";
+import { Music, Play } from "lucide-react";
 import type { AssetSource } from "@joyai/shared";
 import { api } from "@/shared/lib/api";
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
@@ -92,21 +91,6 @@ function locateHref(asset: Asset) {
   return `/canvas/${projectId}?${q.toString()}`;
 }
 
-function LocateLink({ asset }: { asset: Asset }) {
-  const href = locateHref(asset);
-  if (!href) return null;
-  return (
-    <Link
-      href={href}
-      className="joy-assets-locate"
-      title="在画布中定位"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <Crosshair className="h-3.5 w-3.5" />
-    </Link>
-  );
-}
-
 function AssetCard({
   asset,
   onOpen,
@@ -157,7 +141,6 @@ function AssetCard({
           />
         )}
       </button>
-      <LocateLink asset={asset} />
     </div>
   );
 }

@@ -31,7 +31,6 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 12px 16px;
   margin-bottom: 28px;
 }
@@ -64,12 +63,6 @@
 .joy-ai-tools-tabs button.is-active {
   background: var(--secondary);
   color: var(--foreground);
-}
-
-.joy-ai-tools-toolbar-hint {
-  margin: 0;
-  font-size: var(--joy-font-caption);
-  color: var(--muted-foreground);
 }
 
 .joy-ai-tools-grid {
@@ -583,6 +576,60 @@ img.joy-ai-tool-stack-layer {
   background: var(--card);
 }
 
+.joy-tool-page-history {
+  display: flex;
+  flex: 0 0 var(--joy-tool-history-width);
+  width: var(--joy-tool-history-width);
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+}
+
+.joy-tool-page-history-head {
+  flex-shrink: 0;
+  padding: 16px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.joy-tool-page-history-title {
+  margin: 0;
+  font-size: var(--joy-font-label);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.joy-tool-page-history-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.joy-tool-page-history-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+  padding: 18px 8px;
+  font-size: var(--joy-font-micro);
+  color: var(--muted-foreground);
+}
+
+.joy-tool-page-history-status.is-muted {
+  padding-top: 28px;
+}
+
+.joy-tool-page-history-sentinel {
+  display: flex;
+  justify-content: center;
+  min-height: 28px;
+  padding: 8px 0 4px;
+}
+
 .joy-tool-page-preview-inner {
   display: flex;
   flex: 1;
@@ -601,8 +648,8 @@ img.joy-ai-tool-stack-layer {
 
 .joy-tool-page-preview-inner.is-empty .joy-ai-tool-empty {
   flex: none;
-  width: min(100%, 420px);
-  min-height: 240px;
+  width: min(100%, 440px);
+  min-height: 280px;
 }
 
 .joy-tool-page-preview .joy-ai-tool-empty {
@@ -614,6 +661,13 @@ img.joy-ai-tool-stack-layer {
 .joy-ai-tool-detail {
   min-height: 100%;
   padding: 0;
+}
+
+@media (max-width: 1100px) {
+  .joy-tool-page-history {
+    flex-basis: 132px;
+    width: 132px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -641,9 +695,17 @@ img.joy-ai-tool-stack-layer {
 
   .joy-tool-page-preview {
     flex: none;
-    height: min(70vh, 640px);
-    min-height: 320px;
+    height: min(60vh, 560px);
+    min-height: 280px;
     overflow: hidden;
+  }
+
+  .joy-tool-page-history {
+    flex: none;
+    width: 100%;
+    height: min(42vh, 360px);
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
 }
 
@@ -773,18 +835,82 @@ img.joy-ai-tool-stack-layer {
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 12px 16px;
   margin-bottom: 4px;
 }
 
-.joy-ai-tool-result-head .joy-ai-tool-panel-hint {
-  margin-bottom: 0;
+.joy-ai-tool-prompt-row {
+  min-width: 0;
+  flex: 1 1 280px;
+}
+
+.joy-ai-tool-prompt-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.joy-ai-tool-prompt-text {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: var(--joy-font-label);
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--foreground);
+  word-break: break-word;
+}
+
+.joy-ai-tool-prompt-copy {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.joy-ai-tool-prompt-copy:hover {
+  background: var(--secondary);
+  color: var(--foreground);
 }
 
 .joy-ai-tool-result-head-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+}
+
+.joy-tool-page-preview .joy-studio-action {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  padding: 0 10px;
+  font-size: var(--joy-font-micro);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.joy-tool-page-preview .joy-studio-action:hover:not(:disabled) {
+  background: var(--secondary);
+}
+
+.joy-tool-page-preview .joy-studio-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .joy-ai-tool-drop {
@@ -909,16 +1035,79 @@ img.joy-ai-tool-stack-layer {
   border-radius: 10px;
 }
 
+.joy-ai-tool-pending {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.joy-ai-tool-pending-gen {
+  width: min(100%, 520px);
+  max-height: 100%;
+  border-radius: 16px;
+}
+
 .joy-ai-tool-empty {
   display: flex;
+  flex-direction: column;
   min-height: 240px;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border-radius: 12px;
-  background: var(--secondary);
-  font-size: var(--joy-font-caption);
+  padding: 28px 24px;
+  border: 1px dashed color-mix(in oklab, var(--border) 88%, var(--foreground) 12%);
+  border-radius: 16px;
+  background:
+    radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(in oklab, var(--muted) 55%, transparent),
+      transparent 62%
+    ),
+    color-mix(in oklab, var(--secondary) 78%, var(--card));
+  text-align: center;
+}
+
+.joy-ai-tool-empty-icon {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--card) 88%, var(--secondary));
   color: var(--muted-foreground);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+.joy-ai-tool-empty-title {
+  margin: 0;
+  font-size: var(--joy-font-label);
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--foreground);
+}
+
+.joy-ai-tool-empty-hint {
+  margin: 0;
+  max-width: 28em;
+  font-size: var(--joy-font-caption);
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.joy-ai-tool-empty-action {
+  margin-top: 10px;
+  gap: 6px;
+}
+
+.joy-ai-tool-empty.is-busy .joy-ai-tool-empty-icon {
+  border-style: solid;
+  color: var(--foreground);
 }
 
 .joy-ai-tool-results {
@@ -936,24 +1125,43 @@ img.joy-ai-tool-stack-layer {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
-  background: var(--background);
+  background: var(--card);
+  box-shadow: 0 10px 28px color-mix(in oklab, #000 4%, transparent);
 }
 
+.joy-ai-tool-result-media {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.joy-ai-tool-result-media img,
+.joy-ai-tool-result-media video,
 .joy-ai-tool-result img,
 .joy-ai-tool-result video {
   display: block;
   width: 100%;
   height: 100%;
   min-height: 0;
-  flex: 1 1 auto;
   object-fit: contain;
-  background: var(--secondary);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--secondary) 70%, transparent),
+      color-mix(in oklab, var(--muted) 55%, transparent)
+    );
 }
 
+.joy-ai-tool-result-media video,
 .joy-ai-tool-result video {
-  background: #000;
+  background: #0a0a0a;
 }
 
 .joy-ai-tool-result-actions {
@@ -962,53 +1170,106 @@ img.joy-ai-tool-stack-layer {
   gap: 8px;
   border-top: 1px solid var(--border);
   padding: 8px 10px;
+  background: color-mix(in oklab, var(--card) 92%, var(--secondary));
 }
 
-.joy-ai-tool-result-actions a {
+.joy-ai-tool-result-actions a,
+.joy-ai-tool-result-actions button {
   display: inline-flex;
   height: 32px;
   align-items: center;
   gap: 4px;
+  border: none;
   border-radius: 8px;
   background: var(--secondary);
   padding: 0 10px;
   font-size: var(--joy-font-micro);
   color: var(--foreground);
   text-decoration: none;
+  cursor: pointer;
+  transition: background var(--joy-duration-fast) var(--joy-ease-out);
 }
 
-.joy-ai-tool-result-actions a:hover {
+.joy-ai-tool-result-actions a:hover,
+.joy-ai-tool-result-actions button:hover {
   background: color-mix(in oklab, var(--secondary) 70%, var(--muted));
-}
-
-.joy-tool-page .joy-ai-tool-history {
-  flex-shrink: 0;
-  margin-top: 0;
-  max-height: 120px;
-  overflow: hidden;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-}
-
-.joy-tool-page .joy-ai-tool-history-title {
-  margin: 0 0 10px;
-  font-size: var(--joy-font-caption);
-  font-weight: 400;
-  color: var(--muted-foreground);
 }
 
 .joy-ai-tool-history-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
 .joy-ai-tool-history-item {
+  position: relative;
   display: block;
+  width: 100%;
+  padding: 0;
   overflow: hidden;
   aspect-ratio: 1;
   border-radius: 10px;
   border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+}
+
+.joy-ai-tool-history-item:hover {
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+}
+
+.joy-ai-tool-history-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.joy-ai-tool-history-item.is-active {
+  border-color: color-mix(in oklab, var(--foreground) 45%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
+.joy-ai-tool-history-item.is-pending {
+  border-style: dashed;
+}
+
+.joy-ai-tool-history-item.is-failed {
+  background: color-mix(in oklab, var(--secondary) 80%, var(--destructive) 8%);
+}
+
+.joy-ai-tool-history-gen {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.joy-ai-tool-history-gen .joy-gen-thumb-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+.joy-ai-tool-history-failed {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: var(--joy-font-micro);
+  color: var(--muted-foreground);
+}
+
+.joy-ai-tool-history-count {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 1;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in oklab, #000 55%, transparent);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
 }
 
 .joy-ai-tool-history-item img,

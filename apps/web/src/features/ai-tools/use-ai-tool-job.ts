@@ -15,6 +15,166 @@ import { buildAiToolPrompt, type AiToolDef } from "./tool-catalog";
 
 export type ToolResultAsset = { id: string; url: string };
 
+export type ToolHistoryMeta = {
+  prompt?: string;
+  referenceUrls?: string[];
+  referenceAssetIds?: string[];
+  modelId?: string | null;
+  modelName?: string | null;
+  channelName?: string | null;
+  ratio?: string | null;
+  resolution?: string | null;
+  size?: string | null;
+  width?: number | null;
+  height?: number | null;
+  n?: number | null;
+  kind?: "image" | "video";
+  createdAt?: string;
+  finishedAt?: string | null;
+};
+
+/** One history row = one job (or a local pending submit). */
+export type ToolHistoryEntry = {
+  id: string;
+  jobId?: string;
+  status: "pending" | "succeeded" | "failed";
+  assets: ToolResultAsset[];
+  error?: string;
+  meta?: ToolHistoryMeta;
+};
+
+type HistoryJobCursor = {
+  id: string;
+  createdAt: string;
+  finishedAt?: string | null;
+};
+
+type JobsHistoryPage = {
+  items: Array<{
+    id: string;
+    status?: string;
+    kind?: string;
+    createdAt: string;
+    finishedAt?: string | null;
+    modelName?: string | null;
+    channelName?: string | null;
+    input?: Record<string, unknown> | null;
+    assets?: ToolResultAsset[] | null;
+  }>;
+  hasMore: boolean;
+};
+
+const HISTORY_PAGE = 20;
+
+function jobCursorIso(job: HistoryJobCursor) {
+  return String(job.finishedAt || job.createdAt);
+}
+
+function metaFromJob(
+  job: JobsHistoryPage["items"][number],
+): ToolHistoryMeta {
+  const input = job.input ?? {};
+  const refs = Array.isArray(input.referenceUrls)
+    ? input.referenceUrls
+        .map((url) => String(url || "").trim())
+        .filter(Boolean)
+    : [];
+  const refIds = Array.isArray(input.referenceAssetIds)
+    ? input.referenceAssetIds
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    : [];
+  return {
+    prompt: typeof input.prompt === "string" ? input.prompt : undefined,
+    referenceUrls: refs,
+    referenceAssetIds: refIds,
+    modelId: typeof input.modelId === "string" ? input.modelId : null,
+    modelName: job.modelName ?? null,
+    channelName: job.channelName ?? null,
+    ratio: typeof input.ratio === "string" ? input.ratio : null,
+    resolution:
+      typeof input.resolution === "string" ? input.resolution : null,
+    size: typeof input.size === "string" ? input.size : null,
+    width: typeof input.width === "number" ? input.width : null,
+    height: typeof input.height === "number" ? input.height : null,
+    n: typeof input.n === "number" ? input.n : null,
+    kind: job.kind === "video" ? "video" : "image",
+    createdAt: job.createdAt,
+    finishedAt: job.finishedAt,
+  };
+}
+
+function assetsOfJob(
+  job: JobsHistoryPage["items"][number],
+): ToolResultAsset[] {
+  return (job.assets ?? [])
+    .filter((asset) => Boolean(asset?.id && asset?.url))
+    .map((asset) => ({ id: asset.id, url: String(asset.url) }));
+}
+
+function entriesFromJobs(items: JobsHistoryPage["items"]): ToolHistoryEntry[] {
+  // API returns ASC within the newest window — flip so latest jobs lead.
+  return [...items].reverse().map((job) => {
+    const assets = assetsOfJob(job);
+    const meta = metaFromJob(job);
+    const busy =
+      job.status === "queued" ||
+      job.status === "running" ||
+      job.status === "polling";
+    if (
+      busy ||
+      (!assets.length &&
+        job.status !== "failed" &&
+        job.status !== "cancelled")
+    ) {
+      return {
+        id: job.id,
+        jobId: job.id,
+        status: "pending" as const,
+        assets: [],
+        meta,
+      };
+    }
+    if (job.status === "failed" || job.status === "cancelled") {
+      return {
+        id: job.id,
+        jobId: job.id,
+        status: "failed" as const,
+        assets: [],
+        error: job.status === "cancelled" ? "已取消" : "生成失败",
+        meta,
+      };
+    }
+    return {
+      id: job.id,
+      jobId: job.id,
+      status: "succeeded" as const,
+      assets,
+      meta,
+    };
+  });
+}
+
+/** Keep in-flight local/pending rows that the server page has not caught up with. */
+function mergeHistory(
+  remote: ToolHistoryEntry[],
+  localPending: ToolHistoryEntry[],
+): ToolHistoryEntry[] {
+  const remoteJobIds = new Set(
+    remote.map((item) => item.jobId).filter(Boolean) as string[],
+  );
+  const keep = localPending.filter(
+    (item) =>
+      item.status === "pending" &&
+      (!item.jobId || !remoteJobIds.has(item.jobId)),
+  );
+  const byId = new Map<string, ToolHistoryEntry>();
+  for (const item of [...keep, ...remote]) {
+    if (!byId.has(item.id)) byId.set(item.id, item);
+  }
+  return [...byId.values()];
+}
+
 export type ToolPublicModel = {
   id: string;
   name: string;
@@ -78,10 +238,11 @@ export function useAiToolJob(tool: AiToolDef) {
   const [refs, setRefs] = useState<PendingRef[]>([]);
   const [videos, setVideos] = useState<PendingRef[]>([]);
   const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [results, setResults] = useState<ToolResultAsset[]>([]);
-  const [history, setHistory] = useState<ToolResultAsset[]>([]);
+  const [history, setHistory] = useState<ToolHistoryEntry[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
   const [models, setModels] = useState<ToolPublicModel[]>([]);
   const [modelId, setModelId] = useState("");
   const [ratio, setRatio] = useState(tool.ratio ?? "1:1");
@@ -89,12 +250,16 @@ export function useAiToolJob(tool: AiToolDef) {
   const [sizeId, setSizeId] = useState("");
   const [n, setN] = useState(1);
   const [modelsReady, setModelsReady] = useState(false);
-  const jobIdRef = useRef<string | null>(null);
   const refsRef = useRef(refs);
   const videosRef = useRef(videos);
-  jobIdRef.current = jobId;
+  const historyRef = useRef(history);
+  const historyOldestRef = useRef<HistoryJobCursor | null>(null);
+  const historyHasMoreRef = useRef(false);
+  const historyLoadingMoreRef = useRef(false);
   refsRef.current = refs;
   videosRef.current = videos;
+  historyRef.current = history;
+  historyHasMoreRef.current = historyHasMore;
 
   const kindModels = useMemo(
     () => models.filter((item) => item.kind === tool.kind),
@@ -118,6 +283,16 @@ export function useAiToolJob(tool: AiToolDef) {
     layout.resolutions[0];
   const selectedSize: SizeOption | undefined =
     layout.sizes.find((item) => item.id === sizeId) ?? layout.sizes[0];
+
+  const selected = useMemo(
+    () => history.find((item) => item.id === selectedId) ?? null,
+    [history, selectedId],
+  );
+  const results = selected?.status === "succeeded" ? selected.assets : [];
+  const pendingCount = useMemo(
+    () => history.filter((item) => item.status === "pending").length,
+    [history],
+  );
 
   useEffect(() => {
     return () => {
@@ -181,52 +356,171 @@ export function useAiToolJob(tool: AiToolDef) {
     modelId,
   ]);
 
-  useEffect(() => {
-    let cancelled = false;
-    void api<{
-      items: Array<{ assets?: ToolResultAsset[] | null }>;
-    }>(
-      `/jobs?take=24&scope=tools&toolSlug=${encodeURIComponent(tool.slug)}`,
-    )
-      .then((res) => {
-        if (cancelled) return;
-        const assets = (res.items ?? [])
-          .flatMap((job) => job.assets ?? [])
-          .filter((asset) => Boolean(asset?.id && asset?.url))
-          .slice(0, 24);
-        setHistory(assets);
-      })
-      .catch(() => {
-        if (!cancelled) setHistory([]);
+  const loadHistory = useCallback(
+    async (signal?: { cancelled: boolean }) => {
+      setHistoryLoading(true);
+      historyOldestRef.current = null;
+      try {
+        const qs = new URLSearchParams({
+          take: String(HISTORY_PAGE),
+          scope: "tools",
+          toolSlug: tool.slug,
+        });
+        const res = await api<JobsHistoryPage>(`/jobs?${qs}`);
+        if (signal?.cancelled) return;
+        const items = res.items ?? [];
+        const remote = entriesFromJobs(items).filter(
+          (entry) =>
+            entry.status === "pending" ||
+            entry.status === "failed" ||
+            entry.assets.length > 0,
+        );
+        const localPending = historyRef.current.filter(
+          (item) => item.status === "pending",
+        );
+        const next = mergeHistory(remote, localPending);
+        setHistory(next);
+        setHistoryHasMore(Boolean(res.hasMore));
+        historyOldestRef.current = items[0]
+          ? {
+              id: items[0].id,
+              createdAt: items[0].createdAt,
+              finishedAt: items[0].finishedAt,
+            }
+          : null;
+        setSelectedId((prev) => {
+          if (prev && next.some((item) => item.id === prev)) return prev;
+          const firstDone = next.find(
+            (item) => item.status === "succeeded" && item.assets.length,
+          );
+          return firstDone?.id ?? null;
+        });
+      } catch (error) {
+        if (signal?.cancelled || isApiCancelError(error)) return;
+        setHistory((prev) => prev.filter((item) => item.status === "pending"));
+        setHistoryHasMore(false);
+        historyOldestRef.current = null;
+      } finally {
+        if (!signal?.cancelled) setHistoryLoading(false);
+      }
+    },
+    [tool.slug],
+  );
+
+  const loadMoreHistory = useCallback(async () => {
+    if (!historyHasMoreRef.current || historyLoadingMoreRef.current) return;
+    const oldest = historyOldestRef.current;
+    if (!oldest) return;
+
+    historyLoadingMoreRef.current = true;
+    setHistoryLoadingMore(true);
+    try {
+      const qs = new URLSearchParams({
+        take: String(HISTORY_PAGE),
+        scope: "tools",
+        toolSlug: tool.slug,
+        before: jobCursorIso(oldest),
+        beforeId: oldest.id,
       });
-    return () => {
-      cancelled = true;
-    };
+      const res = await api<JobsHistoryPage>(`/jobs?${qs}`);
+      const items = res.items ?? [];
+      if (!items.length) {
+        setHistoryHasMore(Boolean(res.hasMore));
+        return;
+      }
+      const older = entriesFromJobs(items).filter(
+        (entry) =>
+          entry.status === "pending" ||
+          entry.status === "failed" ||
+          entry.assets.length > 0,
+      );
+      setHistory((prev) => {
+        const seen = new Set(prev.map((item) => item.id));
+        return [...prev, ...older.filter((item) => !seen.has(item.id))];
+      });
+      setHistoryHasMore(Boolean(res.hasMore));
+      historyOldestRef.current = {
+        id: items[0].id,
+        createdAt: items[0].createdAt,
+        finishedAt: items[0].finishedAt,
+      };
+    } catch (error) {
+      if (isApiCancelError(error)) return;
+      toast.error(error instanceof Error ? error.message : "加载历史失败");
+    } finally {
+      historyLoadingMoreRef.current = false;
+      setHistoryLoadingMore(false);
+    }
   }, [tool.slug]);
 
+  useEffect(() => {
+    const signal = { cancelled: false };
+    void loadHistory(signal);
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [loadHistory]);
+
   useJobLifecycle({
-    getBusyJobIds: () => {
-      const id = jobIdRef.current;
-      return id ? [id] : [];
-    },
+    getBusyJobIds: () =>
+      historyRef.current
+        .filter((item) => item.status === "pending" && item.jobId)
+        .map((item) => item.jobId as string),
     onCompleted: (payload) => {
-      if (!payload.jobId || payload.jobId !== jobIdRef.current) return;
-      const assets = (payload.assets ?? []).filter(
-        (asset): asset is ToolResultAsset =>
-          Boolean(asset?.id && asset?.url),
-      ).map((asset) => ({ id: asset.id, url: String(asset.url) }));
-      setResults(assets);
-      if (assets.length) {
-        setHistory((prev) => [...assets, ...prev].slice(0, 24));
-      }
-      setBusy(false);
-      setJobId(null);
+      if (!payload.jobId) return;
+      const assets = (payload.assets ?? [])
+        .filter(
+          (asset): asset is ToolResultAsset =>
+            Boolean(asset?.id && asset?.url),
+        )
+        .map((asset) => ({ id: asset.id, url: String(asset.url) }));
+      setHistory((prev) => {
+        const idx = prev.findIndex(
+          (item) => item.jobId === payload.jobId || item.id === payload.jobId,
+        );
+        if (idx < 0) {
+          if (!assets.length) return prev;
+          return [
+            {
+              id: payload.jobId,
+              jobId: payload.jobId,
+              status: "succeeded" as const,
+              assets,
+            },
+            ...prev,
+          ];
+        }
+        const next = [...prev];
+        next[idx] = {
+          ...next[idx],
+          id: payload.jobId,
+          jobId: payload.jobId,
+          status: "succeeded",
+          assets,
+        };
+        return next;
+      });
+      setSelectedId(payload.jobId);
       toast.success("生成完成");
     },
     onFailed: (payload) => {
-      if (!payload.jobId || payload.jobId !== jobIdRef.current) return;
-      setBusy(false);
-      setJobId(null);
+      if (!payload.jobId) return;
+      setHistory((prev) => {
+        const idx = prev.findIndex(
+          (item) => item.jobId === payload.jobId || item.id === payload.jobId,
+        );
+        if (idx < 0) return prev;
+        const next = [...prev];
+        next[idx] = {
+          ...next[idx],
+          id: payload.jobId,
+          jobId: payload.jobId,
+          status: "failed",
+          assets: [],
+          error: payload.error || "生成失败",
+        };
+        return next;
+      });
       toast.error(payload.error || "生成失败");
     },
   });
@@ -342,7 +636,16 @@ export function useAiToolJob(tool: AiToolDef) {
     });
   }, []);
 
-  const clearResults = useCallback(() => setResults([]), []);
+  const selectHistory = useCallback((id: string) => {
+    setSelectedId(id);
+  }, []);
+
+  const clearResults = useCallback(() => setSelectedId(null), []);
+
+  const dismissFailed = useCallback((id: string) => {
+    setHistory((prev) => prev.filter((item) => item.id !== id));
+    setSelectedId((prev) => (prev === id ? null : prev));
+  }, []);
 
   const submit = useCallback(async () => {
     if (tool.status !== "available") {
@@ -372,8 +675,43 @@ export function useAiToolJob(tool: AiToolDef) {
       return;
     }
 
-    setBusy(true);
-    setResults([]);
+    const localId = `pending_${crypto.randomUUID().slice(0, 10)}`;
+    const pendingMeta: ToolHistoryMeta = {
+      prompt,
+      referenceUrls: [],
+      referenceAssetIds: [],
+      modelId: modelId || null,
+      modelName: selectedModel?.name ?? null,
+      channelName: selectedModel?.channel?.name ?? null,
+      ratio:
+        layout.showRatio && selectedAspect
+          ? selectedAspect.id
+          : tool.ratio ?? null,
+      resolution:
+        layout.showResolution && selectedResolution
+          ? selectedResolution.id
+          : null,
+      size:
+        layout.showSizePicker && selectedSize ? selectedSize.id : null,
+      width:
+        layout.showSizePicker && selectedSize ? selectedSize.width : null,
+      height:
+        layout.showSizePicker && selectedSize ? selectedSize.height : null,
+      n: tool.kind === "image" ? n : null,
+      kind: tool.kind === "video" ? "video" : "image",
+      createdAt: new Date().toISOString(),
+    };
+    setHistory((prev) => [
+      {
+        id: localId,
+        status: "pending",
+        assets: [],
+        meta: pendingMeta,
+      },
+      ...prev,
+    ]);
+    setSelectedId(localId);
+
     try {
       const uploaded: { id: string; url: string }[] = [];
       for (const item of [...refs, ...videos]) {
@@ -384,12 +722,13 @@ export function useAiToolJob(tool: AiToolDef) {
         uploaded.push({ id: asset.id, url: asset.url });
       }
 
+      const referenceUrls = uploaded.map((item) => item.url);
       const input: Record<string, unknown> = {
         prompt,
         n: tool.kind === "image" ? n : undefined,
         modelId: modelId || undefined,
         referenceAssetIds: uploaded.map((item) => item.id),
-        referenceUrls: uploaded.map((item) => item.url),
+        referenceUrls,
         toolSlug: tool.slug,
       };
 
@@ -421,10 +760,38 @@ export function useAiToolJob(tool: AiToolDef) {
         method: "POST",
         body: { kind: tool.kind, input },
       });
-      setJobId(job.id);
+      setHistory((prev) =>
+        prev.map((item) =>
+          item.id === localId
+            ? {
+                ...item,
+                id: job.id,
+                jobId: job.id,
+                status: "pending",
+                meta: {
+                  ...pendingMeta,
+                  referenceUrls,
+                  referenceAssetIds: uploaded.map((item) => item.id),
+                },
+              }
+            : item,
+        ),
+      );
+      setSelectedId((prev) => (prev === localId ? job.id : prev));
       toast.success("任务已提交");
     } catch (error) {
-      setBusy(false);
+      setHistory((prev) =>
+        prev.map((item) =>
+          item.id === localId
+            ? {
+                ...item,
+                status: "failed",
+                error:
+                  error instanceof Error ? error.message : "提交失败",
+              }
+            : item,
+        ),
+      );
       if (isApiCancelError(error)) return;
       toast.error(error instanceof Error ? error.message : "提交失败");
     }
@@ -439,19 +806,143 @@ export function useAiToolJob(tool: AiToolDef) {
     refs,
     videos,
     selectedAspect,
+    selectedModel,
     selectedResolution,
     selectedSize,
     tool,
   ]);
+
+  const regenerate = useCallback(
+    async (entry: ToolHistoryEntry) => {
+      if (tool.status !== "available") {
+        toast.error("该工具即将上线");
+        return;
+      }
+      const meta = entry.meta;
+      const prompt = meta?.prompt?.trim();
+      if (!prompt) {
+        toast.error("无法重新生成：缺少提示词");
+        return;
+      }
+
+      const referenceUrls = meta.referenceUrls ?? [];
+      const referenceAssetIds = meta.referenceAssetIds ?? [];
+      const nextModelId = meta.modelId || modelId || undefined;
+      const localId = `pending_${crypto.randomUUID().slice(0, 10)}`;
+      const pendingMeta: ToolHistoryMeta = {
+        ...meta,
+        prompt,
+        referenceUrls,
+        referenceAssetIds,
+        modelId: nextModelId ?? null,
+        modelName:
+          kindModels.find((item) => item.id === nextModelId)?.name ??
+          meta.modelName ??
+          null,
+        createdAt: new Date().toISOString(),
+        finishedAt: null,
+      };
+
+      setHistory((prev) => {
+        const next = [
+          {
+            id: localId,
+            status: "pending" as const,
+            assets: [] as ToolResultAsset[],
+            meta: pendingMeta,
+          },
+          ...(entry.status === "failed"
+            ? prev.filter((item) => item.id !== entry.id)
+            : prev),
+        ];
+        return next;
+      });
+      setSelectedId(localId);
+
+      // Drop the failed job from server so it won't reappear after refresh.
+      if (entry.status === "failed") {
+        const removeId = entry.jobId || entry.id;
+        if (removeId && !removeId.startsWith("pending_")) {
+          void api(`/jobs/${removeId}`, { method: "DELETE" }).catch(() => {
+            /* ignore — UI already removed */
+          });
+        }
+      }
+
+      try {
+        const input: Record<string, unknown> = {
+          prompt,
+          n: tool.kind === "image" ? (meta.n ?? n) : undefined,
+          modelId: nextModelId,
+          referenceAssetIds,
+          referenceUrls,
+          toolSlug: tool.slug,
+        };
+        if (meta.ratio) input.ratio = meta.ratio;
+        if (meta.resolution) input.resolution = meta.resolution;
+        if (meta.size) {
+          input.size = meta.size;
+          if (meta.width) input.width = meta.width;
+          if (meta.height) input.height = meta.height;
+        }
+        if (tool.kind === "video") {
+          input.refMode = "omni";
+        }
+
+        const job = await api<{ id: string }>("/jobs", {
+          method: "POST",
+          body: { kind: tool.kind, input },
+        });
+        setHistory((prev) =>
+          prev.map((item) =>
+            item.id === localId
+              ? {
+                  ...item,
+                  id: job.id,
+                  jobId: job.id,
+                  status: "pending",
+                }
+              : item,
+          ),
+        );
+        setSelectedId((prev) => (prev === localId ? job.id : prev));
+        toast.success("已重新提交");
+      } catch (error) {
+        setHistory((prev) =>
+          prev.map((item) =>
+            item.id === localId
+              ? {
+                  ...item,
+                  status: "failed",
+                  error:
+                    error instanceof Error ? error.message : "重新生成失败",
+                }
+              : item,
+          ),
+        );
+        if (isApiCancelError(error)) return;
+        toast.error(error instanceof Error ? error.message : "重新生成失败");
+      }
+    },
+    [kindModels, modelId, n, tool],
+  );
 
   return {
     refs,
     videos,
     note,
     setNote,
-    busy,
     results,
+    selected,
+    selectedId,
+    selectHistory,
+    dismissFailed,
     history,
+    pendingCount,
+    historyHasMore,
+    historyLoading,
+    historyLoadingMore,
+    loadMoreHistory,
     models: kindModels,
     modelsReady,
     modelId,
@@ -472,5 +963,6 @@ export function useAiToolJob(tool: AiToolDef) {
     removeVideo,
     clearResults,
     submit,
+    regenerate,
   };
 }

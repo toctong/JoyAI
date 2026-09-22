@@ -97,21 +97,24 @@ function applyJobScopeQuery(
     qb.andWhere("job.kind IN (:...studioKinds)", {
       studioKinds: [JobKind.image, JobKind.video],
     });
+    // Exclude tools / manju jobs that only mark origin in JSON input.
+    qb.andWhere(
+      "(JSON_EXTRACT(job.input, '$.toolSlug') IS NULL OR JSON_TYPE(JSON_EXTRACT(job.input, '$.toolSlug')) = 'NULL')",
+    );
+    qb.andWhere(
+      "(JSON_EXTRACT(job.input, '$.manjuProjectId') IS NULL OR JSON_TYPE(JSON_EXTRACT(job.input, '$.manjuProjectId')) = 'NULL')",
+    );
     return;
   }
   if (scope === "canvas") {
     if (ids.canvasProjectId) {
       qb.andWhere(
-        "(job.canvasProjectId = :canvasProjectId OR job.input LIKE :canvasInput)",
-        {
-          canvasProjectId: ids.canvasProjectId,
-          canvasInput: `%"canvasProjectId":"${ids.canvasProjectId}"%`,
-        },
+        "(job.canvasProjectId = :canvasProjectId OR JSON_UNQUOTE(JSON_EXTRACT(job.input, '$.canvasProjectId')) = :canvasProjectId)",
+        { canvasProjectId: ids.canvasProjectId },
       );
     } else {
       qb.andWhere(
-        "(job.canvasProjectId IS NOT NULL OR job.input LIKE :canvasAny)",
-        { canvasAny: '%"canvasProjectId":"%' },
+        "(job.canvasProjectId IS NOT NULL OR (JSON_EXTRACT(job.input, '$.canvasProjectId') IS NOT NULL AND JSON_TYPE(JSON_EXTRACT(job.input, '$.canvasProjectId')) <> 'NULL'))",
       );
     }
     return;
@@ -119,13 +122,14 @@ function applyJobScopeQuery(
   if (scope === "manju") {
     qb.andWhere("job.canvasProjectId IS NULL");
     if (ids.manjuProjectId) {
-      qb.andWhere("job.input LIKE :manjuInput", {
-        manjuInput: `%"manjuProjectId":"${ids.manjuProjectId}"%`,
-      });
+      qb.andWhere(
+        "JSON_UNQUOTE(JSON_EXTRACT(job.input, '$.manjuProjectId')) = :manjuProjectId",
+        { manjuProjectId: ids.manjuProjectId },
+      );
     } else {
-      qb.andWhere("job.input LIKE :manjuAny", {
-        manjuAny: '%"manjuProjectId":"%',
-      });
+      qb.andWhere(
+        "(JSON_EXTRACT(job.input, '$.manjuProjectId') IS NOT NULL AND JSON_TYPE(JSON_EXTRACT(job.input, '$.manjuProjectId')) <> 'NULL')",
+      );
     }
     return;
   }
@@ -134,12 +138,16 @@ function applyJobScopeQuery(
     qb.andWhere("job.kind IN (:...toolKinds)", {
       toolKinds: [JobKind.image, JobKind.video],
     });
+    // MySQL JSON columns are binary — LIKE '%"toolSlug":"…"%' often matches nothing.
     if (ids.toolSlug) {
-      qb.andWhere("job.input LIKE :toolSlugInput", {
-        toolSlugInput: `%"toolSlug":"${ids.toolSlug}"%`,
-      });
+      qb.andWhere(
+        "JSON_UNQUOTE(JSON_EXTRACT(job.input, '$.toolSlug')) = :toolSlug",
+        { toolSlug: ids.toolSlug },
+      );
     } else {
-      qb.andWhere("job.input LIKE :toolAny", { toolAny: '%"toolSlug":"%' });
+      qb.andWhere(
+        "(JSON_EXTRACT(job.input, '$.toolSlug') IS NOT NULL AND JSON_TYPE(JSON_EXTRACT(job.input, '$.toolSlug')) <> 'NULL')",
+      );
     }
   }
 }

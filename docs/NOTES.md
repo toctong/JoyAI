@@ -21,6 +21,14 @@
 - 生图/视频禁止 HTTP 同步长阻塞
 - poll 退避可配置；失败写 Job.error
 - Redis 与 MySQL 本地都由 `docker compose up -d` 提供（库 `joyai`，连接串 `DATABASE_URL`）
+- 前端完成态：**Socket 推送 + `GET /jobs/:id` 对账**（`useJobLifecycle`）；正确性不依赖外层反代开 WS
+- 生产镜像入口为 nginx `:3000`（Next + Nest）；飞牛外层只需 HTTPS → 18080
+
+## 时区
+
+- TypeORM `timezone: "Z"`；连接池 `SET time_zone = '+00:00'`；`createdAt`/`updatedAt` 用 `CURRENT_TIMESTAMP(3)`（MySQL 不允许 DEFAULT UTC_TIMESTAMP）
+- MySQL compose：`TZ=UTC` + `--default-time-zone=+00:00`（飞牛 db 项目改完需重启）
+- App 容器可保留 `TZ=Asia/Shanghai`（日志本地感）；库内时刻一律按 UTC 存
 
 ## 画板
 

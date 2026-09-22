@@ -2,6 +2,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
 }
 
 .joy-photo-tool {
@@ -15,6 +18,7 @@
   background: transparent;
   color: #fff;
   cursor: pointer;
+  pointer-events: auto;
   opacity: 0.92;
   transition: opacity 0.15s ease, background 0.15s ease;
 }
@@ -27,4 +31,10 @@
 .joy-photo-tool:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* Above Radix Dialog (z-50) so nested lightbox receives clicks */
+.PhotoView-Portal {
+  z-index: 10000 !important;
+  pointer-events: auto;
 }

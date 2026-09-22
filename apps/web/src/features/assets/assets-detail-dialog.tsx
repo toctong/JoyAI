@@ -26,6 +26,10 @@ import { copyText } from "@/shared/lib/clipboard";
 import { downloadAsset } from "@/shared/lib/download-asset";
 import { cn } from "@/shared/lib/utils";
 import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
+import {
+  isJoyPhotoOpen,
+  useDialogPhotoGuard,
+} from "@/shared/ui/use-dialog-photo-guard";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import { ExplorePlyrPlayer } from "@/features/explore/explore-plyr-player";
 import { ExploreDialogSkeleton } from "@/features/explore/explore-skeleton";
@@ -78,6 +82,8 @@ export function AssetsDetailDialog({
   locateHref,
 }: Props) {
   const [ready, setReady] = useState(false);
+  const { photoOpen, onPhotoVisibleChange, guardOpenChange, contentProps } =
+    useDialogPhotoGuard();
 
   useEffect(() => {
     if (!open) return;
@@ -87,6 +93,11 @@ export function AssetsDetailDialog({
       document.body.style.overflow = prev;
     };
   }, [open]);
+
+  useEffect(() => {
+    if (open) return;
+    onPhotoVisibleChange(false);
+  }, [open, onPhotoVisibleChange]);
 
   useEffect(() => {
     setReady(false);
@@ -110,6 +121,7 @@ export function AssetsDetailDialog({
     asset?.source === "studio" ||
     asset?.source === "canvas" ||
     asset?.source === "manju" ||
+    asset?.source === "tools" ||
     asset?.source === "upload"
       ? asset.source
       : asset && !asset.jobId && !asset.job
@@ -130,7 +142,9 @@ export function AssetsDetailDialog({
         ? `画布${kindNoun}`
         : assetSource === "manju"
           ? `漫剧${kindNoun}`
-          : `创作${kindNoun}`;
+          : assetSource === "tools"
+            ? `工具${kindNoun}`
+            : `创作${kindNoun}`;
   const prompt = asset?.job?.prompt?.trim() || "";
   const refUrls = asset?.job?.referenceUrls?.filter(Boolean) ?? [];
   const modelLabel = [asset?.job?.modelName, asset?.job?.channelName]
@@ -174,7 +188,13 @@ export function AssetsDetailDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      // Non-modal so PhotoView (body portal) is not aria-hidden/inert.
+      // Overlay still blocks the page — do not toggle modal while open.
+      modal={false}
+      onOpenChange={(next) => guardOpenChange(next, onOpenChange)}
+    >
       <DialogPortal>
         <DialogOverlay className="joy-explore-dialog-overlay" />
         <DialogPrimitive.Content
@@ -184,8 +204,16 @@ export function AssetsDetailDialog({
             "outline-none data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+            photoOpen && "pointer-events-none",
           )}
           aria-describedby={undefined}
+          onPointerDownOutside={(event) => {
+            if (photoOpen || isJoyPhotoOpen()) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (photoOpen || isJoyPhotoOpen()) event.preventDefault();
+          }}
+          {...contentProps}
         >
           <DialogTitle className="sr-only">
             {isVideo
@@ -202,7 +230,7 @@ export function AssetsDetailDialog({
           </DialogClose>
 
           {asset ? (
-            <JoyPhotoProvider>
+            <JoyPhotoProvider onVisibleChange={onPhotoVisibleChange}>
             <div className="joy-explore-dialog-inner">
               <div className="joy-explore-dialog-media">
                 <div className="joy-explore-dialog-stage">
@@ -283,6 +311,7 @@ export function AssetsDetailDialog({
                           style={{ cursor: "zoom-in" }}
                           onLoad={markReady}
                           onError={markReady}
+                          onClick={(event) => event.stopPropagation()}
                         />
                       </PhotoView>
                     )}

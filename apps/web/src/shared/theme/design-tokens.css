@@ -70,6 +70,7 @@
   /* ── Layout chrome ── */
   --joy-sidebar-width: 72px;
   --joy-tool-sidebar-width: 360px;
+  --joy-tool-history-width: 148px;
 
   /* ── Canvas ── */
   --joy-canvas-chrome-font: var(--joy-font-label);

@@ -113,32 +113,6 @@
   position: relative;
 }
 
-.joy-assets-locate {
-  position: absolute;
-  right: 10px;
-  bottom: 10px;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  backdrop-filter: blur(8px);
-  opacity: 0;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.joy-assets-item:hover .joy-assets-locate {
-  opacity: 1;
-}
-
-.joy-assets-locate:hover {
-  transform: scale(1.06);
-  background: rgba(0, 0, 0, 0.72);
-}
-
 @media (min-width: 720px) {
   .joy-assets-grid {
     grid-template-columns: repeat(4, 1fr);
