@@ -54,7 +54,9 @@ export function getJobsSocket(): Socket {
 
   socket = io(`${resolveWsBase()}/jobs`, {
     auth: { token },
-    transports: ["websocket", "polling"],
+    // Prefer polling first: Feiniu / Next HTTPS reverse proxies often break
+    // WebSocket upgrade; polling still reaches Nest via /socket.io rewrite.
+    transports: ["polling", "websocket"],
     autoConnect: true,
     reconnection: true,
   });

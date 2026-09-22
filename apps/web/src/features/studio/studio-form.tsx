@@ -927,6 +927,16 @@ function StudioInner() {
   const hasJobs = jobs.length > 0;
   const hasBusyJobs = jobs.some((j) => isBusy(j.status));
 
+  // Safety net (same idea as canvas): if WS events are missed behind a reverse
+  // proxy, keep pulling latest studio jobs while any are still in-flight.
+  useEffect(() => {
+    if (!hasBusyJobs) return;
+    const tick = () => void refreshLatest();
+    tick();
+    const timer = window.setInterval(tick, 4000);
+    return () => window.clearInterval(timer);
+  }, [hasBusyJobs, refreshLatest]);
+
   // 进行中任务：每秒从 0s 起跳累计用时
   useEffect(() => {
     if (!hasBusyJobs) return;
