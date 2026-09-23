@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   Puzzle,
+  ScrollText,
   Settings,
   Users,
   Waypoints,
@@ -15,7 +16,6 @@ import {
 import { MonitorActivity } from "@/components/icons/monitor-activity";
 import { cn } from "@/shared/lib/utils";
 import { useAuthHydrated, useAuthStore } from "@/shared/lib/auth-store";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import "./admin-section.css";
 
 const tabs: {
@@ -30,6 +30,7 @@ const tabs: {
   { href: "/admin/models", label: "模型", icon: LayoutGrid },
   { href: "/admin/plugins", label: "插件", icon: Puzzle },
   { href: "/admin/users", label: "用户", icon: Users },
+  { href: "/admin/logs", label: "日志", icon: ScrollText },
   { href: "/admin/settings", label: "设置", icon: Settings },
 ];
 
@@ -101,11 +102,11 @@ export function AdminSection({ children }: { children: React.ReactNode }) {
         </header>
       ) : null}
 
-      <ScrollArea className="joy-admin-scroll" type="hover">
+      <div className="joy-admin-scroll">
         <div className="joy-admin-body">
           <div className="joy-admin-inner">{children}</div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

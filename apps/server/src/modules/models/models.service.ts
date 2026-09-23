@@ -264,52 +264,9 @@ export class ModelsService {
     const catalogIds = new Set(catalog.map((item) => item.remoteId));
 
     for (const item of catalog) {
-      const aliasIds = CATALOG_REMOTE_ID_ALIASES[item.remoteId] ?? [];
-      const existing =
-        (await this.models.findOne({
-          where: { channelId, remoteId: item.remoteId },
-        })) ??
-        (aliasIds.length
-          ? await this.models.findOne({
-              where: { channelId, remoteId: In(aliasIds) },
-            })
-          : null);
-
-      if (existing) {
-        if (opts?.forceRename) existing.name = item.name;
-        existing.remoteId = item.remoteId;
-        existing.description = item.description ?? existing.description;
-        existing.pricing =
-          item.pricing != null
-            ? (item.pricing as Record<string, unknown>)
-            : null;
-        existing.capabilities =
-          (item.capabilities as Record<string, unknown>) ?? null;
-        existing.kind = item.kind as JobKind;
-        // Catalog 里重新出现的模型自动启用（之前因下架被禁用的会回来）
-        existing.enabled = true;
-        await this.models.save(existing);
-        updated += 1;
-      } else {
-        await this.models.save(
-          this.models.create({
-            channelId,
-            name: item.name,
-            kind: item.kind as JobKind,
-            remoteId: item.remoteId,
-            description: item.description ?? null,
-            pricing:
-              item.pricing != null
-                ? (item.pricing as Record<string, unknown>)
-                : null,
-            capabilities:
-              (item.capabilities as Record<string, unknown>) ?? null,
-            enabled: true,
-            isDefault: item.isDefault ?? false,
-          }),
-        );
-        created += 1;
-      }
+      const result = await this.upsertCatalogItem(channelId, item, opts);
+      if (result === "created") created += 1;
+      else updated += 1;
     }
 
     const stale = await this.models.find({ where: { channelId } });
@@ -325,12 +282,133 @@ export class ModelsService {
     return { created, updated, disabled, skipped };
   }
 
-  catalogPreview(platform: string) {
+  /**
+   * Upsert only the selected catalog remoteIds. Does not disable other models.
+   */
+  async importCatalogSelect(
+    channelId: string,
+    remoteIds: string[],
+    opts?: { forceRename?: boolean },
+  ): Promise<{
+    created: number;
+    updated: number;
+    skipped: number;
+  }> {
+    const channel = await this.channels.findOne({ where: { id: channelId } });
+    if (!channel) throw new NotFoundException("渠道不存在");
+
+    const catalog = getCatalogForPlatform(channel.platform);
+    if (!catalog.length) {
+      return { created: 0, updated: 0, skipped: 0 };
+    }
+
+    const wanted = new Set(
+      remoteIds.map((id) => id.trim()).filter(Boolean),
+    );
+    if (!wanted.size) {
+      return { created: 0, updated: 0, skipped: 0 };
+    }
+
+    const byId = new Map(catalog.map((item) => [item.remoteId, item]));
+    // Also allow selecting via legacy alias that still points at a catalog entry.
+    for (const item of catalog) {
+      for (const alias of CATALOG_REMOTE_ID_ALIASES[item.remoteId] ?? []) {
+        if (!byId.has(alias)) byId.set(alias, item);
+      }
+    }
+
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const seen = new Set<string>();
+
+    for (const id of wanted) {
+      const item = byId.get(id);
+      if (!item) {
+        skipped += 1;
+        continue;
+      }
+      if (seen.has(item.remoteId)) continue;
+      seen.add(item.remoteId);
+      const result = await this.upsertCatalogItem(channelId, item, opts);
+      if (result === "created") created += 1;
+      else updated += 1;
+    }
+
+    return { created, updated, skipped };
+  }
+
+  private async upsertCatalogItem(
+    channelId: string,
+    item: {
+      name: string;
+      remoteId: string;
+      kind: string;
+      description?: string;
+      pricing?: unknown;
+      capabilities?: unknown;
+      isDefault?: boolean;
+    },
+    opts?: { forceRename?: boolean },
+  ): Promise<"created" | "updated"> {
+    const aliasIds = CATALOG_REMOTE_ID_ALIASES[item.remoteId] ?? [];
+    const existing =
+      (await this.models.findOne({
+        where: { channelId, remoteId: item.remoteId },
+      })) ??
+      (aliasIds.length
+        ? await this.models.findOne({
+            where: { channelId, remoteId: In(aliasIds) },
+          })
+        : null);
+
+    if (existing) {
+      if (opts?.forceRename) existing.name = item.name;
+      existing.remoteId = item.remoteId;
+      existing.description = item.description ?? existing.description;
+      existing.pricing =
+        item.pricing != null
+          ? (item.pricing as Record<string, unknown>)
+          : null;
+      existing.capabilities =
+        (item.capabilities as Record<string, unknown>) ?? null;
+      existing.kind = item.kind as JobKind;
+      existing.enabled = true;
+      await this.models.save(existing);
+      return "updated";
+    }
+
+    await this.models.save(
+      this.models.create({
+        channelId,
+        name: item.name,
+        kind: item.kind as JobKind,
+        remoteId: item.remoteId,
+        description: item.description ?? null,
+        pricing:
+          item.pricing != null
+            ? (item.pricing as Record<string, unknown>)
+            : null,
+        capabilities:
+          (item.capabilities as Record<string, unknown>) ?? null,
+        enabled: true,
+        isDefault: item.isDefault ?? false,
+      }),
+    );
+    return "created";
+  }
+
+  catalogPreview(platform: string, kind?: string) {
     const preset = CHANNEL_PRESETS[platform as ProviderPlatformId] ?? null;
+    let models = getCatalogForPlatform(platform);
+    const kindFilter = kind?.trim();
+    if (kindFilter) {
+      models = models.filter((item) => item.kind === kindFilter);
+    }
     return {
       platform,
       preset,
-      models: getCatalogForPlatform(platform),
+      models,
     };
   }
 }

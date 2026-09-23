@@ -1,30 +1,76 @@
-/* Admin — fixed header + ScrollArea body */
+/* Admin — Volcengine-inspired console chrome (scoped to .joy-admin) */
 
 .joy-admin {
+  --ve-bg: #f2f3f5;
+  --ve-surface: #ffffff;
+  --ve-border: #e5e6eb;
+  --ve-border-strong: #c9cdd4;
+  --ve-text: #1d2129;
+  --ve-text-secondary: #4e5969;
+  --ve-text-muted: #86909c;
+  --ve-primary: #1664ff;
+  --ve-primary-soft: #e8f3ff;
+  --ve-hover: #f7f8fa;
+  --ve-radius-sm: 2px;
+  --ve-radius: 2px;
+  --ve-radius-lg: 4px;
+  --ve-control-h: 32px;
+
+  /* Bridge shadcn tokens → console palette (controls inherit) */
+  --background: var(--ve-surface);
+  --card: var(--ve-surface);
+  --popover: var(--ve-surface);
+  --foreground: var(--ve-text);
+  --muted: var(--ve-hover);
+  --muted-foreground: var(--ve-text-muted);
+  --accent: var(--ve-hover);
+  --accent-foreground: var(--ve-text);
+  --secondary: var(--ve-hover);
+  --secondary-foreground: var(--ve-text);
+  --border: var(--ve-border);
+  --input: var(--ve-border);
+  --ring: var(--ve-primary);
+  --primary: var(--ve-primary);
+  --primary-foreground: #ffffff;
+
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: var(--card);
+  background: var(--ve-bg);
+  color: var(--ve-text);
+}
+
+.dark .joy-admin {
+  --ve-bg: #17171a;
+  --ve-surface: #232324;
+  --ve-border: #2e2e30;
+  --ve-border-strong: #484849;
+  --ve-text: #f6f6f6;
+  --ve-text-secondary: #c5c5c5;
+  --ve-text-muted: #86909c;
+  --ve-primary: #3c7eff;
+  --ve-primary-soft: color-mix(in oklab, #3c7eff 18%, transparent);
+  --ve-hover: #2a2a2b;
+  --primary-foreground: #ffffff;
 }
 
 .joy-admin-header {
   z-index: 20;
   flex-shrink: 0;
-  border-bottom: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
-  background: color-mix(in oklab, var(--card) 92%, transparent);
-  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--ve-border);
+  background: var(--ve-surface);
 }
 
 .joy-admin-header-inner {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
   width: 100%;
-  padding: 10px 16px;
+  padding: 0 20px;
 }
 
 .joy-admin-tab {
@@ -32,30 +78,31 @@
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 0;
-  border-radius: 10px;
-  padding: 8px 14px;
-  color: var(--muted-foreground);
+  height: 44px;
+  border-radius: 0;
+  padding: 0 14px;
+  color: var(--ve-text-secondary);
   text-decoration: none;
   outline: none;
-  transition: color 0.15s ease, background 0.15s ease;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .joy-admin-tab-icon-wrap {
   display: inline-flex;
-  height: 20px;
-  width: 20px;
+  height: 16px;
+  width: 16px;
   align-items: center;
   justify-content: center;
 }
 
 .joy-admin-tab-icon {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
+  opacity: 0.75;
 }
 
 .joy-admin-tab-label {
@@ -63,15 +110,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: left;
   font-size: 13px;
   font-weight: 500;
   line-height: 20px;
-  letter-spacing: -0.42px;
+  letter-spacing: 0;
 }
 
 .joy-admin-tab:hover {
-  color: var(--foreground);
+  color: var(--ve-primary);
 }
 
 .joy-admin-tab:hover .joy-admin-tab-icon {
@@ -79,8 +125,9 @@
 }
 
 .joy-admin-tab.is-active {
-  color: var(--foreground);
-  background: var(--secondary);
+  color: var(--ve-primary);
+  background: transparent;
+  border-bottom-color: var(--ve-primary);
 }
 
 .joy-admin-tab.is-active .joy-admin-tab-icon {
@@ -90,60 +137,101 @@
 .joy-admin-scroll {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .joy-admin-body {
-  padding: 24px 28px 72px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 20px 16px;
 }
 
 .joy-admin-inner {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   width: 100%;
+  max-width: none;
+  margin-inline: 0;
 }
 
 .joy-admin-title {
   margin: 0;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
-  color: var(--foreground);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 28px;
+  color: var(--ve-text);
 }
 
 .joy-admin-desc {
-  margin: 8px 0 0;
-  max-width: 42rem;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--muted-foreground);
+  margin: 4px 0 0;
+  max-width: 48rem;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ve-text-muted);
 }
 
 .joy-admin-panel {
   overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
-  background: var(--card);
+  border-radius: var(--ve-radius-lg);
+  border: 1px solid var(--ve-border);
+  background: var(--ve-surface);
+  box-shadow: none;
+}
+
+/* Table / list body scrolls inside the panel; page footer stays put */
+.joy-admin-panel-scroll,
+.joy-admin-panel.admin-table {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Card grids also scroll inside ListPageMain */
+.joy-admin-scroll-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .joy-admin-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+  align-items: stretch;
 }
 
 .joy-admin-card-item {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 16px;
-  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
-  background: color-mix(in oklab, var(--card) 96%, var(--background));
-  transition: border-color 0.15s ease, background 0.15s ease;
+  gap: 10px;
+  height: 100%;
+  min-height: 168px;
+  padding: 14px 16px;
+  border-radius: var(--ve-radius-lg);
+  border: 1px solid var(--ve-border);
+  background: var(--ve-surface);
+  box-shadow: none;
+  transition: border-color 0.15s ease;
+}
+
+.joy-admin-card-item-body {
+  flex: 1 1 auto;
+  min-height: 52px;
+  max-height: 56px;
+  overflow: hidden;
 }
 
 .joy-admin-card-item:hover {
-  border-color: color-mix(in oklab, var(--border) 70%, var(--foreground) 12%);
-  background: var(--card);
+  border-color: color-mix(in oklab, var(--ve-primary) 35%, var(--ve-border));
 }
 
 .joy-admin-card-item-head {
@@ -157,20 +245,29 @@
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.35;
-  color: var(--foreground);
+  letter-spacing: 0;
+  line-height: 22px;
+  color: var(--ve-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .joy-admin-card-item-sub {
-  margin: 4px 0 0;
-  font-size: 11px;
-  line-height: 1.4;
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 18px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: var(--muted-foreground);
+  color: var(--ve-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/** Single horizontal row — ellipsis when overflow */
+.joy-admin-card-item-sub.is-row {
+  margin: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -189,8 +286,8 @@
   justify-content: space-between;
   gap: 8px;
   margin-top: auto;
-  padding-top: 4px;
-  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  padding-top: 10px;
+  border-top: 1px solid var(--ve-border);
 }
 
 .joy-admin-panel-head {
@@ -199,45 +296,479 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 18px;
-  border-bottom: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ve-border);
 }
 
 .joy-admin-empty {
   display: flex;
-  min-height: 36vh;
+  min-height: 32vh;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 48px 24px;
+  gap: 6px;
+  padding: 40px 24px;
   text-align: center;
-  color: var(--muted-foreground);
+  color: var(--ve-text-muted);
 }
 
 .joy-admin-empty-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--foreground);
+  color: var(--ve-text);
 }
 
 .joy-admin-empty-desc {
   margin: 0;
   max-width: 22rem;
   font-size: 13px;
-  line-height: 1.5;
-  color: color-mix(in oklab, var(--muted-foreground) 90%, transparent);
+  line-height: 20px;
+  color: var(--ve-text-muted);
+}
+
+/* Controls — subtle radius + console colors, no soft shadows */
+.joy-admin input:not([type="checkbox"]):not([type="radio"]),
+.joy-admin textarea,
+.joy-admin button,
+.joy-admin [data-slot="select-trigger"],
+.joy-admin [role="combobox"],
+.joy-admin [role="checkbox"],
+.joy-admin [role="switch"],
+.joy-admin [role="switch"] span,
+.joy-admin [data-slot="checkbox"],
+.joy-admin .shadow,
+.joy-admin .shadow-sm,
+.joy-admin .shadow-md,
+.joy-admin .shadow-lg,
+.joy-admin .shadow-xl {
+  box-shadow: none !important;
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+.joy-admin .rounded-xl,
+.joy-admin .rounded-lg,
+.joy-admin .rounded-md {
+  border-radius: var(--ve-radius) !important;
+}
+
+.joy-admin-panel,
+.joy-admin-card-item {
+  border-radius: var(--ve-radius-lg) !important;
+}
+
+.joy-admin input:not([type="checkbox"]):not([type="radio"]):not(.border-0):not(.bg-transparent),
+.joy-admin textarea,
+.joy-admin [data-slot="select-trigger"],
+.joy-admin [role="combobox"],
+.joy-admin button[role="combobox"],
+.joy-admin button[aria-haspopup="listbox"] {
+  height: var(--ve-control-h);
+  min-height: var(--ve-control-h);
+  border-radius: var(--ve-radius) !important;
+  border-color: var(--ve-border) !important;
+  background-color: var(--ve-surface) !important;
+  color: var(--ve-text) !important;
+  font-size: 13px;
+}
+
+.joy-admin textarea {
+  height: auto;
+  min-height: 72px;
+}
+
+.joy-admin input::placeholder,
+.joy-admin textarea::placeholder {
+  color: var(--ve-text-muted) !important;
+}
+
+.joy-admin input:not(.border-0):hover:not(:disabled):not(:focus),
+.joy-admin textarea:hover:not(:disabled):not(:focus),
+.joy-admin [data-slot="select-trigger"]:hover:not(:disabled),
+.joy-admin [role="combobox"]:hover:not(:disabled),
+.joy-admin button[aria-haspopup="listbox"]:hover:not(:disabled) {
+  border-color: var(--ve-border-strong) !important;
+}
+
+.joy-admin input:not(.border-0):focus,
+.joy-admin input:not(.border-0):focus-visible,
+.joy-admin textarea:focus,
+.joy-admin textarea:focus-visible,
+.joy-admin [data-slot="select-trigger"]:focus,
+.joy-admin [data-slot="select-trigger"]:focus-visible,
+.joy-admin [role="combobox"]:focus,
+.joy-admin [role="combobox"]:focus-visible,
+.joy-admin button[aria-haspopup="listbox"]:focus-visible,
+.joy-admin button:focus-visible,
+.joy-admin [role="checkbox"]:focus-visible,
+.joy-admin [role="switch"]:focus-visible {
+  box-shadow: none !important;
+  border-color: var(--ve-primary) !important;
+  outline: none !important;
+  --tw-ring-width: 0 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+.joy-admin button {
+  border-radius: var(--ve-radius) !important;
+}
+
+.joy-admin button.bg-primary,
+.joy-admin button[class*="bg-primary"] {
+  background-color: var(--ve-primary) !important;
+  color: #fff !important;
+  border-color: var(--ve-primary) !important;
+}
+
+.joy-admin button.bg-primary:hover,
+.joy-admin button[class*="bg-primary"]:hover {
+  background-color: color-mix(in oklab, var(--ve-primary) 88%, #000) !important;
+}
+
+.joy-admin button.border,
+.joy-admin button[class*="border-input"],
+.joy-admin button.variant-outline {
+  border-color: var(--ve-border) !important;
+  background-color: var(--ve-surface) !important;
+  color: var(--ve-text) !important;
+}
+
+.joy-admin button.border:hover,
+.joy-admin button[class*="border-input"]:hover {
+  border-color: var(--ve-border-strong) !important;
+  background-color: var(--ve-hover) !important;
+}
+
+.joy-admin [role="checkbox"],
+.joy-admin [data-slot="checkbox"] {
+  border-radius: 2px !important;
+  border-color: var(--ve-border-strong) !important;
+  background-color: var(--ve-surface) !important;
+  color: #fff !important;
+}
+
+.joy-admin [role="checkbox"][data-state="checked"],
+.joy-admin [data-slot="checkbox"][data-state="checked"] {
+  background-color: var(--ve-primary) !important;
+  border-color: var(--ve-primary) !important;
+}
+
+.joy-admin [role="switch"] {
+  border-radius: 999px !important;
+  background-color: var(--ve-border-strong) !important;
+}
+
+.joy-admin [role="switch"][data-state="checked"] {
+  background-color: var(--ve-primary) !important;
+}
+
+.joy-admin [role="switch"] span {
+  border-radius: 999px !important;
+  background-color: #fff !important;
+}
+
+.joy-admin .admin-table thead tr {
+  background: var(--ve-hover);
+}
+
+.joy-admin .admin-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 40px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ve-text-secondary);
+  border-bottom: 1px solid var(--ve-border);
+  background: var(--ve-hover);
+}
+
+.joy-admin .admin-table tbody td {
+  height: 48px;
+  font-size: 13px;
+  color: var(--ve-text);
+  border-bottom: 1px solid var(--ve-border);
+}
+
+.joy-admin .admin-table tbody tr:hover {
+  background: var(--ve-hover);
+}
+
+.joy-admin .admin-table th.admin-col-sticky-right,
+.joy-admin .admin-table td.admin-col-sticky-right {
+  position: sticky;
+  right: 0;
+  background: var(--ve-surface);
+}
+
+.joy-admin .admin-table thead th.admin-col-sticky-right {
+  z-index: 3;
+  background: var(--ve-hover);
+}
+
+.joy-admin .admin-table tbody td.admin-col-sticky-right {
+  z-index: 1;
+}
+
+.joy-admin .admin-table tbody tr:hover td.admin-col-sticky-right {
+  background: var(--ve-hover);
+}
+
+/* Drawer (side sheet) — portaled outside .joy-admin, style by class */
+.joy-admin-drawer {
+  --ve-bg: #f2f3f5;
+  --ve-surface: #ffffff;
+  --ve-border: #e5e6eb;
+  --ve-border-strong: #c9cdd4;
+  --ve-text: #1d2129;
+  --ve-text-secondary: #4e5969;
+  --ve-text-muted: #86909c;
+  --ve-primary: #1664ff;
+  --ve-primary-soft: #e8f3ff;
+  --ve-hover: #f7f8fa;
+  --ve-radius: 2px;
+  --ve-radius-lg: 4px;
+  --ve-control-h: 32px;
+  --background: var(--ve-surface);
+  --card: var(--ve-surface);
+  --popover: var(--ve-surface);
+  --foreground: var(--ve-text);
+  --muted: var(--ve-hover);
+  --muted-foreground: var(--ve-text-muted);
+  --accent: var(--ve-hover);
+  --accent-foreground: var(--ve-text);
+  --secondary: var(--ve-hover);
+  --secondary-foreground: var(--ve-text);
+  --border: var(--ve-border);
+  --input: var(--ve-border);
+  --ring: var(--ve-primary);
+  --primary: var(--ve-primary);
+  --primary-foreground: #ffffff;
+
+  border-left: 1px solid var(--ve-border) !important;
+  background: var(--ve-surface) !important;
+  color: var(--ve-text);
+  padding: 0 !important;
+  gap: 0 !important;
+  box-shadow: none !important;
+  --tw-shadow: 0 0 #0000 !important;
+}
+
+.dark .joy-admin-drawer {
+  --ve-bg: #17171a;
+  --ve-surface: #232324;
+  --ve-border: #2e2e30;
+  --ve-border-strong: #484849;
+  --ve-text: #f6f6f6;
+  --ve-text-secondary: #c5c5c5;
+  --ve-text-muted: #86909c;
+  --ve-primary: #3c7eff;
+  --ve-primary-soft: color-mix(in oklab, #3c7eff 18%, transparent);
+  --ve-hover: #2a2a2b;
+}
+
+.joy-admin-drawer .rounded-xl,
+.joy-admin-drawer .rounded-lg,
+.joy-admin-drawer .rounded-md {
+  border-radius: var(--ve-radius) !important;
+}
+
+.joy-admin-drawer button,
+.joy-admin-drawer input,
+.joy-admin-drawer textarea,
+.joy-admin-drawer [data-slot="select-trigger"],
+.joy-admin-drawer [role="combobox"],
+.joy-admin-drawer [role="checkbox"],
+.joy-admin-drawer [role="switch"],
+.joy-admin-drawer [role="switch"] span,
+.joy-admin-drawer [data-slot="checkbox"],
+.joy-admin-drawer .shadow,
+.joy-admin-drawer .shadow-sm,
+.joy-admin-drawer .shadow-md,
+.joy-admin-drawer .shadow-lg {
+  box-shadow: none !important;
+  --tw-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+.joy-admin-drawer input:not([type="checkbox"]):not([type="radio"]):not(.border-0):not(.bg-transparent),
+.joy-admin-drawer textarea,
+.joy-admin-drawer [data-slot="select-trigger"],
+.joy-admin-drawer [role="combobox"],
+.joy-admin-drawer button[role="combobox"],
+.joy-admin-drawer button[aria-haspopup="listbox"] {
+  height: var(--ve-control-h);
+  min-height: var(--ve-control-h);
+  border-radius: var(--ve-radius) !important;
+  border-color: var(--ve-border) !important;
+  background-color: var(--ve-surface) !important;
+  color: var(--ve-text) !important;
+  font-size: 13px;
+}
+
+.joy-admin-drawer textarea {
+  height: auto;
+  min-height: 72px;
+}
+
+.joy-admin-drawer input::placeholder,
+.joy-admin-drawer textarea::placeholder {
+  color: var(--ve-text-muted) !important;
+}
+
+.joy-admin-drawer input:hover:not(:disabled):not(:focus),
+.joy-admin-drawer textarea:hover:not(:disabled):not(:focus),
+.joy-admin-drawer [data-slot="select-trigger"]:hover:not(:disabled),
+.joy-admin-drawer [role="combobox"]:hover:not(:disabled) {
+  border-color: var(--ve-border-strong) !important;
+}
+
+.joy-admin-drawer input:focus,
+.joy-admin-drawer input:focus-visible,
+.joy-admin-drawer textarea:focus,
+.joy-admin-drawer textarea:focus-visible,
+.joy-admin-drawer [data-slot="select-trigger"]:focus,
+.joy-admin-drawer [data-slot="select-trigger"]:focus-visible,
+.joy-admin-drawer [role="combobox"]:focus-visible,
+.joy-admin-drawer button:focus-visible,
+.joy-admin-drawer [role="checkbox"]:focus-visible,
+.joy-admin-drawer [role="switch"]:focus-visible {
+  box-shadow: none !important;
+  border-color: var(--ve-primary) !important;
+  outline: none !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+}
+
+.joy-admin-drawer button {
+  border-radius: var(--ve-radius) !important;
+}
+
+.joy-admin-drawer button.bg-primary,
+.joy-admin-drawer button[class*="bg-primary"] {
+  background-color: var(--ve-primary) !important;
+  color: #fff !important;
+}
+
+.joy-admin-drawer button.border,
+.joy-admin-drawer button[class*="border-input"] {
+  border-color: var(--ve-border) !important;
+  background-color: var(--ve-surface) !important;
+  color: var(--ve-text) !important;
+}
+
+.joy-admin-drawer button.border:hover,
+.joy-admin-drawer button[class*="border-input"]:hover {
+  border-color: var(--ve-border-strong) !important;
+  background-color: var(--ve-hover) !important;
+}
+
+.joy-admin-drawer [role="checkbox"],
+.joy-admin-drawer [data-slot="checkbox"] {
+  border-radius: 2px !important;
+  border-color: var(--ve-border-strong) !important;
+  background-color: var(--ve-surface) !important;
+}
+
+.joy-admin-drawer [role="checkbox"][data-state="checked"],
+.joy-admin-drawer [data-slot="checkbox"][data-state="checked"] {
+  background-color: var(--ve-primary) !important;
+  border-color: var(--ve-primary) !important;
+  color: #fff !important;
+}
+
+.joy-admin-drawer [role="switch"] {
+  border-radius: 999px !important;
+  background-color: var(--ve-border-strong) !important;
+}
+
+.joy-admin-drawer [role="switch"][data-state="checked"] {
+  background-color: var(--ve-primary) !important;
+}
+
+.joy-admin-drawer [role="switch"] span {
+  border-radius: 999px !important;
+  background-color: #fff !important;
+}
+
+/* Portaled select / popover panels while admin is mounted */
+body:has(.joy-admin) [role="listbox"],
+body:has(.joy-admin) [data-radix-popper-content-wrapper] > div {
+  box-shadow: none !important;
+  --tw-shadow: 0 0 #0000 !important;
+  border-radius: 2px !important;
+  border-color: #e5e6eb !important;
+  background: #fff !important;
+  color: #1d2129 !important;
+}
+
+.dark body:has(.joy-admin) [role="listbox"],
+.dark body:has(.joy-admin) [data-radix-popper-content-wrapper] > div {
+  border-color: #2e2e30 !important;
+  background: #232324 !important;
+  color: #f6f6f6 !important;
+}
+
+.joy-admin-drawer-header {
+  flex-shrink: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--ve-border);
+}
+
+.joy-admin-drawer-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  color: var(--ve-text);
+}
+
+.joy-admin-drawer-desc {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ve-text-muted);
+}
+
+.joy-admin-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 24px;
+}
+
+.joy-admin-drawer-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--ve-border);
+  background: var(--ve-surface);
+}
+
+/* Flatten leftover large radii on controls */
+.joy-admin button.h-9,
+.joy-admin .h-9,
+.joy-admin button.h-8,
+.joy-admin .h-8 {
+  border-radius: var(--ve-radius) !important;
 }
 
 @media (max-width: 640px) {
   .joy-admin-header-inner {
-    padding: 8px 10px;
-    gap: 2px;
+    padding: 0 8px;
   }
 
   .joy-admin-tab {
-    padding: 6px 10px;
+    padding: 0 10px;
+    height: 40px;
   }
 
   .joy-admin-tab-label {
@@ -245,10 +776,10 @@
   }
 
   .joy-admin-body {
-    padding: 18px 14px 56px;
+    padding: 12px 12px 12px;
   }
 
   .joy-admin-title {
-    font-size: 22px;
+    font-size: 18px;
   }
 }

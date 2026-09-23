@@ -1,316 +1,241 @@
-/* Admin Overview — face of /admin (not shared list chrome) */
+/* Admin Overview — market console dashboard pattern */
 
 .joy-ov {
+  --ov-radius: 4px;
+  --ov-border: var(--ve-border, #e5e6eb);
+  --ov-surface: var(--ve-surface, #fff);
+  --ov-hover: var(--ve-hover, #f7f8fa);
+  --ov-text: var(--ve-text, #1d2129);
+  --ov-muted: var(--ve-text-muted, #86909c);
+  --ov-secondary: var(--ve-text-secondary, #4e5969);
+  --ov-primary: var(--ve-primary, #1664ff);
+  --ov-soft-blue: #e8f3ff;
+  --ov-soft-violet: #f5e8ff;
+  --ov-soft-green: #e8ffea;
+  --ov-soft-orange: #fff7e8;
+
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
+  padding-bottom: 8px;
 }
 
-.joy-ov-hero {
-  position: relative;
-  overflow: hidden;
-  border-radius: 24px;
-  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
-  background:
-    radial-gradient(
-      120% 140% at 0% 0%,
-      color-mix(in oklab, var(--ring) 18%, transparent),
-      transparent 55%
-    ),
-    radial-gradient(
-      90% 120% at 100% 10%,
-      color-mix(in oklab, var(--foreground) 4%, transparent),
-      transparent 50%
-    ),
-    linear-gradient(
-      165deg,
-      color-mix(in oklab, var(--card) 96%, var(--ring) 4%),
-      var(--card) 55%,
-      color-mix(in oklab, var(--card) 94%, var(--muted) 6%)
-    );
-  padding: 28px 30px 26px;
-}
-
-.dark .joy-ov-hero {
-  background:
-    radial-gradient(
-      120% 140% at 0% 0%,
-      color-mix(in oklab, var(--ring) 14%, transparent),
-      transparent 55%
-    ),
-    radial-gradient(
-      90% 120% at 100% 0%,
-      color-mix(in oklab, #fff 4%, transparent),
-      transparent 48%
-    ),
-    linear-gradient(
-      165deg,
-      color-mix(in oklab, var(--card) 92%, var(--ring) 8%),
-      var(--card) 60%
-    );
-}
-
-.joy-ov-hero-top {
+/* —— Header —— */
+.joy-ov-header {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-}
-
-.joy-ov-kicker {
-  margin: 0 0 8px;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: color-mix(in oklab, var(--muted-foreground) 92%, var(--ring) 8%);
+  gap: 12px;
 }
 
 .joy-ov-title {
   margin: 0;
-  font-size: clamp(28px, 3.2vw, 36px);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
-  color: var(--foreground);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  color: var(--ov-text);
 }
 
 .joy-ov-desc {
-  margin: 10px 0 0;
+  margin: 4px 0 0;
   max-width: 36rem;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--ov-muted);
 }
 
-.joy-ov-hero-actions {
+/* —— Health strip —— */
+.joy-ov-health {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px 20px;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius);
+  background: var(--ov-surface);
+  padding: 12px 16px;
 }
 
-.joy-ov-pulse {
+.joy-ov-health.is-ok {
+  border-color: color-mix(in oklab, #00b42a 28%, var(--ov-border));
+  background: linear-gradient(90deg, var(--ov-soft-green), var(--ov-surface) 42%);
+}
+
+.joy-ov-health.is-warn {
+  border-color: color-mix(in oklab, #ff7d00 28%, var(--ov-border));
+  background: linear-gradient(90deg, var(--ov-soft-orange), var(--ov-surface) 42%);
+}
+
+.joy-ov-health.is-neutral {
+  background: var(--ov-surface);
+}
+
+.joy-ov-health-main {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
-  background: color-mix(in oklab, var(--background) 70%, transparent);
-  padding: 7px 12px 7px 10px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--foreground);
-  backdrop-filter: blur(8px);
+  color: var(--ov-text);
 }
 
-.joy-ov-pulse-dot {
-  position: relative;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #22c55e;
-  box-shadow: 0 0 0 3px color-mix(in oklab, #22c55e 22%, transparent);
+.joy-ov-health.is-ok .joy-ov-health-main {
+  color: #00b42a;
 }
 
-.joy-ov-pulse-dot.is-warn {
-  background: #f59e0b;
-  box-shadow: 0 0 0 3px color-mix(in oklab, #f59e0b 22%, transparent);
+.joy-ov-health.is-warn .joy-ov-health-main {
+  color: #ff7d00;
 }
 
-.joy-ov-pulse-dot.is-busy::after {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  border: 1px solid color-mix(in oklab, #f59e0b 55%, transparent);
-  animation: joy-ov-ping 1.6s ease-out infinite;
+.joy-ov-health-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--ov-muted);
 }
 
-@keyframes joy-ov-ping {
-  0% {
-    transform: scale(0.85);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1.75);
-    opacity: 0;
-  }
+.joy-ov-health-stats b {
+  margin-left: 4px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ov-text);
 }
 
+/* —— Sections —— */
+.joy-ov-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.joy-ov-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.joy-ov-section-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ov-text);
+}
+
+.joy-ov-section-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ov-muted);
+}
+
+/* —— Metric cards —— */
 .joy-ov-metrics {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 960px) {
   .joy-ov-metrics {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 .joy-ov-metric {
-  --joy-ov-accent: var(--ring);
-  position: relative;
-  display: block;
-  overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
-  background: var(--card);
-  padding: 18px 18px 16px;
-  text-decoration: none;
-  color: inherit;
-  outline: none;
-  transition:
-    border-color 0.18s ease,
-    transform 0.18s ease,
-    background-color 0.18s ease;
-  animation: joy-ov-rise 0.45s ease both;
-}
-
-.joy-ov-metric:nth-child(1) {
-  animation-delay: 0.04s;
-}
-.joy-ov-metric:nth-child(2) {
-  animation-delay: 0.08s;
-}
-.joy-ov-metric:nth-child(3) {
-  animation-delay: 0.12s;
-}
-.joy-ov-metric:nth-child(4) {
-  animation-delay: 0.16s;
-}
-
-.joy-ov-metric::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--joy-ov-accent);
-  opacity: 0.55;
-  transition: opacity 0.18s ease, width 0.18s ease;
-}
-
-.joy-ov-metric:hover {
-  border-color: color-mix(in oklab, var(--joy-ov-accent) 35%, var(--border));
-  background: color-mix(in oklab, var(--card) 92%, var(--joy-ov-accent) 8%);
-  transform: translateY(-1px);
-}
-
-.joy-ov-metric:hover::before {
-  opacity: 1;
-  width: 4px;
-}
-
-.joy-ov-metric:focus-visible {
-  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
-}
-
-.joy-ov-metric[data-tone="ok"] {
-  --joy-ov-accent: #22c55e;
-}
-.joy-ov-metric[data-tone="warn"] {
-  --joy-ov-accent: #f59e0b;
-}
-.joy-ov-metric[data-tone="sky"] {
-  --joy-ov-accent: #5b9bff;
-}
-.joy-ov-metric[data-tone="slate"] {
-  --joy-ov-accent: color-mix(in oklab, var(--foreground) 35%, var(--muted-foreground));
-}
-
-.joy-ov-metric-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 14px;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius);
+  background: var(--ov-surface);
+  padding: 16px;
+  color: inherit;
 }
 
 .joy-ov-metric-icon {
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
-  background: color-mix(in oklab, var(--joy-ov-accent) 12%, var(--secondary));
-  color: color-mix(in oklab, var(--foreground) 80%, var(--joy-ov-accent) 20%);
+  border-radius: var(--ov-radius);
+  background: var(--ov-soft-blue);
+  color: var(--ov-primary);
+}
+
+.joy-ov-metric[data-tone="violet"] .joy-ov-metric-icon {
+  background: var(--ov-soft-violet);
+  color: #722ed1;
+}
+
+.joy-ov-metric[data-tone="green"] .joy-ov-metric-icon {
+  background: var(--ov-soft-green);
+  color: #00b42a;
+}
+
+.joy-ov-metric[data-tone="orange"] .joy-ov-metric-icon {
+  background: var(--ov-soft-orange);
+  color: #ff7d00;
+}
+
+.joy-ov-metric-body {
+  min-width: 0;
+  flex: 1;
 }
 
 .joy-ov-metric-label {
   font-size: 13px;
   font-weight: 500;
-  color: var(--muted-foreground);
+  color: var(--ov-secondary);
 }
 
 .joy-ov-metric-value {
-  margin-top: 14px;
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  line-height: 1;
+  margin-top: 6px;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   font-variant-numeric: tabular-nums;
-  color: var(--foreground);
-}
-
-.joy-ov-metric[data-tone="ok"] .joy-ov-metric-value {
-  color: #16a34a;
-}
-.dark .joy-ov-metric[data-tone="ok"] .joy-ov-metric-value {
-  color: #4ade80;
-}
-.joy-ov-metric[data-tone="warn"] .joy-ov-metric-value {
-  color: #d97706;
-}
-.dark .joy-ov-metric[data-tone="warn"] .joy-ov-metric-value {
-  color: #fbbf24;
+  color: var(--ov-text);
 }
 
 .joy-ov-metric-hint {
-  margin-top: 8px;
+  margin-top: 4px;
   font-size: 12px;
-  color: var(--muted-foreground);
+  color: var(--ov-muted);
 }
 
 .joy-ov-metric-skel {
   display: inline-block;
-  height: 32px;
-  width: 56px;
-  border-radius: 8px;
-  background: var(--muted);
+  height: 28px;
+  width: 52px;
+  border-radius: 2px;
+  background: var(--ov-hover);
   animation: joy-ov-pulse 1.4s ease-in-out infinite;
 }
 
 .joy-ov-metric-skel-sm {
   display: inline-block;
   height: 12px;
-  width: 88px;
-  border-radius: 6px;
-  background: var(--muted);
+  width: 72px;
+  border-radius: 2px;
+  background: var(--ov-hover);
   animation: joy-ov-pulse 1.4s ease-in-out infinite;
 }
 
-.joy-ov-stage {
-  display: grid;
-  gap: 16px;
-}
-
-@media (min-width: 1024px) {
-  .joy-ov-stage {
-    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 1fr);
-    align-items: start;
-  }
-}
-
+/* —— Recent jobs panel —— */
 .joy-ov-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
-  border-radius: 22px;
-  border: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
-  background: var(--card);
-  animation: joy-ov-rise 0.5s ease both;
-  animation-delay: 0.18s;
+  border: 1px solid var(--ov-border);
+  border-radius: var(--ov-radius);
+  background: var(--ov-surface);
 }
 
 .joy-ov-panel-head {
@@ -318,37 +243,50 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px 20px 14px;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ov-border);
 }
 
 .joy-ov-panel-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--foreground);
+  color: var(--ov-text);
 }
 
 .joy-ov-panel-title svg {
-  color: var(--muted-foreground);
+  color: var(--ov-muted);
 }
 
 .joy-ov-panel-sub {
-  margin: 2px 0 0 26px;
+  margin: 2px 0 0 22px;
   font-size: 12px;
-  color: var(--muted-foreground);
-}
-
-.joy-ov-panel-sub.is-flush {
-  margin-left: 0;
+  color: var(--ov-muted);
 }
 
 .joy-ov-jobs {
-  border-top: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
+  max-height: min(440px, calc(100vh - 420px));
+  overflow: auto;
+}
+
+.joy-ov-jobs-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ov-muted);
+  background: var(--ov-hover);
+  border-bottom: 1px solid var(--ov-border);
 }
 
 .joy-ov-job {
@@ -356,9 +294,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px 16px;
   align-items: center;
-  padding: 13px 20px;
-  border-bottom: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
-  transition: background-color 0.12s ease;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--ov-border);
 }
 
 .joy-ov-job:last-child {
@@ -366,7 +303,7 @@
 }
 
 .joy-ov-job:hover {
-  background: color-mix(in oklab, var(--secondary) 65%, transparent);
+  background: var(--ov-hover);
 }
 
 .joy-ov-job-main {
@@ -374,27 +311,27 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 10px;
+  gap: 6px 8px;
 }
 
 .joy-ov-job-user {
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ov-text);
 }
 
 .joy-ov-job-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  font-size: 12px;
 }
 
 .joy-ov-job-time {
   font-size: 12px;
   font-variant-numeric: tabular-nums;
-  color: var(--muted-foreground);
+  color: var(--ov-muted);
   white-space: nowrap;
 }
 
@@ -403,137 +340,62 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 20px;
-  border-bottom: 1px solid color-mix(in oklab, var(--border) 72%, transparent);
-}
-
-.joy-ov-job-skel:last-child {
-  border-bottom: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ov-border);
 }
 
 .joy-ov-job-skel-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+}
+
+.joy-ov-skel-user,
+.joy-ov-skel-chip,
+.joy-ov-skel-time {
+  display: inline-block;
+  border-radius: 2px;
+  background: var(--ov-hover);
+  animation: joy-ov-pulse 1.4s ease-in-out infinite;
 }
 
 .joy-ov-skel-user {
-  display: inline-block;
-  height: 14px;
-  width: 64px;
-  border-radius: 6px;
-  background: var(--muted);
-  animation: joy-ov-pulse 1.4s ease-in-out infinite;
+  height: 12px;
+  width: 56px;
 }
 
 .joy-ov-skel-chip {
-  display: inline-block;
-  height: 20px;
-  width: 48px;
-  border-radius: 6px;
-  background: var(--muted);
-  animation: joy-ov-pulse 1.4s ease-in-out infinite;
+  height: 18px;
+  width: 40px;
 }
 
 .joy-ov-skel-time {
-  display: inline-block;
   height: 12px;
-  width: 64px;
-  border-radius: 6px;
-  background: var(--muted);
-  animation: joy-ov-pulse 1.4s ease-in-out infinite;
-}
-
-.joy-ov-nav {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 12px;
-  border-top: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
-}
-
-.joy-ov-nav-item {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  border-radius: 16px;
-  border: 1px solid transparent;
-  background: color-mix(in oklab, var(--secondary) 55%, transparent);
-  padding: 14px 14px 13px;
-  text-decoration: none;
-  color: inherit;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    transform 0.15s ease;
-}
-
-.joy-ov-nav-item:hover {
-  background: var(--secondary);
-  border-color: color-mix(in oklab, var(--border) 90%, transparent);
-  transform: translateY(-1px);
-}
-
-.joy-ov-nav-icon {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 11px;
-  background: var(--card);
-  color: var(--foreground);
-  box-shadow: 0 1px 0 color-mix(in oklab, var(--border) 70%, transparent);
-}
-
-.joy-ov-nav-label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.2;
-}
-
-.joy-ov-nav-desc {
-  margin-top: 3px;
-  font-size: 11.5px;
-  line-height: 1.35;
-  color: var(--muted-foreground);
+  width: 56px;
 }
 
 .joy-ov-empty {
   display: flex;
-  min-height: 220px;
+  min-height: 180px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 40px 24px;
+  gap: 4px;
+  padding: 32px 20px;
   text-align: center;
-  border-top: 1px solid color-mix(in oklab, var(--border) 88%, transparent);
 }
 
 .joy-ov-empty-title {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  color: var(--foreground);
+  color: var(--ov-text);
 }
 
 .joy-ov-empty-desc {
   margin: 0;
-  font-size: 12.5px;
-  color: var(--muted-foreground);
-}
-
-@keyframes joy-ov-rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  font-size: 12px;
+  color: var(--ov-muted);
 }
 
 @keyframes joy-ov-pulse {
@@ -547,28 +409,34 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .joy-ov-metric,
-  .joy-ov-panel,
-  .joy-ov-pulse-dot.is-busy::after {
+  .joy-ov-metric-skel,
+  .joy-ov-metric-skel-sm,
+  .joy-ov-skel-user,
+  .joy-ov-skel-chip,
+  .joy-ov-skel-time {
     animation: none;
   }
 }
 
 @media (max-width: 640px) {
   .joy-ov {
-    gap: 20px;
+    gap: 16px;
   }
 
-  .joy-ov-hero {
-    border-radius: 20px;
-    padding: 22px 18px 20px;
+  .joy-ov-metric {
+    padding: 14px;
   }
 
   .joy-ov-metric-value {
-    font-size: 28px;
+    font-size: 24px;
   }
 
-  .joy-ov-nav {
-    grid-template-columns: 1fr;
+  .joy-ov-health-stats {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .joy-ov-jobs {
+    max-height: 300px;
   }
 }

@@ -15,7 +15,7 @@ const ICONS = {
 
 export function PluginsMarket() {
   return (
-    <div className="joy-plugins">
+    <div className="joy-plugins h-full overflow-y-auto">
       <div className="joy-plugins-inner">
         <header className="joy-plugins-header">
           <h1 className="joy-plugins-title">插件市场</h1>

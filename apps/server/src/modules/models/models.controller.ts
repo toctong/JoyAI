@@ -119,6 +119,18 @@ class ImportCatalogDto {
   forceRename?: boolean;
 }
 
+class ImportCatalogSelectDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  remoteIds!: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  forceRename?: boolean;
+}
+
 class BatchDeleteModelsDto {
   @IsArray()
   @ArrayMinSize(1)
@@ -151,8 +163,11 @@ export class ModelsController {
   @Roles("admin")
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Get("admin/models/catalog")
-  catalog(@Query("platform") platform: string) {
-    return this.models.catalogPreview(platform ?? "");
+  catalog(
+    @Query("platform") platform: string,
+    @Query("kind") kind?: string,
+  ) {
+    return this.models.catalogPreview(platform ?? "", kind);
   }
 
   @ApiBearerAuth()
@@ -196,6 +211,19 @@ export class ModelsController {
     @Body() dto: ImportCatalogDto,
   ) {
     return this.models.importCatalog(id, {
+      forceRename: dto.forceRename,
+    });
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post("admin/channels/:id/import-catalog-select")
+  importCatalogSelect(
+    @Param("id") id: string,
+    @Body() dto: ImportCatalogSelectDto,
+  ) {
+    return this.models.importCatalogSelect(id, dto.remoteIds, {
       forceRename: dto.forceRename,
     });
   }

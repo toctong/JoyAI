@@ -19,6 +19,7 @@ import { UsersService } from "../users/users.service";
 import { JobsService } from "../jobs/jobs.service";
 import { StorageGcSweeper } from "../storage/storage-gc.sweeper";
 import { StorageService } from "../storage/storage.service";
+import { AuditService } from "../audit/audit.service";
 
 class CreateUserDto {
   @IsString()
@@ -56,6 +57,7 @@ export class AdminController {
     private readonly jobs: JobsService,
     private readonly storage: StorageService,
     private readonly storageGc: StorageGcSweeper,
+    private readonly audit: AuditService,
   ) {}
 
   @Get("users")
@@ -64,12 +66,20 @@ export class AdminController {
   }
 
   @Post("users")
-  async createUser(@Body() dto: CreateUserDto) {
+  async createUser(
+    @CurrentUser() actor: AuthUser,
+    @Body() dto: CreateUserDto,
+  ) {
     const user = await this.users.create(
       dto.username.trim(),
       dto.password,
       dto.role ?? UserRole.creator,
     );
+    void this.audit.record(actor.id, "admin.user_create", {
+      targetId: user.id,
+      username: user.username,
+      role: user.role,
+    });
     return this.users.toPublic(user);
   }
 
@@ -87,21 +97,48 @@ export class AdminController {
       .then((u) => this.users.toPublic(u));
     if (dto.role != null) {
       result = await this.users.updateRole(id, dto.role, actor.id);
+      void this.audit.record(actor.id, "admin.user_role", {
+        targetId: id,
+        role: dto.role,
+      });
     }
     if (dto.password != null) {
       result = await this.users.resetPassword(id, dto.password);
+      void this.audit.record(actor.id, "admin.user_password_reset", {
+        targetId: id,
+      });
     }
     return result;
   }
 
   @Delete("users/:id")
-  removeUser(@CurrentUser() actor: AuthUser, @Param("id") id: string) {
-    return this.users.removeUser(id, actor.id);
+  async removeUser(@CurrentUser() actor: AuthUser, @Param("id") id: string) {
+    const target = await this.users.require(id);
+    const res = await this.users.removeUser(id, actor.id);
+    void this.audit.record(actor.id, "admin.user_delete", {
+      targetId: id,
+      username: target.username,
+    });
+    return res;
   }
 
   @Get("jobs")
-  jobsList(@Query("take") take?: string) {
-    return this.jobs.listAll(take ? Number(take) : 100);
+  jobsList(
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("take") take?: string,
+    @Query("keyword") keyword?: string,
+    @Query("status") status?: string,
+    @Query("kind") kind?: string,
+  ) {
+    return this.jobs.listAll({
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      take: take ? Number(take) : undefined,
+      keyword,
+      status,
+      kind,
+    });
   }
 
   @Get("jobs/:id")

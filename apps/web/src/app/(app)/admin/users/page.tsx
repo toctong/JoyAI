@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { KeyRound, Plus, Trash2 } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
+import { confirmDialog } from "@/shared/lib/confirm";
 import { api, ApiError } from "@/shared/lib/api";
 import { useAuthStore } from "@/shared/lib/auth-store";
 import { Badge } from "@/components/ui/badge";
@@ -13,12 +14,16 @@ import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import {
   ListPageCard,
+  ListPageFooter,
   ListPageHeader,
   ListPageMain,
   ListPageShell,
 } from "@/components/admin/list-page";
 import { ListToolbar } from "@/components/admin/list-toolbar";
+import { ListPagination } from "@/components/admin/list-pagination";
 import { AdminEmptyState } from "@/components/admin/empty-state";
+import { AdminListSkeleton } from "@/components/admin/list-skeleton";
+import { AdminDrawer } from "@/components/admin/admin-drawer";
 import {
   Table,
   TableBody,
@@ -27,13 +32,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -54,13 +52,17 @@ type DialogMode =
   | { type: "create" }
   | { type: "role"; user: UserRow }
   | { type: "password"; user: UserRow }
-  | { type: "delete"; user: UserRow }
   | null;
 
 export default function UsersPage() {
   const me = useAuthStore((s) => s.user);
   const [users, setUsers] = useState<UserRow[]>([]);
-  const [search, setSearch] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  const [searchDraft, setSearchDraft] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
   const [refreshing, setRefreshing] = useState(false);
   const [dialog, setDialog] = useState<DialogMode>(null);
   const [username, setUsername] = useState("");
@@ -76,6 +78,7 @@ export default function UsersPage() {
       toast.error(e instanceof Error ? e.message : "加载用户失败");
     } finally {
       setRefreshing(false);
+      setLoaded(true);
     }
   }, []);
 
@@ -84,14 +87,32 @@ export default function UsersPage() {
   }, [load]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return users;
-    return users.filter(
-      (u) =>
+    const q = keyword.trim().toLowerCase();
+    return users.filter((u) => {
+      if (roleFilter !== "all" && u.role !== roleFilter) return false;
+      if (!q) return true;
+      return (
         u.username.toLowerCase().includes(q) ||
-        u.role.toLowerCase().includes(q),
-    );
-  }, [users, search]);
+        u.role.toLowerCase().includes(q)
+      );
+    });
+  }, [users, keyword, roleFilter]);
+
+  const total = filtered.length;
+  const pageItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(total / pageSize) || 1);
+    if (page > maxPage) setPage(maxPage);
+  }, [total, pageSize, page]);
+
+  function resetPageAnd(apply: () => void) {
+    apply();
+    setPage(1);
+  }
 
   function openCreate() {
     setUsername("");
@@ -108,6 +129,24 @@ export default function UsersPage() {
   function openPassword(user: UserRow) {
     setPassword("");
     setDialog({ type: "password", user });
+  }
+
+  async function removeUser(user: UserRow) {
+    const ok = await confirmDialog({
+      title: `删除用户「${user.username}」？`,
+      description:
+        "其任务与资产将一并清理（外键级联）。最后一个管理员不可删。",
+      confirmText: "删除",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await api(`/admin/users/${user.id}`, { method: "DELETE" });
+      toast.success("用户已删除");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "删除失败");
+    }
   }
 
   async function submitDialog() {
@@ -148,9 +187,6 @@ export default function UsersPage() {
           body: { password },
         });
         toast.success("密码已重置");
-      } else if (dialog.type === "delete") {
-        await api(`/admin/users/${dialog.user.id}`, { method: "DELETE" });
-        toast.success("用户已删除");
       }
       setDialog(null);
       await load();
@@ -161,6 +197,16 @@ export default function UsersPage() {
     }
   }
 
+  const hasFilters = !!keyword || roleFilter !== "all";
+  const dialogTitle =
+    dialog?.type === "create"
+      ? "新建用户"
+      : dialog?.type === "role"
+        ? `修改角色 · ${dialog.user.username}`
+        : dialog?.type === "password"
+          ? `重置密码 · ${dialog.user.username}`
+          : "";
+
   return (
     <ListPageShell>
       <ListPageHeader>
@@ -168,6 +214,32 @@ export default function UsersPage() {
           title="用户"
           description="管理员可进后台；可选开启腾讯身份验证器（TOTP）"
           className="mb-0"
+        />
+        <ListToolbar
+          search={searchDraft}
+          onSearchChange={setSearchDraft}
+          onSearchSubmit={(v) => {
+            setKeyword(v.trim());
+            setPage(1);
+          }}
+          searchPlaceholder="搜索用户名 / 角色"
+          filters={
+            <Select
+              value={roleFilter}
+              onValueChange={(v) => resetPageAnd(() => setRoleFilter(v))}
+            >
+              <SelectTrigger className="h-9 w-[120px] rounded-xl">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部角色</SelectItem>
+                <SelectItem value="admin">管理员</SelectItem>
+                <SelectItem value="creator">创作者</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+          onRefresh={() => void load()}
+          refreshing={refreshing}
           actions={
             <Button
               size="sm"
@@ -179,19 +251,29 @@ export default function UsersPage() {
             </Button>
           }
         />
-        <ListToolbar
-          search={search}
-          onSearchChange={setSearch}
-          searchPlaceholder="搜索用户名 / 角色"
-          onRefresh={() => void load()}
-          refreshing={refreshing}
-        />
       </ListPageHeader>
 
       <ListPageMain>
         <ListPageCard scroll className="admin-table">
-          {filtered.length === 0 ? (
-            <AdminEmptyState title={search ? "没有匹配用户" : "暂无用户"} />
+          {!loaded ? (
+            <AdminListSkeleton cols={5} rows={6} />
+          ) : pageItems.length === 0 ? (
+            <AdminEmptyState
+              title={hasFilters ? "没有匹配的用户" : "暂无用户"}
+              description={
+                hasFilters
+                  ? "试试调整搜索或角色筛选"
+                  : "创建第一个管理员或创作者账号"
+              }
+              action={
+                !hasFilters ? (
+                  <Button size="sm" onClick={openCreate}>
+                    <Plus className="size-3.5" />
+                    新建用户
+                  </Button>
+                ) : null
+              }
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -200,11 +282,13 @@ export default function UsersPage() {
                   <TableHead>角色</TableHead>
                   <TableHead>验证器</TableHead>
                   <TableHead>注册时间</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
+                  <TableHead className="admin-col-sticky-right text-right">
+                    操作
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((u) => (
+                {pageItems.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">
                       {u.username}
@@ -233,13 +317,13 @@ export default function UsersPage() {
                     <TableCell className="text-muted-foreground">
                       {dayjs(u.createdAt).format("YYYY-MM-DD HH:mm")}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                    <TableCell className="admin-col-sticky-right text-right">
+                      <div className="inline-flex items-center justify-end gap-0.5">
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-8"
+                          className="h-8 rounded-lg"
                           onClick={() => openRole(u)}
                         >
                           角色
@@ -248,7 +332,7 @@ export default function UsersPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-8"
+                          className="h-8 rounded-lg"
                           onClick={() => openPassword(u)}
                         >
                           <KeyRound className="size-3.5" />
@@ -257,10 +341,10 @@ export default function UsersPage() {
                         <Button
                           type="button"
                           variant="ghost"
-                          size="sm"
-                          className="h-8 text-destructive"
+                          size="icon"
+                          className="size-8 text-destructive"
                           disabled={u.id === me?.id}
-                          onClick={() => setDialog({ type: "delete", user: u })}
+                          onClick={() => void removeUser(u)}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -274,32 +358,55 @@ export default function UsersPage() {
         </ListPageCard>
       </ListPageMain>
 
-      <Dialog
+      <ListPageFooter>
+        <ListPagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
+      </ListPageFooter>
+
+      <AdminDrawer
         open={dialog != null}
         onOpenChange={(open) => {
           if (!open) setDialog(null);
         }}
+        title={dialogTitle}
+        widthClassName="sm:max-w-[420px]"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 rounded-[2px]"
+              disabled={saving}
+              onClick={() => setDialog(null)}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              className="h-8 rounded-[2px]"
+              disabled={saving}
+              onClick={() => void submitDialog()}
+            >
+              {saving ? "保存中…" : "保存"}
+            </Button>
+          </>
+        }
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {dialog?.type === "create"
-                ? "新建用户"
-                : dialog?.type === "role"
-                  ? `修改角色 · ${dialog.user.username}`
-                  : dialog?.type === "password"
-                    ? `重置密码 · ${dialog.user.username}`
-                    : dialog?.type === "delete"
-                      ? `删除用户 · ${dialog.user.username}`
-                      : ""}
-            </DialogTitle>
-          </DialogHeader>
-
+        <div className="space-y-4">
           {dialog?.type === "create" ? (
-            <div className="space-y-3 py-1">
+            <>
               <div className="space-y-2">
                 <Label>用户名</Label>
                 <Input
+                  className="h-8 rounded-[2px]"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="至少 3 位"
@@ -308,6 +415,7 @@ export default function UsersPage() {
               <div className="space-y-2">
                 <Label>密码</Label>
                 <Input
+                  className="h-8 rounded-[2px]"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -320,29 +428,29 @@ export default function UsersPage() {
                   value={role}
                   onValueChange={(v) => setRole(v as "admin" | "creator")}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-8 rounded-[2px]">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="shadow-none">
                     <SelectItem value="creator">创作者</SelectItem>
                     <SelectItem value="admin">管理员（可进后台）</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            </>
           ) : null}
 
           {dialog?.type === "role" ? (
-            <div className="space-y-2 py-1">
+            <div className="space-y-2">
               <Label>角色</Label>
               <Select
                 value={role}
                 onValueChange={(v) => setRole(v as "admin" | "creator")}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-8 rounded-[2px]">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="shadow-none">
                   <SelectItem value="creator">创作者</SelectItem>
                   <SelectItem value="admin">管理员（可进后台）</SelectItem>
                 </SelectContent>
@@ -351,9 +459,10 @@ export default function UsersPage() {
           ) : null}
 
           {dialog?.type === "password" ? (
-            <div className="space-y-2 py-1">
+            <div className="space-y-2">
               <Label>新密码</Label>
               <Input
+                className="h-8 rounded-[2px]"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -361,33 +470,8 @@ export default function UsersPage() {
               />
             </div>
           ) : null}
-
-          {dialog?.type === "delete" ? (
-            <p className="py-2 text-sm text-muted-foreground">
-              确定删除该用户？其任务与资产将一并清理（外键级联）。最后一个管理员不可删。
-            </p>
-          ) : null}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={saving}
-              onClick={() => setDialog(null)}
-            >
-              取消
-            </Button>
-            <Button
-              type="button"
-              disabled={saving}
-              variant={dialog?.type === "delete" ? "destructive" : "default"}
-              onClick={() => void submitDialog()}
-            >
-              {dialog?.type === "delete" ? "删除" : "保存"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </AdminDrawer>
     </ListPageShell>
   );
 }

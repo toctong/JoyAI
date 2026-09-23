@@ -6,6 +6,7 @@ export const JOYAI_BRAND = {
   logoFull: "/brand/mirora-logo.png",
   mascot: "/brand/mascot.png",
   heroBg: "/brand/hero-bg.png",
+  /** @deprecated Sidebar uses Lucide; kept for older call sites / assets */
   nav: {
     inspire: "/brand/nav-inspire.png",
     studio: "/brand/nav-studio.png",

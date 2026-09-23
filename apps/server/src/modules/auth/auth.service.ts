@@ -7,6 +7,7 @@ import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
 import { UserRole } from "../../database/enums";
 import { UsersService } from "../users/users.service";
+import { AuditService } from "../audit/audit.service";
 import {
   generateTotpSecret,
   otpauthUrl,
@@ -25,13 +26,20 @@ export class AuthService {
   constructor(
     private readonly users: UsersService,
     private readonly jwt: JwtService,
+    private readonly audit: AuditService,
   ) {}
 
   async login(username: string, password: string) {
     const user = await this.users.findByUsername(username);
-    if (!user) throw new UnauthorizedException("用户名或密码错误");
+    if (!user) {
+      void this.audit.record(null, "auth.login_failed", { username });
+      throw new UnauthorizedException("用户名或密码错误");
+    }
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException("用户名或密码错误");
+    if (!ok) {
+      void this.audit.record(user.id, "auth.login_failed", { username });
+      throw new UnauthorizedException("用户名或密码错误");
+    }
 
     if (user.totpEnabled && user.totpSecret) {
       const challengeToken = this.jwt.sign(
@@ -49,6 +57,7 @@ export class AuthService {
       };
     }
 
+    void this.audit.record(user.id, "auth.login", { username: user.username });
     return this.tokenFor(user);
   }
 
@@ -70,14 +79,39 @@ export class AuthService {
       throw new UnauthorizedException("未启用身份验证器");
     }
     if (!verifyTotp(user.totpSecret, code)) {
+      void this.audit.record(user.id, "auth.totp_failed", {
+        username: user.username,
+      });
       throw new UnauthorizedException("验证码错误");
     }
+    void this.audit.record(user.id, "auth.login", {
+      username: user.username,
+      via: "totp",
+    });
     return this.tokenFor(user);
   }
 
   async register(username: string, password: string) {
     const user = await this.users.create(username, password, UserRole.creator);
     return this.tokenFor(user);
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    if (!newPassword || newPassword.length < 6) {
+      throw new BadRequestException("新密码至少 6 位");
+    }
+    const user = await this.users.require(userId);
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) throw new BadRequestException("当前密码不正确");
+    await this.users.resetPassword(userId, newPassword);
+    void this.audit.record(userId, "auth.password_changed", {
+      username: user.username,
+    });
+    return { ok: true };
   }
 
   async totpSetup(userId: string) {
@@ -105,6 +139,9 @@ export class AuthService {
       throw new BadRequestException("验证码错误");
     }
     await this.users.setTotpEnabled(userId, true);
+    void this.audit.record(userId, "auth.totp_enabled", {
+      username: user.username,
+    });
     return { totpEnabled: true };
   }
 
@@ -118,6 +155,9 @@ export class AuthService {
       throw new BadRequestException("验证码错误");
     }
     await this.users.disableTotp(userId);
+    void this.audit.record(userId, "auth.totp_disabled", {
+      username: user.username,
+    });
     return { totpEnabled: false };
   }
 

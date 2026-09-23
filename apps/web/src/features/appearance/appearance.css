@@ -127,7 +127,7 @@ html.joy-appearance-active .dark .joy-composer {
 .joy-appearance-panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .joy-appearance-section-title {
@@ -140,16 +140,16 @@ html.joy-appearance-active .dark .joy-composer {
 
 .joy-appearance-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
 }
 
 .joy-appearance-thumb {
   position: relative;
   aspect-ratio: 16 / 10;
   overflow: hidden;
-  border-radius: 10px;
-  border: 2px solid transparent;
+  border-radius: 6px;
+  border: 1.5px solid transparent;
   background: var(--muted);
   padding: 0;
   cursor: pointer;
@@ -209,4 +209,79 @@ html.joy-appearance-active .dark .joy-composer {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.joy-appearance-url {
+  padding: 10px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+}
+
+.joy-appearance-url-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.joy-appearance-url-input {
+  position: relative;
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--card);
+}
+
+.joy-appearance-url-icon {
+  position: absolute;
+  left: 10px;
+  width: 14px;
+  height: 14px;
+  color: var(--muted-foreground);
+  pointer-events: none;
+}
+
+.joy-appearance-thumb-wrap {
+  position: relative;
+}
+
+.joy-appearance-thumb-wrap .joy-appearance-thumb {
+  width: 100%;
+}
+
+.joy-appearance-thumb-remove {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.joy-appearance-thumb-wrap:hover .joy-appearance-thumb-remove,
+.joy-appearance-thumb-remove:focus-visible {
+  opacity: 1;
+}
+
+.joy-appearance-thumb-remove:hover {
+  background: rgb(220 38 38 / 0.9);
+}
+
+@media (max-width: 480px) {
+  .joy-appearance-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
 }

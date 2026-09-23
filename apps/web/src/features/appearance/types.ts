@@ -1,6 +1,6 @@
 export type WallpaperKind = "image" | "video" | "stage";
 
-export type WallpaperSource = "builtin";
+export type WallpaperSource = "builtin" | "custom";
 
 /** Three-scene cinematic pack: stills + 1s forward/reverse covers. */
 export type StagePack = {
@@ -21,6 +21,14 @@ export type WallpaperItem = {
   stage?: StagePack;
 };
 
+/** Custom URL themes persisted in local storage. */
+export type CustomWallpaper = {
+  id: string;
+  title: string;
+  kind: "image" | "video";
+  src: string;
+};
+
 /** Default inspire theme when nothing else is selected. */
 export const DEFAULT_WALLPAPER_ID = "inspire-stage";
 
@@ -33,3 +41,30 @@ export const DEFAULT_APPEARANCE_KNOBS = {
 } as const;
 
 export const APPEARANCE_STORAGE_KEY = "joyai-web-appearance";
+
+const VIDEO_EXT = /\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i;
+
+export function detectWallpaperKind(url: string): "image" | "video" {
+  return VIDEO_EXT.test(url.trim()) ? "video" : "image";
+}
+
+export function isHttpUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw.trim());
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function customToWallpaperItem(c: CustomWallpaper): WallpaperItem {
+  return {
+    id: c.id,
+    title: c.title,
+    kind: c.kind,
+    src: c.src,
+    preview: c.kind === "image" ? c.src : undefined,
+    blurb: c.kind === "video" ? "自定义视频" : "自定义图片",
+    source: "custom",
+  };
+}

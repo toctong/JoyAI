@@ -30,6 +30,16 @@ class TotpCodeDto {
   code!: string;
 }
 
+class ChangePasswordDto {
+  @IsString()
+  @MinLength(4)
+  currentPassword!: string;
+
+  @IsString()
+  @MinLength(6)
+  newPassword!: string;
+}
+
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
@@ -65,6 +75,20 @@ export class AuthController {
       totpEnabled: Boolean(full!.totpEnabled),
       createdAt: full!.createdAt,
     };
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Post("password")
+  changePassword(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.auth.changePassword(
+      user.id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   /** Start TOTP bind — returns secret + otpauth / QR (腾讯身份验证器兼容). */

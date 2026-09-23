@@ -62,7 +62,7 @@ export function ListPagination({
           <SelectTrigger className="h-9 w-[104px] rounded-xl">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="shadow-none">
             {PAGE_SIZES.map((size) => (
               <SelectItem key={size} value={String(size)}>
                 {size} / 页

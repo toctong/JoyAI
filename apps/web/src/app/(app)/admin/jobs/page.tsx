@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
 import { Eye } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
 import { api } from "@/shared/lib/api";
+import { buildAdminQuery } from "@/shared/lib/admin-query";
 import { formatDurationMs } from "@/shared/lib/format-duration";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,13 +19,17 @@ import {
 import { PageHeader } from "@/components/ui/page-header";
 import {
   ListPageCard,
+  ListPageFooter,
   ListPageHeader,
   ListPageMain,
   ListPageShell,
 } from "@/components/admin/list-page";
 import { ListToolbar } from "@/components/admin/list-toolbar";
+import { ListPagination } from "@/components/admin/list-pagination";
 import { AdminEmptyState } from "@/components/admin/empty-state";
+import { AdminListSkeleton } from "@/components/admin/list-skeleton";
 import { JobStatusBadge } from "@/components/admin/status-badge";
+import { kindLabel } from "@/components/admin/model-meta";
 import {
   Table,
   TableBody,
@@ -40,55 +45,89 @@ import {
 
 type Job = JobDetail;
 
-function kindLabel(kind: string) {
-  if (kind === "image") return "图片";
-  if (kind === "video") return "视频";
-  return kind;
-}
+type PaginatedJobs = {
+  items: Job[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+const ACTIVE_STATUSES = new Set(["queued", "running", "polling"]);
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [search, setSearch] = useState("");
+  const [total, setTotal] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [searchDraft, setSearchDraft] = useState("");
+  const [keyword, setKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [kindFilter, setKindFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
   const [refreshing, setRefreshing] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<Job | null>(null);
+  const silentRef = useRef(false);
 
-  const load = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      setJobs(await api<Job[]>("/admin/jobs?take=200"));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "加载任务失败");
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (opts?: { silent?: boolean; page?: number }) => {
+      const nextPage = opts?.page ?? page;
+      const silent = opts?.silent ?? false;
+      if (!silent) setRefreshing(true);
+      try {
+        const res = await api<PaginatedJobs>(
+          `/admin/jobs${buildAdminQuery({
+            page: nextPage,
+            pageSize,
+            keyword: keyword.trim() || undefined,
+            status: statusFilter === "all" ? undefined : statusFilter,
+            kind: kindFilter === "all" ? undefined : kindFilter,
+          })}`,
+        );
+        setJobs(res.items ?? []);
+        setTotal(res.total ?? 0);
+        setPage(res.page ?? nextPage);
+        if ((res.items?.length ?? 0) === 0 && (res.total ?? 0) > 0 && (res.page ?? 1) > 1) {
+          const maxPage = Math.max(1, Math.ceil(res.total / res.pageSize));
+          if (maxPage < (res.page ?? 1)) {
+            setPage(maxPage);
+          }
+        }
+      } catch (e) {
+        if (!silent) {
+          toast.error(e instanceof Error ? e.message : "加载任务失败");
+        }
+      } finally {
+        if (!silent) setRefreshing(false);
+        setLoaded(true);
+      }
+    },
+    [page, pageSize, keyword, statusFilter, kindFilter],
+  );
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return jobs.filter((j) => {
-      if (statusFilter !== "all" && j.status !== statusFilter) return false;
-      if (kindFilter !== "all" && j.kind !== kindFilter) return false;
-      if (!q) return true;
-      return (
-        j.id.toLowerCase().includes(q) ||
-        (j.user?.username ?? "").toLowerCase().includes(q) ||
-        (j.input?.prompt ?? "").toLowerCase().includes(q) ||
-        (j.modelName ?? "").toLowerCase().includes(q) ||
-        (j.channelName ?? "").toLowerCase().includes(q) ||
-        (j.platform ?? "").toLowerCase().includes(q) ||
-        (j.error ?? "").toLowerCase().includes(q) ||
-        (j.remoteTaskId ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [jobs, search, statusFilter, kindFilter]);
+  const hasActive = jobs.some((j) => ACTIVE_STATUSES.has(j.status));
+
+  useEffect(() => {
+    if (!hasActive) return;
+    const timer = window.setInterval(() => {
+      if (silentRef.current) return;
+      silentRef.current = true;
+      void load({ silent: true }).finally(() => {
+        silentRef.current = false;
+      });
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [hasActive, load]);
+
+  function resetPageAnd(apply: () => void) {
+    apply();
+    setPage(1);
+  }
 
   async function openDetail(job: Job) {
     setDetail(job);
@@ -104,21 +143,31 @@ export default function JobsPage() {
     }
   }
 
+  const hasFilters =
+    !!keyword || statusFilter !== "all" || kindFilter !== "all";
+
   return (
     <ListPageShell>
       <ListPageHeader>
         <PageHeader
           title="任务"
-          description="全平台生成任务监控 · 点击详情查看完整信息"
+          description="全站生成任务监控 · 进行中任务自动刷新 · 点详情看完整信息"
           className="mb-0"
         />
         <ListToolbar
-          search={search}
-          onSearchChange={setSearch}
+          search={searchDraft}
+          onSearchChange={setSearchDraft}
+          onSearchSubmit={(v) => {
+            setKeyword(v.trim());
+            setPage(1);
+          }}
           searchPlaceholder="搜索用户 / 模型 / 渠道 / 提示词 / ID"
           filters={
             <>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => resetPageAnd(() => setStatusFilter(v))}
+              >
                 <SelectTrigger className="h-9 w-[120px] rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
@@ -129,9 +178,13 @@ export default function JobsPage() {
                   <SelectItem value="polling">轮询中</SelectItem>
                   <SelectItem value="succeeded">成功</SelectItem>
                   <SelectItem value="failed">失败</SelectItem>
+                  <SelectItem value="cancelled">已取消</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={kindFilter} onValueChange={setKindFilter}>
+              <Select
+                value={kindFilter}
+                onValueChange={(v) => resetPageAnd(() => setKindFilter(v))}
+              >
                 <SelectTrigger className="h-9 w-[110px] rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
@@ -139,6 +192,8 @@ export default function JobsPage() {
                   <SelectItem value="all">全部类型</SelectItem>
                   <SelectItem value="image">图片</SelectItem>
                   <SelectItem value="video">视频</SelectItem>
+                  <SelectItem value="llm">LLM</SelectItem>
+                  <SelectItem value="audio">音频</SelectItem>
                 </SelectContent>
               </Select>
             </>
@@ -150,8 +205,17 @@ export default function JobsPage() {
 
       <ListPageMain>
         <ListPageCard scroll className="admin-table">
-          {filtered.length === 0 ? (
-            <AdminEmptyState title={search ? "没有匹配任务" : "暂无任务"} />
+          {!loaded ? (
+            <AdminListSkeleton cols={7} rows={8} />
+          ) : jobs.length === 0 ? (
+            <AdminEmptyState
+              title={hasFilters ? "没有匹配的任务" : "暂无任务"}
+              description={
+                hasFilters
+                  ? "试试调整状态、类型或搜索词"
+                  : "用户提交生成后会出现在这里"
+              }
+            />
           ) : (
             <Table className="min-w-[1180px]">
               <TableHeader>
@@ -171,7 +235,7 @@ export default function JobsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((job) => (
+                {jobs.map((job) => (
                   <TableRow key={job.id}>
                     <TableCell className="font-medium">
                       {job.user?.username ?? "—"}
@@ -226,6 +290,19 @@ export default function JobsPage() {
         </ListPageCard>
       </ListPageMain>
 
+      <ListPageFooter>
+        <ListPagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+        />
+      </ListPageFooter>
+
       <JobDetailDialog
         job={detail}
         open={detailOpen}
@@ -238,4 +315,3 @@ export default function JobsPage() {
     </ListPageShell>
   );
 }
-

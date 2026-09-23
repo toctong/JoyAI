@@ -3,9 +3,10 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AppSetting } from "../../database/entities/app-setting.entity";
 import { SettingsService } from "./settings.service";
 import { SettingsController } from "./settings.controller";
+import { AuditModule } from "../audit/audit.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AppSetting])],
+  imports: [TypeOrmModule.forFeature([AppSetting]), AuditModule],
   controllers: [SettingsController],
   providers: [SettingsService],
   exports: [SettingsService],

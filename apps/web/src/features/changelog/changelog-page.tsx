@@ -3,17 +3,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowUp,
-  ExternalLink,
+  CheckCircle2,
+  CircleDot,
+  Clock3,
+  Copy,
+  GitBranch,
   GitCommitHorizontal,
+  GitFork,
+  GitMerge,
+  Github,
   Loader2,
+  MessageSquare,
   RefreshCw,
+  Scale,
+  ShieldCheck,
+  Star,
 } from "lucide-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import "dayjs/locale/zh-cn";
+import { toast } from "@/shared/lib/toast";
 import { api } from "@/shared/lib/api";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/shared/lib/utils";
 import "./changelog.css";
 
@@ -25,20 +39,41 @@ type Commit = {
   shortSha: string;
   message: string;
   body: string;
-  htmlUrl: string;
   authoredAt: string;
+  committedAt: string | null;
+  commentCount: number;
+  verified: boolean;
+  verifyReason: string | null;
+  isMerge: boolean;
   author: {
     name: string;
+    email: string | null;
     login: string | null;
     avatarUrl: string | null;
   };
+  committer: {
+    name: string | null;
+    login: string | null;
+  };
+};
+
+type RepoMeta = {
+  description: string | null;
+  defaultBranch: string | null;
+  language: string | null;
+  stars: number;
+  forks: number;
+  openIssues: number;
+  license: string | null;
+  pushedAt: string | null;
+  private: boolean;
 };
 
 type CommitsPage = {
   owner: string;
   repo: string;
-  htmlUrl: string;
   configured: boolean;
+  repoMeta: RepoMeta | null;
   items: Commit[];
   page: number;
   perPage: number;
@@ -58,6 +93,15 @@ function findShellScrollViewport(from: HTMLElement | null) {
   return from.closest("[data-app-shell]")?.querySelector(
     "main [data-radix-scroll-area-viewport]",
   ) as HTMLElement | null;
+}
+
+async function copyText(text: string, okMsg: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(okMsg);
+  } catch {
+    toast.error("复制失败");
+  }
 }
 
 export function ChangelogPage() {
@@ -121,27 +165,31 @@ export function ChangelogPage() {
     return () => el.removeEventListener("scroll", onScroll);
   }, [scrollEl]);
 
+  const meta = data?.repoMeta;
+
   return (
     <div className="joy-changelog" ref={setRootEl}>
+      {(loading || loadingMore) && items.length > 0 ? (
+        <div className="joy-changelog-progress" aria-hidden>
+          <span />
+        </div>
+      ) : null}
       <div className="joy-changelog-inner">
         <header className="joy-changelog-head">
           <div className="joy-changelog-head-text">
-            <p className="joy-changelog-kicker">GitHub</p>
+            <p className="joy-changelog-kicker">
+              <Github className="joy-changelog-kicker-icon" aria-hidden />
+              GitHub
+            </p>
             <h1 className="joy-changelog-title">更新日志</h1>
             <p className="joy-changelog-desc">
               {data ? (
                 <>
                   仓库{" "}
-                  <a
-                    href={data.htmlUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="joy-changelog-repo"
-                  >
+                  <span className="joy-changelog-repo">
                     {data.owner}/{data.repo}
-                    <ExternalLink className="size-3.5" />
-                  </a>
-                  {" · "}提交记录
+                  </span>
+                  {" · "}提交记录（应用内只读，不跳转外站）
                 </>
               ) : (
                 "拉取仓库提交记录"
@@ -150,9 +198,9 @@ export function ChangelogPage() {
           </div>
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             size="sm"
-            className="h-9 shrink-0 rounded-xl"
+            className="h-8 shrink-0 rounded-[2px] shadow-none"
             disabled={loading}
             onClick={() => void load(1, false)}
           >
@@ -161,10 +209,167 @@ export function ChangelogPage() {
           </Button>
         </header>
 
+        {data ? (
+          <div className="joy-changelog-summary">
+            <div className="joy-changelog-summary-top">
+              <div className="joy-changelog-summary-repo">
+                <span className="joy-changelog-summary-name">
+                  {data.owner}/{data.repo}
+                </span>
+                <div className="joy-changelog-badges">
+                  <Badge
+                    variant="secondary"
+                    className="rounded-[2px] font-normal"
+                  >
+                    {meta?.private ? "私有" : "公开"}
+                  </Badge>
+                  {data.configured ? (
+                    <Badge className="rounded-[2px] font-normal">已配置 Token</Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="rounded-[2px] font-normal"
+                    >
+                      未配置 Token
+                    </Badge>
+                  )}
+                  {meta?.defaultBranch ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-[2px] gap-1 font-normal"
+                    >
+                      <GitBranch className="size-[var(--joy-icon-xs)]" />
+                      {meta.defaultBranch}
+                    </Badge>
+                  ) : null}
+                  {meta?.language ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-[2px] font-normal"
+                    >
+                      {meta.language}
+                    </Badge>
+                  ) : null}
+                  {meta?.license ? (
+                    <Badge
+                      variant="outline"
+                      className="rounded-[2px] gap-1 font-normal"
+                    >
+                      <Scale className="size-[var(--joy-icon-xs)]" />
+                      {meta.license}
+                    </Badge>
+                  ) : null}
+                </div>
+              </div>
+              {meta?.description ? (
+                <p className="joy-changelog-summary-desc">{meta.description}</p>
+              ) : null}
+            </div>
+            <div className="joy-changelog-stats">
+              <span className="joy-changelog-stat">
+                <Star className="size-[var(--joy-icon-xs)]" />
+                {meta?.stars ?? "—"} Stars
+              </span>
+              <span className="joy-changelog-stat">
+                <GitFork className="size-[var(--joy-icon-xs)]" />
+                {meta?.forks ?? "—"} Forks
+              </span>
+              <span className="joy-changelog-stat">
+                <CircleDot className="size-[var(--joy-icon-xs)]" />
+                {meta?.openIssues ?? "—"} Issues
+              </span>
+              <span className="joy-changelog-stat">
+                <GitCommitHorizontal className="size-[var(--joy-icon-xs)]" />
+                已加载 {items.length} 条
+                {data.hasMore ? " · 还有更多" : ""}
+              </span>
+              {meta?.pushedAt ? (
+                <span className="joy-changelog-stat">
+                  <Clock3 className="size-[var(--joy-icon-xs)]" />
+                  最近推送 {dayjs(meta.pushedAt).fromNow()}
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+
         {loading && items.length === 0 ? (
-          <div className="joy-changelog-status">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
-            <span>正在拉取提交…</span>
+          <div
+            className="joy-changelog-skel"
+            aria-busy="true"
+            aria-label="正在拉取提交"
+          >
+            <div className="joy-changelog-skel-banner">
+              <span className="joy-changelog-skel-pulse" aria-hidden>
+                <GitCommitHorizontal className="size-[var(--joy-icon-sm)]" />
+              </span>
+              <div className="joy-changelog-skel-banner-text">
+                <span className="joy-changelog-skel-banner-title">
+                  正在同步仓库提交
+                </span>
+                <span className="joy-changelog-skel-banner-sub">
+                  拉取提交记录与仓库摘要…
+                </span>
+              </div>
+              <span className="joy-changelog-skel-dots" aria-hidden>
+                <i />
+                <i />
+                <i />
+              </span>
+            </div>
+
+            <div className="joy-changelog-skel-summary">
+              <div className="joy-changelog-skel-summary-row">
+                <Skeleton className="joy-changelog-skel-repo" />
+                <Skeleton className="joy-changelog-skel-badge" />
+                <Skeleton className="joy-changelog-skel-badge is-sm" />
+                <Skeleton className="joy-changelog-skel-badge is-sm" />
+              </div>
+              <Skeleton className="joy-changelog-skel-desc" />
+              <Skeleton className="joy-changelog-skel-desc is-short" />
+              <div className="joy-changelog-skel-stats">
+                <Skeleton className="joy-changelog-skel-stat" />
+                <Skeleton className="joy-changelog-skel-stat" />
+                <Skeleton className="joy-changelog-skel-stat" />
+                <Skeleton className="joy-changelog-skel-stat is-wide" />
+              </div>
+            </div>
+
+            <div className="joy-changelog-skel-feed">
+              <div className="joy-changelog-skel-day">
+                <span className="joy-changelog-skel-day-dot" aria-hidden />
+                <Skeleton className="joy-changelog-skel-day-label" />
+                <Skeleton className="joy-changelog-skel-day-count" />
+              </div>
+              <ul className="joy-changelog-skel-list">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <li
+                    key={i}
+                    className="joy-changelog-skel-item"
+                    style={{ animationDelay: `${i * 70}ms` }}
+                  >
+                    <span className="joy-changelog-skel-rail" aria-hidden />
+                    <div className="joy-changelog-skel-card">
+                      <div className="joy-changelog-skel-card-main">
+                        <Skeleton
+                          className={cn(
+                            "joy-changelog-skel-msg",
+                            i % 2 === 1 && "is-mid",
+                            i % 3 === 2 && "is-long",
+                          )}
+                        />
+                        <div className="joy-changelog-skel-meta">
+                          <Skeleton className="joy-changelog-skel-avatar" />
+                          <Skeleton className="joy-changelog-skel-author" />
+                          <Skeleton className="joy-changelog-skel-time" />
+                        </div>
+                      </div>
+                      <Skeleton className="joy-changelog-skel-sha" />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         ) : error && items.length === 0 ? (
           <div className="joy-changelog-status is-error">
@@ -176,9 +381,9 @@ export function ChangelogPage() {
             </p>
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               size="sm"
-              className="mt-2 h-9 rounded-xl"
+              className="mt-2 h-8 rounded-[2px]"
               onClick={() => void load(1, false)}
             >
               重试
@@ -190,26 +395,54 @@ export function ChangelogPage() {
               <section key={day} className="joy-changelog-day">
                 <div className="joy-changelog-day-label">
                   <span className="joy-changelog-day-dot" aria-hidden />
-                  <h2>{dateLabel(commits[0].authoredAt)}</h2>
+                  <h2>{dateLabel(commits[0]!.authoredAt)}</h2>
+                  <span className="joy-changelog-day-count">
+                    {commits.length} 条
+                  </span>
                 </div>
                 <ul className="joy-changelog-list">
                   {commits.map((c) => {
                     const initial = c.author.name.slice(0, 1).toUpperCase();
+                    const authorLabel = c.author.login || c.author.name;
+                    const committerLabel =
+                      c.committer.login || c.committer.name;
+                    const showCommitter =
+                      Boolean(committerLabel) &&
+                      committerLabel !== authorLabel;
                     return (
                       <li key={c.sha} className="joy-changelog-item">
                         <div className="joy-changelog-rail" aria-hidden>
-                          <GitCommitHorizontal className="joy-changelog-rail-icon" />
+                          {c.isMerge ? (
+                            <GitMerge className="joy-changelog-rail-icon" />
+                          ) : (
+                            <GitCommitHorizontal className="joy-changelog-rail-icon" />
+                          )}
                         </div>
                         <div className="joy-changelog-card">
                           <div className="joy-changelog-card-main">
-                            <a
-                              href={c.htmlUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="joy-changelog-msg"
-                            >
-                              {c.message}
-                            </a>
+                            <div className="joy-changelog-msg-row">
+                              <p className="joy-changelog-msg">{c.message}</p>
+                              <div className="joy-changelog-tags">
+                                {c.isMerge ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className="rounded-[2px] font-normal"
+                                  >
+                                    Merge
+                                  </Badge>
+                                ) : null}
+                                {c.verified ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="rounded-[2px] gap-1 font-normal text-emerald-600"
+                                    title={c.verifyReason ?? "verified"}
+                                  >
+                                    <ShieldCheck className="size-[var(--joy-icon-xs)]" />
+                                    已验证
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            </div>
                             {c.body ? (
                               <pre className="joy-changelog-body">{c.body}</pre>
                             ) : null}
@@ -226,23 +459,61 @@ export function ChangelogPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <span className="joy-changelog-author">
-                                {c.author.login || c.author.name}
+                                {authorLabel}
                               </span>
+                              {c.author.email ? (
+                                <>
+                                  <span className="joy-changelog-sep">·</span>
+                                  <span
+                                    className="joy-changelog-email"
+                                    title={c.author.email}
+                                  >
+                                    {c.author.email}
+                                  </span>
+                                </>
+                              ) : null}
+                              {showCommitter ? (
+                                <>
+                                  <span className="joy-changelog-sep">·</span>
+                                  <span className="text-muted-foreground">
+                                    提交者 {committerLabel}
+                                  </span>
+                                </>
+                              ) : null}
                               <span className="joy-changelog-sep">·</span>
-                              <time dateTime={c.authoredAt}>
-                                {dayjs(c.authoredAt).fromNow()}
+                              <time
+                                dateTime={c.authoredAt}
+                                title={dayjs(c.authoredAt).format(
+                                  "YYYY-MM-DD HH:mm:ss",
+                                )}
+                              >
+                                {dayjs(c.authoredAt).format("MM-DD HH:mm")}
+                                <span className="joy-changelog-rel">
+                                  （{dayjs(c.authoredAt).fromNow()}）
+                                </span>
                               </time>
+                              {c.commentCount > 0 ? (
+                                <>
+                                  <span className="joy-changelog-sep">·</span>
+                                  <span className="inline-flex items-center gap-1 text-muted-foreground">
+                                    <MessageSquare className="size-[var(--joy-icon-xs)]" />
+                                    {c.commentCount}
+                                  </span>
+                                </>
+                              ) : null}
                             </div>
                           </div>
-                          <a
-                            href={c.htmlUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
                             className="joy-changelog-sha"
-                            title={c.sha}
+                            title={`复制完整 SHA\n${c.sha}`}
+                            onClick={() =>
+                              void copyText(c.sha, `已复制 ${c.shortSha}`)
+                            }
                           >
-                            {c.shortSha}
-                          </a>
+                            <span>{c.shortSha}</span>
+                            <Copy className="size-[var(--joy-icon-xs)] opacity-50" />
+                          </button>
                         </div>
                       </li>
                     );
@@ -255,9 +526,9 @@ export function ChangelogPage() {
               <div className="joy-changelog-more">
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="outline"
                   size="sm"
-                  className="h-9 rounded-xl"
+                  className="h-8 rounded-[2px]"
                   disabled={loadingMore}
                   onClick={() => void load(page + 1, true)}
                 >
@@ -268,7 +539,10 @@ export function ChangelogPage() {
                 </Button>
               </div>
             ) : items.length > 0 ? (
-              <p className="joy-changelog-end">没有更多提交了</p>
+              <p className="joy-changelog-end">
+                <CheckCircle2 className="mr-1.5 inline size-3.5 opacity-60" />
+                没有更多提交了
+              </p>
             ) : null}
           </div>
         )}

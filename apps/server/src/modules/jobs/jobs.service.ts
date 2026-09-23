@@ -14,6 +14,10 @@ import { Model } from "../../database/entities/model.entity";
 import { Asset } from "../../database/entities/asset.entity";
 import { User } from "../../database/entities/user.entity";
 import { JobKind, JobStatus } from "../../database/enums";
+import {
+  normalizePage,
+  type PaginatedResult,
+} from "../../common/dto/pagination-query.dto";
 import { ChannelsService } from "../channels/channels.service";
 import { AssetsService } from "../assets/assets.service";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
@@ -351,13 +355,71 @@ export class JobsService {
     return { items, hasMore };
   }
 
-  async listAll(take = 100) {
-    const rows = await this.jobs.find({
-      order: { createdAt: "DESC" },
-      take,
-      relations: ["user", "assets"],
-    });
-    return this.enrichMany(
+  async listAll(query: {
+    page?: number;
+    pageSize?: number;
+    /** Legacy cap; mapped to pageSize when pageSize omitted. */
+    take?: number;
+    keyword?: string;
+    status?: string;
+    kind?: string;
+  } = {}) {
+    const legacySize =
+      query.take != null && query.pageSize == null
+        ? Math.min(Math.max(Number(query.take) || 100, 1), 100)
+        : undefined;
+    const { page, pageSize, skip } = normalizePage(
+      query.page,
+      query.pageSize ?? legacySize,
+    );
+
+    const applyFilters = (
+      qb: SelectQueryBuilder<Job>,
+    ): SelectQueryBuilder<Job> => {
+      const status = query.status?.trim();
+      if (status) {
+        qb.andWhere("job.status = :status", { status });
+      }
+      const kind = query.kind?.trim();
+      if (kind) {
+        qb.andWhere("job.kind = :kind", { kind });
+      }
+      const keyword = query.keyword?.trim();
+      if (keyword) {
+        qb.andWhere(
+          `(
+            job.id LIKE :kw
+            OR user.username LIKE :kw
+            OR IFNULL(job.error, '') LIKE :kw
+            OR IFNULL(job.remoteTaskId, '') LIKE :kw
+            OR IFNULL(job.modelName, '') LIKE :kw
+            OR IFNULL(job.channelName, '') LIKE :kw
+            OR IFNULL(job.platform, '') LIKE :kw
+            OR CAST(job.input AS CHAR) LIKE :kw
+          )`,
+          { kw: `%${keyword}%` },
+        );
+      }
+      return qb;
+    };
+
+    const total = await applyFilters(
+      this.jobs
+        .createQueryBuilder("job")
+        .leftJoin("job.user", "user"),
+    ).getCount();
+
+    const rows = await applyFilters(
+      this.jobs
+        .createQueryBuilder("job")
+        .leftJoinAndSelect("job.user", "user")
+        .leftJoinAndSelect("job.assets", "assets")
+        .orderBy("job.createdAt", "DESC")
+        .skip(skip)
+        .take(pageSize),
+    ).getMany();
+
+    const items = await this.enrichMany(
       rows.map((row) => ({
         ...row,
         user: row.user
@@ -365,6 +427,9 @@ export class JobsService {
           : undefined,
       })) as JobListRow[],
     );
+    return { items, total, page, pageSize } satisfies PaginatedResult<
+      (typeof items)[number]
+    >;
   }
 
   /** Admin: any user's job by id (full detail). */

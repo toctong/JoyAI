@@ -18,6 +18,7 @@ import { downloadAsset } from "@/shared/lib/download-asset";
 import {
   Copy,
   Download,
+  FolderOpen,
   RefreshCw,
   Sparkles,
   Trash2,
@@ -30,7 +31,6 @@ import dayjs from "dayjs";
 import { api } from "@/shared/lib/api";
 import { formatDurationMs } from "@/shared/lib/format-duration";
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
-import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
 import {
   GeneratingStatusBar,
@@ -1083,13 +1083,7 @@ function StudioInner() {
     >
       <div className="joy-studio-top">
         <Link href="/assets" className="joy-studio-assets-btn">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={JOYAI_BRAND.nav.assets}
-            alt=""
-            className="h-4 w-4 object-contain dark:brightness-0 dark:invert"
-            draggable={false}
-          />
+          <FolderOpen className="h-4 w-4" strokeWidth={1.75} />
           创作资产
         </Link>
       </div>

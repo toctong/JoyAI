@@ -19,11 +19,33 @@ export type ChangelogCommit = {
   body: string;
   htmlUrl: string;
   authoredAt: string;
+  committedAt: string | null;
+  commentCount: number;
+  verified: boolean;
+  verifyReason: string | null;
+  isMerge: boolean;
   author: {
     name: string;
+    email: string | null;
     login: string | null;
     avatarUrl: string | null;
   };
+  committer: {
+    name: string | null;
+    login: string | null;
+  };
+};
+
+export type ChangelogRepoMeta = {
+  description: string | null;
+  defaultBranch: string | null;
+  language: string | null;
+  stars: number;
+  forks: number;
+  openIssues: number;
+  license: string | null;
+  pushedAt: string | null;
+  private: boolean;
 };
 
 export type ChangelogPage = {
@@ -31,6 +53,7 @@ export type ChangelogPage = {
   repo: string;
   htmlUrl: string;
   configured: boolean;
+  repoMeta: ChangelogRepoMeta | null;
   items: ChangelogCommit[];
   page: number;
   perPage: number;
@@ -42,18 +65,36 @@ type GhCommit = {
   html_url: string;
   commit: {
     message: string;
-    author?: { name?: string; date?: string } | null;
-    committer?: { name?: string; date?: string } | null;
+    comment_count?: number;
+    author?: { name?: string; email?: string; date?: string } | null;
+    committer?: { name?: string; email?: string; date?: string } | null;
+    verification?: { verified?: boolean; reason?: string } | null;
   };
   author?: { login?: string; avatar_url?: string } | null;
+  committer?: { login?: string } | null;
+  parents?: Array<{ sha?: string }>;
+};
+
+type GhRepo = {
+  description?: string | null;
+  default_branch?: string;
+  language?: string | null;
+  stargazers_count?: number;
+  forks_count?: number;
+  open_issues_count?: number;
+  license?: { spdx_id?: string | null; name?: string | null } | null;
+  pushed_at?: string | null;
+  private?: boolean;
 };
 
 type CacheEntry = { at: number; data: ChangelogPage };
+type RepoCacheEntry = { at: number; data: ChangelogRepoMeta | null };
 
 @Injectable()
 export class ChangelogService implements OnModuleInit {
   private readonly logger = new Logger(ChangelogService.name);
   private cache = new Map<string, CacheEntry>();
+  private repoCache = new Map<string, RepoCacheEntry>();
   private readonly cacheTtlMs = 60_000;
 
   constructor(private readonly settings: SettingsService) {}
@@ -72,6 +113,7 @@ export class ChangelogService implements OnModuleInit {
 
   clearCache() {
     this.cache.clear();
+    this.repoCache.clear();
   }
 
   private async owner() {
@@ -95,6 +137,54 @@ export class ChangelogService implements OnModuleInit {
     ]);
   }
 
+  private async githubHeaders() {
+    const token = await this.token();
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "JoyAI-Changelog",
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return { headers, token };
+  }
+
+  private async fetchRepoMeta(
+    owner: string,
+    repo: string,
+    headers: Record<string, string>,
+  ): Promise<ChangelogRepoMeta | null> {
+    const key = `${owner}/${repo}`;
+    const hit = this.repoCache.get(key);
+    if (hit && Date.now() - hit.at < this.cacheTtlMs) return hit.data;
+
+    try {
+      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+        headers,
+      });
+      if (!res.ok) {
+        this.repoCache.set(key, { at: Date.now(), data: null });
+        return null;
+      }
+      const raw = (await res.json()) as GhRepo;
+      const data: ChangelogRepoMeta = {
+        description: raw.description?.trim() || null,
+        defaultBranch: raw.default_branch ?? null,
+        language: raw.language ?? null,
+        stars: raw.stargazers_count ?? 0,
+        forks: raw.forks_count ?? 0,
+        openIssues: raw.open_issues_count ?? 0,
+        license: raw.license?.spdx_id || raw.license?.name || null,
+        pushedAt: raw.pushed_at ?? null,
+        private: Boolean(raw.private),
+      };
+      this.repoCache.set(key, { at: Date.now(), data });
+      return data;
+    } catch (e) {
+      this.logger.warn(`GitHub repo meta failed: ${String(e)}`);
+      return null;
+    }
+  }
+
   async listCommits(page = 1, perPage = 30): Promise<ChangelogPage> {
     const owner = await this.owner();
     const repo = await this.repo();
@@ -106,13 +196,7 @@ export class ChangelogService implements OnModuleInit {
       return hit.data;
     }
 
-    const token = await this.token();
-    const headers: Record<string, string> = {
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "JoyAI-Changelog",
-    };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    const { headers, token } = await this.githubHeaders();
 
     const url = new URL(
       `https://api.github.com/repos/${owner}/${repo}/commits`,
@@ -150,12 +234,14 @@ export class ChangelogService implements OnModuleInit {
     const items = raw.map((row) => this.mapCommit(row));
     const link = res.headers.get("link") ?? "";
     const hasMore = /rel="next"/.test(link) || items.length >= safePer;
+    const repoMeta = await this.fetchRepoMeta(owner, repo, headers);
 
     const data: ChangelogPage = {
       owner,
       repo,
       htmlUrl: `https://github.com/${owner}/${repo}`,
       configured: Boolean(token),
+      repoMeta,
       items,
       page: safePage,
       perPage: safePer,
@@ -180,6 +266,9 @@ export class ChangelogService implements OnModuleInit {
       row.commit?.author?.date ||
       row.commit?.committer?.date ||
       new Date().toISOString();
+    const committedAt = row.commit?.committer?.date ?? null;
+    const committerName = row.commit?.committer?.name?.trim() || null;
+    const committerLogin = row.committer?.login?.trim() || null;
 
     return {
       sha: row.sha,
@@ -188,10 +277,20 @@ export class ChangelogService implements OnModuleInit {
       body,
       htmlUrl: row.html_url,
       authoredAt,
+      committedAt,
+      commentCount: row.commit?.comment_count ?? 0,
+      verified: Boolean(row.commit?.verification?.verified),
+      verifyReason: row.commit?.verification?.reason ?? null,
+      isMerge: (row.parents?.length ?? 0) > 1,
       author: {
         name,
+        email: row.commit?.author?.email?.trim() || null,
         login,
         avatarUrl: row.author?.avatar_url ?? null,
+      },
+      committer: {
+        name: committerName,
+        login: committerLogin,
       },
     };
   }

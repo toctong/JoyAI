@@ -5,10 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Clapperboard,
   Compass,
+  FolderOpen,
+  Frame,
   Github,
   LogOut,
+  Settings2,
   Shield,
   ShieldCheck,
+  Sparkles,
+  Wand2,
   Wrench,
   type LucideIcon,
 } from "lucide-react";
@@ -31,70 +36,21 @@ import {
 type NavItem = {
   href: string;
   label: string;
-  icon?: string;
-  Lucide?: LucideIcon;
+  Icon: LucideIcon;
   beta?: boolean;
 };
 
+/** All rail icons use Lucide — same stroke weight / size as admin & GitHub. */
 const nav: NavItem[] = [
-  {
-    href: "/inspire",
-    label: "灵感",
-    icon: JOYAI_BRAND.nav.inspire,
-  },
-  {
-    href: "/explore",
-    label: "探索",
-    Lucide: Compass,
-  },
-  {
-    href: "/studio",
-    label: "创作",
-    icon: JOYAI_BRAND.nav.studio,
-  },
-  {
-    href: "/canvas",
-    label: "画布",
-    icon: JOYAI_BRAND.nav.canvas,
-    beta: true,
-  },
-  {
-    href: "/manju",
-    label: "漫剧",
-    Lucide: Clapperboard,
-    beta: true,
-  },
-  {
-    href: "/assets",
-    label: "资产",
-    icon: JOYAI_BRAND.nav.assets,
-  },
-  {
-    href: "/tools",
-    label: "工具",
-    Lucide: Wrench,
-  },
-  {
-    href: "/github",
-    label: "GitHub",
-    Lucide: Github,
-  },
+  { href: "/inspire", label: "灵感", Icon: Sparkles },
+  { href: "/explore", label: "探索", Icon: Compass },
+  { href: "/studio", label: "创作", Icon: Wand2 },
+  { href: "/canvas", label: "画布", Icon: Frame, beta: true },
+  { href: "/manju", label: "漫剧", Icon: Clapperboard, beta: true },
+  { href: "/assets", label: "资产", Icon: FolderOpen },
+  { href: "/tools", label: "工具", Icon: Wrench },
+  { href: "/github", label: "GitHub", Icon: Github },
 ];
-
-function BrandImg({
-  src,
-  alt,
-  className,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-}) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} className={className} draggable={false} />
-  );
-}
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -114,10 +70,12 @@ export function AppSidebar() {
         className="mb-1 flex h-10 w-10 items-center justify-center"
         aria-label="JoyAI"
       >
-        <BrandImg
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={JOYAI_BRAND.logo}
           alt="JoyAI"
           className="h-9 w-9 object-contain"
+          draggable={false}
         />
       </Link>
 
@@ -125,7 +83,7 @@ export function AppSidebar() {
         {nav.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.Lucide;
+          const Icon = item.Icon;
           return (
             <Link
               key={item.href}
@@ -138,24 +96,13 @@ export function AppSidebar() {
               )}
             >
               <span className="relative inline-flex h-9 w-9 items-center justify-center">
-                {Icon ? (
-                  <Icon
-                    className={cn(
-                      "h-[var(--joy-icon-lg)] w-[var(--joy-icon-lg)] transition",
-                      !active && "opacity-70",
-                    )}
-                  />
-                ) : item.icon ? (
-                  <BrandImg
-                    src={item.icon}
-                    alt=""
-                    className={cn(
-                      "h-8 w-8 object-contain transition",
-                      !active && "opacity-70",
-                      "dark:brightness-0 dark:invert",
-                    )}
-                  />
-                ) : null}
+                <Icon
+                  className={cn(
+                    "h-[var(--joy-icon-lg)] w-[var(--joy-icon-lg)] transition",
+                    !active && "opacity-70",
+                  )}
+                  strokeWidth={1.75}
+                />
                 {item.beta ? (
                   <span className="absolute -bottom-1 -right-3 rounded-[6px] bg-[#7c5cff] px-1 py-[1px] text-[length:var(--joy-font-micro)] font-semibold leading-none text-white shadow-sm">
                     Beta
@@ -184,7 +131,10 @@ export function AppSidebar() {
             title="管理后台"
           >
             <span className="inline-flex h-9 w-9 items-center justify-center">
-              <Shield className="h-[var(--joy-icon-lg)] w-[var(--joy-icon-lg)]" />
+              <Shield
+                className="h-[var(--joy-icon-lg)] w-[var(--joy-icon-lg)]"
+                strokeWidth={1.75}
+              />
             </span>
             <span className="max-w-full truncate text-center text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px]">
               管理
@@ -220,6 +170,10 @@ export function AppSidebar() {
                 管理后台
               </DropdownMenuItem>
             ) : null}
+            <DropdownMenuItem onClick={() => router.push("/account")}>
+              <Settings2 className="h-4 w-4" />
+              账户设置
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setTotpOpen(true)}>
               <ShieldCheck className="h-4 w-4" />
               身份验证器

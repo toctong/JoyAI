@@ -57,13 +57,13 @@ export function ListToolbar({
     >
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <form
-          className="flex min-w-[220px] max-w-md flex-1"
+          className="flex min-w-[220px] max-w-xl flex-1"
           onSubmit={submit}
         >
           <div
             className={cn(
-              "flex h-9 w-full min-w-0 items-stretch overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm",
-              "focus-within:ring-2 focus-within:ring-ring",
+              "flex h-8 w-full min-w-0 items-stretch overflow-hidden rounded-[2px] border border-border bg-card",
+              "focus-within:border-primary",
             )}
           >
             <div className="relative min-w-0 flex-1">
@@ -100,7 +100,7 @@ export function ListToolbar({
             type="button"
             variant="outline"
             size="icon"
-            className="size-9 rounded-xl"
+            className="size-8 rounded-[2px]"
             disabled={refreshing}
             onClick={onRefresh}
             aria-label="刷新"
@@ -113,13 +113,13 @@ export function ListToolbar({
         ) : null}
 
         {viewMode && onViewModeChange ? (
-          <div className="inline-flex h-9 items-center rounded-xl border border-border/80 bg-background p-0.5">
+          <div className="inline-flex h-8 items-center rounded-[2px] border border-border bg-card p-0.5">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className={cn(
-                "size-8 rounded-lg",
+                "size-7 rounded-[2px]",
                 viewMode === "card" && "bg-secondary text-foreground",
               )}
               onClick={() => onViewModeChange("card")}
@@ -133,7 +133,7 @@ export function ListToolbar({
               variant="ghost"
               size="icon"
               className={cn(
-                "size-8 rounded-lg",
+                "size-7 rounded-[2px]",
                 viewMode === "list" && "bg-secondary text-foreground",
               )}
               onClick={() => onViewModeChange("list")}

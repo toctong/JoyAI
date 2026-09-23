@@ -47,6 +47,7 @@ import { ListToolbar } from "@/components/admin/list-toolbar";
 import { ListPagination } from "@/components/admin/list-pagination";
 import { AdminEmptyState } from "@/components/admin/empty-state";
 import { BrandAvatar, BrandLabel } from "@/components/admin/brand-avatar";
+import { AdminDrawer } from "@/components/admin/admin-drawer";
 import { channelIconSrc } from "@/shared/lib/brand-icons";
 import {
   Table,
@@ -56,13 +57,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { cn } from "@/shared/lib/utils";
 
 type Channel = {
@@ -311,7 +305,7 @@ export default function ChannelsPage() {
         const c = res.catalog;
         toast.success(
           c
-            ? `渠道已创建，导入模型 ${c.created} 新建 / ${c.updated} 更新` +
+            ? `渠道已创建，已同步目录：${c.created} 新建 / ${c.updated} 更新` +
                 ((c.disabled ?? 0) > 0 ? ` / ${c.disabled} 下架` : "")
             : "渠道已创建",
         );
@@ -337,12 +331,12 @@ export default function ChannelsPage() {
       const disabled = res.disabled ?? 0;
       toast.success(
         disabled > 0
-          ? `已导入：新建 ${res.created} · 更新 ${res.updated} · 下架 ${disabled}`
-          : `已导入：新建 ${res.created} · 更新 ${res.updated}`,
+          ? `全量同步完成：新建 ${res.created} · 更新 ${res.updated} · 下架 ${disabled}`
+          : `全量同步完成：新建 ${res.created} · 更新 ${res.updated}`,
       );
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "导入失败");
+      toast.error(e instanceof Error ? e.message : "同步失败");
     } finally {
       setImportingId(null);
     }
@@ -442,7 +436,7 @@ export default function ChannelsPage() {
           className="size-8 shrink-0"
           title={
             platformHasCatalog(ch.platform)
-              ? "导入主流模型"
+              ? "同步全部目录模型（会禁用目录已下线项）"
               : "该平台无内置模型目录，请手动添加模型"
           }
           disabled={
@@ -553,7 +547,7 @@ export default function ChannelsPage() {
           <ListPageCard>
             <AdminEmptyState
               title={hasFilters ? "没有匹配的渠道" : "暂无渠道"}
-              description="创建渠道后可测试连通性，并一键导入主流模型目录"
+              description="创建渠道后可测试连通性；全量同步会按目录创建/更新模型，并禁用已下线项"
               action={
                 !hasFilters ? (
                   <Button size="sm" onClick={openCreate}>
@@ -565,24 +559,20 @@ export default function ChannelsPage() {
             />
           </ListPageCard>
         ) : viewMode === "card" ? (
-          <div className="joy-admin-card-grid">
+          <div className="joy-admin-scroll-body">
+            <div className="joy-admin-card-grid">
             {channels.map((ch) => (
               <article key={ch.id} className="joy-admin-card-item">
                 <div className="joy-admin-card-item-head">
-                  <div className="flex min-w-0 items-start gap-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
                     <BrandAvatar
                       src={channelIconSrc(ch.platform)}
                       label={platformLabel(ch.platform)}
                       size={36}
                     />
-                    <div className="min-w-0">
-                      <h3 className="joy-admin-card-item-title" title={ch.name}>
-                        {ch.name}
-                      </h3>
-                      <p className="joy-admin-card-item-sub" title={ch.baseUrl}>
-                        {ch.baseUrl}
-                      </p>
-                    </div>
+                    <h3 className="joy-admin-card-item-title" title={ch.name}>
+                      {ch.name}
+                    </h3>
                   </div>
                   <Badge variant="secondary" className="shrink-0 gap-1.5 whitespace-nowrap pl-1 pr-2">
                     <BrandAvatar
@@ -595,6 +585,12 @@ export default function ChannelsPage() {
                     {platformLabel(ch.platform)}
                   </Badge>
                 </div>
+                <p
+                  className="joy-admin-card-item-sub is-row"
+                  title={ch.baseUrl}
+                >
+                  {ch.baseUrl}
+                </p>
                 <div className="joy-admin-card-item-meta">
                   <span className="text-xs tabular-nums text-muted-foreground">
                     模型 {ch.modelCount ?? 0}
@@ -613,6 +609,7 @@ export default function ChannelsPage() {
                 </div>
               </article>
             ))}
+          </div>
           </div>
         ) : (
           <ListPageCard className="admin-table">
@@ -653,7 +650,7 @@ export default function ChannelsPage() {
                         className="text-muted-foreground"
                       />
                     </TableCell>
-                    <TableCell className="max-w-[240px]">
+                    <TableCell className="max-w-[min(420px,36vw)]">
                       <div
                         className="truncate font-mono text-xs text-muted-foreground"
                         title={ch.baseUrl}
@@ -697,167 +694,172 @@ export default function ChannelsPage() {
         />
       </ListPageFooter>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
-          <DialogHeader className="shrink-0 border-b border-border/70 px-6 py-4">
-            <DialogTitle>{editing ? "编辑渠道" : "新建渠道"}</DialogTitle>
-          </DialogHeader>
-          <form
-            className="flex min-h-0 flex-1 flex-col"
-            onSubmit={form.handleSubmit(onSubmit)}
-          >
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
-              <div className="space-y-2">
-                <Label>名称</Label>
-                <Input className="h-9 rounded-xl" {...form.register("name")} />
-              </div>
-
-              {editing ? (
-                <div className="space-y-2">
-                  <Label>平台</Label>
-                  <div className="flex h-9 items-center gap-2 rounded-xl border border-border/80 bg-muted/40 px-3">
-                    <BrandAvatar
-                      src={channelIconSrc(editing.platform)}
-                      label={platformLabel(editing.platform)}
-                      size={18}
-                      rounded="md"
-                    />
-                    <span className="text-sm">
-                      {platformLabel(editing.platform)}
-                    </span>
-                    <span className="ml-auto font-mono text-[11px] text-muted-foreground">
-                      {editing.platform}
-                    </span>
-                  </div>
-                  <p className="text-[12px] text-muted-foreground">
-                    平台类型创建后不可更改；换协议请新建渠道。
-                  </p>
-                </div>
+      <AdminDrawer
+        open={open}
+        onOpenChange={setOpen}
+        title={editing ? "编辑渠道" : "新建渠道"}
+        widthClassName="sm:max-w-[520px]"
+        footer={
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="h-8 rounded-[2px]"
+              disabled={probing}
+              onClick={() => void probeInDialog()}
+            >
+              {probing ? (
+                <Loader2 className="size-3.5 animate-spin" />
               ) : (
-                <div className="space-y-2">
-                  <Label>平台</Label>
-                  <Select
-                    value={form.watch("platform")}
-                    onValueChange={applyPlatform}
-                  >
-                    <SelectTrigger className="h-9 rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PLATFORM_OPTIONS.map(([id, preset]) => (
-                        <SelectItem key={id} value={id}>
-                          <BrandLabel
-                            src={channelIconSrc(id)}
-                            label={preset.label}
-                          />
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedPreset?.docsUrl ? (
-                    <a
-                      href={selectedPreset.docsUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-[12px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                    >
-                      <ExternalLink className="size-3" />
-                      查看平台文档
-                    </a>
-                  ) : null}
-                  {watchedPlatform === "openai-compatible" ? (
-                    <p className="rounded-lg bg-muted/50 px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">
-                      适用于任意 OpenAI 兼容网关。创建后请到「模型」页手动登记，
-                      图片用 <code className="font-mono">openai-images</code>
-                      、视频用{" "}
-                      <code className="font-mono">openai-videos</code>
-                      （该平台会自动默认）。
-                    </p>
-                  ) : null}
-                </div>
+                <RadioTower className="size-3.5" />
               )}
-
-              <div className="space-y-2">
-                <Label>
-                  API Key
-                  {editing ? (
-                    <span className="ml-1 font-normal text-muted-foreground">
-                      （留空则不修改）
-                    </span>
-                  ) : null}
-                </Label>
-                <Input
-                  className="h-9 rounded-xl"
-                  type="password"
-                  autoComplete="off"
-                  {...form.register("apiKey")}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Base URL</Label>
-                <Input
-                  className="h-9 rounded-xl font-mono text-xs"
-                  placeholder="https://…/v1"
-                  {...form.register("baseUrl")}
-                />
-                <p className="text-[12px] text-muted-foreground">
-                  需指向兼容 OpenAI 风格路径的根地址（如{" "}
-                  <code className="font-mono">…/v1</code>
-                  ），勿带具体模型路径。
-                </p>
-              </div>
-              {!editing ? (
-                <div className="space-y-2 rounded-xl border border-border/80 p-3.5">
-                  <label className="flex items-center gap-2 text-sm">
-                    <Switch
-                      checked={!!form.watch("importCatalog") && canImportCatalog}
-                      disabled={!canImportCatalog}
-                      onCheckedChange={(v) =>
-                        form.setValue("importCatalog", v)
-                      }
-                    />
-                    创建后导入主流模型目录
-                  </label>
-                  <p className="text-[12px] leading-relaxed text-muted-foreground">
-                    {canImportCatalog
-                      ? "将按平台内置目录批量创建/更新模型。"
-                      : "当前平台无内置目录，请创建渠道后手动添加模型。"}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-            <DialogFooter className="shrink-0 gap-2 border-t border-border/70 px-6 py-4 sm:justify-between">
+              测试连通性
+            </Button>
+            <div className="flex gap-2">
               <Button
                 type="button"
-                variant="secondary"
-                className="rounded-xl"
-                disabled={probing}
-                onClick={() => void probeInDialog()}
+                variant="outline"
+                className="h-8 rounded-[2px]"
+                onClick={() => setOpen(false)}
               >
-                {probing ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <RadioTower className="size-3.5" />
-                )}
-                测试连通性
+                取消
               </Button>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl"
-                  onClick={() => setOpen(false)}
-                >
-                  取消
-                </Button>
-                <Button type="submit" className="rounded-xl">
-                  {editing ? "保存" : "创建"}
-                </Button>
+              <Button
+                type="submit"
+                form="admin-channel-form"
+                className="h-8 rounded-[2px]"
+              >
+                {editing ? "保存" : "创建"}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <form
+          id="admin-channel-form"
+          className="space-y-4"
+          onSubmit={form.handleSubmit(onSubmit)}
+        >
+          <div className="space-y-2">
+            <Label>名称</Label>
+            <Input className="h-8 rounded-[2px]" {...form.register("name")} />
+          </div>
+
+          {editing ? (
+            <div className="space-y-2">
+              <Label>平台</Label>
+              <div className="flex h-8 items-center gap-2 rounded-[2px] border border-border bg-muted/40 px-3">
+                <BrandAvatar
+                  src={channelIconSrc(editing.platform)}
+                  label={platformLabel(editing.platform)}
+                  size={18}
+                  rounded="md"
+                />
+                <span className="text-sm">
+                  {platformLabel(editing.platform)}
+                </span>
+                <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+                  {editing.platform}
+                </span>
               </div>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+              <p className="text-[12px] text-muted-foreground">
+                平台类型创建后不可更改；换协议请新建渠道。
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>平台</Label>
+              <Select
+                value={form.watch("platform")}
+                onValueChange={applyPlatform}
+              >
+                <SelectTrigger className="h-8 rounded-[2px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="shadow-none">
+                  {PLATFORM_OPTIONS.map(([id, preset]) => (
+                    <SelectItem key={id} value={id}>
+                      <BrandLabel
+                        src={channelIconSrc(id)}
+                        label={preset.label}
+                      />
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedPreset?.docsUrl ? (
+                <a
+                  href={selectedPreset.docsUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[12px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                >
+                  <ExternalLink className="size-3" />
+                  查看平台文档
+                </a>
+              ) : null}
+              {watchedPlatform === "openai-compatible" ? (
+                <p className="rounded-[2px] bg-muted/50 px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">
+                  适用于任意 OpenAI 兼容网关。创建后请到「模型」页手动登记，
+                  图片用 <code className="font-mono">openai-images</code>
+                  、视频用{" "}
+                  <code className="font-mono">openai-videos</code>
+                  （该平台会自动默认）。
+                </p>
+              ) : null}
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>
+              API Key
+              {editing ? (
+                <span className="ml-1 font-normal text-muted-foreground">
+                  （留空则不修改）
+                </span>
+              ) : null}
+            </Label>
+            <Input
+              className="h-8 rounded-[2px]"
+              type="password"
+              autoComplete="off"
+              {...form.register("apiKey")}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Base URL</Label>
+            <Input
+              className="h-8 rounded-[2px] font-mono text-xs"
+              placeholder="https://…/v1"
+              {...form.register("baseUrl")}
+            />
+            <p className="text-[12px] text-muted-foreground">
+              需指向兼容 OpenAI 风格路径的根地址（如{" "}
+              <code className="font-mono">…/v1</code>
+              ），勿带具体模型路径。
+            </p>
+          </div>
+          {!editing ? (
+            <div className="space-y-2 rounded-[2px] border border-border p-3">
+              <label className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={!!form.watch("importCatalog") && canImportCatalog}
+                  disabled={!canImportCatalog}
+                  onCheckedChange={(v) =>
+                    form.setValue("importCatalog", v)
+                  }
+                />
+                创建后同步全部目录模型
+              </label>
+              <p className="text-[12px] leading-relaxed text-muted-foreground">
+                {canImportCatalog
+                  ? "按平台内置目录批量创建/更新；目录里已下线的模型会被禁用。细粒度勾选请到「模型」页从目录添加。"
+                  : "当前平台无内置目录，请创建渠道后到模型页手动新建。"}
+              </p>
+            </div>
+          ) : null}
+        </form>
+      </AdminDrawer>
     </ListPageShell>
   );
 }

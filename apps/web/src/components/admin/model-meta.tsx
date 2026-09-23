@@ -91,21 +91,30 @@ export function CapabilityBadges({
   }
 
   const [io, ...rest] = details;
-  const chips = [
-    ...(io ? [io] : []),
-    ...rest,
-    ...features.slice(0, 4),
-  ];
+  /** Long specs (分辨率/比例…) stay truncated — keep card body height stable. */
+  const featureLimit = compact ? 3 : 5;
+  const featureShown = features.slice(0, featureLimit);
+  const chips = compact
+    ? [...(io ? [io] : []), ...rest, ...featureShown]
+    : [...(io ? [io] : []), ...featureShown];
+  const metaLines = compact
+    ? []
+    : rest
+        .filter((line) => /^(分辨率|尺寸|比例|参考|最长)/.test(line))
+        .slice(0, 2);
   const limit = compact ? 4 : 6;
   const shown = chips.slice(0, limit);
-  const hidden = chips.length - shown.length;
+  const hidden =
+    chips.length -
+    shown.length +
+    Math.max(0, features.length - featureShown.length);
 
   return (
     <div
       className={cn(
         compact
           ? "flex max-w-[18rem] items-center gap-1 overflow-hidden"
-          : "flex max-w-[22rem] flex-col gap-1",
+          : "joy-admin-card-item-body flex min-w-0 flex-col gap-1",
         className,
       )}
       title={tip}
@@ -113,7 +122,7 @@ export function CapabilityBadges({
       <div
         className={cn(
           "flex items-center gap-1",
-          compact ? "flex-nowrap" : "flex-wrap",
+          compact ? "flex-nowrap" : "min-h-6 flex-wrap content-start",
         )}
       >
         {shown.map((c) => (
@@ -131,6 +140,14 @@ export function CapabilityBadges({
           </span>
         ) : null}
       </div>
+      {metaLines.map((line) => (
+        <p
+          key={line}
+          className="truncate text-[11px] leading-4 text-muted-foreground"
+        >
+          {line}
+        </p>
+      ))}
     </div>
   );
 }
@@ -139,5 +156,6 @@ export function kindLabel(kind: string) {
   if (kind === "image") return "图片";
   if (kind === "video") return "视频";
   if (kind === "llm") return "LLM";
+  if (kind === "audio") return "音频";
   return kind;
 }

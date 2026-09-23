@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
 
+/** Fill admin viewport: header/footer fixed, main scrolls internally. */
 export function ListPageShell({
   children,
   className,
@@ -9,7 +10,14 @@ export function ListPageShell({
   className?: string;
 }) {
   return (
-    <div className={cn("flex flex-col gap-5", className)}>{children}</div>
+    <div
+      className={cn(
+        "flex h-full min-h-0 flex-col gap-4 overflow-hidden",
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -20,7 +28,9 @@ export function ListPageHeader({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("space-y-4", className)}>{children}</div>;
+  return (
+    <div className={cn("shrink-0 space-y-3", className)}>{children}</div>
+  );
 }
 
 export function ListPageMain({
@@ -30,7 +40,16 @@ export function ListPageMain({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("flex flex-col", className)}>{children}</div>;
+  return (
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 flex-col overflow-hidden",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function ListPageFooter({
@@ -40,20 +59,30 @@ export function ListPageFooter({
   children: ReactNode;
   className?: string;
 }) {
-  return <div className={cn("pt-1", className)}>{children}</div>;
+  return (
+    <div className={cn("shrink-0 pt-0.5", className)}>{children}</div>
+  );
 }
 
 export function ListPageCard({
   children,
   className,
-  scroll,
+  scroll = true,
 }: {
   children: ReactNode;
   className?: string;
-  /** kept for call-site compatibility */
+  /** Internal scroll (default on). Set false for non-scrolling panels. */
   scroll?: boolean;
 }) {
   return (
-    <div className={cn("joy-admin-panel", className)}>{children}</div>
+    <div
+      className={cn(
+        "joy-admin-panel",
+        scroll && "joy-admin-panel-scroll",
+        className,
+      )}
+    >
+      {children}
+    </div>
   );
 }

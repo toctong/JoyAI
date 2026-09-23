@@ -19,6 +19,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 import { HealthModule } from "./modules/health/health.module";
 import { ExploreModule } from "./modules/explore/explore.module";
 import { ChangelogModule } from "./modules/changelog/changelog.module";
+import { AuditModule } from "./modules/audit/audit.module";
 import { BootstrapService } from "./common/bootstrap.service";
 
 @Module({
@@ -43,6 +44,7 @@ import { BootstrapService } from "./common/bootstrap.service";
     HealthModule,
     ExploreModule,
     ChangelogModule,
+    AuditModule,
     AuthModule,
     UsersModule,
     ChannelsModule,

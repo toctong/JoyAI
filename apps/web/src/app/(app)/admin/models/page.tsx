@@ -4,13 +4,16 @@ import { useCallback, useEffect, useMemo, useState, Fragment } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import {
   AdapterId,
   ImageProtocolProfileSchema,
   defaultAdapterId,
+  normalizeRatios,
+  normalizeResolutions,
+  normalizeSizes,
   type ModelCapabilities,
 } from "@joyai/shared";
 import { api } from "@/shared/lib/api";
@@ -45,6 +48,10 @@ import {
   kindLabel,
 } from "@/components/admin/model-meta";
 import { BrandAvatar, BrandLabel } from "@/components/admin/brand-avatar";
+import { CatalogAddDialog } from "@/components/admin/catalog-add-dialog";
+import { ModelCapabilityChips } from "@/components/admin/model-capability-chips";
+import { ModelCapabilityOptionChips } from "@/components/admin/capability-option-chips";
+import { AdminDrawer } from "@/components/admin/admin-drawer";
 import { channelIconSrc, modelIconSrc } from "@/shared/lib/brand-icons";
 import {
   Table,
@@ -55,12 +62,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { cn } from "@/shared/lib/utils";
 
 type Channel = { id: string; name: string; platform?: string };
 type Model = {
@@ -87,7 +93,7 @@ type Paginated<T> = {
 const schema = z.object({
   channelId: z.string().min(1),
   name: z.string().min(1),
-  kind: z.enum(["image", "video", "llm"]),
+  kind: z.enum(["image", "video", "llm", "audio"]),
   remoteId: z.string().min(1),
   description: z.string().optional(),
   /** Empty = infer from channel platform */
@@ -143,8 +149,16 @@ const IMAGE_PATH_OPTIONS = [
 function adapterOptionsForKind(kind: FormValues["kind"]) {
   if (kind === "image") return IMAGE_ADAPTER_OPTIONS;
   if (kind === "video") return VIDEO_ADAPTER_OPTIONS;
-  return [{ value: AUTO, label: "LLM 无需适配器" }] as const;
+  return [{ value: AUTO, label: "LLM / 音频无需适配器" }] as const;
 }
+
+type CatalogSuggestItem = {
+  remoteId: string;
+  name: string;
+  kind: "image" | "video" | "llm" | "audio";
+  description?: string;
+  capabilities?: ModelCapabilities;
+};
 
 function toSelectValue(raw?: string | null) {
   return raw?.trim() ? raw.trim() : AUTO;
@@ -174,9 +188,9 @@ function buildCapabilities(values: FormValues): ModelCapabilities {
   const input = parseMods(values.inputMods);
   const output = parseMods(values.outputMods);
   const features = parseList(values.features);
-  const resolutions = parseList(values.resolutions);
-  const ratios = parseList(values.ratios);
-  const sizes = parseList(values.sizes);
+  const resolutions = normalizeResolutions(parseList(values.resolutions));
+  const ratios = normalizeRatios(parseList(values.ratios));
+  const sizes = normalizeSizes(parseList(values.sizes));
 
   const caps: ModelCapabilities = {
     input: input.length ? input : ["text"],
@@ -186,7 +200,9 @@ function buildCapabilities(values: FormValues): ModelCapabilities {
         ? ["text"]
         : values.kind === "image"
           ? ["image"]
-          : ["video"],
+          : values.kind === "audio"
+            ? ["audio"]
+            : ["video"],
     features: features.length ? features : undefined,
     maxRefImages: numOrUndef(values.maxRefImages),
     maxRefVideos: numOrUndef(values.maxRefVideos),
@@ -235,6 +251,12 @@ export default function ModelsPage() {
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [refreshing, setRefreshing] = useState(false);
   const [open, setOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [catalogSuggest, setCatalogSuggest] = useState<CatalogSuggestItem[]>(
+    [],
+  );
+  const [refreshingCaps, setRefreshingCaps] = useState(false);
   const [editing, setEditing] = useState<Model | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { viewMode, setViewMode } = useAdminViewMode("joyai.admin.models.view");
@@ -335,6 +357,32 @@ export default function ModelsPage() {
     setSelectedIds([]);
   }, [keyword, kindFilter, enabledFilter, channelFilter]);
 
+  useEffect(() => {
+    if (!open) {
+      setCatalogSuggest([]);
+      return;
+    }
+    const platform = channels.find((c) => c.id === formChannelId)?.platform;
+    if (!platform) {
+      setCatalogSuggest([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await api<{ items: CatalogSuggestItem[] }>(
+          `/admin/models/catalog?platform=${encodeURIComponent(platform)}`,
+        );
+        if (!cancelled) setCatalogSuggest(res.items ?? []);
+      } catch {
+        if (!cancelled) setCatalogSuggest([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, formChannelId, channels]);
+
   function resetPageAnd(apply: () => void) {
     apply();
     setPage(1);
@@ -371,6 +419,7 @@ export default function ModelsPage() {
 
   function openCreate() {
     setEditing(null);
+    setAdvancedOpen(false);
     form.reset({
       channelId: channels[0]?.id ?? "",
       name: "",
@@ -398,11 +447,12 @@ export default function ModelsPage() {
 
   function openEdit(m: Model) {
     setEditing(m);
+    setAdvancedOpen(false);
     const c = m.capabilities;
     form.reset({
       channelId: m.channelId,
       name: m.name,
-      kind: m.kind as "image" | "video" | "llm",
+      kind: m.kind as FormValues["kind"],
       remoteId: m.remoteId,
       description: m.description ?? "",
       adapterId: c?.adapterId ?? "",
@@ -418,11 +468,100 @@ export default function ModelsPage() {
       maxRefAudios: c?.maxRefAudios != null ? String(c.maxRefAudios) : "",
       maxDurationSec:
         c?.maxDurationSec != null ? String(c.maxDurationSec) : "",
-      resolutions: (c?.resolutions ?? []).join(","),
-      ratios: (c?.ratios ?? []).join(","),
-      sizes: (c?.sizes ?? []).join(","),
+      resolutions: normalizeResolutions(c?.resolutions ?? []).join(","),
+      ratios: normalizeRatios(c?.ratios ?? []).join(","),
+      sizes: normalizeSizes(c?.sizes ?? []).join(","),
     });
     setOpen(true);
+  }
+
+  function applyCatalogItem(
+    item: CatalogSuggestItem,
+    opts?: { lockIdentity?: boolean },
+  ) {
+    const c = item.capabilities;
+    form.setValue("remoteId", item.remoteId);
+    form.setValue("name", item.name);
+    if (!opts?.lockIdentity) {
+      form.setValue("kind", item.kind);
+    }
+    form.setValue("description", item.description ?? "");
+    form.setValue("adapterId", c?.adapterId ?? "");
+    form.setValue("imageProfile", c?.protocol?.imageProfile ?? "");
+    form.setValue("modelAlias", c?.protocol?.modelAlias ?? "");
+    form.setValue("imagePath", c?.protocol?.imagePath ?? "");
+    form.setValue("asyncMode", Boolean(c?.async));
+    form.setValue("inputMods", (c?.input ?? ["text"]).join(","));
+    form.setValue(
+      "outputMods",
+      (c?.output ?? []).join(",") ||
+        (item.kind === "llm"
+          ? "text"
+          : item.kind === "image"
+            ? "image"
+            : item.kind === "audio"
+              ? "audio"
+              : "video"),
+    );
+    form.setValue("features", (c?.features ?? []).join(","));
+    form.setValue(
+      "maxRefImages",
+      c?.maxRefImages != null ? String(c.maxRefImages) : "",
+    );
+    form.setValue(
+      "maxRefVideos",
+      c?.maxRefVideos != null ? String(c.maxRefVideos) : "",
+    );
+    form.setValue(
+      "maxRefAudios",
+      c?.maxRefAudios != null ? String(c.maxRefAudios) : "",
+    );
+    form.setValue(
+      "maxDurationSec",
+      c?.maxDurationSec != null ? String(c.maxDurationSec) : "",
+    );
+    form.setValue(
+      "resolutions",
+      normalizeResolutions(c?.resolutions ?? []).join(","),
+    );
+    form.setValue("ratios", normalizeRatios(c?.ratios ?? []).join(","));
+    form.setValue("sizes", normalizeSizes(c?.sizes ?? []).join(","));
+  }
+
+  /** Fill form from catalog by current remoteId; edit keeps channel/kind locked. */
+  async function applyCatalogCapabilities() {
+    const remoteId = form.getValues("remoteId")?.trim();
+    if (!remoteId) {
+      toast.error("请先填写 Remote ID");
+      return;
+    }
+    const channelId = form.getValues("channelId");
+    const platform = channels.find((c) => c.id === channelId)?.platform;
+    if (!platform) {
+      toast.error("请先选择有平台信息的渠道");
+      return;
+    }
+    setRefreshingCaps(true);
+    try {
+      let item = catalogSuggest.find((row) => row.remoteId === remoteId);
+      if (!item) {
+        const res = await api<{ items: CatalogSuggestItem[] }>(
+          `/admin/models/catalog?platform=${encodeURIComponent(platform)}`,
+        );
+        item = (res.items ?? []).find((row) => row.remoteId === remoteId);
+        if (res.items) setCatalogSuggest(res.items);
+      }
+      if (!item) {
+        toast.error("目录中未找到该 remoteId");
+        return;
+      }
+      applyCatalogItem(item, { lockIdentity: Boolean(editing) });
+      toast.success("已从目录回填，请确认后保存");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "应用目录失败");
+    } finally {
+      setRefreshingCaps(false);
+    }
   }
 
   async function onSubmit(values: FormValues) {
@@ -557,7 +696,8 @@ export default function ModelsPage() {
 
   const selectedChannel = channels.find((c) => c.id === formChannelId);
   const inferredAdapter =
-    formKind !== "llm" && selectedChannel?.platform
+    (formKind === "image" || formKind === "video") &&
+    selectedChannel?.platform
       ? defaultAdapterId(selectedChannel.platform, formKind)
       : null;
   const showOpenaiProtocol =
@@ -593,7 +733,7 @@ export default function ModelsPage() {
       <ListPageHeader>
         <PageHeader
           title="模型"
-          description="图片 / 视频 / LLM · 协议适配与多模态能力"
+          description="目录选型为主 · 手动新建为辅 · 协议与多模态能力"
           className="mb-0"
         />
         <ListToolbar
@@ -622,6 +762,7 @@ export default function ModelsPage() {
                   <SelectItem value="image">图片</SelectItem>
                   <SelectItem value="video">视频</SelectItem>
                   <SelectItem value="llm">LLM</SelectItem>
+                  <SelectItem value="audio">音频</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -680,11 +821,20 @@ export default function ModelsPage() {
               <Button
                 size="sm"
                 className="h-9 rounded-xl"
-                onClick={openCreate}
+                onClick={() => setCatalogOpen(true)}
                 disabled={channels.length === 0}
               >
                 <Plus className="size-3.5" />
-                新建模型
+                从目录添加
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-xl"
+                onClick={openCreate}
+                disabled={channels.length === 0}
+              >
+                手动新建
               </Button>
             </>
           }
@@ -698,21 +848,26 @@ export default function ModelsPage() {
               title={hasFilters ? "没有匹配的模型" : "暂无模型"}
               description={
                 channels.length === 0
-                  ? "请先创建渠道，再导入或登记模型"
-                  : "可在渠道页一键导入主流模型，或在此手动登记"
+                  ? "请先创建渠道，再从目录添加或手动登记模型"
+                  : "优先从渠道目录勾选模型入库；无预设时再手动新建"
               }
               action={
                 channels.length > 0 && !hasFilters ? (
-                  <Button size="sm" onClick={openCreate}>
-                    <Plus className="size-3.5" />
-                    新建模型
-                  </Button>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <Button size="sm" onClick={() => setCatalogOpen(true)}>
+                      <Plus className="size-3.5" />
+                      从目录添加
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={openCreate}>
+                      手动新建
+                    </Button>
+                  </div>
                 ) : null
               }
             />
           </ListPageCard>
         ) : viewMode === "card" ? (
-          <div className="space-y-3">
+          <div className="joy-admin-scroll-body space-y-3">
             <div className="flex items-center gap-2 px-0.5">
               <Checkbox
                 checked={
@@ -996,25 +1151,67 @@ export default function ModelsPage() {
         />
       </ListPageFooter>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-          <DialogHeader className="shrink-0 border-b border-border/70 px-6 py-4">
-            <DialogTitle>{editing ? "编辑模型" : "新建模型"}</DialogTitle>
-          </DialogHeader>
-          <form
-            className="flex min-h-0 flex-1 flex-col"
-            onSubmit={form.handleSubmit(onSubmit)}
-          >
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
-              {!editing ? (
-                <>
-                  <div className="space-y-2">
-                    <Label>渠道</Label>
+      <AdminDrawer
+        open={open}
+        onOpenChange={setOpen}
+        title={editing ? "编辑模型" : "手动新建模型"}
+        description={
+          editing
+            ? "修改能力与协议后保存；渠道与类型不可变更。"
+            : "无目录预设时可手动登记模型能力。"
+        }
+        widthClassName="sm:max-w-[720px]"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 rounded-md"
+              onClick={() => setOpen(false)}
+            >
+              取消
+            </Button>
+            <Button
+              type="submit"
+              form="admin-model-form"
+              className="h-8 rounded-md"
+            >
+              {editing ? "保存" : "创建"}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="admin-model-form"
+          className="space-y-4"
+          onSubmit={form.handleSubmit(onSubmit)}
+        >
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>渠道</Label>
+                  {editing ? (
+                    <div className="flex h-8 items-center rounded-md border border-border bg-muted/40 px-3 text-[13px]">
+                      <BrandLabel
+                        src={
+                          selectedChannel?.platform
+                            ? channelIconSrc(selectedChannel.platform)
+                            : editing.channel?.platform
+                              ? channelIconSrc(editing.channel.platform)
+                              : null
+                        }
+                        label={
+                          selectedChannel?.name ??
+                          editing.channel?.name ??
+                          "—"
+                        }
+                      />
+                    </div>
+                  ) : (
                     <Select
                       value={form.watch("channelId")}
                       onValueChange={(v) => form.setValue("channelId", v)}
                     >
-                      <SelectTrigger className="h-9 rounded-xl">
+                      <SelectTrigger className="h-8 rounded-md">
                         <SelectValue placeholder="选择渠道" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1030,13 +1227,19 @@ export default function ModelsPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>类型</Label>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>类型</Label>
+                  {editing ? (
+                    <div className="flex h-8 items-center rounded-md border border-border bg-muted/40 px-3 text-[13px]">
+                      {kindLabel(formKind)}
+                    </div>
+                  ) : (
                     <Select
                       value={form.watch("kind")}
                       onValueChange={(v) => {
-                        const kind = v as "image" | "video" | "llm";
+                        const kind = v as FormValues["kind"];
                         form.setValue("kind", kind);
                         form.setValue("adapterId", "");
                         form.setValue("imageProfile", "");
@@ -1045,131 +1248,221 @@ export default function ModelsPage() {
                         if (kind === "llm") {
                           form.setValue("outputMods", "text");
                           form.setValue("asyncMode", false);
+                          form.setValue("features", "chat");
                         } else if (kind === "image") {
                           form.setValue("outputMods", "image");
+                          form.setValue("features", "t2i");
+                        } else if (kind === "audio") {
+                          form.setValue("outputMods", "audio");
+                          form.setValue("features", "");
+                          form.setValue("asyncMode", false);
                         } else {
                           form.setValue("outputMods", "video");
+                          form.setValue("features", "t2v");
                         }
                       }}
                     >
-                      <SelectTrigger className="h-9 rounded-xl">
+                      <SelectTrigger className="h-8 rounded-md">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="image">图片</SelectItem>
                         <SelectItem value="video">视频</SelectItem>
-                        <SelectItem value="llm">LLM（仅目录）</SelectItem>
+                        <SelectItem value="llm">LLM</SelectItem>
+                        <SelectItem value="audio">音频</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                </>
+                  )}
+                </div>
+              </div>
+              {editing ? (
+                <p className="text-[12px] text-muted-foreground">
+                  渠道与类型创建后不可改，避免误迁；能力可用下方目录回填后保存。
+                </p>
               ) : null}
+
               <div className="space-y-2">
                 <Label>显示名称</Label>
-                <Input className="h-9 rounded-xl" {...form.register("name")} />
+                <Input className="h-8 rounded-md" {...form.register("name")} />
               </div>
               <div className="space-y-2">
-                <Label>Remote ID</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Remote ID</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 rounded-md text-[12px]"
+                    disabled={refreshingCaps || !form.watch("remoteId")?.trim()}
+                    onClick={() => void applyCatalogCapabilities()}
+                  >
+                    <RefreshCw
+                      className={cn(
+                        "size-3",
+                        refreshingCaps && "animate-spin",
+                      )}
+                    />
+                    应用目录能力
+                  </Button>
+                </div>
                 <Input
-                  className="h-9 rounded-xl font-mono text-xs"
+                  className="h-8 rounded-md font-mono text-xs"
+                  list="model-catalog-remote-ids"
                   {...form.register("remoteId")}
-                  placeholder="模型 ID / endpoint"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    form.setValue("remoteId", value);
+                    const hit = catalogSuggest.find(
+                      (item) => item.remoteId === value,
+                    );
+                    if (hit) {
+                      applyCatalogItem(hit, {
+                        lockIdentity: Boolean(editing),
+                      });
+                    }
+                  }}
+                  placeholder="模型 ID / endpoint · 可从目录建议选取"
                 />
+                <datalist id="model-catalog-remote-ids">
+                  {catalogSuggest.map((item) => (
+                    <option
+                      key={item.remoteId}
+                      value={item.remoteId}
+                      label={`${item.name} (${item.kind})`}
+                    />
+                  ))}
+                </datalist>
+                {catalogSuggest.length > 0 ? (
+                  <p className="text-[12px] text-muted-foreground">
+                    已加载 {catalogSuggest.length}{" "}
+                    条目录建议；选中或点「应用目录能力」回填名称与能力，确认后保存。
+                  </p>
+                ) : (
+                  <p className="text-[12px] text-muted-foreground">
+                    当前渠道无预设目录时，请手动填写能力。
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>说明</Label>
                 <Input
-                  className="h-9 rounded-xl"
+                  className="h-8 rounded-md"
                   {...form.register("description")}
                 />
               </div>
 
-              <div className="space-y-3 rounded-xl border border-border/80 p-3.5">
-                <div className="text-sm font-medium">协议适配</div>
-                <div className="space-y-2">
-                  <Label>适配器</Label>
-                  <Select
-                    value={toSelectValue(formAdapterId)}
-                    onValueChange={(v) =>
-                      form.setValue("adapterId", fromSelectValue(v))
-                    }
-                    disabled={formKind === "llm"}
-                  >
-                    <SelectTrigger className="h-9 rounded-xl">
-                      <SelectValue placeholder="选择适配器" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {adapterOptionsForKind(formKind).map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[12px] text-muted-foreground">
-                    {inferredAdapter
-                      ? `当前渠道默认推断为 ${inferredAdapter}；留空则使用推断。`
-                      : formKind === "llm"
-                        ? "LLM 仅作目录展示，不走生成适配器。"
-                        : "请选择渠道后可查看默认推断。"}
-                  </p>
+              <div className="space-y-4 rounded-lg border border-border p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-medium tracking-tight">
+                    模态与能力
+                  </span>
+                  <div className="h-px flex-1 bg-border" />
                 </div>
-                {formKind !== "llm" ? (
-                  <label className="flex items-center gap-2 text-sm">
-                    <Switch
-                      checked={!!form.watch("asyncMode")}
-                      onCheckedChange={(v) => form.setValue("asyncMode", v)}
+                <ModelCapabilityChips
+                  inputMods={form.watch("inputMods") ?? ""}
+                  outputMods={form.watch("outputMods") ?? ""}
+                  features={form.watch("features") ?? ""}
+                  onInputChange={(csv) => form.setValue("inputMods", csv)}
+                  onOutputChange={(csv) => form.setValue("outputMods", csv)}
+                  onFeaturesChange={(csv) => form.setValue("features", csv)}
+                />
+                <ModelCapabilityOptionChips
+                  resolutions={form.watch("resolutions") ?? ""}
+                  ratios={form.watch("ratios") ?? ""}
+                  sizes={form.watch("sizes") ?? ""}
+                  maxRefImages={form.watch("maxRefImages") ?? ""}
+                  maxRefVideos={form.watch("maxRefVideos") ?? ""}
+                  maxRefAudios={form.watch("maxRefAudios") ?? ""}
+                  maxDurationSec={form.watch("maxDurationSec") ?? ""}
+                  onResolutionsChange={(csv) =>
+                    form.setValue("resolutions", csv)
+                  }
+                  onRatiosChange={(csv) => form.setValue("ratios", csv)}
+                  onSizesChange={(csv) => form.setValue("sizes", csv)}
+                  onMaxRefImagesChange={(raw) =>
+                    form.setValue("maxRefImages", raw)
+                  }
+                  onMaxRefVideosChange={(raw) =>
+                    form.setValue("maxRefVideos", raw)
+                  }
+                  onMaxRefAudiosChange={(raw) =>
+                    form.setValue("maxRefAudios", raw)
+                  }
+                  onMaxDurationSecChange={(raw) =>
+                    form.setValue("maxDurationSec", raw)
+                  }
+                />
+              </div>
+
+              <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-8 w-full justify-between rounded-md px-2 text-[13px]"
+                  >
+                    高级 · 协议适配
+                    <ChevronDown
+                      className={cn(
+                        "size-3.5 transition-transform",
+                        advancedOpen && "rotate-180",
+                      )}
                     />
-                    异步任务（submit + poll）
-                  </label>
-                ) : null}
-                {showOpenaiProtocol ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label>图片方言 imageProfile</Label>
-                      <Select
-                        value={toSelectValue(form.watch("imageProfile"))}
-                        onValueChange={(v) =>
-                          form.setValue("imageProfile", fromSelectValue(v))
-                        }
-                      >
-                        <SelectTrigger className="h-9 rounded-xl">
-                          <SelectValue placeholder="自动推断" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {IMAGE_PROFILE_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 rounded-lg border border-border p-3">
+                  <div className="space-y-2">
+                    <Label>适配器</Label>
+                    <Select
+                      value={toSelectValue(formAdapterId)}
+                      onValueChange={(v) =>
+                        form.setValue("adapterId", fromSelectValue(v))
+                      }
+                      disabled={formKind === "llm" || formKind === "audio"}
+                    >
+                      <SelectTrigger className="h-8 rounded-md">
+                        <SelectValue placeholder="选择适配器" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {adapterOptionsForKind(formKind).map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[12px] text-muted-foreground">
+                      {inferredAdapter
+                        ? `当前渠道默认推断为 ${inferredAdapter}；留空则使用推断。`
+                        : formKind === "llm" || formKind === "audio"
+                          ? "LLM / 音频不走生成适配器。"
+                          : "请选择渠道后可查看默认推断。"}
+                    </p>
+                  </div>
+                  {formKind === "image" || formKind === "video" ? (
+                    <label className="flex items-center gap-2 text-sm">
+                      <Switch
+                        checked={!!form.watch("asyncMode")}
+                        onCheckedChange={(v) => form.setValue("asyncMode", v)}
+                      />
+                      异步任务（submit + poll）
+                    </label>
+                  ) : null}
+                  {showOpenaiProtocol ? (
+                    <>
                       <div className="space-y-2">
-                        <Label>模型别名</Label>
-                        <Input
-                          className="h-9 rounded-xl font-mono text-xs"
-                          placeholder="可选，发送前改写 remoteId"
-                          {...form.register("modelAlias")}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>API 路径</Label>
+                        <Label>图片方言 imageProfile</Label>
                         <Select
-                          value={toSelectValue(form.watch("imagePath"))}
+                          value={toSelectValue(form.watch("imageProfile"))}
                           onValueChange={(v) =>
-                            form.setValue(
-                              "imagePath",
-                              fromSelectValue(v) as FormValues["imagePath"],
-                            )
+                            form.setValue("imageProfile", fromSelectValue(v))
                           }
                         >
-                          <SelectTrigger className="h-9 rounded-xl">
-                            <SelectValue placeholder="默认 generations" />
+                          <SelectTrigger className="h-8 rounded-md">
+                            <SelectValue placeholder="自动推断" />
                           </SelectTrigger>
                           <SelectContent>
-                            {IMAGE_PATH_OPTIONS.map((opt) => (
+                            {IMAGE_PROFILE_OPTIONS.map((opt) => (
                               <SelectItem key={opt.value} value={opt.value}>
                                 {opt.label}
                               </SelectItem>
@@ -1177,120 +1470,55 @@ export default function ModelsPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                    </div>
-                  </>
-                ) : null}
-              </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label>模型别名</Label>
+                          <Input
+                            className="h-8 rounded-md font-mono text-xs"
+                            placeholder="可选，发送前改写 remoteId"
+                            {...form.register("modelAlias")}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>API 路径</Label>
+                          <Select
+                            value={toSelectValue(form.watch("imagePath"))}
+                            onValueChange={(v) =>
+                              form.setValue(
+                                "imagePath",
+                                fromSelectValue(v) as FormValues["imagePath"],
+                              )
+                            }
+                          >
+                            <SelectTrigger className="h-8 rounded-md">
+                              <SelectValue placeholder="默认 generations" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {IMAGE_PATH_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+                </CollapsibleContent>
+              </Collapsible>
+        </form>
+      </AdminDrawer>
 
-              <div className="space-y-3 rounded-xl border border-border/80 p-3.5">
-                <div className="text-sm font-medium">多模态能力</div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>输入</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="text,image"
-                      {...form.register("inputMods")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>输出</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="image"
-                      {...form.register("outputMods")}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-2">
-                    <Label>参考图上限</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="如 1 / 9 / 15"
-                      {...form.register("maxRefImages")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>参考视频上限</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="如 1"
-                      {...form.register("maxRefVideos")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>参考音频上限</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="如 1"
-                      {...form.register("maxRefAudios")}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>最长时长（秒）</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="如 15"
-                      {...form.register("maxDurationSec")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>分辨率档</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="480p,720p,1080p"
-                      {...form.register("resolutions")}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>画幅比例</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="16:9,9:16,1:1"
-                      {...form.register("ratios")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>精确尺寸</Label>
-                    <Input
-                      className="h-9 rounded-xl"
-                      placeholder="1024x1024,2048x2048"
-                      {...form.register("sizes")}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>特性标签</Label>
-                  <Input
-                    className="h-9 rounded-xl"
-                    placeholder="t2i, i2v, vision…"
-                    {...form.register("features")}
-                  />
-                </div>
-              </div>
-
-            </div>
-            <DialogFooter className="shrink-0 border-t border-border/70 px-6 py-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-xl"
-                onClick={() => setOpen(false)}
-              >
-                取消
-              </Button>
-              <Button type="submit" className="rounded-xl">
-                {editing ? "保存" : "创建"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <CatalogAddDialog
+        open={catalogOpen}
+        onOpenChange={setCatalogOpen}
+        channels={channels}
+        initialChannelId={
+          channelFilter !== "all" ? channelFilter : channels[0]?.id
+        }
+        onImported={() => void loadModels()}
+      />
     </ListPageShell>
   );
 }
