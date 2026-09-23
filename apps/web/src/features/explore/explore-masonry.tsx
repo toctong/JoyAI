@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useEffect, useRef, useState, type Ref } from "react";
 import Masonry from "react-masonry-css";
-import { GitFork, Heart, Play, WandSparkles } from "lucide-react";
+import { GitFork, Heart, Loader2, Play, WandSparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
@@ -17,7 +17,8 @@ const BREAKPOINT_COLS = {
   0: 1,
 };
 
-const LOAD_MORE_PLACEHOLDERS = [240, 300, 220, 280, 260, 320, 230, 290];
+/** First-screen images load eagerly; the rest stay lazy. */
+const EAGER_MEDIA_COUNT = 8;
 
 type Props = {
   items: ExploreFeedItem[];
@@ -34,7 +35,6 @@ function stillPoster(item: ExploreFeedItem): string | null {
   return thumb;
 }
 
-/** 让浏览器在未播放时就解码一帧，避免卡片一直停在骨架上。 */
 function videoMime(url: string): string {
   const path = url.split("?")[0]?.split("#")[0]?.toLowerCase() ?? "";
   if (path.endsWith(".webm")) return "video/webm";
@@ -54,7 +54,7 @@ function seekPreviewFrame(el: HTMLVideoElement) {
   try {
     if (Math.abs(el.currentTime - t) > 0.02) el.currentTime = t;
   } catch {
-    // 部分源不允许 seek，保留当前帧
+    // ignore
   }
 }
 
@@ -66,12 +66,9 @@ function primeVideoFrame(el: HTMLVideoElement) {
 
 function playPreview(el: HTMLVideoElement) {
   if (el.error || !el.currentSrc) return;
-  void el.play().catch(() => {
-    // 源尚未就绪或不支持时，play() 会 reject，不能冒泡成未捕获异常
-  });
+  void el.play().catch(() => undefined);
 }
 
-/** Clamp extreme cover ratios (Civitai banners etc.) so masonry cards stay usable. */
 const MIN_CARD_AR = 9 / 16;
 const MAX_CARD_AR = 16 / 9;
 
@@ -105,23 +102,61 @@ function resolveAspectRatio(item: ExploreFeedItem): string {
   return item.type === "video" ? "9 / 16" : "3 / 4";
 }
 
-function ExploreCard({
+/** Mount video only when near viewport or user hovers (poster-first). */
+function useVideoArm(enabled: boolean, preferHover: boolean) {
+  const ref = useRef<HTMLElement | null>(null);
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!enabled || armed) return;
+    if (preferHover) return; // wait for hover
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setArmed(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px", threshold: 0.01 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [enabled, armed, preferHover]);
+
+  return {
+    ref: ref as Ref<HTMLElement>,
+    armed,
+    arm: () => setArmed(true),
+  } as const;
+}
+
+const ExploreCard = memo(function ExploreCard({
   item,
+  index,
   onOpen,
   onRemix,
 }: {
   item: ExploreFeedItem;
+  index: number;
   onOpen: (item: ExploreFeedItem) => void;
   onRemix: (item: ExploreFeedItem) => void;
 }) {
   const [loaded, setLoaded] = useState(false);
   const isVideo = item.type === "video";
   const poster = isVideo ? stillPoster(item) : null;
+  const hasPoster = Boolean(poster);
   const ar = resolveAspectRatio(item);
+  const eager = index < EAGER_MEDIA_COUNT;
   const reveal = () => setLoaded(true);
+
+  const videoArm = useVideoArm(isVideo && Boolean(item.mediaUrl), hasPoster);
+  const showVideo = isVideo && videoArm.armed && Boolean(item.mediaUrl);
 
   return (
     <article
+      ref={videoArm.ref}
       className="joy-explore-card group"
       style={{ aspectRatio: ar }}
       role="button"
@@ -132,6 +167,9 @@ function ExploreCard({
           e.preventDefault();
           onOpen(item);
         }
+      }}
+      onMouseEnter={() => {
+        if (isVideo && item.mediaUrl) videoArm.arm();
       }}
     >
       {!loaded ? (
@@ -148,43 +186,51 @@ function ExploreCard({
             <img
               src={poster}
               alt=""
-              className={cn("joy-explore-media", loaded && "is-ready")}
-              loading="lazy"
+              className={cn(
+                "joy-explore-media",
+                loaded && "is-ready",
+                showVideo && "is-under-video",
+              )}
+              loading={eager ? "eager" : "lazy"}
               decoding="async"
+              fetchPriority={eager ? "high" : "auto"}
               onLoad={reveal}
               onError={reveal}
             />
           ) : null}
-          <video
-            className={cn(
-              "joy-explore-media",
-              loaded && "is-ready",
-              poster && "is-hover-play",
-            )}
-            poster={poster || undefined}
-            muted
-            playsInline
-            loop
-            preload="metadata"
-            onLoadedMetadata={(e) => {
-              reveal();
-              primeVideoFrame(e.currentTarget);
-            }}
-            onLoadedData={reveal}
-            onSeeked={reveal}
-            onCanPlay={reveal}
-            onError={reveal}
-            onMouseEnter={(e) => playPreview(e.currentTarget)}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget;
-              el.pause();
-              seekPreviewFrame(el);
-            }}
-          >
-            {item.mediaUrl ? (
-              <source src={item.mediaUrl} type={videoMime(item.mediaUrl)} />
-            ) : null}
-          </video>
+          {showVideo ? (
+            <video
+              className={cn(
+                "joy-explore-media",
+                "is-ready",
+                hasPoster && "is-hover-play",
+              )}
+              poster={poster || undefined}
+              muted
+              playsInline
+              loop
+              preload={hasPoster ? "none" : "metadata"}
+              onLoadedMetadata={(e) => {
+                reveal();
+                primeVideoFrame(e.currentTarget);
+              }}
+              onLoadedData={reveal}
+              onSeeked={reveal}
+              onCanPlay={(e) => {
+                reveal();
+                if (hasPoster) playPreview(e.currentTarget);
+              }}
+              onError={reveal}
+              onMouseEnter={(e) => playPreview(e.currentTarget)}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget;
+                el.pause();
+                seekPreviewFrame(el);
+              }}
+            >
+              <source src={item.mediaUrl!} type={videoMime(item.mediaUrl!)} />
+            </video>
+          ) : null}
         </>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
@@ -192,8 +238,9 @@ function ExploreCard({
           src={item.thumbnailUrl || item.mediaUrl}
           alt={item.title}
           className={cn("joy-explore-media", loaded && "is-ready")}
-          loading="lazy"
+          loading={eager ? "eager" : "lazy"}
           decoding="async"
+          fetchPriority={eager ? "high" : "auto"}
           onLoad={() => setLoaded(true)}
           onError={() => setLoaded(true)}
         />
@@ -207,6 +254,8 @@ function ExploreCard({
               src={item.author.avatarUrl || JOYAI_BRAND.remote.avatar}
               alt=""
               className="joy-explore-avatar"
+              loading="lazy"
+              decoding="async"
             />
             <span className="joy-explore-nickname">
               {item.author.nickname}
@@ -237,7 +286,7 @@ function ExploreCard({
       </div>
     </article>
   );
-}
+});
 
 export function ExploreMasonry({
   items,
@@ -246,29 +295,28 @@ export function ExploreMasonry({
   onRemix,
 }: Props) {
   return (
-    <Masonry
-      breakpointCols={BREAKPOINT_COLS}
-      className="joy-explore-masonry"
-      columnClassName="joy-explore-masonry-col"
-    >
-      {items.map((item) => (
-        <ExploreCard
-          key={item.id}
-          item={item}
-          onOpen={onOpen}
-          onRemix={onRemix}
-        />
-      ))}
-      {loadingMore
-        ? LOAD_MORE_PLACEHOLDERS.map((h, i) => (
-            <Skeleton
-              key={`more-skel-${i}`}
-              className="joy-explore-more-skel"
-              style={{ height: h }}
-              aria-hidden
-            />
-          ))
-        : null}
-    </Masonry>
+    <>
+      <Masonry
+        breakpointCols={BREAKPOINT_COLS}
+        className="joy-explore-masonry"
+        columnClassName="joy-explore-masonry-col"
+      >
+        {items.map((item, index) => (
+          <ExploreCard
+            key={item.id}
+            item={item}
+            index={index}
+            onOpen={onOpen}
+            onRemix={onRemix}
+          />
+        ))}
+      </Masonry>
+      {loadingMore ? (
+        <div className="joy-explore-load-more" aria-live="polite">
+          <Loader2 className="size-4 animate-spin opacity-60" />
+          <span>加载更多…</span>
+        </div>
+      ) : null}
+    </>
   );
 }

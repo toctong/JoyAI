@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useEffectOnActive } from "keepalive-for-react";
 import { ArrowUp, Compass, Sparkles } from "lucide-react";
@@ -37,6 +37,38 @@ type Props = {
   onGoStudio: () => void;
 };
 
+/** Isolated so scroll threshold does not re-render the masonry tree. */
+function ExploreBackTop({ scrollEl }: { scrollEl: HTMLDivElement | null }) {
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const el = scrollEl;
+    if (!el) return;
+    let visible = el.scrollTop > 480;
+    setShow(visible);
+    const onScroll = () => {
+      const next = el.scrollTop > 480;
+      if (next === visible) return;
+      visible = next;
+      setShow(next);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [scrollEl]);
+
+  if (!show) return null;
+  return (
+    <button
+      type="button"
+      className="joy-explore-back-top"
+      aria-label="回到顶部"
+      onClick={() => scrollEl?.scrollTo({ top: 0, behavior: "smooth" })}
+    >
+      <ArrowUp className="h-4 w-4" />
+    </button>
+  );
+}
+
 export function ExploreFeedPane({
   query,
   emptyTitle,
@@ -47,8 +79,13 @@ export function ExploreFeedPane({
   onGoStudio,
 }: Props) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  const [showTop, setShowTop] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const loadLockRef = useRef(false);
+  const fetchStateRef = useRef({
+    hasMore: false,
+    loading: false,
+    loadingMore: false,
+  });
 
   const feedKey = useMemo(() => {
     if (query.kind === "feed") {
@@ -112,6 +149,20 @@ export function ExploreFeedPane({
   const loadingMore = feedQuery.isFetchingNextPage;
   const fetchNextPage = feedQuery.fetchNextPage;
   const pageCount = feedQuery.data?.pages.length ?? 0;
+  const hasItems = items.length > 0;
+
+  fetchStateRef.current = { hasMore, loading, loadingMore };
+
+  const tryFetchMore = useCallback(() => {
+    const s = fetchStateRef.current;
+    if (!s.hasMore || s.loading || s.loadingMore || loadLockRef.current) {
+      return;
+    }
+    loadLockRef.current = true;
+    void fetchNextPage().finally(() => {
+      loadLockRef.current = false;
+    });
+  }, [fetchNextPage]);
 
   useEffect(() => {
     if (!feedQuery.isError || !feedQuery.error) return;
@@ -123,45 +174,62 @@ export function ExploreFeedPane({
     );
   }, [feedQuery.isError, feedQuery.error]);
 
-  // Only while this pane is the active KeepAlive cache node.
+  // Prefetch one extra page after first paint (idle), not three RTTs up front.
   useEffectOnActive(() => {
     if (loading || loadingMore || !hasMore) return;
-    if (pageCount < 1 || pageCount >= 3) return;
-    void fetchNextPage();
-  }, [pageCount, hasMore, loading, loadingMore, fetchNextPage]);
+    if (pageCount !== 1) return;
+    let cancelled = false;
+    const run = () => {
+      if (!cancelled) tryFetchMore();
+    };
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      idleId = window.requestIdleCallback(run, { timeout: 1800 });
+    } else {
+      timeoutId = setTimeout(run, 400);
+    }
+    return () => {
+      cancelled = true;
+      if (idleId != null && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [pageCount, hasMore, loading, loadingMore, tryFetchMore]);
 
-  useEffectOnActive(() => {
-    const el = scrollEl;
-    if (!el) return;
-    const onScroll = () => setShowTop(el.scrollTop > 480);
-    onScroll();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
-  }, [scrollEl]);
-
+  // Keep observer mounted across load-more; only rebind when scroll root / feed appear.
   useEffectOnActive(() => {
     const el = sentinelRef.current;
-    if (!el || !scrollEl) return;
+    if (!el || !scrollEl || !hasItems) return;
 
     const io = new IntersectionObserver(
       (entries) => {
-        const hit = entries.some((e) => e.isIntersecting);
-        if (!hit || !hasMore || loading || loadingMore) return;
-        void fetchNextPage();
+        if (!entries.some((e) => e.isIntersecting)) return;
+        tryFetchMore();
       },
-      { root: scrollEl, rootMargin: "800px 0px", threshold: 0 },
+      { root: scrollEl, rootMargin: "600px 0px", threshold: 0 },
     );
 
     io.observe(el);
     return () => io.disconnect();
-  }, [hasMore, loading, loadingMore, fetchNextPage, scrollEl]);
+  }, [scrollEl, tryFetchMore, hasItems]);
+
+  const onOpenStable = useCallback(
+    (item: ExploreFeedItem) => onOpen(item),
+    [onOpen],
+  );
+  const onRemixStable = useCallback(
+    (item: ExploreFeedItem) => onRemix(item),
+    [onRemix],
+  );
 
   return (
     <div className="joy-explore-pane-wrap">
       <div className="joy-explore-pane" ref={setScrollEl}>
         {loading ? (
           <ExploreFeedSkeleton />
-        ) : items.length === 0 ? (
+        ) : !hasItems ? (
           <div className="joy-explore-empty">
             <Compass className="joy-explore-empty-icon" aria-hidden />
             <h2 className="joy-explore-empty-title">{emptyTitle}</h2>
@@ -189,13 +257,11 @@ export function ExploreFeedPane({
             <ExploreMasonry
               items={items}
               loadingMore={loadingMore}
-              onOpen={onOpen}
-              onRemix={onRemix}
+              onOpen={onOpenStable}
+              onRemix={onRemixStable}
             />
             <div className="joy-explore-more">
-              {loadingMore ? (
-                <span className="sr-only">加载更多中</span>
-              ) : hasMore ? (
+              {hasMore ? (
                 <div
                   ref={sentinelRef}
                   className="joy-explore-sentinel"
@@ -208,16 +274,7 @@ export function ExploreFeedPane({
           </>
         )}
       </div>
-      {showTop ? (
-        <button
-          type="button"
-          className="joy-explore-back-top"
-          aria-label="回到顶部"
-          onClick={() => scrollEl?.scrollTo({ top: 0, behavior: "smooth" })}
-        >
-          <ArrowUp className="h-4 w-4" />
-        </button>
-      ) : null}
+      <ExploreBackTop scrollEl={scrollEl} />
     </div>
   );
 }

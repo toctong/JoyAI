@@ -151,14 +151,15 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Fetch page 1..N following nextCursor so scroll hits warm keys. */
+  /** Fetch page 1..N following nextCursor so scroll hits warm keys.
+   * Only page 1 force-refreshes upstream; later pages reuse list/page cache. */
   private async warmFeedPages(base: WarmFeedParams): Promise<void> {
     const pages = Math.max(1, Math.min(this.warmPages, 5));
     let cursor: string | undefined;
     for (let i = 0; i < pages; i++) {
       const result = await this.explore.feed(
         { ...base, cursor },
-        { forceRefresh: true },
+        { forceRefresh: i === 0 },
       );
       if (!result.hasMore || !result.nextCursor?.trim()) break;
       cursor = result.nextCursor.trim();

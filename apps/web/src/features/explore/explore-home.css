@@ -11,9 +11,7 @@
   flex-shrink: 0;
   z-index: 30;
   padding: 22px 20px 12px;
-  background: color-mix(in oklab, var(--background) 92%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--background);
 }
 
 .joy-explore-panels {
@@ -55,11 +53,10 @@
   height: 40px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: color-mix(in oklab, var(--background) 92%, transparent);
+  background: var(--background);
   color: var(--foreground);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   cursor: pointer;
-  backdrop-filter: blur(10px);
 }
 
 .joy-explore-back-top:hover {

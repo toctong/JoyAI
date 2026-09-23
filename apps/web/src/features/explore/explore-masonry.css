@@ -20,6 +20,7 @@
   cursor: pointer;
   /* 比例占位：避免图片未加载时高度塌陷导致大空白 */
   width: 100%;
+  contain: layout paint;
 }
 
 .joy-explore-card-skel {
@@ -31,11 +32,14 @@
   border-radius: inherit;
 }
 
-.joy-explore-more-skel {
-  display: block;
-  width: 100%;
-  margin-bottom: 12px;
-  border-radius: calc(var(--radius) + 2px);
+.joy-explore-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 0 8px;
+  font-size: 13px;
+  color: var(--muted-foreground);
 }
 
 .joy-explore-media {
@@ -46,7 +50,7 @@
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: transform 0.45s ease, opacity 0.25s ease;
+  transition: opacity 0.2s ease;
 }
 
 .joy-explore-media.is-ready {
@@ -63,12 +67,22 @@ video.joy-explore-media:not(.is-hover-play) {
   opacity: 0;
 }
 
+.joy-explore-media.is-under-video {
+  /* Keep poster painted until hover video fades in */
+  opacity: 1;
+}
+
 .joy-explore-card:hover .joy-explore-media.is-hover-play {
   opacity: 1;
 }
 
+.joy-explore-card:hover .joy-explore-media.is-under-video {
+  opacity: 0;
+}
+
 .joy-explore-card:hover .joy-explore-media.is-ready {
   transform: scale(1.03);
+  transition: opacity 0.2s ease, transform 0.35s ease;
 }
 
 /* 悬停遮罩叠在媒体上，保持深色渐变以保证字可读 */
