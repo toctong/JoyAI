@@ -8,6 +8,28 @@ import {
   toMobilePath,
 } from "@/shared/lib/device";
 
+/**
+ * Rebuild origin from proxy headers. Behind Docker nginx, Next listens on
+ * 127.0.0.1:3002 — cloning `request.nextUrl` alone can redirect phones to
+ * http://localhost:3002/m/... instead of the public host.
+ */
+function publicUrl(request: NextRequest, pathname: string): URL {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host =
+    forwardedHost?.split(",")[0]?.trim() ||
+    request.headers.get("host")?.trim() ||
+    request.nextUrl.host;
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const proto = (
+    forwardedProto?.split(",")[0]?.trim() ||
+    request.nextUrl.protocol.replace(":", "") ||
+    "http"
+  ).replace(/:$/, "");
+  const url = new URL(pathname, `${proto}://${host}`);
+  url.search = request.nextUrl.search;
+  return url;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -44,15 +66,11 @@ export function middleware(request: NextRequest) {
   const onMobile = isMobilePath(pathname);
 
   if (wantMobile && !onMobile) {
-    const url = request.nextUrl.clone();
-    url.pathname = toMobilePath(pathname);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(publicUrl(request, toMobilePath(pathname)));
   }
 
   if (!wantMobile && onMobile) {
-    const url = request.nextUrl.clone();
-    url.pathname = toDesktopPath(pathname);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(publicUrl(request, toDesktopPath(pathname)));
   }
 
   return NextResponse.next();
