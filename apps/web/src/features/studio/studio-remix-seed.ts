@@ -1,4 +1,4 @@
-/** Cross-route seed for 「一键同款」/ explore → /studio (prompt + refs). */
+/** Cross-route seed for explore 「一键同款」/ tools 「去生图」→ /studio. */
 
 export type StudioRemixSeed = {
   prompt: string;

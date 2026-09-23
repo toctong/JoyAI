@@ -461,6 +461,20 @@ img.joy-ai-tool-stack-layer {
   white-space: nowrap;
 }
 
+.joy-tool-model-cap {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--secondary) 70%, var(--card));
+  font-size: 10px;
+  font-weight: 560;
+  line-height: 16px;
+  color: var(--muted-foreground);
+  vertical-align: middle;
+}
+
 .joy-tool-model-chevron {
   flex-shrink: 0;
   color: var(--muted-foreground);
@@ -841,7 +855,60 @@ img.joy-ai-tool-stack-layer {
 
 .joy-ai-tool-prompt-row {
   min-width: 0;
-  flex: 1 1 280px;
+  flex: 1 1 100%;
+}
+
+.joy-ai-tool-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  min-width: 0;
+}
+
+.joy-ai-tool-meta-row .joy-studio-meta {
+  min-width: 0;
+  flex: 1;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-ai-tool-meta-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.joy-ai-tool-meta-icons {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.joy-ai-tool-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  line-height: 0;
+}
+
+.joy-ai-tool-icon-btn:hover:not(:disabled) {
+  background: transparent;
+  color: var(--foreground);
+}
+
+.joy-ai-tool-icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
 }
 
 .joy-ai-tool-prompt-line {
@@ -881,36 +948,6 @@ img.joy-ai-tool-stack-layer {
 .joy-ai-tool-prompt-copy:hover {
   background: var(--secondary);
   color: var(--foreground);
-}
-
-.joy-ai-tool-result-head-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.joy-tool-page-preview .joy-studio-action {
-  display: inline-flex;
-  height: 32px;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
-  padding: 0 10px;
-  font-size: var(--joy-font-micro);
-  color: var(--foreground);
-  cursor: pointer;
-}
-
-.joy-tool-page-preview .joy-studio-action:hover:not(:disabled) {
-  background: var(--secondary);
-}
-
-.joy-tool-page-preview .joy-studio-action:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .joy-ai-tool-drop {
@@ -1050,6 +1087,96 @@ img.joy-ai-tool-stack-layer {
   border-radius: 16px;
 }
 
+.joy-ai-tool-text-pending {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 4px 0;
+}
+
+.joy-ai-tool-text-pending-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  background: color-mix(in oklab, var(--secondary) 55%, var(--card));
+  color: var(--foreground);
+}
+
+.joy-ai-tool-text-pending-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.joy-ai-tool-text-pending-title {
+  margin: 0;
+  font-size: var(--joy-font-body, 15px);
+  font-weight: 560;
+  line-height: 1.4;
+}
+
+.joy-ai-tool-text-pending-hint {
+  margin: 0;
+  font-size: var(--joy-font-caption, 13px);
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+
+.joy-ai-tool-text-pending-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 120px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px dashed color-mix(in oklab, var(--border) 90%, transparent);
+  background: color-mix(in oklab, var(--secondary) 35%, var(--card));
+}
+
+.joy-ai-tool-text-pending-lines span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted-foreground) 16%, transparent);
+  animation: joy-ai-tool-shimmer 1.2s ease-in-out infinite;
+}
+
+.joy-ai-tool-text-pending-lines span:nth-child(1) {
+  width: 92%;
+}
+
+.joy-ai-tool-text-pending-lines span:nth-child(2) {
+  width: 78%;
+  animation-delay: 0.12s;
+}
+
+.joy-ai-tool-text-pending-lines span:nth-child(3) {
+  width: 86%;
+  animation-delay: 0.24s;
+}
+
+.joy-ai-tool-text-pending-lines span:nth-child(4) {
+  width: 54%;
+  animation-delay: 0.36s;
+}
+
+@keyframes joy-ai-tool-shimmer {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
 .joy-ai-tool-empty {
   display: flex;
   flex-direction: column;
@@ -1117,6 +1244,63 @@ img.joy-ai-tool-stack-layer {
   gap: 12px;
   min-height: 0;
   overflow: hidden;
+}
+
+.joy-ai-tool-text-result {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.joy-ai-tool-text-body {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 16px 18px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--joy-font-body, inherit);
+  font-size: var(--joy-font-body, 15px);
+  line-height: 1.65;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  background: color-mix(in oklab, var(--secondary) 55%, var(--card));
+  color: var(--foreground);
+}
+
+.joy-ai-tool-history-item.is-text {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px;
+  background: color-mix(in oklab, var(--secondary) 70%, var(--card));
+  text-align: left;
+}
+
+.joy-ai-tool-history-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  font-size: var(--joy-font-micro, 12px);
+  line-height: 1.45;
+  color: var(--muted-foreground);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.joy-ai-tool-history-text-pending {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
 }
 
 .joy-ai-tool-result {

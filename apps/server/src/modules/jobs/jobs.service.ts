@@ -76,7 +76,11 @@ function matchesJobScope(
   if (scope === "tools") {
     if (origin !== "tools") return false;
     if (ids.toolSlug && slug !== ids.toolSlug) return false;
-    return job.kind === JobKind.image || job.kind === JobKind.video;
+    return (
+      job.kind === JobKind.image ||
+      job.kind === JobKind.video ||
+      job.kind === JobKind.llm
+    );
   }
   return false;
 }
@@ -136,7 +140,7 @@ function applyJobScopeQuery(
   if (scope === "tools") {
     qb.andWhere("job.canvasProjectId IS NULL");
     qb.andWhere("job.kind IN (:...toolKinds)", {
-      toolKinds: [JobKind.image, JobKind.video],
+      toolKinds: [JobKind.image, JobKind.video, JobKind.llm],
     });
     // MySQL JSON columns are binary — LIKE '%"toolSlug":"…"%' often matches nothing.
     if (ids.toolSlug) {

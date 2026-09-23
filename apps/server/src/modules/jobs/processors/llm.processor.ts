@@ -21,11 +21,14 @@ import { ChannelsService } from "../../channels/channels.service";
 import { JobsService } from "../jobs.service";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { ManjuService } from "../../manju/manju.service";
+import { AssetsService } from "../../assets/assets.service";
+import { sourceFromJob } from "../../assets/asset-source";
 import {
   ANALYZE_ASSETS_SYSTEM,
   AUTHOR_PROMPTS_SYSTEM,
   CANVAS_TEXT_SYSTEM,
   PLAN_EPISODES_SYSTEM,
+  PROMPT_OPTIMIZE_SYSTEM,
   REVERSE_PROMPT_SYSTEM,
   SCRIPT_PLAN_SYSTEM,
   SCRIPT_WRITE_SYSTEM,
@@ -36,6 +39,20 @@ function resolveLlmConcurrency(): number {
   const n = Number(process.env.JOB_LLM_CONCURRENCY);
   if (!Number.isFinite(n) || n < 1) return 3;
   return Math.min(Math.floor(n), 10);
+}
+
+function textAssetTitle(purpose: string, toolSlug?: string | null): string {
+  if (toolSlug === "image-reverse" || purpose === "reverse_prompt") {
+    return "反推提示词.txt";
+  }
+  if (toolSlug === "prompt-optimize" || purpose === "prompt_optimize") {
+    return "优化提示词.txt";
+  }
+  return "提示词.txt";
+}
+
+function shouldSavePromptDocument(purpose: string): boolean {
+  return purpose === "reverse_prompt" || purpose === "prompt_optimize";
 }
 
 function extractJsonObject(text: string): unknown {
@@ -71,6 +88,7 @@ export class LlmProcessor extends WorkerHost {
     private readonly jobs: JobsService,
     private readonly realtime: RealtimeGateway,
     private readonly manju: ManjuService,
+    private readonly assets: AssetsService,
   ) {
     super();
   }
@@ -115,9 +133,11 @@ export class LlmProcessor extends WorkerHost {
                     ? SCRIPT_WRITE_SYSTEM
                     : purpose === "reverse_prompt"
                       ? REVERSE_PROMPT_SYSTEM
-                      : input.canvasProjectId
-                        ? CANVAS_TEXT_SYSTEM
-                        : "你是有帮助的助手。");
+                      : purpose === "prompt_optimize"
+                        ? PROMPT_OPTIMIZE_SYSTEM
+                        : input.canvasProjectId
+                          ? CANVAS_TEXT_SYSTEM
+                          : "你是有帮助的助手。");
 
       const imageUrls = (
         await this.jobs.resolveReferenceMedia(
@@ -249,6 +269,45 @@ export class LlmProcessor extends WorkerHost {
         scriptWrite = parsed.data;
       }
 
+      const textOut = String(result.text ?? "").trim();
+      let textAsset: { id: string; url: string; kind: string } | null = null;
+      if (shouldSavePromptDocument(purpose) && textOut) {
+        try {
+          const created = await this.assets.createTextDocument({
+            userId: job.userId,
+            jobId,
+            text: textOut,
+            source: sourceFromJob(job),
+            originalName: textAssetTitle(
+              purpose,
+              typeof input.toolSlug === "string" ? input.toolSlug : null,
+            ),
+            meta: {
+              purpose,
+              toolSlug:
+                typeof input.toolSlug === "string" ? input.toolSlug : null,
+            },
+          });
+          if (created) {
+            textAsset = {
+              id: created.id,
+              url: created.url,
+              kind: "text",
+            };
+          } else {
+            this.logger.warn(
+              `LLM job ${jobId}: skipped text asset (storage not configured)`,
+            );
+          }
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          this.logger.warn(
+            `LLM job ${jobId}: failed to save text asset: ${message}`,
+          );
+        }
+      }
+
       const payload = {
         text: result.text,
         purpose,
@@ -257,6 +316,7 @@ export class LlmProcessor extends WorkerHost {
         manjuProjectId: input.manjuProjectId ?? null,
         canvasProjectId: input.canvasProjectId ?? null,
         canvasNodeId: input.canvasNodeId ?? null,
+        assetIds: textAsset ? [textAsset.id] : [],
       };
 
       await this.jobsRepo.update(jobId, {
@@ -272,6 +332,8 @@ export class LlmProcessor extends WorkerHost {
         jobId,
         status: "succeeded",
         result: payload,
+        // Include kind so clients can skip treating .txt as media thumbs.
+        assets: textAsset ? [textAsset] : [],
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

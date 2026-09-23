@@ -174,7 +174,7 @@ export function resolveAssetSource(input: {
   return "studio";
 }
 
-/** LLM 任务用途：漫剧分析 / 画布反推 / 通用聊天 */
+/** LLM 任务用途：漫剧分析 / 画布反推 / 工具反推优化 / 通用聊天 */
 export const LlmJobPurposeSchema = z.enum([
   "analyze_assets",
   "split_shots",
@@ -183,6 +183,7 @@ export const LlmJobPurposeSchema = z.enum([
   "series_memory",
   "plan_episodes",
   "reverse_prompt",
+  "prompt_optimize",
   "script_write",
   "chat",
 ]);
@@ -205,6 +206,8 @@ export const LlmJobInputSchema = z.object({
   /** 视觉参考（反推提示词等） */
   referenceAssetIds: z.array(z.string()).optional(),
   referenceUrls: z.array(z.string()).optional(),
+  /** AI 工具页：按 slug 隔离历史 */
+  toolSlug: z.string().max(64).optional(),
 });
 export type LlmJobInput = z.infer<typeof LlmJobInputSchema>;
 

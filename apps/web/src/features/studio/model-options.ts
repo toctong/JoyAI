@@ -453,6 +453,23 @@ export function showReferenceUpload(
   return false;
 }
 
+/**
+ * LLM / vision: can the model take images in chat (reference for reverse, etc.).
+ * Unknown caps → false (do not show a useless upload slot).
+ */
+export function modelAcceptsImageInput(
+  caps?: ModelCapabilities | null,
+): boolean {
+  if (!caps) return false;
+  if (typeof caps.maxRefImages === "number") {
+    if (caps.maxRefImages <= 0) return false;
+    if (caps.maxRefImages > 0) return true;
+  }
+  if ((caps.input ?? []).includes("image")) return true;
+  const features = featureSet(caps);
+  return features.has("vision") || features.has("omni");
+}
+
 export type RefMediaKind = "image" | "video" | "audio";
 
 export type RefSlotLimits = {

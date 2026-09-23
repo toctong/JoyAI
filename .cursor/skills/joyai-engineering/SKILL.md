@@ -54,11 +54,12 @@ Tokens live in `apps/web/src/shared/theme/design-tokens.css` (imported by `globa
 
 Catalog: `apps/web/src/features/ai-tools/tool-catalog.ts`. One slug = one page at `/tools/[slug]`. Do not build a new page per tool.
 
-- Add an `AiToolDef`: Chinese `name` / `description` / `tags` (UTF-8 file, never `????`), `prompt` in English for the model, optional `noteHint`.
-- `refsRequired` / `refsMax`: image-to-image tools need refs; brand/poster tools may be `refsRequired: 0` with `noteRequired` + `promptMode: "brand-brief"`.
+- Add an `AiToolDef`: Chinese `name` / `description` / `tags` (UTF-8 file, never `????`), `prompt` in English for the model (or Chinese for llm reverse/optimize), optional `noteHint`.
+- `kind`: `image` | `video` | `llm`. LLM tools set `llmPurpose` (`reverse_prompt` / `prompt_optimize`) and submit `POST /jobs` with `kind: "llm"` + `input.toolSlug`. UI shows `result.text`; on success `reverse_prompt` / `prompt_optimize` also persist a `kind: "text"` document asset (`source=tools`) for the assets library.
+- `refsRequired` / `refsMax`: image-to-image tools need refs; brand/poster tools may be `refsRequired: 0` with `noteRequired` + `promptMode: "brand-brief"`; prompt optimize uses `promptMode: "note-as-prompt"`.
 - Submit jobs with `input.toolSlug`; tool history loads `scope=tools&toolSlug=`. Never show Studio / canvas / manju jobs on a tool page.
 - Covers are local files under `public/tools/`. Reuse an existing cover triple if there is no dedicated art; do not hotlink third-party CDNs.
-- Video-only or dedicated post-process tools stay `coming_soon` until the job kind exists. Do not fake them with an image prompt.
+- Video-only or dedicated post-process tools stay `coming_soon` until the job kind exists. Do not fake them with an image prompt. Reverse series: separate slugs (`image-reverse`, `prompt-optimize`, `video-reverse`), not tabs on one page.
 
 ## Backend layout (`apps/server`)
 

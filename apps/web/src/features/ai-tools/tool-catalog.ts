@@ -15,7 +15,15 @@ export type AiToolDef = {
   category: AiToolCategory;
   status: AiToolStatus;
   /** Job kind submitted by this tool. */
-  kind: "image" | "video";
+  kind: "image" | "video" | "llm";
+  /**
+   * LLM purpose when kind is `llm`.
+   * Defaults to chat if omitted — prefer an explicit purpose for tools.
+   */
+  llmPurpose?:
+    | "reverse_prompt"
+    | "prompt_optimize"
+    | "chat";
   /** How many reference images the user must upload. */
   refsRequired: number;
   /** Max reference images. */
@@ -42,7 +50,9 @@ export type AiToolDef = {
   /** When true, user must fill the note (e.g. brand name / brief). */
   noteRequired?: boolean;
   /** How to merge note into the job prompt. */
-  promptMode?: "append-note" | "brand-brief";
+  promptMode?: "append-note" | "brand-brief" | "note-as-prompt";
+  /** Sidebar generate button label. */
+  submitLabel?: string;
 };
 
 export const AI_TOOL_CATEGORIES: {
@@ -361,6 +371,84 @@ export const AI_TOOLS: AiToolDef[] = [
     examples: ["2× 清晰", "4× 细节"],
     noteHint: "上线后可选 2× 或 4×。不会改画风，也不会重画人物。",
     prompt: "",
+  },
+  {
+    slug: "image-reverse",
+    name: "图片反推提示词",
+    description:
+      "上传参考图，反推一段可直接用于生图的提示词。多图时综合画面要素。",
+    category: "other",
+    status: "available",
+    kind: "llm",
+    llmPurpose: "reverse_prompt",
+    refsRequired: 1,
+    refsMax: 4,
+    accent: "#6ec3c8",
+    covers: [
+      "/tools/cover-magazine-cover-0.webp",
+      "/tools/cover-magazine-cover-1.webp",
+      "/tools/cover-magazine-cover-2.webp",
+    ],
+    tags: ["反推", "提示词"],
+    badge: "new",
+    submitLabel: "开始反推",
+    prompt:
+      "请根据参考图片反推一段适合用于 AI 生图的提示词。\n\n要求：\n1. 只输出提示词正文，不要解释。\n2. 覆盖主体、构图、风格、光线、色彩、材质、镜头和氛围。\n3. 尽量写成可直接用于生图模型的完整提示词。",
+    examples: ["偏写实摄影", "偏二次元插画", "强调光影与材质"],
+    noteHint: "可写输出偏好，例如「偏写实摄影 / 偏二次元插画」。",
+  },
+  {
+    slug: "prompt-optimize",
+    name: "提示词优化",
+    description:
+      "粘贴粗糙提示词，自动补全构图、光线、材质与氛围，改写成更适合生图的完整提示词。",
+    category: "other",
+    status: "available",
+    kind: "llm",
+    llmPurpose: "prompt_optimize",
+    refsRequired: 0,
+    refsMax: 2,
+    accent: "#c9a66b",
+    covers: [
+      "/tools/cover-trading-card-0.webp",
+      "/tools/cover-trading-card-1.webp",
+      "/tools/cover-trading-card-2.webp",
+    ],
+    tags: ["优化", "提示词"],
+    badge: "new",
+    submitLabel: "开始优化",
+    noteRequired: true,
+    promptMode: "note-as-prompt",
+    prompt: "请优化下面的提示词。",
+    examples: [
+      "一个女孩站在雨里",
+      "赛博朋克城市夜景，霓虹",
+      "猫咪坐在窗台，阳光",
+    ],
+    noteHint: "粘贴或写下要优化的原始提示词。",
+  },
+  {
+    slug: "video-reverse",
+    name: "视频反推提示词",
+    description:
+      "上传短视频，反推适合生视频模型的动态提示词。需要视频理解能力，即将上线。",
+    category: "other",
+    status: "coming_soon",
+    kind: "llm",
+    llmPurpose: "reverse_prompt",
+    refsRequired: 0,
+    refsMax: 0,
+    videosRequired: 1,
+    videosMax: 1,
+    accent: "#9b8cff",
+    covers: [
+      "/tools/cover-ai-hug-0.webp",
+      "/tools/cover-ai-hug-1.webp",
+      "/tools/cover-ai-hug-2.webp",
+    ],
+    tags: ["反推", "视频"],
+    prompt: "",
+    noteHint: "上线后上传短视频即可反推动态提示词。",
   },
 
   {
@@ -702,6 +790,9 @@ export function getAiTool(slug: string): AiToolDef | undefined {
 
 export function buildAiToolPrompt(tool: AiToolDef, note?: string) {
   const extra = note?.trim();
+  if (tool.promptMode === "note-as-prompt") {
+    return (extra || tool.prompt).slice(0, 100_000);
+  }
   if (!extra) return tool.prompt;
   if (tool.promptMode === "brand-brief") {
     return [

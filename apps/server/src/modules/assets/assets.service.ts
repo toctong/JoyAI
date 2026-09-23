@@ -285,6 +285,51 @@ export class AssetsService {
     );
   }
 
+  /**
+   * Persist plain text as a document asset (assets library「文档」tab).
+   * Returns null when storage is not configured — callers should not fail the job.
+   */
+  async createTextDocument(data: {
+    userId: string;
+    jobId?: string;
+    text: string;
+    source?: string | null;
+    originalName?: string;
+    meta?: Record<string, unknown> | null;
+  }) {
+    const text = data.text.trim();
+    if (!text) return null;
+    if (!this.storage.isConfigured()) return null;
+
+    const buffer = Buffer.from(text, "utf8");
+    const put = await this.storage.putObject(buffer, {
+      contentType: "text/plain; charset=utf-8",
+      ext: "txt",
+    });
+    const originalName =
+      sanitizeOriginalName(data.originalName || "prompt.txt") || "prompt.txt";
+    const source = data.source ?? null;
+    return this.create({
+      userId: data.userId,
+      jobId: data.jobId,
+      kind: "text",
+      url: put.url,
+      md5: put.md5,
+      mimeType: "text/plain",
+      size: put.size,
+      source,
+      meta: {
+        ...(data.meta ?? {}),
+        ...(source ? { source } : {}),
+        originalName,
+        sha256: put.sha256,
+        storageKey: put.key,
+        storageStatus: "ready",
+        preview: text.slice(0, 240),
+      },
+    });
+  }
+
   findById(id: string) {
     return this.assets.findOne({ where: { id } });
   }

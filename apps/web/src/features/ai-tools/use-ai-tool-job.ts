@@ -7,6 +7,7 @@ import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { toast } from "@/shared/lib/toast";
 import {
   layoutControlsFromCapabilities,
+  modelAcceptsImageInput,
   type AspectOption,
   type ResolutionOption,
   type SizeOption,
@@ -28,7 +29,8 @@ export type ToolHistoryMeta = {
   width?: number | null;
   height?: number | null;
   n?: number | null;
-  kind?: "image" | "video";
+  kind?: "image" | "video" | "llm";
+  purpose?: string | null;
   createdAt?: string;
   finishedAt?: string | null;
 };
@@ -39,6 +41,8 @@ export type ToolHistoryEntry = {
   jobId?: string;
   status: "pending" | "succeeded" | "failed";
   assets: ToolResultAsset[];
+  /** LLM text result (reverse / optimize). */
+  resultText?: string;
   error?: string;
   meta?: ToolHistoryMeta;
 };
@@ -59,7 +63,13 @@ type JobsHistoryPage = {
     modelName?: string | null;
     channelName?: string | null;
     input?: Record<string, unknown> | null;
-    assets?: ToolResultAsset[] | null;
+    result?: { text?: string | null } | null;
+    assets?: Array<{
+      id: string;
+      url: string;
+      kind?: string | null;
+      mimeType?: string | null;
+    }> | null;
   }>;
   hasMore: boolean;
 };
@@ -84,6 +94,12 @@ function metaFromJob(
         .map((id) => String(id || "").trim())
         .filter(Boolean)
     : [];
+  const kind =
+    job.kind === "video"
+      ? "video"
+      : job.kind === "llm"
+        ? "llm"
+        : "image";
   return {
     prompt: typeof input.prompt === "string" ? input.prompt : undefined,
     referenceUrls: refs,
@@ -98,24 +114,52 @@ function metaFromJob(
     width: typeof input.width === "number" ? input.width : null,
     height: typeof input.height === "number" ? input.height : null,
     n: typeof input.n === "number" ? input.n : null,
-    kind: job.kind === "video" ? "video" : "image",
+    kind,
+    purpose: typeof input.purpose === "string" ? input.purpose : null,
     createdAt: job.createdAt,
     finishedAt: job.finishedAt,
   };
+}
+
+function isMediaToolAsset(asset: {
+  id?: string;
+  kind?: string | null;
+  mimeType?: string | null;
+  url?: string | null;
+}) {
+  const kind = String(asset.kind ?? "").toLowerCase();
+  if (kind === "text" || kind === "document") return false;
+  const mime = String(asset.mimeType ?? "").toLowerCase();
+  if (mime.startsWith("text/")) return false;
+  const url = String(asset.url ?? "");
+  if (/\.txt(\?|$)/i.test(url)) return false;
+  return Boolean(asset.id && asset.url);
 }
 
 function assetsOfJob(
   job: JobsHistoryPage["items"][number],
 ): ToolResultAsset[] {
   return (job.assets ?? [])
-    .filter((asset) => Boolean(asset?.id && asset?.url))
+    .filter((asset) => isMediaToolAsset(asset))
     .map((asset) => ({ id: asset.id, url: String(asset.url) }));
+}
+
+function resultTextOfJob(job: JobsHistoryPage["items"][number]): string {
+  return String(job.result?.text ?? "").trim();
+}
+
+function hasToolResult(entry: {
+  assets: ToolResultAsset[];
+  resultText?: string;
+}) {
+  return entry.assets.length > 0 || Boolean(entry.resultText?.trim());
 }
 
 function entriesFromJobs(items: JobsHistoryPage["items"]): ToolHistoryEntry[] {
   // API returns ASC within the newest window — flip so latest jobs lead.
   return [...items].reverse().map((job) => {
     const assets = assetsOfJob(job);
+    const resultText = resultTextOfJob(job);
     const meta = metaFromJob(job);
     const busy =
       job.status === "queued" ||
@@ -124,6 +168,7 @@ function entriesFromJobs(items: JobsHistoryPage["items"]): ToolHistoryEntry[] {
     if (
       busy ||
       (!assets.length &&
+        !resultText &&
         job.status !== "failed" &&
         job.status !== "cancelled")
     ) {
@@ -132,6 +177,7 @@ function entriesFromJobs(items: JobsHistoryPage["items"]): ToolHistoryEntry[] {
         jobId: job.id,
         status: "pending" as const,
         assets: [],
+        resultText: "",
         meta,
       };
     }
@@ -141,6 +187,7 @@ function entriesFromJobs(items: JobsHistoryPage["items"]): ToolHistoryEntry[] {
         jobId: job.id,
         status: "failed" as const,
         assets: [],
+        resultText: "",
         error: job.status === "cancelled" ? "已取消" : "生成失败",
         meta,
       };
@@ -150,6 +197,7 @@ function entriesFromJobs(items: JobsHistoryPage["items"]): ToolHistoryEntry[] {
       jobId: job.id,
       status: "succeeded" as const,
       assets,
+      resultText,
       meta,
     };
   });
@@ -267,14 +315,33 @@ export function useAiToolJob(tool: AiToolDef) {
   );
 
   const selectedModel = kindModels.find((item) => item.id === modelId);
-  const layout = useMemo(
+  const acceptsImageInput = useMemo(
     () =>
-      layoutControlsFromCapabilities(
-        selectedModel?.capabilities,
-        tool.kind === "video" ? "video" : "image",
-      ),
+      tool.kind !== "llm"
+        ? true
+        : modelAcceptsImageInput(selectedModel?.capabilities),
     [selectedModel?.capabilities, tool.kind],
   );
+  const showRefs = tool.refsMax > 0 && acceptsImageInput;
+  const layout = useMemo(() => {
+    if (tool.kind === "llm") {
+      return {
+        legacyFallback: false,
+        showRatio: false,
+        showResolution: false,
+        showSizePicker: false,
+        showDuration: false,
+        aspects: [] as AspectOption[],
+        resolutions: [] as ResolutionOption[],
+        sizes: [] as SizeOption[],
+        imageSizeMode: "keyword" as const,
+      };
+    }
+    return layoutControlsFromCapabilities(
+      selectedModel?.capabilities,
+      tool.kind === "video" ? "video" : "image",
+    );
+  }, [selectedModel?.capabilities, tool.kind]);
 
   const selectedAspect: AspectOption | undefined =
     layout.aspects.find((item) => item.id === ratio) ?? layout.aspects[0];
@@ -289,6 +356,8 @@ export function useAiToolJob(tool: AiToolDef) {
     [history, selectedId],
   );
   const results = selected?.status === "succeeded" ? selected.assets : [];
+  const resultText =
+    selected?.status === "succeeded" ? selected.resultText?.trim() || "" : "";
   const pendingCount = useMemo(
     () => history.filter((item) => item.status === "pending").length,
     [history],
@@ -311,10 +380,25 @@ export function useAiToolJob(tool: AiToolDef) {
         setModels(next);
         const prefs = readPrefs()[tool.slug] ?? {};
         const kindList = next.filter((item) => item.kind === tool.kind);
-        const preferred =
+        const needsVision = tool.kind === "llm" && tool.refsRequired > 0;
+        const visionList = needsVision
+          ? kindList.filter((item) => modelAcceptsImageInput(item.capabilities))
+          : kindList;
+        const pickList = visionList.length ? visionList : kindList;
+        const preferredFromPrefs =
           prefs.modelId && kindList.some((item) => item.id === prefs.modelId)
             ? prefs.modelId
-            : (kindList[0]?.id ?? "");
+            : "";
+        const prefsOk =
+          preferredFromPrefs &&
+          (!needsVision ||
+            modelAcceptsImageInput(
+              kindList.find((item) => item.id === preferredFromPrefs)
+                ?.capabilities,
+            ));
+        const preferred = prefsOk
+          ? preferredFromPrefs
+          : (pickList[0]?.id ?? "");
         setModelId(preferred);
         if (typeof prefs.n === "number" && prefs.n >= 1 && prefs.n <= 4) {
           setN(prefs.n);
@@ -330,6 +414,15 @@ export function useAiToolJob(tool: AiToolDef) {
       cancelled = true;
     };
   }, [tool.slug, tool.kind]);
+
+  useEffect(() => {
+    if (showRefs) return;
+    setRefs((prev) => {
+      if (!prev.length) return prev;
+      for (const item of prev) URL.revokeObjectURL(item.previewUrl);
+      return [];
+    });
+  }, [showRefs]);
 
   useEffect(() => {
     if (!modelsReady) return;
@@ -373,7 +466,7 @@ export function useAiToolJob(tool: AiToolDef) {
           (entry) =>
             entry.status === "pending" ||
             entry.status === "failed" ||
-            entry.assets.length > 0,
+            hasToolResult(entry),
         );
         const localPending = historyRef.current.filter(
           (item) => item.status === "pending",
@@ -391,7 +484,7 @@ export function useAiToolJob(tool: AiToolDef) {
         setSelectedId((prev) => {
           if (prev && next.some((item) => item.id === prev)) return prev;
           const firstDone = next.find(
-            (item) => item.status === "succeeded" && item.assets.length,
+            (item) => item.status === "succeeded" && hasToolResult(item),
           );
           return firstDone?.id ?? null;
         });
@@ -432,7 +525,7 @@ export function useAiToolJob(tool: AiToolDef) {
         (entry) =>
           entry.status === "pending" ||
           entry.status === "failed" ||
-          entry.assets.length > 0,
+          hasToolResult(entry),
       );
       setHistory((prev) => {
         const seen = new Set(prev.map((item) => item.id));
@@ -467,25 +560,31 @@ export function useAiToolJob(tool: AiToolDef) {
         .filter((item) => item.status === "pending" && item.jobId)
         .map((item) => item.jobId as string),
     onCompleted: (payload) => {
-      if (!payload.jobId) return;
+      const jobId = payload.jobId;
+      if (!jobId) return;
       const assets = (payload.assets ?? [])
-        .filter(
-          (asset): asset is ToolResultAsset =>
-            Boolean(asset?.id && asset?.url),
+        .filter((asset) =>
+          isMediaToolAsset({
+            id: asset?.id,
+            url: asset?.url,
+            kind: asset?.kind,
+          }),
         )
-        .map((asset) => ({ id: asset.id, url: String(asset.url) }));
+        .map((asset) => ({ id: String(asset.id), url: String(asset.url) }));
+      const text = String(payload.result?.text ?? "").trim();
       setHistory((prev) => {
         const idx = prev.findIndex(
-          (item) => item.jobId === payload.jobId || item.id === payload.jobId,
+          (item) => item.jobId === jobId || item.id === jobId,
         );
         if (idx < 0) {
-          if (!assets.length) return prev;
+          if (!assets.length && !text) return prev;
           return [
             {
-              id: payload.jobId,
-              jobId: payload.jobId,
+              id: jobId,
+              jobId,
               status: "succeeded" as const,
               assets,
+              resultText: text,
             },
             ...prev,
           ];
@@ -493,28 +592,30 @@ export function useAiToolJob(tool: AiToolDef) {
         const next = [...prev];
         next[idx] = {
           ...next[idx],
-          id: payload.jobId,
-          jobId: payload.jobId,
+          id: jobId,
+          jobId,
           status: "succeeded",
           assets,
+          resultText: text,
         };
         return next;
       });
-      setSelectedId(payload.jobId);
-      toast.success("生成完成");
+      setSelectedId(jobId);
+      toast.success(tool.kind === "llm" ? "完成" : "生成完成");
     },
     onFailed: (payload) => {
-      if (!payload.jobId) return;
+      const jobId = payload.jobId;
+      if (!jobId) return;
       setHistory((prev) => {
         const idx = prev.findIndex(
-          (item) => item.jobId === payload.jobId || item.id === payload.jobId,
+          (item) => item.jobId === jobId || item.id === jobId,
         );
         if (idx < 0) return prev;
         const next = [...prev];
         next[idx] = {
           ...next[idx],
-          id: payload.jobId,
-          jobId: payload.jobId,
+          id: jobId,
+          jobId,
           status: "failed",
           assets: [],
           error: payload.error || "生成失败",
@@ -652,8 +753,13 @@ export function useAiToolJob(tool: AiToolDef) {
       toast.error("该工具即将上线");
       return;
     }
-    if (refs.length < tool.refsRequired) {
-      toast.error(`请至少上传 ${tool.refsRequired} 张参考图`);
+    if (tool.kind === "llm" && tool.refsRequired > 0 && !acceptsImageInput) {
+      toast.error("当前模型不支持参考图，请换带视觉能力的模型");
+      return;
+    }
+    const refsNeeded = showRefs ? tool.refsRequired : 0;
+    if (refs.length < refsNeeded) {
+      toast.error(`请至少上传 ${refsNeeded} 张参考图`);
       return;
     }
     const videosRequired = tool.videosRequired ?? 0;
@@ -698,7 +804,8 @@ export function useAiToolJob(tool: AiToolDef) {
       height:
         layout.showSizePicker && selectedSize ? selectedSize.height : null,
       n: tool.kind === "image" ? n : null,
-      kind: tool.kind === "video" ? "video" : "image",
+      kind: tool.kind,
+      purpose: tool.kind === "llm" ? tool.llmPurpose ?? "chat" : null,
       createdAt: new Date().toISOString(),
     };
     setHistory((prev) => [
@@ -706,6 +813,7 @@ export function useAiToolJob(tool: AiToolDef) {
         id: localId,
         status: "pending",
         assets: [],
+        resultText: "",
         meta: pendingMeta,
       },
       ...prev,
@@ -713,8 +821,9 @@ export function useAiToolJob(tool: AiToolDef) {
     setSelectedId(localId);
 
     try {
+      const uploadFiles = showRefs ? [...refs, ...videos] : [...videos];
       const uploaded: { id: string; url: string }[] = [];
-      for (const item of [...refs, ...videos]) {
+      for (const item of uploadFiles) {
         const asset = await apiUpload<{ id: string; url: string }>(
           "/upload",
           item.file,
@@ -725,14 +834,16 @@ export function useAiToolJob(tool: AiToolDef) {
       const referenceUrls = uploaded.map((item) => item.url);
       const input: Record<string, unknown> = {
         prompt,
-        n: tool.kind === "image" ? n : undefined,
         modelId: modelId || undefined,
         referenceAssetIds: uploaded.map((item) => item.id),
         referenceUrls,
         toolSlug: tool.slug,
       };
 
-      if (tool.kind === "image") {
+      if (tool.kind === "llm") {
+        input.purpose = tool.llmPurpose ?? "chat";
+      } else if (tool.kind === "image") {
+        input.n = n;
         if (layout.showRatio && selectedAspect) {
           input.ratio = selectedAspect.id;
         } else if (tool.ratio) {
@@ -796,6 +907,7 @@ export function useAiToolJob(tool: AiToolDef) {
       toast.error(error instanceof Error ? error.message : "提交失败");
     }
   }, [
+    acceptsImageInput,
     kindModels.length,
     layout.showRatio,
     layout.showResolution,
@@ -809,6 +921,7 @@ export function useAiToolJob(tool: AiToolDef) {
     selectedModel,
     selectedResolution,
     selectedSize,
+    showRefs,
     tool,
   ]);
 
@@ -820,7 +933,7 @@ export function useAiToolJob(tool: AiToolDef) {
       }
       const meta = entry.meta;
       const prompt = meta?.prompt?.trim();
-      if (!prompt) {
+      if (!meta || !prompt) {
         toast.error("无法重新生成：缺少提示词");
         return;
       }
@@ -849,6 +962,7 @@ export function useAiToolJob(tool: AiToolDef) {
             id: localId,
             status: "pending" as const,
             assets: [] as ToolResultAsset[],
+            resultText: "",
             meta: pendingMeta,
           },
           ...(entry.status === "failed"
@@ -872,21 +986,27 @@ export function useAiToolJob(tool: AiToolDef) {
       try {
         const input: Record<string, unknown> = {
           prompt,
-          n: tool.kind === "image" ? (meta.n ?? n) : undefined,
           modelId: nextModelId,
           referenceAssetIds,
           referenceUrls,
           toolSlug: tool.slug,
         };
-        if (meta.ratio) input.ratio = meta.ratio;
-        if (meta.resolution) input.resolution = meta.resolution;
-        if (meta.size) {
-          input.size = meta.size;
-          if (meta.width) input.width = meta.width;
-          if (meta.height) input.height = meta.height;
-        }
-        if (tool.kind === "video") {
+        if (tool.kind === "llm") {
+          input.purpose =
+            meta.purpose || tool.llmPurpose || "chat";
+        } else if (tool.kind === "image") {
+          input.n = meta.n ?? n;
+          if (meta.ratio) input.ratio = meta.ratio;
+          if (meta.resolution) input.resolution = meta.resolution;
+          if (meta.size) {
+            input.size = meta.size;
+            if (meta.width) input.width = meta.width;
+            if (meta.height) input.height = meta.height;
+          }
+        } else {
           input.refMode = "omni";
+          if (meta.ratio) input.ratio = meta.ratio;
+          if (meta.resolution) input.resolution = meta.resolution;
         }
 
         const job = await api<{ id: string }>("/jobs", {
@@ -933,6 +1053,7 @@ export function useAiToolJob(tool: AiToolDef) {
     note,
     setNote,
     results,
+    resultText,
     selected,
     selectedId,
     selectHistory,
@@ -948,6 +1069,8 @@ export function useAiToolJob(tool: AiToolDef) {
     modelId,
     chooseModel,
     selectedModel,
+    acceptsImageInput,
+    showRefs,
     layout,
     ratio,
     chooseRatio,
