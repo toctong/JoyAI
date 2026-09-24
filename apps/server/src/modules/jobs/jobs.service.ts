@@ -252,6 +252,112 @@ export class JobsService {
     return this.withDuration(job);
   }
 
+  /**
+   * Register already-uploaded assets as a succeeded studio job (crop / trim / etc).
+   * No queue — results show immediately in the creation feed.
+   */
+  async createLocal(userId: string, body: unknown) {
+    const raw = (body ?? {}) as {
+      kind?: string;
+      prompt?: string;
+      assetIds?: unknown;
+      localTool?: string;
+      layout?: { rows?: unknown; cols?: unknown };
+      tiles?: unknown;
+      width?: unknown;
+      height?: unknown;
+    };
+    const kindRaw = String(raw.kind ?? "").trim();
+    const kind =
+      kindRaw === "image" || kindRaw === "video" || kindRaw === "audio"
+        ? kindRaw
+        : null;
+    if (!kind) {
+      throw new BadRequestException("kind 须为 image / video / audio");
+    }
+    const prompt = String(raw.prompt ?? "").trim() || "本地编辑";
+    const assetIds = Array.isArray(raw.assetIds)
+      ? raw.assetIds.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+    if (!assetIds.length) {
+      throw new BadRequestException("缺少素材");
+    }
+
+    const localTool = String(raw.localTool ?? "").trim() || undefined;
+    const layoutRows = Math.floor(Number(raw.layout?.rows));
+    const layoutCols = Math.floor(Number(raw.layout?.cols));
+    const layout =
+      Number.isFinite(layoutRows) &&
+      Number.isFinite(layoutCols) &&
+      layoutRows >= 1 &&
+      layoutCols >= 1 &&
+      layoutRows <= 6 &&
+      layoutCols <= 6
+        ? { rows: layoutRows, cols: layoutCols }
+        : undefined;
+    const tiles = normalizeSplitTiles(raw.tiles, assetIds);
+    const width = Math.floor(Number(raw.width));
+    const height = Math.floor(Number(raw.height));
+    const size =
+      Number.isFinite(width) &&
+      Number.isFinite(height) &&
+      width > 0 &&
+      height > 0
+        ? { width, height }
+        : undefined;
+
+    const now = new Date();
+    const job = await this.jobs.save(
+      this.jobs.create({
+        userId,
+        kind: kind as JobKind,
+        status: JobStatus.succeeded,
+        progress: 100,
+        startedAt: now,
+        finishedAt: now,
+        input: {
+          prompt,
+          n: assetIds.length,
+          localEdit: true,
+          ...(localTool ? { localTool } : {}),
+          ...(layout ? { layout } : {}),
+          ...(size ? size : {}),
+        },
+        modelId: null,
+        modelName: "本地编辑",
+        channelId: null,
+        channelName: null,
+        platform: null,
+        canvasProjectId: null,
+        canvasNodeId: null,
+        result: {
+          assetIds,
+          ...(layout ? { layout } : {}),
+          ...(tiles ? { tiles } : {}),
+        },
+      }),
+    );
+
+    const linked = await this.assets.linkToJob(userId, assetIds, job.id);
+    await this.jobs.update(job.id, {
+      result: {
+        // Keep upload / slice order (row-major for 切图) — never reshuffle.
+        assetIds: linked.map((a) => a.id),
+        urls: linked.map((a) => a.url),
+        ...(layout ? { layout } : {}),
+        ...(tiles ? { tiles } : {}),
+      },
+    });
+
+    this.realtime.emitJob(userId, "job:completed", {
+      jobId: job.id,
+      kind: job.kind,
+      status: JobStatus.succeeded,
+    });
+
+    return this.get(userId, job.id);
+  }
+
   /** Fail within ~1.5s if Redis is unreachable. */
   private async assertQueueAvailable(queue: Queue, timeoutMs = 1_500) {
     try {
@@ -278,8 +384,7 @@ export class JobsService {
 
   /**
    * Paged job feed. Scope is applied in SQL (not “load every job then filter”).
-   * Windows are ordered by createdAt; a short in-memory pass still prefers
-   * finishedAt for the studio chat cursor.
+   * Ordered by createdAt so studio chat keeps click/submit order.
    */
   async list(
     userId: string,
@@ -328,7 +433,7 @@ export class JobsService {
       const enriched = await this.enrichMany(rows);
       for (const job of enriched) {
         if (!matchesJobScope(job, scope, ids)) continue;
-        const ms = Date.parse(String(job.finishedAt ?? job.createdAt));
+        const ms = Date.parse(String(job.createdAt));
         const time = Number.isFinite(ms) ? ms : 0;
         if (hasCursor) {
           if (time > beforeMs) continue;
@@ -461,10 +566,96 @@ export class JobsService {
   }
 
   async remove(userId: string, id: string) {
-    const job = await this.jobs.findOne({ where: { id, userId } });
+    const job = await this.jobs.findOne({
+      where: { id, userId },
+      relations: ["assets"],
+    });
     if (!job) throw new NotFoundException("任务不存在");
+
+    const assetIds = (job.assets ?? []).map((a) => a.id);
+    // Also pick ids from result in case relation is incomplete.
+    const resultIds = Array.isArray(
+      (job.result as { assetIds?: unknown } | null)?.assetIds,
+    )
+      ? ((job.result as { assetIds: unknown[] }).assetIds ?? [])
+          .map((aid) => String(aid || "").trim())
+          .filter(Boolean)
+      : [];
+    const allAssetIds = [...new Set([...assetIds, ...resultIds])];
+
+    if (allAssetIds.length) {
+      await this.assets.removeOwnedAndPurgeStorage(userId, allAssetIds);
+    }
+
     await this.jobs.remove(job);
-    return { ok: true, id };
+    return { ok: true, id, removedAssets: allAssetIds.length };
+  }
+
+  /** Delete one output tile; removes the job when no outputs remain. */
+  async removeAsset(userId: string, jobId: string, assetId: string) {
+    const job = await this.jobs.findOne({
+      where: { id: jobId, userId },
+      relations: ["assets"],
+    });
+    if (!job) throw new NotFoundException("任务不存在");
+
+    const targetId = String(assetId || "").trim();
+    if (!targetId) throw new BadRequestException("缺少素材");
+
+    const result = (job.result ?? {}) as {
+      assetIds?: unknown;
+      urls?: unknown;
+      tiles?: unknown;
+      layout?: unknown;
+    };
+    const resultIds = Array.isArray(result.assetIds)
+      ? result.assetIds.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+    const linkedIds = (job.assets ?? []).map((a) => a.id);
+    const allIds = [...new Set([...resultIds, ...linkedIds])];
+    if (!allIds.includes(targetId)) {
+      throw new NotFoundException("该任务下没有此素材");
+    }
+
+    await this.assets.removeOwnedAndPurgeStorage(userId, [targetId]);
+
+    const remainingIds = allIds.filter((id) => id !== targetId);
+    if (!remainingIds.length) {
+      await this.jobs.remove(job);
+      return { ok: true, jobId, assetId: targetId, jobRemoved: true as const };
+    }
+
+    const remainingAssets = (job.assets ?? []).filter((a) => a.id !== targetId);
+    const byId = new Map(remainingAssets.map((a) => [a.id, a]));
+    const orderedIds = resultIds.filter((id) => id !== targetId);
+    for (const id of remainingIds) {
+      if (!orderedIds.includes(id)) orderedIds.push(id);
+    }
+    const urls = orderedIds
+      .map((id) => byId.get(id)?.url)
+      .filter((u): u is string => Boolean(u));
+
+    let tiles: Array<{ assetId: string; row: number; col: number }> | undefined;
+    if (Array.isArray(result.tiles)) {
+      const next = normalizeSplitTiles(result.tiles, orderedIds);
+      tiles = next;
+    }
+
+    const input = {
+      ...(job.input ?? {}),
+      n: orderedIds.length,
+    };
+    await this.jobs.update(jobId, {
+      input,
+      result: {
+        ...result,
+        assetIds: orderedIds,
+        urls,
+        ...(tiles ? { tiles } : { tiles: undefined }),
+      },
+    });
+
+    return this.get(userId, jobId);
   }
 
   /** Interrupt a queued/running job; workers check status before finalizing. */
@@ -681,10 +872,15 @@ export class JobsService {
         }
       }
 
+      const orderedAssets = orderAssetsByResult(
+        job.assets ?? [],
+        job.result,
+      );
+
       const base =
-        nextInput === job.input
+        nextInput === job.input && orderedAssets === job.assets
           ? job
-          : { ...job, input: nextInput };
+          : { ...job, input: nextInput, assets: orderedAssets };
 
       if (base.modelName && base.channelName) {
         return this.withDuration(base);
@@ -702,6 +898,115 @@ export class JobsService {
       });
     });
   }
+}
+
+/** Keep feed / grid tiles in the same order as `result.assetIds` (e.g. 切图 row-major).
+ * Prefer explicit `result.tiles` row/col, then repair via `joyai-split-R-C` names.
+ */
+function orderAssetsByResult(
+  assets: Asset[],
+  result: Record<string, unknown> | null | undefined,
+): Asset[] {
+  if (!assets.length) return assets;
+  const byTiles = orderAssetsByTiles(assets, result);
+  if (byTiles) return byTiles;
+
+  const ids = Array.isArray(result?.assetIds)
+    ? (result.assetIds as unknown[])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    : [];
+  const byId = new Map(assets.map((a) => [a.id, a]));
+  const ordered: Asset[] = [];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    const hit = byId.get(id);
+    if (!hit || seen.has(id)) continue;
+    ordered.push(hit);
+    seen.add(id);
+  }
+  for (const a of assets) {
+    if (!seen.has(a.id)) ordered.push(a);
+  }
+  return orderSplitAssetsByName(ordered);
+}
+
+function orderAssetsByTiles(
+  assets: Asset[],
+  result: Record<string, unknown> | null | undefined,
+): Asset[] | null {
+  const tiles = normalizeSplitTiles(result?.tiles, assets.map((a) => a.id));
+  if (!tiles?.length) return null;
+  const byId = new Map(assets.map((a) => [a.id, a]));
+  const ordered: Asset[] = [];
+  const seen = new Set<string>();
+  for (const tile of tiles) {
+    const hit = byId.get(tile.assetId);
+    if (!hit || seen.has(tile.assetId)) continue;
+    ordered.push(hit);
+    seen.add(tile.assetId);
+  }
+  for (const a of assets) {
+    if (!seen.has(a.id)) ordered.push(a);
+  }
+  return ordered.length ? ordered : null;
+}
+
+function normalizeSplitTiles(
+  raw: unknown,
+  assetIds: string[],
+): Array<{ assetId: string; row: number; col: number }> | undefined {
+  if (!Array.isArray(raw) || !raw.length) return undefined;
+  const idSet = new Set(assetIds);
+  const tiles: Array<{ assetId: string; row: number; col: number }> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const rowRaw = item as { assetId?: unknown; row?: unknown; col?: unknown };
+    const assetId = String(rowRaw.assetId ?? "").trim();
+    const row = Math.floor(Number(rowRaw.row));
+    const col = Math.floor(Number(rowRaw.col));
+    if (!assetId || !idSet.has(assetId)) continue;
+    if (!Number.isFinite(row) || !Number.isFinite(col) || row < 0 || col < 0) {
+      continue;
+    }
+    tiles.push({ assetId, row, col });
+  }
+  if (tiles.length < 2) return undefined;
+  return tiles.sort((a, b) => a.row - b.row || a.col - b.col);
+}
+
+/** Prefer filenames like joyai-split-1-2.png → row-major grid order. */
+function orderSplitAssetsByName(assets: Asset[]): Asset[] {
+  if (assets.length < 2) return assets;
+  const scored: {
+    asset: Asset;
+    index: number;
+    row: number;
+    col: number;
+  }[] = [];
+  for (let index = 0; index < assets.length; index += 1) {
+    const asset = assets[index]!;
+    const name = splitAssetLabel(asset);
+    const match = name.match(/joyai-split-(\d+)-(\d+)/i);
+    if (!match) return assets;
+    scored.push({
+      asset,
+      index,
+      row: Number(match[1]) - 1,
+      col: Number(match[2]) - 1,
+    });
+  }
+  return scored
+    .sort((a, b) => a.row - b.row || a.col - b.col || a.index - b.index)
+    .map((s) => s.asset);
+}
+
+function splitAssetLabel(asset: Asset): string {
+  const meta = (asset as Asset & { meta?: Record<string, unknown> | null }).meta;
+  const original =
+    typeof meta?.originalName === "string" ? meta.originalName : "";
+  const url = String(asset.url || "");
+  return `${original} ${url}`;
 }
 
 function classifyRefMediaKind(

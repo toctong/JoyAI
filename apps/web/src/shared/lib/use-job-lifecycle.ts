@@ -17,11 +17,15 @@ export type JobProgressPayload = {
   job?: { id?: string; status?: string };
 };
 
+export type JobSlotFailure = { index: number; error: string };
+
 export type JobCompletedPayload = {
   jobId?: string;
   id?: string;
   status?: string;
   assets?: JobLifecycleAsset[];
+  requested?: number;
+  failures?: JobSlotFailure[];
   result?: {
     text?: string;
     purpose?: string;
@@ -42,6 +46,7 @@ export type JobFailedPayload = {
   id?: string;
   error?: string;
   status?: string;
+  requested?: number;
   job?: { id?: string; error?: string | null; status?: string };
 };
 

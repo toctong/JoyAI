@@ -103,6 +103,65 @@ export class AssetsService {
   }
 
   /**
+   * Hard-delete owned assets and purge TOS objects when nothing else references them.
+   * Content-addressed: shared hashes are kept until the last Asset row is gone.
+   */
+  async removeOwnedAndPurgeStorage(userId: string, assetIds: string[]) {
+    const ids = [
+      ...new Set(assetIds.map((id) => String(id || "").trim()).filter(Boolean)),
+    ];
+    if (!ids.length) {
+      return { removed: 0, purgedKeys: [] as string[] };
+    }
+
+    const rows = await this.assets.find({
+      where: { userId, id: In(ids) },
+    });
+    if (!rows.length) {
+      return { removed: 0, purgedKeys: [] as string[] };
+    }
+
+    const candidates = new Map<string, string | null>();
+    for (const row of rows) {
+      const metaKey =
+        typeof row.meta?.storageKey === "string"
+          ? row.meta.storageKey.trim()
+          : "";
+      const key = metaKey || this.storage.keyFromPublicUrl(row.url) || "";
+      if (!key) continue;
+      const md5 =
+        row.md5?.trim().toLowerCase() ||
+        (typeof row.meta?.md5 === "string"
+          ? row.meta.md5.trim().toLowerCase()
+          : null) ||
+        key.match(/^uploads\/by-hash\/([a-f0-9]{32})\./i)?.[1]?.toLowerCase() ||
+        null;
+      candidates.set(key, md5);
+    }
+
+    await this.assets.remove(rows);
+
+    const purgedKeys: string[] = [];
+    if (!this.storage.isConfigured() || !candidates.size) {
+      return { removed: rows.length, purgedKeys };
+    }
+
+    const { keys, md5s } = await this.collectStorageReferences();
+    for (const [key, md5] of candidates) {
+      if (keys.has(key)) continue;
+      if (md5 && md5s.has(md5)) continue;
+      try {
+        await this.storage.deleteObject(key);
+        purgedKeys.push(key);
+      } catch {
+        // Best-effort — orphaned objects can still be swept by admin GC.
+      }
+    }
+
+    return { removed: rows.length, purgedKeys };
+  }
+
+  /**
    * Register canvas media into the user library.
    * Reuses existing assetId / URL when possible; mirrors remote images into TOS.
    */
@@ -366,6 +425,39 @@ export class AssetsService {
     asset.source = source;
     asset.meta = { ...(asset.meta ?? {}), source };
     return this.assets.save(asset);
+  }
+
+  /** Attach uploaded assets to a succeeded local/studio job. */
+  async linkToJob(userId: string, assetIds: string[], jobId: string) {
+    const ids = [
+      ...new Set(
+        assetIds.map((id) => String(id || "").trim()).filter(Boolean),
+      ),
+    ];
+    if (!ids.length) {
+      throw new BadRequestException("缺少素材");
+    }
+    const rows = await this.assets.find({
+      where: { userId, id: In(ids) },
+    });
+    if (rows.length !== ids.length) {
+      throw new BadRequestException("素材不存在或无权访问");
+    }
+    for (const row of rows) {
+      row.jobId = jobId;
+      if (!row.source) {
+        row.source = "studio";
+      }
+      row.meta = {
+        ...(row.meta ?? {}),
+        source: row.source,
+        localEdit: true,
+      };
+    }
+    await this.assets.save(rows);
+    // Preserve caller order — TypeORM `In()` / save() do not.
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    return ids.map((id) => byId.get(id)!);
   }
 
   async list(userId: string, query: AssetListQuery = {}) {

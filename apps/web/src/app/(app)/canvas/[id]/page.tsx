@@ -12,6 +12,7 @@ function CanvasProjectInner({ id }: { id: string }) {
       nodeId: searchParams.get("nodeId"),
       jobId: searchParams.get("jobId"),
       assetId: searchParams.get("assetId"),
+      tool: searchParams.get("tool"),
     }),
     [searchParams],
   );

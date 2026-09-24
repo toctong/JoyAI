@@ -157,12 +157,14 @@ function readComposerBoot(opts: {
 }): ComposerBoot {
   const stored =
     typeof window !== "undefined" ? consumeStudioRemixSeed() : null;
+  // Explicit `promptSeed` (including "") wins — 「用作参考图」seeds refs with empty prompt.
   const prompt = normalizeOmniWireMentions(
-    opts.promptSeed ||
-      stored?.prompt ||
-      opts.searchPrompt ||
-      opts.initialPrompt ||
-      "",
+    opts.promptSeed !== undefined
+      ? opts.promptSeed
+      : stored?.prompt ||
+        opts.searchPrompt ||
+        opts.initialPrompt ||
+        "",
   ).trim();
   const refUrls =
     opts.refSeed && opts.refSeed.length > 0
@@ -186,6 +188,8 @@ function readComposerBoot(opts: {
 type Props = {
   variant?: "hero" | "dock";
   className?: string;
+  /** Dock only: slim bar while the feed is scrolled away from bottom. */
+  compact?: boolean;
   initialPrompt?: string;
   onSubmitted?: () => void;
   promptSeed?: string;
@@ -359,6 +363,7 @@ function modelBrandMeta(m: PublicModel) {
 export function CreationComposer({
   variant = "hero",
   className,
+  compact = false,
   initialPrompt = "",
   onSubmitted,
   promptSeed,
@@ -691,7 +696,7 @@ export function CreationComposer({
         setModels(list);
       })
       .catch(() => {
-        toast.error("加载模型列表失败");
+        /* silent — composer still usable with empty model list */
       });
   }, []);
 
@@ -1183,12 +1188,19 @@ export function CreationComposer({
     !paramsOpen;
 
   return (
-    <div className={cn("joy-composer-wrap", className)}>
+    <div
+      className={cn(
+        "joy-composer-wrap",
+        compact && !editorFocused && "is-compact",
+        className,
+      )}
+    >
       <div
         {...getRootProps()}
         className={cn(
           "joy-composer",
           variant === "hero" ? "is-hero" : "is-dock",
+          compact && !editorFocused && "is-compact",
           isDragActive && "is-dragging",
         )}
         onMouseEnter={() => setComposerHovered(true)}

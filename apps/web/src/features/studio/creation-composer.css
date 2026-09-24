@@ -20,8 +20,11 @@
     0 1px 0 rgba(255, 255, 255, 0.04) inset,
     0 18px 48px -28px rgba(0, 0, 0, 0.35);
   transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    border-color 0.28s ease,
+    box-shadow 0.36s var(--joy-ease-out),
+    padding 0.36s var(--joy-ease-out),
+    border-radius 0.36s var(--joy-ease-out),
+    gap 0.36s var(--joy-ease-out);
   /* keep tilted reference card from being clipped */
   overflow: visible;
 }
@@ -45,13 +48,167 @@
   border-radius: 28px;
   padding: 16px 16px 14px;
   box-shadow:
-    0 24px 64px -28px rgba(15, 23, 42, 0.28),
-    0 10px 28px rgba(132, 179, 255, 0.07),
-    0 4px 16px rgba(255, 180, 210, 0.06);
+    0 8px 24px -16px rgba(15, 23, 42, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .dark .joy-composer.is-dock {
-  box-shadow: 0 28px 70px -22px rgba(0, 0, 0, 0.7);
+  box-shadow:
+    0 10px 28px -18px rgba(0, 0, 0, 0.45),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Slim dock while browsing older feed — single-row input + send */
+.joy-composer.is-compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
+  border-radius: 999px;
+}
+
+.joy-composer.is-compact .joy-composer-body {
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.joy-composer.is-compact .joy-composer-ref-stack,
+.joy-composer.is-compact .joy-composer-ref-stack.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.joy-composer.is-compact .joy-composer-ref-fan,
+.joy-composer.is-compact .joy-composer-ref-stack.is-empty .joy-composer-ref-fan,
+.joy-composer.is-compact .joy-composer-ref-fan-layer,
+.joy-composer.is-compact .joy-composer-ref-stack.is-empty .joy-composer-ref-fan-layer {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+
+.joy-composer.is-compact .joy-composer-upload.is-empty,
+.joy-composer.is-compact .joy-composer-upload.is-fab,
+.joy-composer.is-compact .joy-composer-upload.is-card {
+  position: relative;
+  inset: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  flex-direction: row;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  transform: none;
+  box-shadow: none;
+}
+
+.joy-composer.is-compact .joy-composer-upload.is-empty svg,
+.joy-composer.is-compact .joy-composer-upload.is-fab svg,
+.joy-composer.is-compact .joy-composer-upload.is-card svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.joy-composer.is-compact .joy-composer-upload.is-card,
+.joy-composer.is-compact .joy-composer-ref-card {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+
+.joy-composer.is-compact .joy-composer-ref-fan-layer:not(.is-open) .joy-composer-ref-card {
+  left: 0;
+  bottom: 0;
+  transform: none;
+}
+
+.joy-composer.is-compact .joy-composer-upload-label,
+.joy-composer.is-compact .joy-composer-ref-index {
+  display: none;
+}
+
+.joy-composer.is-compact .joy-composer-main {
+  padding-top: 0;
+  padding-right: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.joy-composer.is-compact .joy-ai-prompt {
+  min-width: 0;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, #000 88%, transparent);
+}
+
+.joy-composer.is-compact .joy-ai-prompt .ProseMirror {
+  box-sizing: border-box;
+  min-height: 36px;
+  max-height: 36px;
+  height: 36px;
+  overflow: hidden;
+  line-height: 22px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  white-space: nowrap;
+}
+
+.joy-composer.is-compact .joy-ai-prompt .ProseMirror p {
+  display: inline;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Collapse hard breaks so long prompts stay one visual row while docked compact */
+.joy-composer.is-compact .joy-ai-prompt .ProseMirror br {
+  display: none;
+}
+
+.joy-composer.is-compact .joy-ai-prompt .ProseMirror p + p::before {
+  content: " ";
+}
+
+.joy-composer.is-compact .joy-composer-toolbar {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  padding: 0;
+  gap: 0;
+  max-height: 40px;
+}
+
+.joy-composer.is-compact .joy-composer-toolbar-left,
+.joy-composer.is-compact .joy-composer-cost,
+.joy-composer.is-compact .joy-composer-params-panel,
+.joy-composer.is-compact .joy-composer-clear,
+.joy-composer.is-compact .joy-composer-ripple {
+  opacity: 0;
+  max-height: 0;
+  max-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border: 0;
+}
+
+.joy-composer.is-compact .joy-composer-toolbar-right {
+  gap: 0;
+}
+
+.joy-composer-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: auto;
 }
 
 .joy-composer.is-dragging {
@@ -93,10 +250,6 @@
   align-items: flex-start;
 }
 
-.joy-composer-toolbar {
-  z-index: 1;
-}
-
 .joy-composer-params-panel {
   z-index: 2;
 }
@@ -108,12 +261,18 @@
   z-index: 6;
   min-height: 76px;
   padding: 8px 4px 4px;
+  transition:
+    min-height 0.36s var(--joy-ease-out),
+    padding 0.36s var(--joy-ease-out);
 }
 
 .joy-composer-ref-fan {
   position: relative;
   width: 56px;
   height: 72px;
+  transition:
+    width 0.36s var(--joy-ease-out),
+    height 0.36s var(--joy-ease-out);
 }
 
 .joy-composer-ref-stack.is-empty .joy-composer-ref-fan {
@@ -395,6 +554,11 @@
   font-size: var(--joy-font-body);
   line-height: 1.6;
   color: var(--foreground);
+  transition:
+    min-height 0.36s var(--joy-ease-out),
+    max-height 0.36s var(--joy-ease-out),
+    padding 0.36s var(--joy-ease-out),
+    line-height 0.36s var(--joy-ease-out);
 }
 
 .joy-composer .joy-ai-prompt .ProseMirror p.is-editor-empty:first-child::before {
@@ -408,6 +572,15 @@
   justify-content: space-between;
   gap: 10px;
   padding-top: 2px;
+  z-index: 1;
+  max-height: 120px;
+  opacity: 1;
+  overflow: visible;
+  transition:
+    max-height 0.34s var(--joy-ease-out),
+    opacity 0.28s ease,
+    padding 0.34s var(--joy-ease-out),
+    gap 0.34s var(--joy-ease-out);
 }
 
 .joy-composer-toolbar-left,
@@ -416,6 +589,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  transition:
+    opacity 0.28s ease,
+    max-width 0.34s var(--joy-ease-out),
+    max-height 0.34s var(--joy-ease-out);
 }
 
 .joy-chip {
@@ -681,10 +858,6 @@
 
 .joy-composer-send:disabled {
   opacity: 0.75;
-}
-
-.joy-composer-wrap {
-  width: 100%;
 }
 
 .joy-composer-skills {

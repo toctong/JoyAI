@@ -75,6 +75,18 @@
   --joy-tool-sidebar-width: 360px;
   --joy-tool-history-width: 148px;
 
+  /* Studio feed — shared fit box; portrait gets a taller box */
+  --joy-studio-feed-max: 1440px;
+  --joy-studio-thumb-gap: 12px;
+  --joy-studio-media-max-w: 380px;
+  --joy-studio-media-max-h: 270px;
+  --joy-studio-media-portrait-max-w: 230px;
+  --joy-studio-media-portrait-max-h: 380px;
+  /* Prompt / meta / actions span the media row */
+  --joy-studio-content-max: 100%;
+  --joy-studio-composer-max: 920px;
+  --joy-studio-composer-compact-w: 620px;
+
   /* ── Canvas ── */
   --joy-canvas-chrome-font: var(--joy-font-label);
   --joy-canvas-chrome-font-sm: var(--joy-font-caption);

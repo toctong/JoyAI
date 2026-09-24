@@ -111,7 +111,7 @@ export function AppSidebar() {
           />
         </Link>
 
-        <nav className="mt-2 flex w-full flex-1 flex-col items-center gap-[var(--joy-sidebar-item-gap)] px-0.5">
+        <nav className="mt-2 flex min-h-0 w-full flex-1 flex-col items-center gap-[var(--joy-sidebar-item-gap)] overflow-y-auto px-0.5">
           {nav.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -128,7 +128,7 @@ export function AppSidebar() {
           })}
         </nav>
 
-        <div className="mt-auto flex w-full flex-col items-center gap-2.5 px-0.5">
+        <div className="mt-auto flex w-full shrink-0 flex-col items-center gap-2.5 px-0.5">
           {isAdmin ? (
             <RailLink
               href="/admin"

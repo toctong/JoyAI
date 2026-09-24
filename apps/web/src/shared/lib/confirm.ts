@@ -7,7 +7,7 @@ export type ConfirmOptions = {
   description?: string;
   confirmText?: string;
   cancelText?: string;
-  /** 危险操作（删除等）用红色确认按钮 */
+  /** 危险操作（删除等）：黑底白字确认，与参考确认框一致 */
   destructive?: boolean;
 };
 

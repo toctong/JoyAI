@@ -25,6 +25,12 @@ export class JobsController {
     return this.jobs.create(user.id, body);
   }
 
+  /** Local edits (crop / trim / …) — upload first, then register as succeeded job. */
+  @Post("local")
+  createLocal(@CurrentUser() user: AuthUser, @Body() body: unknown) {
+    return this.jobs.createLocal(user.id, body);
+  }
+
   @Get()
   list(
     @CurrentUser() user: AuthUser,
@@ -55,6 +61,16 @@ export class JobsController {
   @Post(":id/cancel")
   cancel(@CurrentUser() user: AuthUser, @Param("id") id: string) {
     return this.jobs.cancel(user.id, id);
+  }
+
+  /** Remove one output asset from a job (e.g. 切图单格删除). */
+  @Delete(":id/assets/:assetId")
+  removeAsset(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Param("assetId") assetId: string,
+  ) {
+    return this.jobs.removeAsset(user.id, id, assetId);
   }
 
   @Delete(":id")

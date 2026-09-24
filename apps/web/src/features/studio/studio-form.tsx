@@ -9,6 +9,7 @@ import {
   useState,
   Suspense,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -19,11 +20,55 @@ import {
   Copy,
   Download,
   FolderOpen,
+  ImagePlus,
+  MoreHorizontal,
+  PencilLine,
   RefreshCw,
   Sparkles,
   Trash2,
   WandSparkles,
+  ChevronsDown,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { NavSvgIcon } from "@/shared/ui/nav-svg-icon";
+import {
+  CanvasIconAudio,
+  CanvasIconBrush,
+  CanvasIconFrame,
+  CanvasIconGrid,
+  CanvasIconOutpaint,
+  CanvasIconPanorama,
+  CanvasIconScissors,
+  CanvasIconWand,
+  CanvasIconZoomIn,
+} from "@/features/canvas/icons/canvas-icons";
+import {
+  captureStudioFrame,
+  commitStudioImagePieces,
+  extractStudioAudio,
+  openAssetInNewCanvas,
+  submitAngleJob,
+  submitInpaintJob,
+  submitOutpaintJob,
+  submitPanoramaJob,
+  trimStudioVideo,
+  type StudioLocalTool,
+  type StudioMediaAsset,
+} from "@/features/studio/studio-asset-actions";
+import {
+  ImageToolDialog,
+  type ImageToolMode,
+} from "@/features/canvas/image-tool-dialog";
+import { MaskEditDialog } from "@/features/canvas/mask-edit-dialog";
+import { ImageAngleDialog } from "@/features/canvas/image-angle-dialog";
+import { AudioTrimDialog } from "@/features/canvas/audio-trim-dialog";
+import type { ImageAngleParams } from "@/features/canvas/lib/angle-prompt";
+import type { RasterPiece } from "@/features/canvas/lib/image-raster";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
 import { copyText } from "@/shared/lib/clipboard";
@@ -35,6 +80,7 @@ import { watchStudioGeneration } from "@/shared/lib/studio-generation-notify-hos
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { cn } from "@/shared/lib/utils";
 import {
+  FailedThumb,
   GeneratingStatusBar,
   GeneratingThumb,
 } from "@/features/studio/generating-thumb";
@@ -59,7 +105,12 @@ const CreationComposer = dynamic(
   },
 );
 
-type Asset = { id: string; url: string; kind?: string };
+type Asset = {
+  id: string;
+  url: string;
+  kind?: string;
+  meta?: { originalName?: string | null } | null;
+};
 
 type JobInput = {
   prompt?: string;
@@ -73,7 +124,12 @@ type JobInput = {
   modelId?: string;
   referenceAssetIds?: string[];
   referenceUrls?: string[];
+  localEdit?: boolean;
+  localTool?: string;
+  layout?: { rows?: number; cols?: number };
 };
+
+type JobSlotFailure = { index: number; error: string };
 
 type Job = {
   id: string;
@@ -93,9 +149,221 @@ type Job = {
     manjuProjectId?: string;
     toolSlug?: string;
   };
+  result?: {
+    assetIds?: string[];
+    urls?: string[];
+    requested?: number;
+    failures?: JobSlotFailure[];
+    layout?: { rows?: number; cols?: number };
+    tiles?: Array<{ assetId?: string; row?: number; col?: number }>;
+  } | null;
   assets?: Asset[];
   error?: string | null;
 };
+
+/** Prefer `result.tiles` / `result.assetIds` so 切图 tiles stay row-major. */
+function jobOutputAssets(job: Job): Asset[] {
+  const assets = job.assets ?? [];
+  if (!assets.length) return assets;
+
+  const byTiles = orderAssetsByTiles(assets, job.result?.tiles);
+  if (byTiles) return byTiles;
+
+  const ids = (job.result?.assetIds ?? [])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean);
+  const byId = new Map(assets.map((a) => [a.id, a]));
+  const ordered: Asset[] = [];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    const hit = byId.get(id);
+    if (!hit || seen.has(id)) continue;
+    ordered.push(hit);
+    seen.add(id);
+  }
+  for (const a of assets) {
+    if (!seen.has(a.id)) ordered.push(a);
+  }
+  return orderSplitAssetsByName(ordered);
+}
+
+function orderAssetsByTiles(
+  assets: Asset[],
+  tilesRaw?: Array<{ assetId?: string; row?: number; col?: number }> | null,
+): Asset[] | null {
+  if (!tilesRaw?.length) return null;
+  const byId = new Map(assets.map((a) => [a.id, a]));
+  const scored: { asset: Asset; row: number; col: number; index: number }[] =
+    [];
+  for (let index = 0; index < tilesRaw.length; index += 1) {
+    const tile = tilesRaw[index]!;
+    const assetId = String(tile.assetId ?? "").trim();
+    const row = Math.floor(Number(tile.row));
+    const col = Math.floor(Number(tile.col));
+    const asset = byId.get(assetId);
+    if (!asset || !Number.isFinite(row) || !Number.isFinite(col)) continue;
+    scored.push({ asset, row, col, index });
+  }
+  if (scored.length < 2) return null;
+  const ordered = [...scored]
+    .sort((a, b) => a.row - b.row || a.col - b.col || a.index - b.index)
+    .map((s) => s.asset);
+  const seen = new Set(ordered.map((a) => a.id));
+  for (const a of assets) {
+    if (!seen.has(a.id)) ordered.push(a);
+  }
+  return ordered;
+}
+
+/** Repair scrambled 切图 order using joyai-split-R-C filenames when present. */
+function orderSplitAssetsByName(assets: Asset[]): Asset[] {
+  if (assets.length < 2) return assets;
+  const scored: {
+    asset: Asset;
+    index: number;
+    row: number;
+    col: number;
+  }[] = [];
+  for (let index = 0; index < assets.length; index += 1) {
+    const asset = assets[index]!;
+    const name = `${asset.meta?.originalName ?? ""} ${asset.url ?? ""}`;
+    const match = name.match(/joyai-split-(\d+)-(\d+)/i);
+    if (!match) return assets;
+    scored.push({
+      asset,
+      index,
+      row: Number(match[1]) - 1,
+      col: Number(match[2]) - 1,
+    });
+  }
+  return scored
+    .sort((a, b) => a.row - b.row || a.col - b.col || a.index - b.index)
+    .map((s) => s.asset);
+}
+
+function inferSplitLayout(count: number): { rows: number; cols: number } | null {
+  if (count < 2) return null;
+  const root = Math.sqrt(count);
+  if (Number.isInteger(root) && root >= 2) {
+    return { rows: root, cols: root };
+  }
+  for (let cols = Math.min(6, count); cols >= 2; cols -= 1) {
+    if (count % cols === 0) {
+      return { rows: count / cols, cols };
+    }
+  }
+  return { rows: 1, cols: count };
+}
+
+function isSplitJob(job: Job) {
+  const prompt = String(job.input?.prompt ?? "").trim();
+  return (
+    job.input?.localTool === "split" ||
+    prompt === "切图" ||
+    prompt.startsWith("切图 ")
+  );
+}
+
+/** 切图：按行列拼成一张整体（无缝网格）. */
+function jobMosaicLayout(
+  job: Job,
+  assetCount: number,
+): { rows: number; cols: number } | null {
+  if (assetCount < 2) return null;
+
+  const fromInput = job.input?.layout;
+  const fromResult = job.result?.layout;
+  const storedRows = Math.floor(Number(fromInput?.rows ?? fromResult?.rows));
+  const storedCols = Math.floor(Number(fromInput?.cols ?? fromResult?.cols));
+  const stored =
+    Number.isFinite(storedRows) &&
+    Number.isFinite(storedCols) &&
+    storedRows >= 1 &&
+    storedCols >= 1 &&
+    storedRows * storedCols >= 2
+      ? { rows: storedRows, cols: storedCols }
+      : null;
+
+  const split = isSplitJob(job);
+  if (stored) {
+    if (!split || stored.rows * stored.cols === assetCount) {
+      return stored;
+    }
+  }
+  if (!split) return null;
+  return inferSplitLayout(assetCount);
+}
+
+type JobDisplaySlot =
+  | { kind: "asset"; asset: Asset; index: number }
+  | { kind: "failed"; error: string; index: number };
+
+/**
+ * Build grid slots so multi-n keeps successes and shows failed cards for
+ * per-batch upstream errors (not one blank “all failed” row).
+ */
+function jobDisplaySlots(job: Job, assets: Asset[]): JobDisplaySlot[] {
+  const failures = Array.isArray(job.result?.failures)
+    ? job.result!.failures!
+    : [];
+  const failByIndex = new Map<number, string>();
+  for (const f of failures) {
+    if (!Number.isFinite(f?.index)) continue;
+    failByIndex.set(
+      Math.floor(f.index),
+      String(f.error || "").trim() || "生成失败",
+    );
+  }
+
+  const requestedRaw =
+    job.result?.requested ??
+    job.input?.n ??
+    (assets.length || failByIndex.size || (job.status === "failed" ? 1 : 0));
+  const requested = Math.min(Math.max(Number(requestedRaw) || 0, 0), 4);
+
+  if (!requested && !assets.length && job.status !== "failed") return [];
+
+  const n = Math.max(
+    requested,
+    assets.length + failByIndex.size,
+    job.status === "failed" && !assets.length
+      ? Math.min(Math.max(job.input?.n ?? 1, 1), 4)
+      : 0,
+  );
+  if (n <= 0) return [];
+
+  const queue = [...assets];
+  const slots: JobDisplaySlot[] = [];
+  for (let i = 0; i < n; i++) {
+    if (failByIndex.has(i)) {
+      slots.push({
+        kind: "failed",
+        error: failByIndex.get(i)!,
+        index: i,
+      });
+      continue;
+    }
+    if (queue.length) {
+      slots.push({ kind: "asset", asset: queue.shift()!, index: i });
+      continue;
+    }
+    if (job.status === "failed") {
+      slots.push({
+        kind: "failed",
+        error: String(job.error || "").trim() || "生成失败",
+        index: i,
+      });
+    }
+  }
+  while (queue.length) {
+    slots.push({
+      kind: "asset",
+      asset: queue.shift()!,
+      index: slots.length,
+    });
+  }
+  return slots;
+}
 
 function isStudioFeedJob(job: Job) {
   if (job.canvasProjectId) return false;
@@ -105,14 +373,19 @@ function isStudioFeedJob(job: Job) {
   return job.kind === "image" || job.kind === "video";
 }
 
-/** 生成时间：优先完成时间，否则创建时间 */
-function jobTimeIso(job: Pick<Job, "createdAt" | "finishedAt">) {
-  return job.finishedAt || job.createdAt;
+/** 创建时间（列表排序 / 翻页游标用，保持点击生成顺序） */
+function jobCreatedIso(job: Pick<Job, "createdAt">) {
+  return job.createdAt;
 }
 
-function jobTimeMs(job: Pick<Job, "createdAt" | "finishedAt">) {
-  const ms = Date.parse(jobTimeIso(job));
+function jobCreatedMs(job: Pick<Job, "createdAt">) {
+  const ms = Date.parse(jobCreatedIso(job));
   return Number.isFinite(ms) ? ms : 0;
+}
+
+/** 展示用时间：优先完成时间 */
+function jobDisplayIso(job: Pick<Job, "createdAt" | "finishedAt">) {
+  return job.finishedAt || job.createdAt;
 }
 
 function formatJobTime(iso: string) {
@@ -233,7 +506,7 @@ function jobMetaParts(job: Job, assetCount = 0, now = Date.now()): string[] {
     job.kind === "video" && input?.duration
       ? `${input.duration}s`
       : null;
-  const time = formatJobTime(jobTimeIso(job));
+  const time = formatJobTime(jobDisplayIso(job));
   const elapsedLabel = jobElapsedLabel(job, now);
 
   return [
@@ -301,10 +574,10 @@ const JOBS_PAGE = 30;
 
 type JobsPage = { items: Job[]; hasMore: boolean };
 
-/** 早 → 晚（对话流：早的在上） */
+/** 早 → 晚（对话流：早的在上；按创建时间，不因完成而重排） */
 function sortJobsAsc(list: Job[]) {
   return [...list].sort((a, b) => {
-    const d = jobTimeMs(a) - jobTimeMs(b);
+    const d = jobCreatedMs(a) - jobCreatedMs(b);
     return d !== 0 ? d : a.id.localeCompare(b.id);
   });
 }
@@ -316,9 +589,13 @@ function mergeJobsAsc(prev: Job[], incoming: Job[]) {
   return sortJobsAsc([...map.values()]);
 }
 
-function scrollElToBottom(el: HTMLElement | null) {
+function scrollElToBottom(el: HTMLElement | null, smooth = false) {
   if (!el) return;
-  el.scrollTop = el.scrollHeight;
+  if (smooth) {
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  } else {
+    el.scrollTop = el.scrollHeight;
+  }
 }
 
 function PromptInlineParts({
@@ -552,64 +829,365 @@ function StudioJobRefs({ urls }: { urls: string[] }) {
   );
 }
 
-/** Landscape wider; portrait height-capped but keep ≥200px wide for chrome. */
-function frameStyleForAspect(aspect: string): CSSProperties {
-  const maxW = 360;
-  const maxH = 380;
-  const minW = 200;
+/** Shared fit box — landscape/square vs taller portrait. */
+const STUDIO_MEDIA_BOX = { maxW: 380, maxH: 270 };
+const STUDIO_MEDIA_BOX_PORTRAIT = { maxW: 230, maxH: 380 };
+
+function frameStyleForAspect(
+  aspect: string,
+  fluid = false,
+): CSSProperties {
   const parts = aspect.split("/").map((s) => Number(s.trim()));
   const aw = parts[0];
   const ah = parts[1];
+  const aspectRatio =
+    aw > 0 && ah > 0 ? `${aw} / ${ah}` : aspect || "1 / 1";
+  // Mosaic fill: stretch to grid cell.
+  if (fluid) {
+    return { aspectRatio, width: "100%" };
+  }
+  const portrait = aw > 0 && ah > 0 && ah > aw;
+  const { maxW, maxH } = portrait
+    ? STUDIO_MEDIA_BOX_PORTRAIT
+    : STUDIO_MEDIA_BOX;
   if (!(aw > 0 && ah > 0)) {
-    return { aspectRatio: aspect, width: Math.min(maxW, 280) };
+    return { aspectRatio, width: Math.min(maxW, maxH) };
   }
-  const heightAtMaxW = (maxW * ah) / aw;
-  if (heightAtMaxW <= maxH) {
-    return { aspectRatio: `${aw} / ${ah}`, width: maxW };
-  }
-  const widthAtMaxH = (maxH * aw) / ah;
+  const scale = Math.min(maxW / aw, maxH / ah);
   return {
-    aspectRatio: `${aw} / ${ah}`,
-    width: Math.min(maxW, Math.max(minW, widthAtMaxH)),
+    aspectRatio,
+    width: Math.round(aw * scale * 100) / 100,
   };
+}
+
+/** Whole-image frame for a split mosaic — same fit box as other cards. */
+function mosaicShellStyle(aspect: string): CSSProperties {
+  return frameStyleForAspect(aspect, false);
+}
+
+function StudioThumbHoverTools({
+  mediaKind,
+  variant = "full",
+  onDownload,
+  onDelete,
+  onCopyPrompt,
+  onUseAsRef,
+  onOpenCanvas,
+  onCanvasTool,
+  onOutpaint,
+  canCopy,
+  busyAction,
+}: {
+  mediaKind: "image" | "video";
+  /** Mosaic tiles: download + delete only. */
+  variant?: "full" | "simple";
+  onDownload: () => void;
+  onDelete?: () => void;
+  onCopyPrompt?: () => void;
+  onUseAsRef?: () => void;
+  onOpenCanvas?: () => void;
+  onCanvasTool?: (tool: StudioLocalTool) => void;
+  onOutpaint?: () => void;
+  canCopy?: boolean;
+  busyAction?: string | null;
+}) {
+  const busy = Boolean(busyAction);
+  const simple = variant === "simple";
+  const refLabel = mediaKind === "video" ? "用作参考视频" : "用作参考图";
+  const bottomTools = simple
+    ? ([] as Array<{
+        key: string;
+        label: string;
+        icon: ReactNode;
+        disabled: boolean;
+        onClick: () => void;
+      }>)
+    : ([
+    onUseAsRef
+      ? {
+          key: "ref",
+          label: refLabel,
+          icon: <ImagePlus strokeWidth={1.75} className="size-3.5" />,
+          disabled: busy,
+          onClick: onUseAsRef,
+        }
+      : null,
+    onOpenCanvas
+      ? {
+          key: "canvas",
+          label: busyAction === "canvas" ? "打开中…" : "去画布编辑",
+          icon: <NavSvgIcon name="canvas" className="size-3.5" />,
+          disabled: busyAction === "canvas",
+          onClick: onOpenCanvas,
+        }
+      : null,
+    mediaKind === "image" && onOutpaint
+      ? {
+          key: "outpaint",
+          label: busyAction === "outpaint" ? "提交中…" : "扩图",
+          icon: <CanvasIconOutpaint className="size-3.5" />,
+          disabled: busyAction === "outpaint",
+          onClick: onOutpaint,
+        }
+      : null,
+    mediaKind === "image" && onCanvasTool
+      ? {
+          key: "split",
+          label: "切图",
+          icon: <CanvasIconGrid className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("split"),
+        }
+      : null,
+    mediaKind === "image" && onCanvasTool
+      ? {
+          key: "to-panorama",
+          label: "转全景",
+          icon: <CanvasIconPanorama className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("to-panorama"),
+        }
+      : null,
+    mediaKind === "image" && onCanvasTool
+      ? {
+          key: "inpaint",
+          label: "局部重绘",
+          icon: <CanvasIconBrush className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("inpaint"),
+        }
+      : null,
+    mediaKind === "image" && onCanvasTool
+      ? {
+          key: "crop",
+          label: "裁剪",
+          icon: <CanvasIconScissors className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("crop"),
+        }
+      : null,
+    mediaKind === "image" && onCanvasTool
+      ? {
+          key: "upscale",
+          label: "本地放大",
+          icon: <CanvasIconZoomIn className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("upscale"),
+        }
+      : null,
+    mediaKind === "image" && onCanvasTool
+      ? {
+          key: "angle",
+          label: "多角度",
+          icon: <CanvasIconWand className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("angle"),
+        }
+      : null,
+    mediaKind === "video" && onCanvasTool
+      ? {
+          key: "capture-frame",
+          label: "截帧",
+          icon: <CanvasIconFrame className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("capture-frame"),
+        }
+      : null,
+    mediaKind === "video" && onCanvasTool
+      ? {
+          key: "extract-audio",
+          label: "分离音频",
+          icon: <CanvasIconAudio className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("extract-audio"),
+        }
+      : null,
+    mediaKind === "video" && onCanvasTool
+      ? {
+          key: "trim-video",
+          label: "剪辑",
+          icon: <CanvasIconScissors className="size-3.5" />,
+          disabled: busy,
+          onClick: () => onCanvasTool("trim-video"),
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    key: string;
+    label: string;
+    icon: ReactNode;
+    disabled: boolean;
+    onClick: () => void;
+  }>);
+
+  return (
+    <div
+      className="joy-studio-thumb-hover"
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div className="joy-studio-thumb-bar joy-studio-thumb-bar--top">
+        <button
+          type="button"
+          className="joy-studio-thumb-icon"
+          aria-label="下载"
+          title="下载"
+          disabled={busy}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDownload();
+          }}
+        >
+          <Download strokeWidth={1.75} className="size-3.5" />
+        </button>
+        {onDelete ? (
+          <button
+            type="button"
+            className="joy-studio-thumb-icon"
+            aria-label="删除"
+            title="删除"
+            disabled={busy || busyAction === "delete"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            <Trash2 strokeWidth={1.75} className="size-3.5" />
+          </button>
+        ) : null}
+        {!simple && canCopy ? (
+          <button
+            type="button"
+            className="joy-studio-thumb-icon"
+            aria-label="复制提示词"
+            title="复制提示词"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopyPrompt?.();
+            }}
+          >
+            <Copy strokeWidth={1.75} className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
+
+      {bottomTools.length > 0 ? (
+        <div className="joy-studio-thumb-bar joy-studio-thumb-bar--bottom">
+          {bottomTools.map((tool) => (
+            <button
+              key={tool.key}
+              type="button"
+              className="joy-studio-thumb-icon"
+              aria-label={tool.label}
+              title={tool.label}
+              disabled={tool.disabled}
+              onClick={(e) => {
+                e.stopPropagation();
+                tool.onClick();
+              }}
+            >
+              {tool.icon}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function StudioImageThumb({
   src,
   aspectRatio,
+  fluid = false,
+  mosaic = false,
+  onDownload,
+  onCopyPrompt,
+  onUseAsRef,
+  onOpenCanvas,
+  onCanvasTool,
+  onOutpaint,
+  canCopy,
+  busyAction,
 }: {
   src: string;
   aspectRatio: string;
+  fluid?: boolean;
+  /** Tile inside a split mosaic — download only, fills grid cell. */
+  mosaic?: boolean;
+  onDownload: () => void;
+  onCopyPrompt?: () => void;
+  onUseAsRef?: () => void;
+  onOpenCanvas?: () => void;
+  onCanvasTool?: (tool: StudioLocalTool) => void;
+  onOutpaint?: () => void;
+  canCopy?: boolean;
+  busyAction?: string | null;
 }) {
   const { url: fullUrl, loading: fullLoading } = useDisplayMediaUrl(src);
   const previewSrc = fullUrl || src;
-  // Prefer TOS thumb for the grid tile; fall back to original inside JoyAssetThumb.
+  const frameStyle = useMemo(
+    () =>
+      mosaic
+        ? ({ width: "100%", height: "100%" } as CSSProperties)
+        : frameStyleForAspect(aspectRatio, fluid),
+    [aspectRatio, fluid, mosaic],
+  );
+
+  const image = fullLoading && needsProxyPlaceholder(src) ? (
+    <span
+      aria-busy
+      className="block size-full animate-pulse bg-muted/40"
+    />
+  ) : mosaic ? (
+    <PhotoView src={previewSrc}>
+      <button
+        type="button"
+        className="joy-studio-thumb-preview"
+        aria-label="预览切片"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={previewSrc}
+          alt=""
+          className="joy-studio-mosaic-tile-img"
+          draggable={false}
+        />
+      </button>
+    </PhotoView>
+  ) : (
+    <PhotoView src={previewSrc}>
+      <button
+        type="button"
+        className="joy-studio-thumb-preview"
+        aria-label="预览图片"
+      >
+        <JoyAssetThumb
+          url={previewSrc}
+          size="md"
+          className="size-full object-cover"
+        />
+      </button>
+    </PhotoView>
+  );
 
   return (
     <div
-      className="joy-studio-thumb-frame"
-      style={{ aspectRatio }}
+      className={cn("joy-studio-thumb-frame", mosaic && "is-mosaic-tile")}
+      style={frameStyle}
     >
-      {fullLoading && needsProxyPlaceholder(src) ? (
-        <span
-          aria-busy
-          className="block size-full animate-pulse rounded-[inherit] bg-muted/40"
-        />
-      ) : (
-        <PhotoView src={previewSrc}>
-          <button
-            type="button"
-            className="joy-studio-thumb-preview"
-            aria-label="预览图片"
-          >
-            <JoyAssetThumb
-              url={previewSrc}
-              size="md"
-              className="size-full object-cover"
-            />
-          </button>
-        </PhotoView>
-      )}
+      {image}
+      <StudioThumbHoverTools
+        mediaKind="image"
+        variant={mosaic ? "simple" : "full"}
+        onDownload={onDownload}
+        onCopyPrompt={mosaic ? undefined : onCopyPrompt}
+        onUseAsRef={mosaic ? undefined : onUseAsRef}
+        onOpenCanvas={mosaic ? undefined : onOpenCanvas}
+        onCanvasTool={mosaic ? undefined : onCanvasTool}
+        onOutpaint={mosaic ? undefined : onOutpaint}
+        canCopy={mosaic ? false : canCopy}
+        busyAction={busyAction}
+      />
     </div>
   );
 }
@@ -628,10 +1206,26 @@ function StudioVideoThumb({
   src,
   fallbackAspect,
   flexible,
+  fluid = false,
+  onDownload,
+  onCopyPrompt,
+  onUseAsRef,
+  onOpenCanvas,
+  onCanvasTool,
+  canCopy,
+  busyAction,
 }: {
   src: string;
   fallbackAspect: string;
   flexible: boolean;
+  fluid?: boolean;
+  onDownload: () => void;
+  onCopyPrompt?: () => void;
+  onUseAsRef?: () => void;
+  onOpenCanvas?: () => void;
+  onCanvasTool?: (tool: StudioLocalTool) => void;
+  canCopy?: boolean;
+  busyAction?: string | null;
 }) {
   const [aspect, setAspect] = useState(fallbackAspect);
 
@@ -640,8 +1234,8 @@ function StudioVideoThumb({
   }, [fallbackAspect, src]);
 
   const frameStyle = useMemo(
-    () => frameStyleForAspect(aspect),
-    [aspect],
+    () => frameStyleForAspect(aspect, fluid),
+    [aspect, fluid],
   );
 
   return (
@@ -659,6 +1253,16 @@ function StudioVideoThumb({
             : undefined
         }
       />
+      <StudioThumbHoverTools
+        mediaKind="video"
+        onDownload={onDownload}
+        onCopyPrompt={onCopyPrompt}
+        onUseAsRef={onUseAsRef}
+        onOpenCanvas={onOpenCanvas}
+        onCanvasTool={onCanvasTool}
+        canCopy={canCopy}
+        busyAction={busyAction}
+      />
     </div>
   );
 }
@@ -668,17 +1272,21 @@ function JobActions({
   regeneratingId,
   deletingId,
   onRegenerate,
+  onReedit,
+  onCopyPrompt,
   onDelete,
 }: {
   job: Job;
   regeneratingId: string | null;
   deletingId: string | null;
   onRegenerate: () => void;
+  onReedit: () => void;
+  onCopyPrompt: () => void;
   onDelete: () => void;
 }) {
   /** Only generation outputs — never reference uploads. */
   const outputs = useMemo(() => {
-    const assets = job.assets ?? [];
+    const assets = jobOutputAssets(job);
     const refIds = new Set(
       (job.input?.referenceAssetIds ?? []).filter(Boolean).map(String),
     );
@@ -690,8 +1298,10 @@ function JobActions({
     return assets.filter(
       (a) => !refIds.has(a.id) && !refUrls.has(String(a.url || "").trim()),
     );
-  }, [job.assets, job.input?.referenceAssetIds, job.input?.referenceUrls]);
+  }, [job]);
   const canDownload = outputs.length > 0;
+  const splitJob = isSplitJob(job);
+  const canReedit = !splitJob && Boolean(job.input?.prompt?.trim());
 
   async function onDownload() {
     if (!canDownload) {
@@ -706,11 +1316,40 @@ function JobActions({
         );
       }
       toast.success(
-        outputs.length > 1 ? "已开始下载全部生成结果" : "已开始下载生成结果",
+        outputs.length > 1
+          ? splitJob
+            ? "已开始下载全部切片"
+            : "已开始下载全部生成结果"
+          : "已开始下载",
       );
     } catch {
       toast.error("下载失败");
     }
+  }
+
+  if (splitJob) {
+    return (
+      <div className="joy-studio-actions">
+        <button
+          type="button"
+          className="joy-studio-action"
+          disabled={!canDownload}
+          onClick={() => void onDownload()}
+        >
+          <Download strokeWidth={1.75} className="h-3.5 w-3.5" />
+          {outputs.length > 1 ? "下载全部" : "下载"}
+        </button>
+        <button
+          type="button"
+          className="joy-studio-action"
+          disabled={deletingId === job.id}
+          onClick={onDelete}
+        >
+          <Trash2 strokeWidth={1.75} className="h-3.5 w-3.5" />
+          删除
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -718,7 +1357,16 @@ function JobActions({
       <button
         type="button"
         className="joy-studio-action"
-        disabled={regeneratingId === job.id || !job.input?.prompt}
+        disabled={!canReedit}
+        onClick={onReedit}
+      >
+        <PencilLine strokeWidth={1.75} className="h-3.5 w-3.5" />
+        重新编辑
+      </button>
+      <button
+        type="button"
+        className="joy-studio-action"
+        disabled={regeneratingId === job.id || !canReedit}
         onClick={onRegenerate}
       >
         <RefreshCw
@@ -730,25 +1378,37 @@ function JobActions({
         />
         再次生成
       </button>
-      <button
-        type="button"
-        className="joy-studio-action"
-        disabled={!canDownload}
-        title="仅下载本次生成结果"
-        onClick={() => void onDownload()}
-      >
-        <Download strokeWidth={1.75} className="h-3.5 w-3.5" />
-        下载
-      </button>
-      <button
-        type="button"
-        className="joy-studio-action-icon is-danger"
-        aria-label="删除"
-        disabled={deletingId === job.id}
-        onClick={onDelete}
-      >
-        <Trash2 strokeWidth={1.75} className="h-3.5 w-3.5" />
-      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="joy-studio-action"
+            aria-label="更多操作"
+          >
+            <MoreHorizontal strokeWidth={1.75} className="h-3.5 w-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-40">
+          <DropdownMenuItem
+            disabled={!canDownload}
+            onClick={() => void onDownload()}
+          >
+            <Download className="h-4 w-4" />
+            下载
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!canReedit} onClick={onCopyPrompt}>
+            <Copy className="h-4 w-4" />
+            复制提示词
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={deletingId === job.id}
+            onClick={onDelete}
+          >
+            <Trash2 className="h-4 w-4" />
+            删除
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -761,6 +1421,7 @@ function StudioInner() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
   const [feedVisible, setFeedVisible] = useState(false);
+  const [nearBottom, setNearBottom] = useState(true);
   const [remixKey, setRemixKey] = useState(0);
   const [remixPrompt, setRemixPrompt] = useState<string | undefined>();
   const [remixRefs, setRemixRefs] = useState<string[]>([]);
@@ -768,12 +1429,31 @@ function StudioInner() {
   const [remixKind, setRemixKind] = useState<"image" | "video" | undefined>();
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [assetActionBusy, setAssetActionBusy] = useState<string | null>(null);
+  const [imageTool, setImageTool] = useState<{
+    mode: ImageToolMode;
+    asset: StudioMediaAsset;
+  } | null>(null);
+  const [maskEdit, setMaskEdit] = useState<{
+    asset: StudioMediaAsset;
+    modelId?: string;
+  } | null>(null);
+  const [angleEdit, setAngleEdit] = useState<{
+    asset: StudioMediaAsset;
+    modelId?: string;
+  } | null>(null);
+  const [videoTrim, setVideoTrim] = useState<{
+    asset: StudioMediaAsset;
+  } | null>(null);
+  const [videoTrimBusy, setVideoTrimBusy] = useState(false);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
   const jobsRef = useRef<Job[]>([]);
   const topSentinelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+  const nearBottomRef = useRef(true);
+  const jumpingToBottomRef = useRef(false);
   const didInitRef = useRef(false);
 
   useEffect(() => {
@@ -784,9 +1464,73 @@ function StudioInner() {
     jobsRef.current = jobs;
   }, [jobs]);
 
-  const scrollFeedToBottom = useCallback(() => {
-    scrollElToBottom(scrollRef.current);
+  const scrollFeedToBottom = useCallback((smooth?: boolean) => {
+    stickToBottomRef.current = true;
+    nearBottomRef.current = true;
+    setNearBottom(true);
+    // Only explicit `true` — rAF may pass a timestamp if used as callback.
+    scrollElToBottom(scrollRef.current, smooth === true);
   }, []);
+
+  /** Scroll first while staying compact; expand only after settled — avoids dock bump/flash. */
+  const jumpToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      scrollFeedToBottom(false);
+      return;
+    }
+
+    stickToBottomRef.current = true;
+    jumpingToBottomRef.current = true;
+
+    const finish = () => {
+      jumpingToBottomRef.current = false;
+      nearBottomRef.current = true;
+      setNearBottom(true);
+      // Expand changes dock height — snap once layout settles.
+      requestAnimationFrame(() => {
+        scrollElToBottom(el, false);
+        requestAnimationFrame(() => scrollElToBottom(el, false));
+      });
+    };
+
+    const distance =
+      el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distance < 80) {
+      finish();
+      return;
+    }
+
+    scrollElToBottom(el, true);
+
+    let frames = 0;
+    let stillFrames = 0;
+    let lastTop = el.scrollTop;
+    const tick = () => {
+      if (!jumpingToBottomRef.current) return;
+      frames += 1;
+      const top = el.scrollTop;
+      const dist = el.scrollHeight - top - el.clientHeight;
+      const moved = Math.abs(top - lastTop) > 0.5;
+      lastTop = top;
+      if (dist < 80 && !moved) {
+        stillFrames += 1;
+        if (stillFrames >= 2) {
+          finish();
+          return;
+        }
+      } else {
+        stillFrames = 0;
+      }
+      if (frames > 75) {
+        scrollElToBottom(el, false);
+        finish();
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [scrollFeedToBottom]);
 
   const loadInitial = useCallback(async () => {
     try {
@@ -827,7 +1571,7 @@ function StudioInner() {
     try {
       const qs = new URLSearchParams({
         take: String(JOBS_PAGE),
-        before: jobTimeIso(oldest),
+        before: jobCreatedIso(oldest),
         beforeId: oldest.id,
         scope: "studio",
       });
@@ -907,18 +1651,42 @@ function StudioInner() {
       const assets = (payload.assets ?? [])
         .filter((a): a is Asset => Boolean(a?.id && a?.url))
         .map((a) => ({ id: a.id, url: String(a.url), kind: a.kind }));
+      const failures = Array.isArray(payload.failures)
+        ? payload.failures
+            .filter((f) => Number.isFinite(f?.index))
+            .map((f) => ({
+              index: Math.floor(f.index),
+              error: String(f.error || "").trim() || "生成失败",
+            }))
+        : undefined;
+      const requested =
+        typeof payload.requested === "number" && payload.requested > 0
+          ? Math.min(Math.floor(payload.requested), 4)
+          : undefined;
       let found = false;
       setJobs((prev) => {
         const idx = prev.findIndex((job) => job.id === jobId);
         if (idx < 0) return prev;
         found = true;
         const copy = [...prev];
+        const prevJob = copy[idx];
         copy[idx] = {
-          ...copy[idx],
+          ...prevJob,
           status: "succeeded",
           progress: 100,
-          assets: assets.length ? assets : copy[idx].assets,
+          assets: assets.length ? assets : prevJob.assets,
           error: null,
+          result: {
+            ...prevJob.result,
+            ...(assets.length
+              ? {
+                  assetIds: assets.map((a) => a.id),
+                  urls: assets.map((a) => a.url),
+                }
+              : null),
+            ...(requested != null ? { requested } : null),
+            ...(failures ? { failures } : { failures: undefined }),
+          },
         };
         return copy;
       });
@@ -936,10 +1704,30 @@ function StudioInner() {
         if (idx < 0) return prev;
         found = true;
         const copy = [...prev];
+        const prevJob = copy[idx];
+        const message = payload.error ?? prevJob.error ?? "生成失败";
+        const requested = Math.min(
+          Math.max(
+            Number(payload.requested) ||
+              Number(prevJob.result?.requested) ||
+              Number(prevJob.input?.n) ||
+              1,
+            1,
+          ),
+          4,
+        );
         copy[idx] = {
-          ...copy[idx],
+          ...prevJob,
           status: payload.status === "cancelled" ? "cancelled" : "failed",
-          error: payload.error ?? copy[idx].error ?? "生成失败",
+          error: message,
+          result: {
+            ...prevJob.result,
+            requested,
+            failures: Array.from({ length: requested }, (_, index) => ({
+              index,
+              error: message,
+            })),
+          },
         };
         return copy;
       });
@@ -966,6 +1754,7 @@ function StudioInner() {
 
   const hasJobs = jobs.length > 0;
   const hasBusyJobs = jobs.some((j) => isBusy(j.status));
+  const dockCompact = hasJobs && !nearBottom;
 
   // 进行中任务：每秒从 0s 起跳累计用时
   useEffect(() => {
@@ -985,9 +1774,23 @@ function StudioInner() {
     const onScroll = () => {
       const distanceFromBottom =
         root.scrollHeight - root.scrollTop - root.clientHeight;
-      stickToBottomRef.current = distanceFromBottom < 120;
+      // During jump-to-bottom, keep compact until scroll settles (finish() expands).
+      if (jumpingToBottomRef.current) {
+        stickToBottomRef.current = true;
+        return;
+      }
+      // Hysteresis: leave bottom only when clearly away; return only when close.
+      // A single threshold + padding changes caused compact ↔ expand flicker.
+      const nextNearBottom = nearBottomRef.current
+        ? distanceFromBottom < 200
+        : distanceFromBottom < 72;
+      stickToBottomRef.current = nextNearBottom;
+      if (nextNearBottom === nearBottomRef.current) return;
+      nearBottomRef.current = nextNearBottom;
+      setNearBottom(nextNearBottom);
     };
     root.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
 
     const io = new IntersectionObserver(
       (entries) => {
@@ -1025,6 +1828,229 @@ function StudioInner() {
         .querySelector(".joy-studio-dock")
         ?.scrollIntoView({ behavior: "smooth", block: "end" });
     });
+  }
+
+  function useAssetAsReference(asset: StudioMediaAsset, asVideo = false) {
+    setRemixPrompt("");
+    setRemixRefs([asset.url]);
+    setRemixRefAssetIds(asset.id ? [asset.id] : []);
+    setRemixKind(asVideo ? "video" : "image");
+    setRemixKey((k) => k + 1);
+    toast.message(asVideo ? "已用作参考视频" : "已用作参考图");
+    requestAnimationFrame(() => {
+      document
+        .querySelector(".joy-studio-dock")
+        ?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  }
+
+  async function openAssetCanvas(asset: StudioMediaAsset) {
+    const key = `${asset.id}:canvas`;
+    setAssetActionBusy(key);
+    try {
+      const opened = await openAssetInNewCanvas(asset);
+      toast.success("已打开画布编辑");
+      router.push(opened.href);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "打开画布失败");
+    } finally {
+      setAssetActionBusy(null);
+    }
+  }
+
+  async function afterStudioJob(
+    jobId: string,
+    meta: { kind: "image" | "video"; prompt: string; modelName?: string | null },
+  ) {
+    watchStudioGeneration(jobId, {
+      kind: meta.kind,
+      modelName: meta.modelName,
+      prompt: meta.prompt,
+    });
+    void ensureGenerationNotifyPermission();
+    stickToBottomRef.current = true;
+    nearBottomRef.current = true;
+    setNearBottom(true);
+    await refreshLatest();
+    requestAnimationFrame(() => scrollFeedToBottom());
+  }
+
+  async function runLocalTool(
+    asset: StudioMediaAsset,
+    tool: StudioLocalTool,
+    job?: Job,
+  ) {
+    const modelId = job?.input?.modelId;
+    const basePrompt = job?.input?.prompt?.trim();
+
+    if (tool === "crop" || tool === "split" || tool === "upscale") {
+      setImageTool({ mode: tool, asset });
+      return;
+    }
+    if (tool === "inpaint") {
+      setMaskEdit({ asset, modelId });
+      return;
+    }
+    if (tool === "angle") {
+      setAngleEdit({ asset, modelId });
+      return;
+    }
+    if (tool === "trim-video") {
+      setVideoTrim({ asset });
+      return;
+    }
+
+    const key = `${asset.id}:${tool}`;
+    setAssetActionBusy(key);
+    try {
+      if (tool === "to-panorama") {
+        const created = await submitPanoramaJob(asset, {
+          prompt: basePrompt,
+          modelId,
+        });
+        await afterStudioJob(created.id, {
+          kind: "image",
+          prompt: "转全景",
+          modelName: job?.modelName,
+        });
+        toast.success("已提交转全景任务");
+        return;
+      }
+      if (tool === "capture-frame") {
+        const created = await captureStudioFrame(asset);
+        await afterStudioJob(created.id, {
+          kind: "image",
+          prompt: "视频截帧",
+        });
+        toast.success("已截取首帧");
+        return;
+      }
+      if (tool === "extract-audio") {
+        const result = await extractStudioAudio(asset);
+        await afterStudioJob(result.videoJobId, {
+          kind: "video",
+          prompt: "分离音频 · 无声视频",
+        });
+        toast.success("已分离音频（无声视频已加入创作流，音频在资产库）");
+        return;
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setAssetActionBusy(null);
+    }
+  }
+
+  async function commitImageToolPieces(pieces: RasterPiece[]) {
+    const session = imageTool;
+    if (!session) return;
+    const labels: Record<ImageToolMode, string> = {
+      crop: "裁剪",
+      split: "切图",
+      upscale: "本地放大",
+      view: "查看大图",
+    };
+    const label = labels[session.mode] ?? "本地编辑";
+    setAssetActionBusy(`${session.asset.id}:${session.mode}`);
+    try {
+      const created = await commitStudioImagePieces(pieces, label, {
+        localTool: session.mode === "view" ? undefined : session.mode,
+      });
+      setImageTool(null);
+      await afterStudioJob(created.id, { kind: "image", prompt: label });
+      toast.success(
+        pieces.length > 1 ? `已生成 ${pieces.length} 张结果` : "已生成结果",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : `${label}失败`);
+    } finally {
+      setAssetActionBusy(null);
+    }
+  }
+
+  async function commitMaskEdit(payload: { prompt: string; blob: Blob }) {
+    const session = maskEdit;
+    if (!session) return;
+    setAssetActionBusy(`${session.asset.id}:inpaint`);
+    try {
+      const created = await submitInpaintJob(session.asset, payload.blob, {
+        prompt: payload.prompt,
+        modelId: session.modelId,
+      });
+      setMaskEdit(null);
+      await afterStudioJob(created.id, {
+        kind: "image",
+        prompt: "局部重绘",
+      });
+      toast.success("已提交局部重绘");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "局部重绘失败");
+    } finally {
+      setAssetActionBusy(null);
+    }
+  }
+
+  async function commitAngleEdit(params: ImageAngleParams) {
+    const session = angleEdit;
+    if (!session) return;
+    setAssetActionBusy(`${session.asset.id}:angle`);
+    try {
+      const created = await submitAngleJob(session.asset, params, {
+        modelId: session.modelId,
+      });
+      setAngleEdit(null);
+      await afterStudioJob(created.id, {
+        kind: "image",
+        prompt: "多角度",
+      });
+      toast.success("已提交多角度生成");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "多角度失败");
+    } finally {
+      setAssetActionBusy(null);
+    }
+  }
+
+  async function commitVideoTrim(range: { start: number; end: number }) {
+    const session = videoTrim;
+    if (!session || videoTrimBusy) return;
+    setVideoTrimBusy(true);
+    setAssetActionBusy(`${session.asset.id}:trim-video`);
+    try {
+      const created = await trimStudioVideo(session.asset, range);
+      setVideoTrim(null);
+      await afterStudioJob(created.id, {
+        kind: "video",
+        prompt: "视频剪辑",
+      });
+      toast.success("已完成剪辑");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "剪辑失败");
+    } finally {
+      setVideoTrimBusy(false);
+      setAssetActionBusy(null);
+    }
+  }
+
+  async function outpaintAsset(asset: StudioMediaAsset, job: Job) {
+    const key = `${asset.id}:outpaint`;
+    setAssetActionBusy(key);
+    try {
+      const created = await submitOutpaintJob(asset, {
+        prompt: job.input?.prompt?.trim(),
+        modelId: job.input?.modelId,
+      });
+      await afterStudioJob(created.id, {
+        kind: "image",
+        prompt: "扩图",
+        modelName: job.modelName,
+      });
+      toast.success("已提交扩图任务");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "扩图失败");
+    } finally {
+      setAssetActionBusy(null);
+    }
   }
 
   async function copyPrompt(job: Job) {
@@ -1073,9 +2099,11 @@ function StudioInner() {
 
   async function removeJob(job: Job) {
     const ok = await confirmDialog({
-      title: "删除这条创作记录？",
-      description: "仅从创作页移除记录，资产库中的文件仍会保留。",
+      title: "确认删除",
+      description:
+        "将永久删除这条创作记录、关联资产，以及云存储中的文件，且无法找回",
       confirmText: "删除",
+      cancelText: "取消",
       destructive: true,
     });
     if (!ok) return;
@@ -1083,7 +2111,7 @@ function StudioInner() {
     try {
       await api(`/jobs/${job.id}`, { method: "DELETE" });
       setJobs((prev) => prev.filter((j) => j.id !== job.id));
-      toast.success("已删除");
+      toast.success("已删除记录与资产");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "删除失败");
     } finally {
@@ -1131,9 +2159,10 @@ function StudioInner() {
               <span className="joy-studio-feed-loading">加载中…</span>
             ) : null}
           </div>
-          <JoyPhotoProvider>
+          <div>
             {feed.map((job) => {
-              const assets = job.assets ?? [];
+              const assets = jobOutputAssets(job);
+              const slots = jobDisplaySlots(job, assets);
               const busy = isBusy(job.status);
               const metaParts = jobMetaParts(job, assets.length, now);
               const skeletonCount = Math.min(
@@ -1143,15 +2172,56 @@ function StudioInner() {
               const ar = aspectCss(job.input);
               const refUrls = jobReferenceUrls(job.input);
               const gridCount =
-                assets.length > 0 ? assets.length : skeletonCount;
+                slots.length > 0
+                  ? slots.length
+                  : assets.length > 0
+                    ? assets.length
+                    : skeletonCount;
+              const failedOnly =
+                slots.length > 0 && slots.every((s) => s.kind === "failed");
+              const partialFail =
+                !failedOnly &&
+                slots.some((s) => s.kind === "failed") &&
+                slots.some((s) => s.kind === "asset");
+              const failSummary = partialFail
+                ? slots.find((s) => s.kind === "failed")?.error || null
+                : null;
 
               const isVideoJob =
                 job.kind === "video" || assets.some((a) => isVideoAsset(a));
+              const mosaic = jobMosaicLayout(job, Math.max(assets.length, slots.length));
+              const mosaicCols = mosaic?.cols ?? 0;
+              const mosaicRows = mosaic?.rows ?? 0;
+              // Mosaic = compact reconstructed whole; regular cards stay fit-box.
+              const fluidGrid = false;
+              const gridColsClass = mosaic
+                ? null
+                : gridCount >= 4
+                  ? "is-cols-4"
+                  : gridCount === 3
+                    ? "is-cols-3"
+                    : gridCount === 2
+                      ? "is-cols-2"
+                      : null;
+              const tileStyle = mosaic
+                ? ({ width: "100%", height: "100%" } as CSSProperties)
+                : frameStyleForAspect(ar, fluidGrid);
+              const mosaicShellFrame = mosaic ? mosaicShellStyle(ar) : undefined;
+              const mosaicStyle = mosaic
+                ? ({
+                    gridTemplateColumns: `repeat(${mosaicCols}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${mosaicRows}, minmax(0, 1fr))`,
+                  } as CSSProperties)
+                : undefined;
 
               return (
+                <JoyPhotoProvider key={job.id}>
                 <article
-                  key={job.id}
-                  className={cn("joy-studio-job", isVideoJob && "is-video")}
+                  className={cn(
+                    "joy-studio-job",
+                    isVideoJob && "is-video",
+                    mosaic && "is-mosaic",
+                  )}
                 >
                   <div className="joy-studio-prompt-block">
                     <div
@@ -1183,40 +2253,100 @@ function StudioInner() {
                             ))}
                           </p>
                         ) : null}
-                        {job.error ? (
-                          <p className="joy-studio-error">{job.error}</p>
+                        {partialFail ? (
+                          <p className="joy-studio-error">
+                            部分图片生成失败
+                            {failSummary ? `：${failSummary}` : ""}
+                          </p>
                         ) : null}
                       </div>
                     </div>
                   </div>
 
-                  {assets.length > 0 ? (
+                  {slots.length > 0 ? (
                     <div
-                      className={cn(
-                        "joy-studio-grid",
-                        gridCount === 1 && "is-single",
-                        gridCount >= 2 && "is-multi",
-                        isVideoJob && "is-video",
-                      )}
+                      className={cn(mosaic && "joy-studio-mosaic-shell")}
+                      style={mosaicShellFrame}
                     >
-                      {assets.map((asset) =>
-                        isVideoAsset(asset) ? (
+                      <div
+                        className={cn(
+                          "joy-studio-grid",
+                          !mosaic && gridCount === 1 && "is-single",
+                          !mosaic && gridCount >= 2 && "is-multi",
+                          mosaic && "is-mosaic",
+                          !mosaic && gridColsClass,
+                          isVideoJob && "is-video",
+                        )}
+                        style={mosaicStyle}
+                      >
+                        {slots.map((slot) => {
+                        if (slot.kind === "failed") {
+                          return (
+                            <FailedThumb
+                              key={`${job.id}-fail-${slot.index}`}
+                              aspectRatio={ar}
+                              error={slot.error}
+                              style={tileStyle}
+                            />
+                          );
+                        }
+                        const asset = slot.asset;
+                        const media: StudioMediaAsset = {
+                          id: asset.id,
+                          url: asset.url,
+                          kind: isVideoAsset(asset) ? "video" : asset.kind,
+                        };
+                        const busyKey = assetActionBusy?.startsWith(`${asset.id}:`)
+                          ? assetActionBusy.slice(asset.id.length + 1)
+                          : null;
+                        return isVideoAsset(asset) ? (
                           <StudioVideoThumb
                             key={asset.id}
                             src={asset.url}
                             fallbackAspect={ar}
+                            fluid={fluidGrid}
                             // Always adopt decoded video size — i2v follows first frame,
                             // so UI-selected ratio may not match actual output.
                             flexible
+                            canCopy={Boolean(job.input?.prompt?.trim())}
+                            busyAction={busyKey}
+                            onCopyPrompt={() => void copyPrompt(job)}
+                            onUseAsRef={() => useAssetAsReference(media, true)}
+                            onOpenCanvas={() => void openAssetCanvas(media)}
+                            onCanvasTool={(tool) =>
+                              void runLocalTool(media, tool, job)
+                            }
+                            onDownload={() => {
+                              void downloadAsset(asset.url, "video")
+                                .then(() => toast.success("已开始下载"))
+                                .catch(() => toast.error("下载失败"));
+                            }}
                           />
                         ) : (
                           <StudioImageThumb
                             key={asset.id}
                             src={asset.url}
                             aspectRatio={ar}
+                            fluid={fluidGrid}
+                            mosaic={Boolean(mosaic)}
+                            canCopy={Boolean(job.input?.prompt?.trim())}
+                            busyAction={busyKey}
+                            onCopyPrompt={() => void copyPrompt(job)}
+                            onUseAsRef={() => useAssetAsReference(media)}
+                            onOpenCanvas={() => void openAssetCanvas(media)}
+                            onCanvasTool={(tool) =>
+                              void runLocalTool(media, tool, job)
+                            }
+                            onOutpaint={() => void outpaintAsset(media, job)}
+                            onDownload={() => {
+                              void downloadAsset(asset.url, asset.kind)
+                                .then(() => toast.success("已开始下载该切片"))
+                                .catch(() => toast.error("下载失败"));
+                            }}
                           />
-                        ),
-                      )}
+                        );
+                      })}
+                      </div>
                     </div>
                   ) : busy ? (
                     <div className="joy-studio-generating">
@@ -1225,6 +2355,7 @@ function StudioInner() {
                           "joy-studio-grid",
                           gridCount === 1 && "is-single",
                           gridCount >= 2 && "is-multi",
+                          gridColsClass,
                           isVideoJob && "is-video",
                         )}
                       >
@@ -1232,11 +2363,12 @@ function StudioInner() {
                           <GeneratingThumb
                             key={`${job.id}-sk-${i}`}
                             aspectRatio={ar}
-                            style={
-                              isVideoJob
-                                ? frameStyleForAspect(ar)
-                                : { aspectRatio: ar, width: "100%" }
-                            }
+                            /* Animated webp/gif — safe to show on every tile */
+                            useVideo
+                            style={{
+                              ...frameStyleForAspect(ar, false),
+                              ["--joy-gen-fall-delay" as string]: `${i * 0.35}s`,
+                            }}
                           />
                         ))}
                       </div>
@@ -1252,33 +2384,90 @@ function StudioInner() {
                     regeneratingId={regeneratingId}
                     deletingId={deletingId}
                     onRegenerate={() => void regenerate(job)}
+                    onReedit={() => applyPrompt(job)}
+                    onCopyPrompt={() => void copyPrompt(job)}
                     onDelete={() => void removeJob(job)}
                   />
                 </article>
+                </JoyPhotoProvider>
               );
             })}
-          </JoyPhotoProvider>
+          </div>
         </div>
       )}
 
       <div className="joy-studio-dock">
-        <div className="joy-studio-dock-inner">
-          <CreationComposer
-            key={`dock-${remixKey}`}
-            variant="dock"
-            promptSeed={remixPrompt}
-            refSeed={remixRefs}
-            refAssetIdSeed={remixRefAssetIds}
-            kindSeed={remixKind}
-            onSubmitted={() => {
-              stickToBottomRef.current = true;
-              void refreshLatest().then(() => {
-                requestAnimationFrame(scrollFeedToBottom);
-              });
-            }}
-          />
+        <div
+          className={cn(
+            "joy-studio-dock-inner",
+            dockCompact && "is-compact",
+          )}
+        >
+          <div className="joy-studio-dock-rail">
+            {dockCompact ? (
+              <div className="joy-studio-jump-row">
+                <button
+                  type="button"
+                  className="joy-studio-jump-bottom"
+                  onClick={jumpToBottom}
+                >
+                  回到底部
+                  <ChevronsDown
+                    className="size-3.5 opacity-70"
+                    strokeWidth={2}
+                  />
+                </button>
+              </div>
+            ) : null}
+            <CreationComposer
+              key={`dock-${remixKey}`}
+              variant="dock"
+              compact={dockCompact}
+              promptSeed={remixPrompt}
+              refSeed={remixRefs}
+              refAssetIdSeed={remixRefAssetIds}
+              kindSeed={remixKind}
+              onSubmitted={() => {
+                stickToBottomRef.current = true;
+                nearBottomRef.current = true;
+                setNearBottom(true);
+                void refreshLatest().then(() => {
+                  requestAnimationFrame(() => scrollFeedToBottom());
+                });
+              }}
+            />
+          </div>
         </div>
       </div>
+
+      <ImageToolDialog
+        mode={imageTool?.mode ?? null}
+        url={imageTool?.asset.url ?? ""}
+        onClose={() => setImageTool(null)}
+        onCommit={commitImageToolPieces}
+      />
+      <MaskEditDialog
+        open={Boolean(maskEdit)}
+        url={maskEdit?.asset.url ?? ""}
+        onClose={() => setMaskEdit(null)}
+        onConfirm={commitMaskEdit}
+      />
+      <ImageAngleDialog
+        open={Boolean(angleEdit)}
+        url={angleEdit?.asset.url ?? ""}
+        onClose={() => setAngleEdit(null)}
+        onConfirm={(params) => void commitAngleEdit(params)}
+      />
+      <AudioTrimDialog
+        open={Boolean(videoTrim)}
+        url={videoTrim?.asset.url ?? ""}
+        mode="video"
+        busy={videoTrimBusy}
+        onClose={() => {
+          if (!videoTrimBusy) setVideoTrim(null);
+        }}
+        onConfirm={(range) => void commitVideoTrim(range)}
+      />
     </div>
   );
 }

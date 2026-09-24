@@ -145,7 +145,47 @@ type FocusQuery = {
   nodeId?: string | null;
   jobId?: string | null;
   assetId?: string | null;
+  /** Studio hover deep-link — open image tool / mask / angle after focus. */
+  tool?: string | null;
 };
+
+const STUDIO_DEEP_TOOLS = new Set([
+  "crop",
+  "split",
+  "upscale",
+  "view",
+  "inpaint",
+  "angle",
+  "to-panorama",
+  "capture-frame",
+  "extract-audio",
+  "trim-video",
+]);
+
+function resolveFocusTargetId(opts: {
+  nodeId?: string | null;
+  jobId?: string | null;
+  assetId?: string | null;
+}): string | null {
+  const { nodes } = useCanvasStore.getState();
+  if (opts.nodeId) {
+    const hit = nodes.find((n) => n.id === opts.nodeId);
+    if (hit) return hit.id;
+  }
+  if (opts.jobId) {
+    const byJob = nodes.find(
+      (n) => String(n.data.jobId ?? "") === opts.jobId,
+    );
+    if (byJob) return byJob.id;
+  }
+  if (opts.assetId) {
+    const byAsset = nodes.find(
+      (n) => String(n.data.assetId ?? "") === opts.assetId,
+    );
+    if (byAsset) return byAsset.id;
+  }
+  return null;
+}
 
 type ClipboardPayload = {
   nodes: CanvasNode[];
@@ -334,19 +374,110 @@ export function CanvasBoard({
     const nodeId = focusQuery?.nodeId;
     const jobId = focusQuery?.jobId;
     const assetId = focusQuery?.assetId;
+    const toolRaw = focusQuery?.tool?.trim() || "";
+    const tool = STUDIO_DEEP_TOOLS.has(toolRaw) ? toolRaw : "";
     if (!nodeId && !jobId && !assetId) return;
+
+    const targetId = resolveFocusTargetId({ nodeId, jobId, assetId });
+    if (!targetId) return;
+
     let ok = false;
     if (nodeId) ok = focusNode(nodeId, viewportSize);
     if (!ok) ok = focusByJobOrAsset({ jobId, assetId }, viewportSize);
-    if (ok) focusApplied.current = true;
+    if (!ok) return;
+
+    focusApplied.current = true;
+    if (!tool) return;
+
+    // Let selection + layout settle before opening modal tools.
+    window.requestAnimationFrame(() => {
+      if (tool === "inpaint") {
+        openMask(targetId);
+        return;
+      }
+      if (tool === "angle") {
+        setAngleNodeId(targetId);
+        return;
+      }
+      if (tool === "to-panorama") {
+        pushHistory();
+        convertImagePanoramaType(targetId, "panorama");
+        return;
+      }
+      if (tool === "trim-video") {
+        openAudioTrim(targetId);
+        return;
+      }
+      if (tool === "extract-audio") {
+        void (async () => {
+          const node = useCanvasStore
+            .getState()
+            .nodes.find((item) => item.id === targetId);
+          if (!node || node.type !== "video") return;
+          const url = String(node.data.url ?? "");
+          if (!url || url.startsWith("data:")) return;
+          try {
+            await separateAudioToNode(node.id);
+            toast.success("已分离为音频与无声视频");
+          } catch (error) {
+            toast.error(
+              error instanceof Error ? error.message : "分离音频失败",
+            );
+          }
+        })();
+        return;
+      }
+      if (tool === "capture-frame") {
+        void (async () => {
+          const node = useCanvasStore
+            .getState()
+            .nodes.find((n) => n.id === targetId);
+          if (!node || node.type !== "video") return;
+          const url = String(node.data.url ?? "");
+          if (!url || url.startsWith("data:")) return;
+          try {
+            pushHistory();
+            const file = await captureVideoFrame(url, "first", 0);
+            const imageId = await uploadFileToNewNode(
+              file,
+              {
+                x: node.x + (node.width ?? 280) + 40,
+                y: node.y,
+              },
+              {
+                history: false,
+                preferredType: "image",
+                title: "视频截帧",
+              },
+            );
+            addEdge(node.id, imageId);
+            toast.success("已截取帧并创建图像节点");
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "截帧失败");
+          }
+        })();
+        return;
+      }
+      if (
+        tool === "crop" ||
+        tool === "split" ||
+        tool === "upscale" ||
+        tool === "view"
+      ) {
+        openImageTool(targetId, tool);
+      }
+    });
   }, [
     projectReady,
     viewportSize,
     focusQuery?.nodeId,
     focusQuery?.jobId,
     focusQuery?.assetId,
+    focusQuery?.tool,
     focusNode,
     focusByJobOrAsset,
+    pushHistory,
+    addEdge,
   ]);
 
   useEffect(() => {
@@ -1653,23 +1784,18 @@ export function CanvasBoard({
         x: box.x + box.width + 40,
         y: box.y + box.height + 36,
       });
-      const sourceAssetId = String(node.data.assetId ?? "");
-      const sourceUrl = String(node.data.url ?? "");
       const marked = useCanvasStore
         .getState()
         .nodes.find((item) => item.id === markedId);
       const markedAssetId = String(marked?.data.assetId ?? "");
       const markedUrl = String(marked?.data.url ?? "");
-      const referenceAssetIds = [
-        ...new Set([sourceAssetId, markedAssetId].filter(Boolean)),
-      ];
-      const referenceUrls = [
-        ...new Set(
-          [sourceUrl, markedUrl].filter(
-            (item) => item && !item.startsWith("data:"),
-          ),
-        ),
-      ];
+      // Marked composite already includes source + paint — only that as model ref.
+      const referenceAssetIds = markedAssetId ? [markedAssetId] : [];
+      const referenceUrls =
+        markedUrl && !markedUrl.startsWith("data:") ? [markedUrl] : [];
+      if (!referenceUrls.length) {
+        throw new Error("涂抹参考图上传失败");
+      }
       updateNodeData(promptId, {
         prompt: payload.prompt,
         operation: "inpaint",

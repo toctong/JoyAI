@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" fill="none">
+  <!-- Soft card plate -->
+  <rect x="28" y="34" width="104" height="92" rx="14" fill="#EEF0F4"/>
+  <rect x="28" y="34" width="104" height="92" rx="14" stroke="#D8DCE5" stroke-width="1.5"/>
+  <!-- Broken mountain / image motif -->
+  <path d="M44 104 L68 72 L82 88 L98 64 L116 104 Z" fill="#D5DAE4"/>
+  <circle cx="58" cy="58" r="8" fill="#C8CEDA"/>
+  <!-- Soft tear / fail mark -->
+  <circle cx="112" cy="48" r="14" fill="#F4E8EA" stroke="#E8B4BC" stroke-width="1.25"/>
+  <path d="M112 41.5 v8.5" stroke="#C45B6A" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="112" cy="54.5" r="1.35" fill="#C45B6A"/>
+  <!-- Crack across plate -->
+  <path d="M72 34 L78 58 L70 78 L84 104" stroke="#C9CFD9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

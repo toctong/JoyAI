@@ -1,44 +1,44 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/shared/lib/utils";
 
-const SRC = "/loading/record-loading.mp4";
+const SRC_WEBP = "/loading/record-loading.webp";
+const SRC_GIF = "/loading/record-loading.gif";
 
-/** Looping mesh used by canvas node busy states and the studio generating thumb. */
+/**
+ * Looping mesh for canvas busy states and studio generating thumbs.
+ * Uses animated image (webp/gif) so multi-tile grids all play — no video autoplay caps.
+ */
 export function LoadingAnimation({ className }: { className?: string }) {
-  const ref = useRef<HTMLVideoElement>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
-    const video = ref.current;
-    if (!video) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => {
-      if (reduce.matches) {
-        video.pause();
-        return;
-      }
-      void video.play().catch(() => undefined);
-    };
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(mq.matches);
     sync();
-    reduce.addEventListener("change", sync);
-    return () => reduce.removeEventListener("change", sync);
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
   }, []);
 
+  if (reduceMotion) return null;
+
   return (
-    <video
-      ref={ref}
+    <picture
       className={cn(
-        "pointer-events-none absolute inset-0 size-full object-cover",
+        "pointer-events-none absolute inset-0 block size-full",
         className,
       )}
-      src={SRC}
-      autoPlay
-      muted
-      loop
-      playsInline
-      preload="auto"
       aria-hidden
-    />
+    >
+      <source srcSet={SRC_WEBP} type="image/webp" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={SRC_GIF}
+        alt=""
+        draggable={false}
+        className="size-full object-cover"
+      />
+    </picture>
   );
 }

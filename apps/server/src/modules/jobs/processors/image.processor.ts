@@ -141,8 +141,8 @@ export class ImageProcessor extends WorkerHost {
         capabilities: caps,
       });
       const count = Math.max(1, Math.min(Number(input.n) || 1, 4));
-      // Seedream 等模型常忽略 n / 只当组图上限；数量选择按「独立出图」并发请求，保证张数
-      const batches = await Promise.all(
+      // Seedream 等模型常忽略 n；按张并发。单张上游失败不应拖垮整单。
+      const settled = await Promise.allSettled(
         Array.from({ length: count }, () =>
           provider.generate({
             prompt,
@@ -166,9 +166,41 @@ export class ImageProcessor extends WorkerHost {
           }),
         ),
       );
+
+      const images: Array<{ url?: string; b64?: string }> = [];
+      const failures: Array<{ index: number; error: string }> = [];
+      settled.forEach((item, index) => {
+        if (item.status === "fulfilled") {
+          const batchImages = item.value.images ?? [];
+          if (batchImages.length) {
+            images.push(...batchImages);
+            return;
+          }
+          failures.push({ index, error: "上游未返回图片" });
+          return;
+        }
+        const reason = item.reason;
+        failures.push({
+          index,
+          error:
+            reason instanceof Error ? reason.message : String(reason || "生成失败"),
+        });
+      });
+
+      if (!images.length) {
+        throw new Error(failures[0]?.error || "生成失败");
+      }
+
       const result = {
-        images: batches.flatMap((b) => b.images),
-        raw: count === 1 ? batches[0]?.raw : batches.map((b) => b.raw),
+        images,
+        raw:
+          count === 1
+            ? settled[0]?.status === "fulfilled"
+              ? settled[0].value.raw
+              : undefined
+            : settled.map((item) =>
+                item.status === "fulfilled" ? item.value.raw : null,
+              ),
       };
 
       const mirror = this.storage.isConfigured();
@@ -227,6 +259,10 @@ export class ImageProcessor extends WorkerHost {
         }
       }
 
+      if (!createdAssets.length) {
+        throw new Error(failures[0]?.error || "生成失败");
+      }
+
       const latest = await this.jobsRepo.findOne({ where: { id: jobId } });
       if (!latest || latest.status === JobStatus.cancelled) {
         return;
@@ -236,9 +272,12 @@ export class ImageProcessor extends WorkerHost {
         status: JobStatus.succeeded,
         progress: 100,
         finishedAt: new Date(),
+        error: null,
         result: {
           assetIds: createdAssets.map((a) => a.id),
           urls: createdAssets.map((a) => a.url),
+          requested: count,
+          ...(failures.length ? { failures } : {}),
         },
       });
 
@@ -259,6 +298,8 @@ export class ImageProcessor extends WorkerHost {
         jobId,
         status: "succeeded",
         assets: createdAssets.map((a) => ({ id: a.id, url: a.url })),
+        failures,
+        requested: count,
       });
 
       for (const item of pendingMirrors) {
@@ -278,17 +319,29 @@ export class ImageProcessor extends WorkerHost {
       if (latest?.status === JobStatus.cancelled) {
         return;
       }
+      const requested = Math.max(
+        1,
+        Math.min(Number((latest?.input as { n?: number } | null)?.n) || 1, 4),
+      );
       this.logger.error(`Image job ${jobId} failed: ${message}`);
       await this.jobsRepo.update(jobId, {
         status: JobStatus.failed,
         error: message,
         progress: 100,
         finishedAt: new Date(),
+        result: {
+          requested,
+          failures: Array.from({ length: requested }, (_, index) => ({
+            index,
+            error: message,
+          })),
+        },
       });
       this.realtime.emitJob(job.userId, "job:failed", {
         jobId,
         status: "failed",
         error: message,
+        requested,
       });
       throw error;
     }

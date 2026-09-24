@@ -1,14 +1,128 @@
 .joy-gen-thumb {
   position: relative;
   display: block;
-  width: 100%;
+  /* Prefer definite width from frameStyleForAspect; avoid % collapse in max-content grids */
+  width: var(--joy-gen-thumb-w, auto);
   min-width: 0;
-  min-height: 160px;
+  min-height: 120px;
   overflow: hidden;
   border-radius: 14px;
   background: #12151c;
   isolation: isolate;
   box-sizing: border-box;
+}
+
+/* Always-on mesh — used alone for multi-n (video autoplay is flaky past 1). */
+.joy-gen-thumb-fall {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      90% 70% at 18% 12%,
+      color-mix(in oklab, #7eb6ff 55%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      80% 75% at 88% 22%,
+      color-mix(in oklab, #ff8fd2 40%, transparent),
+      transparent 55%
+    ),
+    radial-gradient(
+      70% 80% at 55% 88%,
+      color-mix(in oklab, #ffe08a 32%, transparent),
+      transparent 52%
+    ),
+    radial-gradient(
+      100% 90% at 40% 50%,
+      color-mix(in oklab, #6a5cff 22%, transparent),
+      transparent 60%
+    ),
+    linear-gradient(145deg, #1a2233 0%, #12151c 48%, #1c2433 100%);
+  background-size: 180% 180%, 160% 160%, 150% 150%, 140% 140%, 100% 100%;
+  filter: saturate(1.15) contrast(1.05);
+  animation: joy-gen-fall-drift 4.2s ease-in-out infinite alternate;
+  animation-delay: var(--joy-gen-fall-delay, 0s);
+}
+
+.joy-gen-thumb-fall::before {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  background:
+    radial-gradient(
+      circle at 30% 40%,
+      color-mix(in oklab, #fff 14%, transparent),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 70% 65%,
+      color-mix(in oklab, #9ec5ff 18%, transparent),
+      transparent 45%
+    );
+  filter: blur(18px);
+  opacity: 0.85;
+  animation: joy-gen-fall-glow 3.2s ease-in-out infinite alternate;
+  animation-delay: var(--joy-gen-fall-delay, 0s);
+}
+
+.joy-gen-thumb-fall::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 22%,
+    color-mix(in oklab, #fff 14%, transparent) 48%,
+    transparent 68%
+  );
+  background-size: 220% 100%;
+  animation: joy-gen-fall-shine 1.7s ease-in-out infinite;
+  animation-delay: var(--joy-gen-fall-delay, 0s);
+}
+
+@keyframes joy-gen-fall-drift {
+  0% {
+    background-position:
+      0% 20%,
+      100% 80%,
+      40% 100%,
+      60% 40%,
+      0 0;
+  }
+  100% {
+    background-position:
+      42% 0%,
+      55% 100%,
+      70% 30%,
+      30% 70%,
+      0 0;
+  }
+}
+
+@keyframes joy-gen-fall-glow {
+  0% {
+    transform: translate3d(-4%, -2%, 0) scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translate3d(5%, 4%, 0) scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes joy-gen-fall-shine {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.joy-gen-thumb-media {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
 }
 
 .joy-gen-thumb-badge {
@@ -58,3 +172,75 @@
   white-space: nowrap;
 }
 
+.joy-gen-thumb.is-failed {
+  background: color-mix(in oklab, var(--muted) 92%, var(--destructive) 8%);
+  border: 1px solid color-mix(in oklab, var(--border) 82%, var(--destructive) 18%);
+}
+
+.joy-gen-thumb-fail-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      80% 60% at 50% 18%,
+      color-mix(in oklab, var(--destructive) 8%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      165deg,
+      color-mix(in oklab, var(--muted) 88%, var(--background)) 0%,
+      color-mix(in oklab, var(--secondary) 70%, var(--muted)) 100%
+    );
+}
+
+.joy-gen-thumb-fail-art {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18% 16% 28%;
+  pointer-events: none;
+}
+
+.joy-gen-thumb-fail-illust {
+  display: block;
+  width: min(56%, 132px);
+  height: auto;
+  max-height: 58%;
+  object-fit: contain;
+  opacity: 0.92;
+  user-select: none;
+}
+
+.dark .joy-gen-thumb-fail-illust {
+  opacity: 0.78;
+  filter: brightness(0.92) saturate(0.9);
+}
+
+.joy-gen-thumb-badge.is-fail {
+  background: color-mix(in oklab, var(--destructive) 14%, var(--background));
+  color: var(--destructive);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.joy-gen-thumb-fail-msg {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  margin: 0;
+  max-height: 42%;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  color: color-mix(in oklab, var(--muted-foreground) 72%, var(--destructive) 28%);
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.45;
+  word-break: break-word;
+}

@@ -231,7 +231,9 @@ export function MobileStudioPage() {
   useEffect(() => {
     void api<PublicModel[]>("/models")
       .then((list) => setModels(list))
-      .catch(() => toast.error("加载模型列表失败"));
+      .catch(() => {
+        /* silent */
+      });
   }, []);
 
   useEffect(() => {
