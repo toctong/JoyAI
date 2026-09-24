@@ -73,7 +73,7 @@
   padding: 0 20px;
 }
 
-.joy-admin-tab {
+.joy-admin a.joy-admin-tab {
   display: inline-flex;
   flex-direction: row;
   align-items: center;
@@ -83,7 +83,7 @@
   height: 44px;
   border-radius: 0;
   padding: 0 14px;
-  color: var(--ve-text-secondary);
+  color: #7a7a7a;
   text-decoration: none;
   outline: none;
   border-bottom: 2px solid transparent;
@@ -96,13 +96,13 @@
   width: 16px;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .joy-admin-tab-icon {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  opacity: 0.75;
 }
 
 .joy-admin-tab-label {
@@ -110,28 +110,33 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 20px;
-  letter-spacing: 0;
+  letter-spacing: -0.42px;
 }
 
-.joy-admin-tab:hover {
-  color: var(--ve-primary);
+.joy-admin a.joy-admin-tab:hover {
+  color: #5c5c5c;
 }
 
-.joy-admin-tab:hover .joy-admin-tab-icon {
-  opacity: 1;
-}
-
-.joy-admin-tab.is-active {
-  color: var(--ve-primary);
+.joy-admin a.joy-admin-tab.is-active {
+  color: #3f3f46;
   background: transparent;
-  border-bottom-color: var(--ve-primary);
+  border-bottom-color: #3f3f46;
 }
 
-.joy-admin-tab.is-active .joy-admin-tab-icon {
-  opacity: 1;
+.dark .joy-admin a.joy-admin-tab {
+  color: #71717a;
+}
+
+.dark .joy-admin a.joy-admin-tab:hover {
+  color: #a1a1aa;
+}
+
+.dark .joy-admin a.joy-admin-tab.is-active {
+  color: #e4e4e7;
+  border-bottom-color: #e4e4e7;
 }
 
 .joy-admin-scroll {

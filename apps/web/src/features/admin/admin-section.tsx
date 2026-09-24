@@ -3,35 +3,28 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import {
-  LayoutDashboard,
-  LayoutGrid,
-  Puzzle,
-  ScrollText,
-  Settings,
-  Users,
-  Waypoints,
-  type LucideIcon,
-} from "lucide-react";
-import { MonitorActivity } from "@/components/icons/monitor-activity";
 import { cn } from "@/shared/lib/utils";
 import { useAuthHydrated, useAuthStore } from "@/shared/lib/auth-store";
+import {
+  AdminTabSvgIcon,
+  type AdminTabSvgName,
+} from "@/shared/ui/admin-tab-svg-icon";
 import "./admin-section.css";
 
 const tabs: {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: AdminTabSvgName;
   end?: boolean;
 }[] = [
-  { href: "/admin", label: "概览", icon: LayoutDashboard, end: true },
-  { href: "/admin/jobs", label: "任务", icon: MonitorActivity },
-  { href: "/admin/channels", label: "渠道", icon: Waypoints },
-  { href: "/admin/models", label: "模型", icon: LayoutGrid },
-  { href: "/admin/plugins", label: "插件", icon: Puzzle },
-  { href: "/admin/users", label: "用户", icon: Users },
-  { href: "/admin/logs", label: "日志", icon: ScrollText },
-  { href: "/admin/settings", label: "设置", icon: Settings },
+  { href: "/admin", label: "概览", icon: "overview", end: true },
+  { href: "/admin/jobs", label: "任务", icon: "jobs" },
+  { href: "/admin/channels", label: "渠道", icon: "channels" },
+  { href: "/admin/models", label: "模型", icon: "models" },
+  { href: "/admin/plugins", label: "插件", icon: "plugins" },
+  { href: "/admin/users", label: "用户", icon: "users" },
+  { href: "/admin/logs", label: "日志", icon: "logs" },
+  { href: "/admin/settings", label: "设置", icon: "settings" },
 ];
 
 function isActive(pathname: string, href: string, end?: boolean) {
@@ -82,7 +75,6 @@ export function AdminSection({ children }: { children: React.ReactNode }) {
           >
             {tabs.map((tab) => {
               const active = isActive(pathname, tab.href, tab.end);
-              const Icon = tab.icon;
               return (
                 <Link
                   key={tab.href}
@@ -92,7 +84,11 @@ export function AdminSection({ children }: { children: React.ReactNode }) {
                   className={cn("joy-admin-tab", active && "is-active")}
                 >
                   <span className="joy-admin-tab-icon-wrap">
-                    <Icon className="joy-admin-tab-icon" aria-hidden />
+                    <AdminTabSvgIcon
+                      name={tab.icon}
+                      active={active}
+                      className="joy-admin-tab-icon"
+                    />
                   </span>
                   <span className="joy-admin-tab-label">{tab.label}</span>
                 </Link>
