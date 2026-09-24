@@ -31,6 +31,7 @@ Write-Host "Building $Image ..."
 docker build -f Dockerfile -t $Image `
   --build-arg "NEXT_PUBLIC_API_URL=/api" `
   --build-arg "NEXT_PUBLIC_WS_URL=" `
+  --build-arg "NEXT_PUBLIC_STATIC_CDN=https://cdn.jsdelivr.net/gh/toctong/image-hosting@main/joyai" `
   .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

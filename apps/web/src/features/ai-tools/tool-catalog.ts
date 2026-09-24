@@ -385,9 +385,9 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 4,
     accent: "#6ec3c8",
     covers: [
-      "/tools/cover-magazine-cover-0.webp",
-      "/tools/cover-magazine-cover-1.webp",
-      "/tools/cover-magazine-cover-2.webp",
+      "/tools/cover-image-reverse-0.webp",
+      "/tools/cover-image-reverse-1.webp",
+      "/tools/cover-image-reverse-2.webp",
     ],
     tags: ["反推", "提示词"],
     badge: "new",
@@ -410,9 +410,9 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 2,
     accent: "#c9a66b",
     covers: [
-      "/tools/cover-trading-card-0.webp",
-      "/tools/cover-trading-card-1.webp",
-      "/tools/cover-trading-card-2.webp",
+      "/tools/cover-prompt-optimize-0.webp",
+      "/tools/cover-prompt-optimize-1.webp",
+      "/tools/cover-prompt-optimize-2.webp",
     ],
     tags: ["优化", "提示词"],
     badge: "new",
@@ -442,9 +442,9 @@ export const AI_TOOLS: AiToolDef[] = [
     videosMax: 1,
     accent: "#9b8cff",
     covers: [
-      "/tools/cover-ai-hug-0.webp",
-      "/tools/cover-ai-hug-1.webp",
-      "/tools/cover-ai-hug-2.webp",
+      "/tools/cover-video-reverse-0.webp",
+      "/tools/cover-video-reverse-1.webp",
+      "/tools/cover-video-reverse-2.webp",
     ],
     tags: ["反推", "视频"],
     prompt: "",
@@ -462,7 +462,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "1:1",
     accent: "#3d7eff",
-    covers: ["/tools/cover-badge-0.webp", "/tools/cover-badge-1.webp", "/tools/cover-badge-2.webp"],
+    covers: [
+      "/tools/cover-website-logo-0.webp",
+      "/tools/cover-website-logo-1.webp",
+      "/tools/cover-website-logo-2.webp",
+    ],
     tags: ["品牌", "Favicon"],
     badge: "new",
     noteRequired: true,
@@ -505,7 +509,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "1:1",
     accent: "#e8a0bf",
-    covers: ["/tools/cover-character-sheet-0.webp", "/tools/cover-character-sheet-1.webp", "/tools/cover-character-sheet-2.webp"],
+    covers: [
+      "/tools/cover-photo-fail-0.webp",
+      "/tools/cover-photo-fail-1.webp",
+      "/tools/cover-photo-fail-2.webp",
+    ],
     tags: ["九宫格", "趣味"],
     badge: "new",
     prompt:
@@ -524,7 +532,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "1:1",
     accent: "#2a2a2a",
-    covers: ["/tools/cover-paper-cutout-0.webp", "/tools/cover-paper-cutout-1.webp", "/tools/cover-paper-cutout-2.webp"],
+    covers: [
+      "/tools/cover-lineart-0.webp",
+      "/tools/cover-lineart-1.webp",
+      "/tools/cover-lineart-2.webp",
+    ],
     tags: ["线稿", "漫画"],
     badge: "new",
     prompt:
@@ -543,7 +555,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "1:1",
     accent: "#7c6cf0",
-    covers: ["/tools/cover-paper-cutout-1.webp", "/tools/cover-paper-cutout-0.webp", "/tools/cover-paper-cutout-2.webp"],
+    covers: [
+      "/tools/cover-sketch-colorize-0.webp",
+      "/tools/cover-sketch-colorize-1.webp",
+      "/tools/cover-sketch-colorize-2.webp",
+    ],
     tags: ["上色", "线稿"],
     badge: "new",
     prompt:
@@ -562,7 +578,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "1:1",
     accent: "#ff7eb3",
-    covers: ["/tools/cover-badge-0.webp", "/tools/cover-badge-1.webp", "/tools/cover-badge-2.webp"],
+    covers: [
+      "/tools/cover-sticker-0.webp",
+      "/tools/cover-sticker-1.webp",
+      "/tools/cover-sticker-2.webp",
+    ],
     tags: ["贴纸", "表情包"],
     badge: "new",
     prompt:
@@ -581,7 +601,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "1:1",
     accent: "#39c5bb",
-    covers: ["/tools/cover-lego-0.webp", "/tools/cover-lego-1.webp", "/tools/cover-lego-2.webp"],
+    covers: [
+      "/tools/cover-pixel-art-0.webp",
+      "/tools/cover-pixel-art-1.webp",
+      "/tools/cover-pixel-art-2.webp",
+    ],
     tags: ["像素", "复古"],
     badge: "new",
     prompt:
@@ -600,7 +624,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "1:1",
     accent: "#ffb4a2",
-    covers: ["/tools/cover-desktop-pet-0.webp", "/tools/cover-desktop-pet-1.webp", "/tools/cover-desktop-pet-2.webp"],
+    covers: [
+      "/tools/cover-chibi-avatar-0.webp",
+      "/tools/cover-chibi-avatar-1.webp",
+      "/tools/cover-chibi-avatar-2.webp",
+    ],
     tags: ["头像", "Q版"],
     badge: "new",
     prompt:
@@ -619,7 +647,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "3:4",
     accent: "#4c6ef5",
-    covers: ["/tools/cover-polaroid-0.webp", "/tools/cover-polaroid-1.webp", "/tools/cover-polaroid-2.webp"],
+    covers: [
+      "/tools/cover-id-photo-0.webp",
+      "/tools/cover-id-photo-1.webp",
+      "/tools/cover-id-photo-2.webp",
+    ],
     tags: ["证件照", "人像"],
     badge: "new",
     prompt:
@@ -638,7 +670,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 2,
     ratio: "3:4",
     accent: "#ff6b6b",
-    covers: ["/tools/cover-magazine-cover-0.webp", "/tools/cover-magazine-cover-1.webp", "/tools/cover-magazine-cover-2.webp"],
+    covers: [
+      "/tools/cover-social-poster-0.webp",
+      "/tools/cover-social-poster-1.webp",
+      "/tools/cover-social-poster-2.webp",
+    ],
     tags: ["海报", "封面"],
     badge: "new",
     noteRequired: true,
@@ -659,7 +695,11 @@ export const AI_TOOLS: AiToolDef[] = [
     refsMax: 1,
     ratio: "1:1",
     accent: "#fab005",
-    covers: ["/tools/cover-character-sheet-1.webp", "/tools/cover-character-sheet-0.webp", "/tools/cover-character-sheet-2.webp"],
+    covers: [
+      "/tools/cover-expression-swap-0.webp",
+      "/tools/cover-expression-swap-1.webp",
+      "/tools/cover-expression-swap-2.webp",
+    ],
     tags: ["表情", "角色"],
     badge: "new",
     noteRequired: true,

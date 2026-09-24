@@ -9,6 +9,7 @@ import {
   type AiToolCategory,
   type AiToolDef,
 } from "@/features/ai-tools";
+import { staticAssetUrl } from "@/shared/lib/static-asset";
 import { cn } from "@/shared/lib/utils";
 
 export function MobileToolsPage() {
@@ -69,10 +70,11 @@ export function MobileToolsPage() {
 
 function ToolCard({ tool }: { tool: AiToolDef }) {
   const disabled = tool.status === "coming_soon";
-  const cover =
+  const raw =
     tool.covers?.filter(Boolean).at(-1) ??
     tool.covers?.[0] ??
     null;
+  const cover = raw ? staticAssetUrl(raw) : null;
 
   const body = (
     <>

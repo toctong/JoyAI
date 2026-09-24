@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/shared/lib/utils";
+import { staticAssetUrl } from "@/shared/lib/static-asset";
 import { useManjuStore } from "../manju-store";
 import {
   MODE_OPTIONS,
@@ -58,7 +59,7 @@ function StyleCard({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={template.thumb}
+          src={staticAssetUrl(template.thumb)}
           alt=""
           className="manju-style-card__img"
           draggable={false}

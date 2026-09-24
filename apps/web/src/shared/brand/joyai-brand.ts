@@ -1,4 +1,4 @@
-/** Brand chrome — all assets served from `public/brand/` (no remote URLs). */
+/** Brand chrome — always local under `public/brand/`. */
 export const JOYAI_BRAND = {
   /** Sidebar / compact mark (also used on login) */
   logo: "/brand/mirora-mark.png",

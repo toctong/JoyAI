@@ -13,6 +13,7 @@ import { assetListImageUrl, tosVideoPosterUrl } from "@joyai/shared";
 import { AI_TOOLS } from "@/features/ai-tools";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { api, isApiCancelError } from "@/shared/lib/api";
+import { staticAssetUrl } from "@/shared/lib/static-asset";
 import { toast } from "@/shared/lib/toast";
 import type { ExploreFeedItem, ExploreFeedResult } from "@/features/explore/types";
 
@@ -36,7 +37,8 @@ type JobsPage = { items: Job[]; hasMore: boolean };
 
 function toolCover(covers?: string[]) {
   const list = covers?.filter(Boolean) ?? [];
-  return list.at(-1) ?? list[0] ?? null;
+  const path = list.at(-1) ?? list[0] ?? null;
+  return path ? staticAssetUrl(path) : null;
 }
 function isStudioFeedJob(job: Job) {
   if (job.canvasProjectId) return false;

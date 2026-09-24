@@ -8,6 +8,7 @@ import {
   type AiToolCategory,
   type AiToolDef,
 } from "./tool-catalog";
+import { staticAssetUrl } from "@/shared/lib/static-asset";
 import "./ai-tools.css";
 
 export function AiToolsHome() {
@@ -61,7 +62,7 @@ export function AiToolsHome() {
 
 function ToolCard({ tool }: { tool: AiToolDef }) {
   const disabled = tool.status === "coming_soon";
-  const covers = tool.covers?.filter(Boolean) ?? [];
+  const covers = (tool.covers?.filter(Boolean) ?? []).map(staticAssetUrl);
   const [back, mid, face] = [
     covers[0],
     covers[1] ?? covers[0],

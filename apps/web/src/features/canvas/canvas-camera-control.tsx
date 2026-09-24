@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
+import { staticAssetUrl } from "@/shared/lib/static-asset";
 import {
   APERTURE_META,
   APERTURES,
@@ -345,8 +346,9 @@ function SettingColumn({
 }
 
 function CameraVisual({ profile }: { profile: CameraProfile }) {
-  const src =
-    CAMERA_IMAGE[profile.id] ?? "/canvas/camera/arri.png";
+  const src = staticAssetUrl(
+    CAMERA_IMAGE[profile.id] ?? "/canvas/camera/arri.png",
+  );
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -359,8 +361,9 @@ function CameraVisual({ profile }: { profile: CameraProfile }) {
 }
 
 function LensVisual({ profile }: { profile: LensProfile }) {
-  const src =
-    LENS_IMAGE[profile.id] ?? "/canvas/camera/lens-signature.png";
+  const src = staticAssetUrl(
+    LENS_IMAGE[profile.id] ?? "/canvas/camera/lens-signature.png",
+  );
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img

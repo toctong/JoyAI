@@ -31,6 +31,7 @@ import {
 } from "@/features/ai-tools/tool-catalog";
 import { useAiToolJob } from "@/features/ai-tools/use-ai-tool-job";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
+import { staticAssetUrl } from "@/shared/lib/static-asset";
 import { cn } from "@/shared/lib/utils";
 
 type ParamSheet = "ratio" | "resolution" | "size" | null;
@@ -102,8 +103,9 @@ export function MobileToolDetailPage({ tool }: { tool: AiToolDef }) {
         name: selectedModel.name,
       })
     : null;
-  const cover =
+  const rawCover =
     tool.covers?.filter(Boolean).at(-1) ?? tool.covers?.[0] ?? null;
+  const cover = rawCover ? staticAssetUrl(rawCover) : null;
 
   const ratioLabel =
     layout.aspects.find((a) => a.id === ratio)?.label ?? ratio;

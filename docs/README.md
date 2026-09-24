@@ -11,5 +11,6 @@
 7. [TODO.md](./TODO.md) / [DONE.md](./DONE.md) — 进度（含 Phase 22 部署与任务可靠性）
 8. [NOTES.md](./NOTES.md) — 风险与注意事项（任务对账、时区、TOS GC）
 9. [../deploy/fnos/app/README.md](../deploy/fnos/app/README.md) — 飞牛部署与镜像打包（`scripts/pack-fnos.ps1`）
+10. [tool-cover-prompts.md](./tool-cover-prompts.md) — 工具目录封面生图提示词（按 slug 复制）
 
 工程约定见仓库 `.cursor/skills/joyai-engineering/SKILL.md`。

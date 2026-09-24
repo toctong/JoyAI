@@ -257,6 +257,10 @@ export function InspireDepthCanvas({ scene, paused, strength }: Props) {
     const loadTexture = (src: string) =>
       new Promise<WebGLTexture>((resolve, reject) => {
         const img = new Image();
+        // CDN (jsDelivr) textures need CORS or texImage2D taints the canvas.
+        if (/^https?:\/\//i.test(src)) {
+          img.crossOrigin = "anonymous";
+        }
         img.onload = () => {
           if (disposed) return;
           const tex = makeTexture();

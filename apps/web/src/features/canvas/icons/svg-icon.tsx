@@ -94,6 +94,7 @@ const CANVAS_ICON_REV = "director-cube-1";
  * Brand marks from thesvg.org live beside them as `brand-*.svg` files.
  */
 export function CanvasSvg({ name, className, title }: Props) {
+  const iconUrl = `/canvas-icons/${name}.svg?v=${CANVAS_ICON_REV}`;
   return (
     <span
       role={title ? "img" : "presentation"}
@@ -105,8 +106,8 @@ export function CanvasSvg({ name, className, title }: Props) {
         className,
       )}
       style={{
-        WebkitMaskImage: `url(/canvas-icons/${name}.svg?v=${CANVAS_ICON_REV})`,
-        maskImage: `url(/canvas-icons/${name}.svg?v=${CANVAS_ICON_REV})`,
+        WebkitMaskImage: `url(${iconUrl})`,
+        maskImage: `url(${iconUrl})`,
         WebkitMaskSize: "contain",
         maskSize: "contain",
         WebkitMaskRepeat: "no-repeat",

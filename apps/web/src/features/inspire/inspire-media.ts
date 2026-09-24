@@ -1,18 +1,19 @@
 import type { CSSProperties } from "react";
+import { staticAssetUrl } from "@/shared/lib/static-asset";
 
 /** Cinematic inspire stage media — paired stills + 1s transition clips. */
 export const INSPIRE_MEDIA = {
   heroes: [
-    "/inspire/hero-01.webp",
-    "/inspire/hero-02.webp",
-    "/inspire/hero-03.webp",
+    staticAssetUrl("/inspire/hero-01.webp"),
+    staticAssetUrl("/inspire/hero-02.webp"),
+    staticAssetUrl("/inspire/hero-03.webp"),
   ],
   depths: [
-    "/inspire/depth-01.png",
-    "/inspire/depth-02.png",
-    "/inspire/depth-03.png",
+    staticAssetUrl("/inspire/depth-01.png"),
+    staticAssetUrl("/inspire/depth-02.png"),
+    staticAssetUrl("/inspire/depth-03.png"),
   ],
-  /** index 0: scene 0↔1, index 1: scene 1↔2 */
+  /** index 0: scene 0↔1, index 1: scene 1↔2 — mp4 stays local (not on CDN). */
   covers: [
     { forward: "/inspire/cover-01.mp4", reverse: "/inspire/cover-01-reverse.mp4" },
     { forward: "/inspire/cover-02.mp4", reverse: "/inspire/cover-02-reverse.mp4" },
