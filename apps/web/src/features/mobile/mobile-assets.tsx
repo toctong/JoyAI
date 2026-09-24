@@ -25,8 +25,8 @@ import type { AssetsPreviewItem } from "@/features/assets/assets-detail-dialog";
 dayjs.locale("zh-cn");
 
 type Asset = AssetsPreviewItem;
-type Tab = "image" | "video" | "audio" | "document";
-type SourceFilter = "all" | AssetSource;
+type Tab = "image" | "video" | "audio" | "document" | "upload";
+type SourceFilter = "all" | Exclude<AssetSource, "upload">;
 
 type AssetGroup = {
   key: string;
@@ -39,6 +39,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "video", label: "视频" },
   { id: "audio", label: "音频" },
   { id: "document", label: "文档" },
+  { id: "upload", label: "上传" },
 ];
 
 const SOURCE_CHIPS: { id: SourceFilter; label: string }[] = [
@@ -47,10 +48,9 @@ const SOURCE_CHIPS: { id: SourceFilter; label: string }[] = [
   { id: "tools", label: "工具" },
   { id: "canvas", label: "画布" },
   { id: "manju", label: "漫剧" },
-  { id: "upload", label: "上传" },
 ];
 
-function tabToKind(tab: Tab) {
+function tabToKind(tab: Exclude<Tab, "upload">) {
   return tab === "document" ? "text" : tab;
 }
 
@@ -94,6 +94,12 @@ function groupAssets(list: Asset[]): AssetGroup[] {
 }
 
 function emptyCopy(tab: Tab) {
+  if (tab === "upload") {
+    return {
+      title: "还没有上传",
+      hint: "在创作、画布、漫剧或工具里上传的参考素材会出现在这里",
+    };
+  }
   const noun =
     tab === "video"
       ? "视频"
@@ -121,10 +127,14 @@ export function MobileAssetsPage() {
     queryFn: async ({ signal }) => {
       const qs = new URLSearchParams({
         take: "200",
-        kind: tabToKind(tab),
         sort: "newest",
       });
-      if (source !== "all") qs.set("source", source);
+      if (tab === "upload") {
+        qs.set("source", "upload");
+      } else {
+        qs.set("kind", tabToKind(tab));
+        if (source !== "all") qs.set("source", source);
+      }
       return api<Asset[]>(`/assets?${qs}`, { signal });
     },
   });
@@ -196,23 +206,25 @@ export function MobileAssetsPage() {
             </button>
           ))}
         </div>
-        <div className="joy-m-assets-sources" role="tablist" aria-label="来源">
-          {SOURCE_CHIPS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={source === item.id}
-              className={cn(
-                "joy-m-assets-source",
-                source === item.id && "is-active",
-              )}
-              onClick={() => setSource(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+        {tab !== "upload" ? (
+          <div className="joy-m-assets-sources" role="tablist" aria-label="来源">
+            {SOURCE_CHIPS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={source === item.id}
+                className={cn(
+                  "joy-m-assets-source",
+                  source === item.id && "is-active",
+                )}
+                onClick={() => setSource(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {loading ? (

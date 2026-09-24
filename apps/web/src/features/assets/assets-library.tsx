@@ -27,8 +27,8 @@ dayjs.locale("zh-cn");
 
 type Asset = AssetsPreviewItem;
 
-type Tab = "image" | "video" | "audio" | "document";
-type SourceFilter = "all" | AssetSource;
+type Tab = "image" | "video" | "audio" | "document" | "upload";
+type SourceFilter = "all" | Exclude<AssetSource, "upload">;
 type TimeFilter = "all" | "1d" | "7d" | "30d";
 type SortFilter = "newest" | "oldest";
 
@@ -38,7 +38,7 @@ type AssetGroup = {
   items: Asset[];
 };
 
-function tabToKind(tab: Tab) {
+function tabToKind(tab: Exclude<Tab, "upload">) {
   return tab === "document" ? "text" : tab;
 }
 
@@ -150,6 +150,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "video", label: "视频" },
   { id: "audio", label: "音频" },
   { id: "document", label: "文档" },
+  { id: "upload", label: "上传" },
 ];
 
 const SOURCE_OPTIONS: { id: SourceFilter; label: string }[] = [
@@ -158,7 +159,6 @@ const SOURCE_OPTIONS: { id: SourceFilter; label: string }[] = [
   { id: "canvas", label: "画布" },
   { id: "manju", label: "漫剧" },
   { id: "tools", label: "AI 工具" },
-  { id: "upload", label: "上传" },
 ];
 
 const TIME_OPTIONS: { id: TimeFilter; label: string }[] = [
@@ -174,6 +174,12 @@ const SORT_OPTIONS: { id: SortFilter; label: string }[] = [
 ];
 
 function emptyCopy(tab: Tab, source: SourceFilter) {
+  if (tab === "upload") {
+    return {
+      title: "暂无上传",
+      hint: "在创作、画布、漫剧或工具里上传的参考素材会出现在这里",
+    };
+  }
   const noun =
     tab === "video"
       ? "视频"
@@ -182,12 +188,6 @@ function emptyCopy(tab: Tab, source: SourceFilter) {
         : tab === "document"
           ? "文档"
           : "图片";
-  if (source === "upload") {
-    return {
-      title: `暂无上传${noun}`,
-      hint: "上传的参考素材会出现在这里",
-    };
-  }
   if (source === "studio") {
     return {
       title: `暂无创作${noun}`,
@@ -221,7 +221,7 @@ function emptyCopy(tab: Tab, source: SourceFilter) {
   if (tab === "document") {
     return {
       title: "暂无文档",
-      hint: "画布保存或上传的文本文档会出现在这里",
+      hint: "画布保存或 AI 工具产出的文本文档会出现在这里",
     };
   }
   return {
@@ -246,10 +246,14 @@ export function AssetsLibrary() {
       try {
         const qs = new URLSearchParams({
           take: "200",
-          kind: tabToKind(tab),
           sort,
         });
-        if (source !== "all") qs.set("source", source);
+        if (tab === "upload") {
+          qs.set("source", "upload");
+        } else {
+          qs.set("kind", tabToKind(tab));
+          if (source !== "all") qs.set("source", source);
+        }
         if (time !== "all") qs.set("from", time);
         const list = await api<Asset[]>(`/assets?${qs}`);
         if (alive) setAssets(list);
@@ -310,21 +314,23 @@ export function AssetsLibrary() {
           </div>
 
           <div className="joy-assets-filters">
-            <Select
-              value={source}
-              onValueChange={(v) => setSource(v as SourceFilter)}
-            >
-              <SelectTrigger className="joy-assets-filter">
-                <SelectValue placeholder="来源" />
-              </SelectTrigger>
-              <SelectContent>
-                {SOURCE_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {tab !== "upload" ? (
+              <Select
+                value={source}
+                onValueChange={(v) => setSource(v as SourceFilter)}
+              >
+                <SelectTrigger className="joy-assets-filter">
+                  <SelectValue placeholder="来源" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOURCE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
 
             <Select
               value={time}

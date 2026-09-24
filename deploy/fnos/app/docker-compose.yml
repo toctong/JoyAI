@@ -3,7 +3,9 @@
 # 把本机 .env 复制到这个目录，和 docker-compose.yml 放在一起。
 #
 # 镜像内 nginx 监听 3000，已正确转发 /api 与 /socket.io（含 WebSocket）。
-# 飞牛外层反代只需 HTTPS → 本机 18080，不必再单独配 WS / 3001。
+# 飞牛外层反代：HTTPS → 本机 18080（见同目录 README.md）。
+# 务必转发 Host / X-Forwarded-Proto=https / Upgrade；不要指 18081。
+# 手机与 PC 同一域名；手机由 Next 中间件跳到 /m/。
 
 name: joyai-fnos
 

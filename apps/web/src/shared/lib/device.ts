@@ -1,11 +1,11 @@
-/** Mobile / desktop view detection (middleware + client). */
+/** Mobile / desktop view detection (client shell gate + login home). */
 
 export const VIEW_PREF_COOKIE = "joyai-view";
 
 export type ViewPreference = "desktop" | "mobile" | "auto";
 
 const MOBILE_UA =
-  /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS|FxiOS/i;
+  /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS|FxiOS|HarmonyOS|MicroMessenger/i;
 
 /** Tablets (iPad) stay on desktop shell by default — canvas/manju need space. */
 const TABLET_UA = /iPad|Tablet|PlayBook|Silk/i;
