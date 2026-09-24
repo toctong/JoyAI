@@ -2,6 +2,23 @@
 
 镜像内已含 nginx（`:3000` → Next `:3002` + Nest `:3001`）。Compose 只映射 **`18080:3000`**。
 
+## 打包镜像（本机）
+
+在仓库根目录，先登录 Docker Hub，再执行打包脚本（构建 + 推送）：
+
+```powershell
+# 先 docker login
+powershell -ExecutionPolicy Bypass -File scripts\pack-fnos.ps1
+```
+
+默认推送 `liuxiaodi2026/joyai:latest`。可改用户或标签：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\pack-fnos.ps1 -User liuxiaodi2026 -Tag 20260924
+```
+
+脚本：`scripts/pack-fnos.ps1`。飞牛侧用下方「更新」拉新镜像即可。
+
 ## 飞牛 / 穿透反代（必看）
 
 外层 HTTPS 反代只需转到本机 **`http://127.0.0.1:18080`**（或 NAS IP:18080），**不要**再指 18081。

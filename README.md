@@ -6,6 +6,8 @@ AIGC 创意平台：对话式生图/生视频 + 无限画板。后端 NestJS（F
 
 先读 [docs/README.md](docs/README.md)，进度见 [docs/TODO.md](docs/TODO.md) / [docs/DONE.md](docs/DONE.md)。
 
+飞牛 Docker 部署与镜像打包见 [deploy/fnos/app/README.md](deploy/fnos/app/README.md)。
+
 ## 快速开始
 
 ```bash

@@ -167,3 +167,12 @@ pnpm dev:web
 填写 `.env` 中 `ARK_*` 与 `TOS_*` 后，以 admin 角色登录 web 访问 `/admin` 可补渠道/模型，或依赖 bootstrap 自动建渠道。
 
 飞牛部署：先起 `deploy/fnos/db`，再起 `deploy/fnos/app`（拉 `liuxiaodi2026/joyai:latest`）。改过 MySQL 时区后需按新 compose **重启 db**，之后新任务时间按 UTC 存、本地正确显示。不做历史行校正。
+
+本机打包并推送镜像：
+
+```powershell
+# 先 docker login
+powershell -ExecutionPolicy Bypass -File scripts\pack-fnos.ps1
+```
+
+详见 [deploy/fnos/app/README.md](../deploy/fnos/app/README.md)。

@@ -180,7 +180,6 @@ function showBrowserNotification(title: string, body: string) {
   const notification = new Notification(title, {
     body,
     tag: NOTIFY_TAG,
-    renotify: true,
   });
   lastBrowserNotification = notification;
   notification.onclick = () => {

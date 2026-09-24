@@ -10,5 +10,6 @@
 6. [API.md](./API.md) — 接口草案
 7. [TODO.md](./TODO.md) / [DONE.md](./DONE.md) — 进度（含 Phase 22 部署与任务可靠性）
 8. [NOTES.md](./NOTES.md) — 风险与注意事项（任务对账、时区、TOS GC）
+9. [../deploy/fnos/app/README.md](../deploy/fnos/app/README.md) — 飞牛部署与镜像打包（`scripts/pack-fnos.ps1`）
 
 工程约定见仓库 `.cursor/skills/joyai-engineering/SKILL.md`。
