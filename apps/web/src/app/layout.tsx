@@ -20,6 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://cdn.jsdmirror.com" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://cdn.jsdmirror.com" />
+      </head>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
       >

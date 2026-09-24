@@ -51,8 +51,8 @@ export function AiToolsHome() {
         </header>
 
         <div className="joy-ai-tools-grid">
-          {tools.map((tool) => (
-            <ToolCard key={tool.slug} tool={tool} />
+          {tools.map((tool, index) => (
+            <ToolCard key={tool.slug} tool={tool} priority={index < 6} />
           ))}
         </div>
       </div>
@@ -60,7 +60,13 @@ export function AiToolsHome() {
   );
 }
 
-function ToolCard({ tool }: { tool: AiToolDef }) {
+function ToolCard({
+  tool,
+  priority,
+}: {
+  tool: AiToolDef;
+  priority?: boolean;
+}) {
   const disabled = tool.status === "coming_soon";
   const covers = (tool.covers?.filter(Boolean) ?? []).map(staticAssetUrl);
   const [back, mid, face] = [
@@ -68,6 +74,12 @@ function ToolCard({ tool }: { tool: AiToolDef }) {
     covers[1] ?? covers[0],
     covers[2] ?? covers[1] ?? covers[0],
   ];
+  // One URL per card until hover → ~⅓ CDN requests; browser caches face for layers.
+  const [stackDeep, setStackDeep] = useState(false);
+  const revealStack = () => setStackDeep(true);
+  const backSrc = stackDeep ? back : face;
+  const midSrc = stackDeep ? mid : face;
+
   const body = (
     <>
       <div className="joy-ai-tool-card-copy">
@@ -91,12 +103,30 @@ function ToolCard({ tool }: { tool: AiToolDef }) {
           {face ? (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="joy-ai-tool-stack-layer is-back" src={back} alt="" />
+              <img
+                className="joy-ai-tool-stack-layer is-back"
+                src={backSrc}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="joy-ai-tool-stack-layer is-mid" src={mid} alt="" />
+              <img
+                className="joy-ai-tool-stack-layer is-mid"
+                src={midSrc}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
               <div className="joy-ai-tool-stack-face is-photo">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={face} alt="" />
+                <img
+                  src={face}
+                  alt=""
+                  loading={priority ? "eager" : "lazy"}
+                  decoding="async"
+                  fetchPriority={priority ? "high" : "auto"}
+                />
               </div>
             </>
           ) : (
@@ -117,14 +147,24 @@ function ToolCard({ tool }: { tool: AiToolDef }) {
 
   if (disabled) {
     return (
-      <div className="joy-ai-tool-card is-disabled" aria-disabled>
+      <div
+        className="joy-ai-tool-card is-disabled"
+        aria-disabled
+        onMouseEnter={revealStack}
+        onFocus={revealStack}
+      >
         {body}
       </div>
     );
   }
 
   return (
-    <Link href={`/tools/${tool.slug}`} className="joy-ai-tool-card">
+    <Link
+      href={`/tools/${tool.slug}`}
+      className="joy-ai-tool-card"
+      onMouseEnter={revealStack}
+      onFocus={revealStack}
+    >
       {body}
     </Link>
   );

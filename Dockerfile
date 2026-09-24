@@ -13,7 +13,7 @@ ARG NPM_REGISTRY=https://registry.npmmirror.com
 # Relative /api → browser same-origin; Docker nginx (or Next rewrite) → Nest.
 ARG NEXT_PUBLIC_API_URL=/api
 ARG NEXT_PUBLIC_WS_URL=
-ARG NEXT_PUBLIC_STATIC_CDN=https://cdn.jsdelivr.net/gh/toctong/image-hosting@main/joyai
+ARG NEXT_PUBLIC_STATIC_CDN=https://cdn.jsdmirror.com/gh/toctong/image-hosting@main/joyai
 
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 

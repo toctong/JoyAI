@@ -1,6 +1,6 @@
-/** Default jsDelivr mirror of toctong/image-hosting (heavy content images). */
+/** Prefer CN-friendly jsDelivr mirror (cdn.jsdelivr.net is often slow inland). */
 const DEFAULT_STATIC_CDN =
-  "https://cdn.jsdelivr.net/gh/toctong/image-hosting@main/joyai";
+  "https://cdn.jsdmirror.com/gh/toctong/image-hosting@main/joyai";
 
 /**
  * Core chrome stays on local `public/` — brand, UI icons, loading.
