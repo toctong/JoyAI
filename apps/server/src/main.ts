@@ -21,7 +21,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   const isProd = config.get<string>("NODE_ENV") === "production";
-  const origins = (config.get<string>("CORS_ORIGINS") ?? "http://localhost:3000")
+  const origins = (config.get<string>("CORS_ORIGINS") ?? "http://localhost:9000")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);

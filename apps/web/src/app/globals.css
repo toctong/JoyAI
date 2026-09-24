@@ -174,9 +174,41 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * antd-mobile/es/global is unlayered and sets `a { color: #1677ff }` + body text.
+ * CSS stays after client nav from /m → desktop, beating Tailwind utilities.
+ * Neutralize outside the mobile shell; keep sidebar immune either way.
+ */
+html:not(:has(.joy-m)) {
+  background-color: var(--atmosphere, var(--background));
+}
+
+html body:not(:has(.joy-m)) {
+  color: var(--foreground);
+  font-size: inherit;
+  font-family: inherit;
+}
+
+html body:not(:has(.joy-m)) a {
+  color: inherit;
+  transition: none;
+}
+
+html body:not(:has(.joy-m)) a:active {
+  opacity: 1;
+}
+
 .joy-sidebar {
   background: var(--card);
+  color: var(--foreground);
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.joy-sidebar a,
+.joy-sidebar a:active,
+.joy-sidebar button {
+  color: inherit;
+  opacity: 1;
 }
 
 .admin-table thead tr {

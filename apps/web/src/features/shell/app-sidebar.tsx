@@ -3,19 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Clapperboard,
-  Compass,
-  FolderOpen,
-  Frame,
-  Github,
   LogOut,
   Settings2,
   Shield,
   ShieldCheck,
-  Sparkles,
-  Wand2,
-  Wrench,
-  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/shared/lib/utils";
@@ -32,25 +23,69 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NavSvgIcon, type NavSvgName } from "@/shared/ui/nav-svg-icon";
 
 type NavItem = {
   href: string;
   label: string;
-  Icon: LucideIcon;
+  icon: NavSvgName;
   beta?: boolean;
 };
 
-/** All rail icons use Lucide — same stroke weight / size as admin & GitHub. */
+/** Product rail — SVG masks from `/public/icons/nav`. */
 const nav: NavItem[] = [
-  { href: "/inspire", label: "灵感", Icon: Sparkles },
-  { href: "/explore", label: "探索", Icon: Compass },
-  { href: "/studio", label: "创作", Icon: Wand2 },
-  { href: "/canvas", label: "画布", Icon: Frame, beta: true },
-  { href: "/manju", label: "漫剧", Icon: Clapperboard, beta: true },
-  { href: "/assets", label: "资产", Icon: FolderOpen },
-  { href: "/tools", label: "工具", Icon: Wrench },
-  { href: "/github", label: "GitHub", Icon: Github },
+  { href: "/inspire", label: "灵感", icon: "inspire" },
+  { href: "/explore", label: "探索", icon: "explore" },
+  { href: "/studio", label: "创作", icon: "studio" },
+  { href: "/canvas", label: "画布", icon: "canvas", beta: true },
+  { href: "/manju", label: "漫剧", icon: "manju", beta: true },
+  { href: "/assets", label: "资产", icon: "assets" },
+  { href: "/tools", label: "工具", icon: "tools" },
+  { href: "/github", label: "GitHub", icon: "github" },
 ];
+
+function RailLink({
+  href,
+  label,
+  icon,
+  active,
+  beta,
+}: {
+  href: string;
+  label: string;
+  icon: NavSvgName;
+  active: boolean;
+  beta?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "group relative flex w-full flex-col items-center justify-center gap-1 outline-none transition-colors focus-visible:outline-none",
+        active
+          ? "text-[#3f3f46] dark:text-zinc-200"
+          : "text-[#c4c4c8] dark:text-zinc-600",
+        "hover:text-[#8b8b93] dark:hover:text-zinc-400",
+      )}
+    >
+      <span className="relative inline-flex size-[var(--joy-sidebar-icon)] items-center justify-center">
+        <NavSvgIcon
+          name={icon}
+          active={active}
+          className="size-[var(--joy-sidebar-icon)]"
+        />
+        {beta ? (
+          <span className="pointer-events-none absolute -right-2 -top-1 rounded-[4px] bg-[#7c5cff] px-[3px] py-px text-[9px] font-semibold leading-none tracking-tight text-white">
+            Beta
+          </span>
+        ) : null}
+      </span>
+      <span className="max-w-full truncate text-center text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px]">
+        {label}
+      </span>
+    </Link>
+  );
+}
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -64,139 +99,103 @@ export function AppSidebar() {
 
   return (
     <>
-    <aside className="joy-sidebar sticky top-0 z-40 flex h-svh w-[var(--joy-sidebar-width)] shrink-0 flex-col items-center bg-card py-3">
-      <Link
-        href="/inspire"
-        className="mb-1 flex h-10 w-10 items-center justify-center"
-        aria-label="JoyAI"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={JOYAI_BRAND.logo}
-          alt="JoyAI"
-          className="h-9 w-9 object-contain"
-          draggable={false}
-        />
-      </Link>
+      <aside className="joy-sidebar sticky top-0 z-40 flex h-svh w-[var(--joy-sidebar-width)] shrink-0 flex-col items-center bg-card py-3">
+        <Link
+          href="/inspire"
+          className="mb-1 flex size-10 items-center justify-center"
+          aria-label="JoyAI"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={JOYAI_BRAND.logo}
+            alt="JoyAI"
+            className="size-9 object-contain"
+            draggable={false}
+          />
+        </Link>
 
-      <nav className="mt-1 flex w-full flex-1 flex-col items-center gap-0.5 px-1">
-        {nav.map((item) => {
-          const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const Icon = item.Icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "relative flex w-full flex-col items-center justify-center gap-0.5 py-1.5 outline-none transition-colors focus-visible:outline-none",
-                active
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <span className="relative inline-flex h-9 w-9 items-center justify-center">
-                <Icon
-                  className={cn(
-                    "h-[var(--joy-icon-lg)] w-[var(--joy-icon-lg)] transition",
-                    !active && "opacity-70",
-                  )}
-                  strokeWidth={1.75}
-                />
-                {item.beta ? (
-                  <span className="absolute -bottom-1 -right-3 rounded-[6px] bg-[#7c5cff] px-1 py-[1px] text-[length:var(--joy-font-micro)] font-semibold leading-none text-white shadow-sm">
-                    Beta
+        <nav className="mt-2 flex w-full flex-1 flex-col items-center gap-[var(--joy-sidebar-item-gap)] px-0.5">
+          {nav.map((item) => {
+            const active =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return (
+              <RailLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                icon={item.icon}
+                active={active}
+                beta={item.beta}
+              />
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto flex w-full flex-col items-center gap-2.5 px-0.5">
+          {isAdmin ? (
+            <RailLink
+              href="/admin"
+              label="管理"
+              icon="admin"
+              active={adminActive}
+            />
+          ) : null}
+          <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex flex-col items-center gap-1 px-1 py-1 text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px] text-[#c4c4c8] outline-none transition-colors hover:text-[#8b8b93] dark:text-zinc-600 dark:hover:text-zinc-400"
+              >
+                <Avatar className="size-9">
+                  <AvatarImage src={JOYAI_BRAND.remote.avatar} alt="" />
+                  <AvatarFallback className="bg-muted text-[length:var(--joy-font-caption)] text-foreground">
+                    {initial}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="max-w-[64px] truncate">
+                  {user?.username ?? "我"}
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="end" className="w-44">
+              <DropdownMenuLabel className="truncate">
+                {user?.username}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {isAdmin ? (
+                <DropdownMenuItem onClick={() => router.push("/admin")}>
+                  <Shield className="h-4 w-4" />
+                  管理后台
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem onClick={() => router.push("/account")}>
+                <Settings2 className="h-4 w-4" />
+                账户设置
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTotpOpen(true)}>
+                <ShieldCheck className="h-4 w-4" />
+                身份验证器
+                {user?.totpEnabled ? (
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    已开
                   </span>
                 ) : null}
-              </span>
-              <span className="max-w-full truncate text-center text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px]">
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="mt-auto flex w-full flex-col items-center gap-2 px-1">
-        {isAdmin ? (
-          <Link
-            href="/admin"
-            className={cn(
-              "flex w-full flex-col items-center justify-center gap-0.5 py-1.5 outline-none transition-colors",
-              adminActive
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            aria-label="管理后台"
-            title="管理后台"
-          >
-            <span className="inline-flex h-9 w-9 items-center justify-center">
-              <Shield
-                className="h-[var(--joy-icon-lg)] w-[var(--joy-icon-lg)]"
-                strokeWidth={1.75}
-              />
-            </span>
-            <span className="max-w-full truncate text-center text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px]">
-              管理
-            </span>
-          </Link>
-        ) : null}
-        <ThemeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="flex flex-col items-center gap-1 px-1 py-1.5 text-[length:var(--joy-font-caption)] text-muted-foreground outline-none hover:text-foreground"
-            >
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={JOYAI_BRAND.remote.avatar} alt="" />
-                <AvatarFallback className="bg-muted text-[length:var(--joy-font-caption)] text-foreground">
-                  {initial}
-                </AvatarFallback>
-              </Avatar>
-              <span className="max-w-[64px] truncate">
-                {user?.username ?? "我"}
-              </span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="end" className="w-44">
-            <DropdownMenuLabel className="truncate">
-              {user?.username}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {isAdmin ? (
-              <DropdownMenuItem onClick={() => router.push("/admin")}>
-                <Shield className="h-4 w-4" />
-                管理后台
               </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem onClick={() => router.push("/account")}>
-              <Settings2 className="h-4 w-4" />
-              账户设置
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTotpOpen(true)}>
-              <ShieldCheck className="h-4 w-4" />
-              身份验证器
-              {user?.totpEnabled ? (
-                <span className="ml-auto text-[10px] text-muted-foreground">
-                  已开
-                </span>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => {
-                logout();
-                router.replace("/login");
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-              退出登录
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </aside>
-    <TotpSecurityDialog open={totpOpen} onOpenChange={setTotpOpen} />
+              <DropdownMenuItem
+                onClick={() => {
+                  logout();
+                  router.replace("/login");
+                }}
+              >
+                <LogOut className="h-4 w-4" />
+                退出登录
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </aside>
+      <TotpSecurityDialog open={totpOpen} onOpenChange={setTotpOpen} />
     </>
   );
 }
