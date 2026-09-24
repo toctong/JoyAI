@@ -1,0 +1,154 @@
+.joy-app-notify-host {
+  position: fixed;
+  z-index: 80;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: var(--joy-space-3);
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  pointer-events: none;
+}
+
+.joy-app-notify-card {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--joy-space-3);
+  padding: var(--joy-space-4);
+  border-radius: var(--joy-radius-lg);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: 0 12px 28px color-mix(in oklab, #000 12%, transparent);
+  animation: joy-app-notify-in var(--joy-duration-normal) var(--joy-ease-out);
+}
+
+.joy-app-notify-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--joy-space-3);
+}
+
+.joy-app-notify-icon {
+  width: var(--joy-icon-lg);
+  height: var(--joy-icon-lg);
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.joy-app-notify-icon.is-success {
+  color: var(--foreground);
+}
+
+.joy-app-notify-icon.is-error {
+  color: var(--destructive);
+}
+
+.joy-app-notify-icon.is-info {
+  color: var(--muted-foreground);
+}
+
+.joy-app-notify-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.joy-app-notify-title {
+  margin: 0;
+  font-size: var(--joy-font-title);
+  font-weight: var(--joy-weight-semibold);
+  line-height: var(--joy-leading-snug);
+}
+
+.joy-app-notify-line {
+  margin: 0;
+  font-size: var(--joy-font-caption);
+  line-height: var(--joy-leading-normal);
+  color: var(--muted-foreground);
+  word-break: break-word;
+}
+
+.joy-app-notify-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--joy-control-h-sm);
+  height: var(--joy-control-h-sm);
+  margin: -6px -6px 0 0;
+  border: 0;
+  border-radius: var(--joy-radius-sm);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.joy-app-notify-close:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.joy-app-notify-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--joy-space-2);
+  padding-left: calc(var(--joy-icon-lg) + var(--joy-space-3));
+}
+
+.joy-app-notify-thumb {
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: var(--joy-radius-sm);
+  background: var(--muted);
+}
+
+.joy-app-notify-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-left: calc(var(--joy-icon-lg) + var(--joy-space-3));
+}
+
+.joy-app-notify-action {
+  display: inline-flex;
+  align-items: center;
+  height: var(--joy-control-h-sm);
+  padding: 0 var(--joy-space-3);
+  border-radius: var(--joy-radius-sm);
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: var(--joy-font-caption);
+  font-weight: var(--joy-weight-medium);
+  text-decoration: none;
+}
+
+.joy-app-notify-action:hover {
+  background: var(--muted);
+}
+
+@keyframes joy-app-notify-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .joy-app-notify-host {
+    top: max(8px, env(safe-area-inset-top, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+    left: max(8px, env(safe-area-inset-left, 0px));
+    width: auto;
+  }
+}

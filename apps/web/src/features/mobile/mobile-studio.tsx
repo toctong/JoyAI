@@ -28,6 +28,8 @@ import { api, apiUpload } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { ensureGenerationNotifyPermission } from "@/shared/lib/generation-notify";
+import { watchStudioGeneration } from "@/shared/lib/studio-generation-notify-host";
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import {
   DEFAULT_ASPECTS,
@@ -256,7 +258,17 @@ export function MobileStudioPage() {
   const loadJobs = useCallback(async () => {
     try {
       const res = await api<JobsPage>(`/jobs?take=${JOBS_PAGE}&scope=studio`);
-      setJobs(res.items.filter(isStudioFeedJob));
+      const items = res.items.filter(isStudioFeedJob);
+      setJobs(items);
+      for (const job of items) {
+        if (isBusy(job.status)) {
+          watchStudioGeneration(job.id, {
+            kind: job.kind,
+            modelName: job.modelName,
+            prompt: job.input?.prompt,
+          });
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "加载创作记录失败");
     } finally {
@@ -323,7 +335,7 @@ export function MobileStudioPage() {
         const copy = [...prev];
         copy[idx] = {
           ...copy[idx],
-          status: "failed",
+          status: payload.status === "cancelled" ? "cancelled" : "failed",
           error: payload.error ?? copy[idx].error,
         };
         return copy;
@@ -456,6 +468,12 @@ export function MobileStudioPage() {
         method: "POST",
         body: { kind, input },
       });
+      watchStudioGeneration(job.id, {
+        kind,
+        modelName: selectedModel?.name,
+        prompt: promptText,
+      });
+      void ensureGenerationNotifyPermission();
       setJobs((prev) => [job, ...prev.filter((j) => j.id !== job.id)]);
       Toast.show({ content: "已提交生成", position: "center" });
     } catch (e) {

@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { ImageGenIcon, VideoGenIcon } from "./gen-kind-icons";
 import { toast } from "@/shared/lib/toast";
+import { ensureGenerationNotifyPermission } from "@/shared/lib/generation-notify";
+import { watchStudioGeneration } from "@/shared/lib/studio-generation-notify-host";
 import { api, apiUpload } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { BrandAvatar } from "@/components/admin/brand-avatar";
@@ -1104,6 +1106,11 @@ export function CreationComposer({
           method: "POST",
           body: { kind: "image", input },
         });
+        watchStudioGeneration(job.id, {
+          kind: "image",
+          modelName: selectedModel?.name,
+          prompt: promptText,
+        });
         onJobCreated?.(job.id);
       } else {
         const input: Record<string, unknown> = {
@@ -1126,9 +1133,15 @@ export function CreationComposer({
           method: "POST",
           body: { kind: "video", input },
         });
+        watchStudioGeneration(job.id, {
+          kind: "video",
+          modelName: selectedModel?.name,
+          prompt: promptText,
+        });
         onJobCreated?.(job.id);
       }
       toast.success("任务已提交");
+      void ensureGenerationNotifyPermission();
       onSubmitted?.();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "提交失败");

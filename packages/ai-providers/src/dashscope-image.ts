@@ -179,8 +179,8 @@ async function pollDashscopeTask(params: {
   taskId: string;
 }): Promise<ImageGenerateResult> {
   const url = `${params.apiBase}/tasks/${params.taskId}`;
-  // ~8 min @ 2s
-  for (let attempt = 0; attempt < 240; attempt++) {
+  // ~15 min @ 2s
+  for (let attempt = 0; attempt < 450; attempt++) {
     await sleep(2000);
     const { data, status } = await axios.get(url, {
       headers: authHeaders(params.apiKey),
@@ -284,7 +284,7 @@ export class DashscopeImageProvider implements ImageProvider {
     const url = `${apiBase}/services/aigc/multimodal-generation/generation`;
     const { data, status } = await axios.post(url, body, {
       headers: authHeaders(input.apiKey),
-      timeout: 180_000,
+      timeout: 600_000,
       validateStatus: () => true,
     });
 

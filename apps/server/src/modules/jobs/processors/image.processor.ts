@@ -23,7 +23,11 @@ function resolveImageConcurrency(): number {
   return Math.min(Math.floor(n), 20);
 }
 
-@Processor(QUEUE.IMAGE, { concurrency: resolveImageConcurrency() })
+@Processor(QUEUE.IMAGE, {
+  concurrency: resolveImageConcurrency(),
+  // In-process provider poll can run ~15m; keep lock well above that.
+  lockDuration: 16 * 60_000,
+})
 export class ImageProcessor extends WorkerHost {
   private readonly logger = new Logger(ImageProcessor.name);
 

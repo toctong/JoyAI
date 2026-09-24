@@ -30,6 +30,8 @@ import { copyText } from "@/shared/lib/clipboard";
 import dayjs from "dayjs";
 import { api } from "@/shared/lib/api";
 import { formatDurationMs } from "@/shared/lib/format-duration";
+import { ensureGenerationNotifyPermission } from "@/shared/lib/generation-notify";
+import { watchStudioGeneration } from "@/shared/lib/studio-generation-notify-host";
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -793,6 +795,15 @@ function StudioInner() {
       setJobs(next);
       setHasMore(res.hasMore);
       stickToBottomRef.current = true;
+      for (const job of next) {
+        if (isBusy(job.status)) {
+          watchStudioGeneration(job.id, {
+            kind: job.kind,
+            modelName: job.modelName,
+            prompt: job.input?.prompt,
+          });
+        }
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "加载创作记录失败");
     } finally {
@@ -1036,13 +1047,19 @@ function StudioInner() {
     }
     setRegeneratingId(job.id);
     try {
-      await api("/jobs", {
+      const created = await api<{ id: string }>("/jobs", {
         method: "POST",
         body: {
           kind: job.kind,
           input: job.input,
         },
       });
+      watchStudioGeneration(created.id, {
+        kind: job.kind,
+        modelName: job.modelName,
+        prompt: job.input?.prompt,
+      });
+      void ensureGenerationNotifyPermission();
       toast.success("已再次提交生成");
       stickToBottomRef.current = true;
       await refreshLatest();

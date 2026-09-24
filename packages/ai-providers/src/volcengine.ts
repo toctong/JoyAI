@@ -60,7 +60,7 @@ export class VolcengineImageProvider implements ImageProvider {
       const { data } = await axios.post(
         `${input.baseUrl.replace(/\/$/, "")}/images/generations`,
         body,
-        { headers: authHeaders(input.apiKey), timeout: 180_000 },
+        { headers: authHeaders(input.apiKey), timeout: 600_000 },
       );
 
       const images = (data?.data ?? []).map(

@@ -499,7 +499,8 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
     const path = `${base}/images/${imagePath}`;
     const { data } = await axios.post(path, body, {
       headers: authHeaders(next.apiKey),
-      timeout: 180_000,
+      // Sync gateways (Seedream / GPT-Image 等) 高峰可超过 3 分钟
+      timeout: 600_000,
       validateStatus: () => true,
     });
 
@@ -568,8 +569,9 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
         ? { language: "zh" }
         : undefined;
 
-    // ~8 min @ 2s (slow async gateways / peak queues)
-    for (let attempt = 0; attempt < 240; attempt++) {
+    // ~15 min @ 2s (slow async gateways / peak queues)
+    const maxAttempts = 450;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await sleep(2000);
       let lastError: unknown;
       for (const url of endpoints) {
@@ -613,7 +615,7 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
           lastError = e;
         }
       }
-      if (attempt === 239 && lastError) throw lastError;
+      if (attempt === maxAttempts - 1 && lastError) throw lastError;
     }
     throw new Error("图片任务轮询超时，请稍后重试");
   }
