@@ -21,6 +21,9 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
+        {/* Explicit favicon — file-based app/icon.png + public fallback */}
+        <link rel="icon" href="/brand/mirora-mark.png" type="image/png" sizes="any" />
+        <link rel="apple-touch-icon" href="/brand/mirora-mark.png" />
         <link rel="preconnect" href="https://cdn.jsdmirror.com" crossOrigin="" />
         <link rel="dns-prefetch" href="https://cdn.jsdmirror.com" />
       </head>
