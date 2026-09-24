@@ -61,11 +61,8 @@ function RailLink({
     <Link
       href={href}
       className={cn(
-        "group relative flex w-full flex-col items-center justify-center gap-1 outline-none transition-colors focus-visible:outline-none",
-        active
-          ? "text-[#3f3f46] dark:text-zinc-200"
-          : "text-[#c4c4c8] dark:text-zinc-600",
-        "hover:text-[#8b8b93] dark:hover:text-zinc-400",
+        "joy-rail-link group relative flex w-full flex-col items-center justify-center gap-1 outline-none focus-visible:outline-none",
+        active && "is-active",
       )}
     >
       <span className="relative inline-flex size-[var(--joy-sidebar-icon)] items-center justify-center">
@@ -145,7 +142,7 @@ export function AppSidebar() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex flex-col items-center gap-1 px-1 py-1 text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px] text-[#c4c4c8] outline-none transition-colors hover:text-[#8b8b93] dark:text-zinc-600 dark:hover:text-zinc-400"
+                className="flex flex-col items-center gap-1 px-1 py-1 text-[length:var(--joy-font-label)] font-medium leading-5 tracking-[-0.42px] text-[#7a7a7a] outline-none transition-colors hover:text-[#5c5c5c] dark:text-zinc-500 dark:hover:text-zinc-400"
               >
                 <Avatar className="size-9">
                   <AvatarImage src={JOYAI_BRAND.remote.avatar} alt="" />

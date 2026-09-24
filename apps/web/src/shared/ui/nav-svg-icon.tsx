@@ -14,7 +14,7 @@ export type NavSvgName =
   | "github"
   | "admin";
 
-const NAV_ICON_REV = "nav-dual-4";
+const NAV_ICON_REV = "nav-dual-5";
 
 type Props = {
   name: NavSvgName;

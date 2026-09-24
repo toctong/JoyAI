@@ -200,14 +200,40 @@ html body:not(:has(.joy-m)) a:active {
 
 .joy-sidebar {
   background: var(--card);
-  color: var(--foreground);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.joy-sidebar a,
-.joy-sidebar a:active,
+/*
+ * Beat antd-mobile unlayered `a { color: … }` without locking to
+ * parent foreground (that made every rail item look near-black).
+ */
+.joy-sidebar a.joy-rail-link {
+  color: #7a7a7a;
+  opacity: 1;
+  transition: color 0.2s ease;
+}
+
+.joy-sidebar a.joy-rail-link:hover {
+  color: #5c5c5c;
+}
+
+.joy-sidebar a.joy-rail-link.is-active {
+  color: #3f3f46;
+}
+
+.dark .joy-sidebar a.joy-rail-link {
+  color: #71717a;
+}
+
+.dark .joy-sidebar a.joy-rail-link:hover {
+  color: #a1a1aa;
+}
+
+.dark .joy-sidebar a.joy-rail-link.is-active {
+  color: #e4e4e7;
+}
+
 .joy-sidebar button {
-  color: inherit;
   opacity: 1;
 }
 
@@ -287,7 +313,12 @@ html body:not(:has(.joy-m)) a:active {
 }
 
 /* Inspire page forces dark shell — glass rail always (wallpaper optional) */
-[data-inspire-home].dark .joy-sidebar {
+[data-inspire-home].dark .joy-sidebar a.joy-rail-link {
+  color: #a1a1aa;
+}
+
+[data-inspire-home].dark .joy-sidebar a.joy-rail-link:hover,
+[data-inspire-home].dark .joy-sidebar a.joy-rail-link.is-active {
   color: #f4f4f5;
 }
 
