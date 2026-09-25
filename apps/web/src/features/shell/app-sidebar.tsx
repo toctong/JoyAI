@@ -92,23 +92,19 @@ function WorkspaceRailLink({
 }) {
   const fromPath = workspaceModeFromPath(pathname);
   const [href, setHref] = useState(workspaceListHref(fromPath ?? "canvas"));
-  const [icon, setIcon] = useState<NavSvgName>(
-    fromPath === "manju" ? "manju" : "canvas",
-  );
   const active = isWorkspacePath(pathname);
 
   useEffect(() => {
     const mode = fromPath ?? readWorkspaceMode();
     if (fromPath) writeWorkspaceMode(fromPath);
     setHref(workspaceListHref(mode));
-    setIcon(mode === "manju" ? "manju" : "canvas");
   }, [fromPath, pathname]);
 
   return (
     <RailLink
       href={href}
       label={label}
-      icon={icon}
+      icon="canvas"
       active={active}
       beta={beta}
       onNavigate={() => {

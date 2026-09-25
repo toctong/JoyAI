@@ -1,0 +1,325 @@
+.joy-inspire-carousel {
+  /* Compact, close to the earlier good 3D frame */
+  --ibc-card-w: min(560px, 54vw);
+  --ibc-card-h: min(300px, 32vw);
+  --ibc-rail: var(--joy-sidebar-width, 72px);
+  --ibc-fade: var(--card);
+  position: relative;
+  width: 100%;
+  padding: 10px 0 6px;
+}
+
+.joy-inspire-carousel.is-loading {
+  display: flex;
+  justify-content: center;
+  padding-block: 16px 24px;
+}
+
+.joy-inspire-carousel__skeleton {
+  width: var(--ibc-card-w);
+  height: var(--ibc-card-h);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+}
+
+/*
+ * Symmetric bleed past both content edges (optical center stays put).
+ * Left overhang sits under the sidebar — that was the white strip before:
+ * overflow-x:visible + overflow-y:hidden is coerced to clip x, so
+ * padding-left became a visible blank while the right side looked fine.
+ */
+.joy-inspire-carousel__stage {
+  position: relative;
+  margin-left: calc(-1 * var(--ibc-rail));
+  margin-right: calc(-1 * var(--ibc-rail));
+  width: calc(100% + 2 * var(--ibc-rail));
+  padding-inline: calc(var(--ibc-rail) + 4px);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.joy-inspire-carousel__swiper {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  overflow: visible;
+  padding-block: 10px;
+  /* Needed for creative rotateY depth */
+  perspective: 1200px;
+}
+
+.joy-inspire-carousel__swiper .swiper-wrapper {
+  align-items: center;
+}
+
+.joy-inspire-carousel__slide {
+  width: var(--ibc-card-w);
+  height: var(--ibc-card-h);
+  background: transparent;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Don't hide far slides — popping them in mid-swipe causes a blank then补位 */
+.joy-inspire-carousel__slide.swiper-slide-active {
+  z-index: 3;
+}
+
+.joy-inspire-carousel__slide.swiper-slide-prev,
+.joy-inspire-carousel__slide.swiper-slide-next {
+  z-index: 1;
+}
+
+.joy-inspire-carousel__swiper::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 64%;
+  z-index: 0;
+  width: min(480px, 52vw);
+  height: 56px;
+  transform: translate(-50%, 0);
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in oklab, #000 32%, transparent) 0%,
+    transparent 74%
+  );
+  pointer-events: none;
+}
+
+.joy-inspire-carousel__card {
+  display: block;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: #fff !important;
+  background: #141414;
+  box-shadow: none;
+  outline: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.joy-inspire-carousel__card:hover,
+.joy-inspire-carousel__card:visited,
+.joy-inspire-carousel__card:active {
+  color: #fff !important;
+  text-decoration: none;
+}
+
+.swiper-slide:not(.swiper-slide-active) .joy-inspire-carousel__card {
+  pointer-events: none;
+}
+
+.joy-inspire-carousel__media {
+  position: absolute;
+  inset: 0;
+  background: #141414;
+}
+
+.joy-inspire-carousel__cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+}
+
+.joy-inspire-carousel__video {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.swiper-slide-active .joy-inspire-carousel__video {
+  opacity: 1;
+}
+
+/* Deep bottom scrim so title/CTA stay readable over busy cover art */
+.joy-inspire-carousel__veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, #000 4%, transparent) 0%,
+    color-mix(in oklab, #000 8%, transparent) 40%,
+    color-mix(in oklab, #000 52%, transparent) 72%,
+    color-mix(in oklab, #000 78%, transparent) 100%
+  );
+  pointer-events: none;
+}
+
+.joy-inspire-carousel__dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.swiper-slide-active .joy-inspire-carousel__dim {
+  opacity: 0;
+}
+
+.joy-inspire-carousel__copy {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 28px 36px 24px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.joy-inspire-carousel__copy h2 {
+  margin: 0;
+  max-width: 90%;
+  color: #fff;
+  font-size: clamp(18px, 2vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-shadow:
+    0 1px 2px color-mix(in oklab, #000 55%, transparent),
+    0 4px 24px color-mix(in oklab, #000 55%, transparent);
+}
+
+.joy-inspire-carousel__copy p {
+  margin: 0;
+  max-width: 86%;
+  color: color-mix(in oklab, #fff 88%, transparent);
+  font-size: var(--joy-font-caption, 13px);
+  line-height: 1.45;
+  text-shadow: 0 1px 12px color-mix(in oklab, #000 50%, transparent);
+}
+
+.joy-inspire-carousel__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  margin-bottom: -4px;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font-size: var(--joy-font-label, 14px);
+  font-weight: 500;
+  box-shadow: 0 4px 16px color-mix(in oklab, #000 25%, transparent);
+  pointer-events: auto;
+}
+
+/* Side cards: keep title toward the outer half so center overlap doesn't eat it */
+.swiper-slide-prev .joy-inspire-carousel__copy {
+  align-items: flex-start;
+  text-align: left;
+  padding-left: 28px;
+  padding-right: 30%;
+}
+
+.swiper-slide-next .joy-inspire-carousel__copy {
+  align-items: flex-end;
+  text-align: right;
+  padding-right: 28px;
+  padding-left: 30%;
+}
+
+.swiper-slide-prev .joy-inspire-carousel__cta,
+.swiper-slide-next .joy-inspire-carousel__cta {
+  display: none;
+}
+
+.joy-inspire-carousel__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--card) 94%, transparent);
+  color: var(--foreground);
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.joy-inspire-carousel__nav:hover {
+  background: var(--muted);
+}
+
+.joy-inspire-carousel__nav.is-prev {
+  left: calc(var(--ibc-rail) + 10px);
+}
+
+.joy-inspire-carousel__nav.is-next {
+  right: calc(var(--ibc-rail) + 10px);
+}
+
+.joy-inspire-carousel__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  min-height: 8px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.joy-inspire-carousel__dot {
+  width: 18px;
+  height: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 18%, transparent);
+  cursor: pointer;
+  padding: 0;
+  box-shadow: none;
+  transition:
+    width 0.2s ease,
+    background 0.2s ease;
+}
+
+.joy-inspire-carousel__dot.is-on {
+  width: 28px;
+  background: color-mix(in oklab, var(--foreground) 72%, transparent);
+}
+
+@media (max-width: 720px) {
+  .joy-inspire-carousel {
+    --ibc-card-w: min(100%, 400px);
+    --ibc-card-h: 220px;
+  }
+
+  .joy-inspire-carousel__stage {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+    padding-inline: 40px;
+  }
+
+  .joy-inspire-carousel__nav.is-prev {
+    left: 10px;
+  }
+
+  .joy-inspire-carousel__nav.is-next {
+    right: 10px;
+  }
+}

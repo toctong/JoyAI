@@ -10,10 +10,6 @@ import {
 import { ApiError, api, isApiCancelError } from "@/shared/lib/api";
 import { AppSidebar } from "@/features/shell/app-sidebar";
 import { AppHeader } from "@/features/shell/app-header";
-import {
-  AppearanceTokens,
-  WallpaperLayer,
-} from "@/features/appearance";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/shared/lib/utils";
 
@@ -35,7 +31,6 @@ export default function AppShellLayout({
   const isToolDetail = /^\/tools\/[^/]+$/.test(pathname);
   const isAdmin =
     pathname === "/admin" || pathname.startsWith("/admin/");
-  /** Wallpaper plugin only paints the inspire home (updream-style). */
   const isInspireHome =
     pathname === "/inspire" || pathname.startsWith("/inspire/");
   /** Explore owns its scroll so sticky header + infinite load stay correct. */
@@ -45,7 +40,6 @@ export default function AppShellLayout({
   const isStudio = pathname === "/studio" || pathname.startsWith("/studio/");
   /** Canvas / manju list: sticky tabs+toolbar, grid scrolls inside. */
   const isWorkspaceList = pathname === "/canvas" || pathname === "/manju";
-  const wallpaperActive = isInspireHome && !isCanvasEditor;
   const ownScroll =
     isCanvasEditor ||
     isManjuWorkbench ||
@@ -109,39 +103,41 @@ export default function AppShellLayout({
   }
 
   return (
-    <>
-      <AppearanceTokens disabled={!wallpaperActive} />
-      <WallpaperLayer disabled={!wallpaperActive} />
+    <div
+      data-app-shell
+      className="relative z-10 flex h-svh overflow-hidden bg-card"
+    >
+      <AppSidebar />
       <div
-        data-app-shell
-        data-inspire-home={isInspireHome ? "" : undefined}
         className={cn(
-          "relative z-10 flex h-svh overflow-hidden bg-card",
-          /* Inspire is always dark chrome (sidebar + page), ignore global theme */
-          isInspireHome && "dark",
+          "relative flex min-h-0 min-w-0 flex-1 flex-col",
+          /*
+           * Inspire hero bleeds under the rail. Do NOT use overflow-x:visible +
+           * overflow-y:hidden — CSS coerces x back to auto and clips the bleed,
+           * leaving a white padding strip on the left.
+           */
+          isInspireHome ? "overflow-visible" : "overflow-hidden",
         )}
       >
-        <AppSidebar />
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <AppHeader
-            overlay={
-              isCanvasEditor || isManjuWorkbench || isToolDetail
-            }
-            hideCluster={
-              isCanvasEditor || isManjuWorkbench || isInspireHome
-            }
-          />
-          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-            {ownScroll ? (
-              children
-            ) : (
-              <ScrollArea className="h-full" type="hover">
-                {children}
-              </ScrollArea>
-            )}
-          </main>
-        </div>
+        <AppHeader
+          overlay={isCanvasEditor || isManjuWorkbench || isToolDetail}
+          hideCluster={isCanvasEditor || isManjuWorkbench}
+        />
+        <main
+          className={cn(
+            "min-h-0 min-w-0 flex-1",
+            isInspireHome ? "overflow-visible" : "overflow-hidden",
+          )}
+        >
+          {ownScroll ? (
+            children
+          ) : (
+            <ScrollArea className="h-full" type="hover">
+              {children}
+            </ScrollArea>
+          )}
+        </main>
       </div>
-    </>
+    </div>
   );
 }

@@ -1,390 +1,105 @@
-/* Cinematic inspire stage — full-bleed scenes, no scrim */
+/* Inspire home — carousel + showcase; matches app shell bg-card */
 
 .joy-inspire {
-  --inspire-focus: 50%;
-  position: relative;
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-  background: transparent;
-  color: #f4f4f5;
-  user-select: none;
-}
-
-.joy-inspire-stage {
-  /* Full viewport behind glass sidebar (shell is overflow-hidden) */
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-  background: #142744;
-}
-
-.joy-inspire-media {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center var(--inspire-focus);
-  pointer-events: none;
-}
-
-.joy-inspire-scrub {
-  z-index: 2;
-}
-
-.joy-inspire-canvas-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-}
-
-.joy-inspire-depth {
-  display: block;
-  width: 100%;
-  height: 100%;
-  visibility: hidden;
-}
-
-.joy-inspire-trail-toggle {
-  position: absolute;
-  top: 24px;
-  right: 3.5vw;
-  z-index: 20;
   display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  /* visible so hero can bleed under the rail (y scroll lives in showcase) */
+  overflow: visible;
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.joy-inspire-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+}
+
+.joy-inspire-hero {
+  flex-shrink: 0;
+  padding: 4px 0 8px;
+  overflow: visible;
+}
+
+.joy-inspire-showcase {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 20px 0;
+}
+
+.joy-inspire-showcase-head {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 12px;
+}
+
+.joy-inspire-showcase-head h2 {
+  margin: 0;
+  font-size: var(--joy-font-title, 16px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.joy-inspire-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.joy-inspire-cat {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
+  height: var(--joy-control-h-sm);
+  padding: 0 14px;
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: inherit;
-  opacity: 0.55;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.joy-inspire-trail-toggle:hover,
-.joy-inspire-trail-toggle[aria-pressed="true"] {
-  opacity: 0.9;
-}
-
-.joy-inspire-create {
-  position: absolute;
-  z-index: 10;
-  top: auto;
-  bottom: 18%;
-  left: 50%;
-  width: min(920px, 92%);
-  transform: translateX(-50%);
-  transition: opacity 0.18s;
-}
-
-.joy-inspire-create.is-visible {
-  animation: joy-inspire-fade-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.joy-inspire-panel {
-  position: absolute;
-  z-index: 10;
-  transition: opacity 0.18s;
-}
-
-.joy-inspire-ability {
-  top: 50%;
-  left: auto;
-  right: 8%;
-  width: min(420px, 78%);
-  transform: translateY(-50%);
-}
-
-.joy-inspire-entrances {
-  top: 50%;
-  left: 50%;
-  width: min(560px, 88%);
-  transform: translate(-50%, -50%);
-}
-
-.joy-inspire-kicker {
-  margin: 0 0 14px;
-  font-size: 12px;
-  letter-spacing: 0.28em;
-  color: rgb(255 255 255 / 0.55);
-}
-
-.joy-inspire-panel h2 {
-  margin: 0 0 28px;
-  font-size: clamp(28px, 3.2vw, 42px);
-  font-weight: 500;
-  line-height: 1.35;
-  letter-spacing: -0.03em;
-}
-
-.joy-inspire-ability-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.joy-inspire-ability-list li {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 14px 0;
-  border-top: 1px solid rgb(255 255 255 / 0.14);
-}
-
-.joy-inspire-ability-list li:last-child {
-  border-bottom: 1px solid rgb(255 255 255 / 0.14);
-}
-
-.joy-inspire-ability-list strong {
-  font-size: 16px;
-  font-weight: 550;
-  letter-spacing: 0.01em;
-}
-
-.joy-inspire-ability-list span {
-  font-size: 13px;
-  color: rgb(255 255 255 / 0.62);
-}
-
-.joy-inspire-entrance-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.joy-inspire-entrance {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px 16px 18px;
-  border: 1px solid rgb(255 255 255 / 0.16);
-  border-radius: 16px;
-  background: rgb(8 12 24 / 0.28);
-  backdrop-filter: blur(16px) saturate(1.2);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  color: inherit;
-  text-align: left;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label);
   cursor: pointer;
   transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
-.joy-inspire-entrance:hover {
-  background: rgb(8 12 24 / 0.42);
-  border-color: rgb(255 255 255 / 0.28);
+.joy-inspire-cat:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
 }
 
-.joy-inspire-entrance span {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+.joy-inspire-cat.is-on {
+  color: var(--foreground);
+  background: var(--secondary);
 }
 
-.joy-inspire-entrance b {
-  font-size: 15px;
-  font-weight: 600;
+.joy-inspire-feed {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
-.joy-inspire-entrance small {
-  font-size: 12px;
-  color: rgb(255 255 255 / 0.58);
-}
-
-.joy-inspire-entrance svg {
-  flex-shrink: 0;
-  opacity: 0.7;
-}
-
-.reveal-line {
-  opacity: 0;
-  transform: translateY(12px);
-}
-
-.joy-inspire-panel.is-visible .reveal-line {
-  animation: joy-inspire-line-in 0.5s cubic-bezier(0.22, 1, 0.36, 1)
-    var(--line-delay, 0s) both;
-}
-
-@keyframes joy-inspire-line-in {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.joy-inspire-composer-skeleton {
-  min-height: 160px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-@keyframes joy-inspire-fade-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .joy-inspire-create.is-visible {
-    animation: none;
-  }
-
-  .reveal-line {
-    opacity: 1;
-    transform: none;
-  }
-
-  .joy-inspire-panel.is-visible .reveal-line {
-    animation: none;
-  }
-}
-
-.joy-inspire-footer {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 15;
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 28px 3.5vw 28px;
-  pointer-events: none;
-  background: none;
-}
-
-.joy-inspire-footer > * {
-  pointer-events: auto;
-}
-
-.joy-inspire-dots {
-  position: absolute;
-  bottom: 28px;
-  left: 50%;
-  display: flex;
-  gap: 22px;
-  transform: translateX(-50%);
-}
-
-.joy-inspire-dots button {
-  padding: 12px 6px;
-  border: 0;
-  border-bottom: 1px solid transparent;
-  background: transparent;
-  color: inherit;
-  font-size: 12px;
-  letter-spacing: 1px;
-  opacity: 0.45;
-  cursor: pointer;
-  transition: opacity 0.3s, border-color 0.3s;
-}
-
-.joy-inspire-dots button.is-active {
-  opacity: 1;
-  border-bottom-color: #fff;
-}
-
-.joy-inspire-next {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 10px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-.joy-inspire-next:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.joy-inspire-next svg {
-  animation: joy-inspire-float-down 2s ease-in-out infinite;
-}
-
-.joy-inspire-next:disabled svg {
-  animation: none;
-}
-
-@keyframes joy-inspire-float-down {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(5px);
-  }
-}
-
-.joy-inspire-progress {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 16;
-  height: 2px;
-  background: #ffffff10;
-}
-
-.joy-inspire-progress i {
-  display: block;
-  width: 100%;
+.joy-inspire-feed .joy-explore-pane-wrap,
+.joy-inspire-feed .joy-explore-pane,
+.joy-inspire-feed .joy-explore-keepalive,
+.joy-inspire-feed .joy-explore-keepalive-node {
   height: 100%;
-  background: #fff;
-  transform-origin: left center;
-  transition: transform 0.35s ease;
+}
+
+.joy-inspire-feed .joy-explore-pane {
+  padding: 0 0 64px;
 }
 
 @media (max-width: 640px) {
-  .joy-inspire-create {
-    width: min(920px, 94%);
-    bottom: 22%;
-  }
-
-  .joy-inspire-ability {
-    left: auto;
-    right: 6%;
-    width: min(420px, 88%);
-  }
-
-  .joy-inspire-entrances {
-    width: min(560px, 92%);
-  }
-
-  .joy-inspire-entrance-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .joy-inspire-panel h2 {
-    font-size: clamp(24px, 6vw, 32px);
-    margin-bottom: 20px;
-  }
-
-  .joy-inspire-dots {
-    gap: 16px;
-    bottom: 24px;
-  }
-
-  .joy-inspire-footer {
-    padding: 20px 4vw 24px;
+  .joy-inspire-showcase {
+    padding-inline: 12px;
   }
 }

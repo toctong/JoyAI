@@ -11,6 +11,7 @@ import { AppSetting } from "./app-setting.entity";
 import { AuditLog } from "./audit-log.entity";
 import { ProjectChat } from "./project-chat.entity";
 import { Skill } from "./skill.entity";
+import { InspireBanner } from "./inspire-banner.entity";
 
 export const ENTITIES = [
   User,
@@ -26,6 +27,7 @@ export const ENTITIES = [
   AuditLog,
   ProjectChat,
   Skill,
+  InspireBanner,
 ] as const;
 
 export {
@@ -42,4 +44,5 @@ export {
   AuditLog,
   ProjectChat,
   Skill,
+  InspireBanner,
 };

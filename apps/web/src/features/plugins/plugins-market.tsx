@@ -25,9 +25,13 @@ export function PluginsMarket() {
         </header>
 
         <div className="joy-plugins-grid">
-          {PLUGIN_REGISTRY.map((plugin) => (
-            <PluginCard key={plugin.id} plugin={plugin} />
-          ))}
+          {PLUGIN_REGISTRY.length === 0 ? (
+            <p className="joy-plugins-desc">暂无可用插件</p>
+          ) : (
+            PLUGIN_REGISTRY.map((plugin) => (
+              <PluginCard key={plugin.id} plugin={plugin} />
+            ))
+          )}
         </div>
       </div>
     </div>

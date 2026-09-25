@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { WallpaperPluginPage } from "@/features/appearance";
-
-export default function AdminWallpaperPluginPage() {
-  return <WallpaperPluginPage />;
+/** Wallpaper / inspire theme plugin retired — inspire matches other app pages. */
+export default function WallpaperPluginRedirectPage() {
+  redirect("/admin/plugins");
 }

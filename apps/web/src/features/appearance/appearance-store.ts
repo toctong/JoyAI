@@ -6,7 +6,6 @@ import { useMemo, useState, useEffect } from "react";
 import { BUILTIN_WALLPAPERS } from "./builtin-wallpapers";
 import {
   APPEARANCE_STORAGE_KEY,
-  DEFAULT_WALLPAPER_ID,
   customToWallpaperItem,
   detectWallpaperKind,
   isHttpUrl,
@@ -151,11 +150,7 @@ export function useActiveWallpaper(): WallpaperItem | null {
   const customs = useAppearanceStore((s) => s.customWallpapers);
 
   return useMemo(() => {
-    const resolved = id ?? DEFAULT_WALLPAPER_ID;
-    return (
-      findWallpaper(resolved, customs) ??
-      findWallpaper(DEFAULT_WALLPAPER_ID, customs) ??
-      null
-    );
+    if (!id) return null;
+    return findWallpaper(id, customs) ?? null;
   }, [id, customs]);
 }

@@ -314,20 +314,6 @@ html body:not(:has(.joy-m)) a:active {
   font-weight: 500;
 }
 
-/* Inspire page forces dark shell — glass rail always (wallpaper optional) */
-[data-inspire-home].dark .joy-sidebar a.joy-rail-link {
-  color: #a1a1aa;
-}
-
-[data-inspire-home].dark .joy-sidebar a.joy-rail-link:hover,
-[data-inspire-home].dark .joy-sidebar a.joy-rail-link.is-active {
-  color: #f4f4f5;
-}
-
-[data-inspire-home] {
-  background: transparent;
-}
-
 @keyframes accordion-down {
   from {
     height: 0;
