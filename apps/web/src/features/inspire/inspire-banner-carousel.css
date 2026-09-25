@@ -1,12 +1,12 @@
 .joy-inspire-carousel {
-  /* Compact, close to the earlier good 3D frame */
-  --ibc-card-w: min(560px, 54vw);
-  --ibc-card-h: min(300px, 32vw);
+  /* Compact stacked hero */
+  --ibc-card-w: min(480px, 46vw);
+  --ibc-card-h: min(260px, 28vw);
   --ibc-rail: var(--joy-sidebar-width, 72px);
   --ibc-fade: var(--card);
   position: relative;
   width: 100%;
-  padding: 10px 0 6px;
+  padding: 8px 0 4px;
 }
 
 .joy-inspire-carousel.is-loading {
@@ -61,13 +61,20 @@
 }
 
 /* Don't hide far slides — popping them in mid-swipe causes a blank then补位 */
+.joy-inspire-carousel__slide {
+  pointer-events: none;
+}
+
 .joy-inspire-carousel__slide.swiper-slide-active {
   z-index: 3;
+  pointer-events: auto;
 }
 
 .joy-inspire-carousel__slide.swiper-slide-prev,
 .joy-inspire-carousel__slide.swiper-slide-next {
-  z-index: 1;
+  z-index: 2;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .joy-inspire-carousel__swiper::before {
@@ -76,8 +83,8 @@
   left: 50%;
   top: 64%;
   z-index: 0;
-  width: min(480px, 52vw);
-  height: 56px;
+  width: min(420px, 48vw);
+  height: 48px;
   transform: translate(-50%, 0);
   background: radial-gradient(
     ellipse at center,
@@ -114,7 +121,13 @@
 }
 
 .swiper-slide:not(.swiper-slide-active) .joy-inspire-carousel__card {
+  /* Let the slide receive the click (switch), not the Link (navigate) */
   pointer-events: none;
+}
+
+/* CTA only on the center slide */
+.swiper-slide:not(.swiper-slide-active) .joy-inspire-carousel__cta {
+  display: none !important;
 }
 
 .joy-inspire-carousel__media {
@@ -205,7 +218,7 @@
 }
 
 .joy-inspire-carousel__cta {
-  display: inline-flex;
+  display: none;
   align-items: center;
   gap: 6px;
   margin-top: 10px;
@@ -218,6 +231,11 @@
   font-size: var(--joy-font-label, 14px);
   font-weight: 500;
   box-shadow: 0 4px 16px color-mix(in oklab, #000 25%, transparent);
+  pointer-events: none;
+}
+
+.swiper-slide-active .joy-inspire-carousel__cta {
+  display: inline-flex;
   pointer-events: auto;
 }
 
@@ -234,11 +252,6 @@
   text-align: right;
   padding-right: 28px;
   padding-left: 30%;
-}
-
-.swiper-slide-prev .joy-inspire-carousel__cta,
-.swiper-slide-next .joy-inspire-carousel__cta {
-  display: none;
 }
 
 .joy-inspire-carousel__nav {
@@ -258,6 +271,29 @@
   backdrop-filter: blur(8px);
   transition: background 0.15s ease;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Side peeks: catch clicks even when 3D hit-testing misses the next slide */
+.joy-inspire-carousel__hit {
+  position: absolute;
+  top: 8%;
+  bottom: 12%;
+  z-index: 12;
+  width: min(160px, 18%);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.joy-inspire-carousel__hit.is-prev {
+  left: calc(var(--ibc-rail) + 44px);
+}
+
+.joy-inspire-carousel__hit.is-next {
+  right: calc(var(--ibc-rail) + 44px);
 }
 
 .joy-inspire-carousel__nav:hover {
@@ -304,8 +340,8 @@
 
 @media (max-width: 720px) {
   .joy-inspire-carousel {
-    --ibc-card-w: min(100%, 400px);
-    --ibc-card-h: 220px;
+    --ibc-card-w: min(100%, 360px);
+    --ibc-card-h: 200px;
   }
 
   .joy-inspire-carousel__stage {
@@ -321,5 +357,13 @@
 
   .joy-inspire-carousel__nav.is-next {
     right: 10px;
+  }
+
+  .joy-inspire-carousel__hit.is-prev {
+    left: 44px;
+  }
+
+  .joy-inspire-carousel__hit.is-next {
+    right: 44px;
   }
 }

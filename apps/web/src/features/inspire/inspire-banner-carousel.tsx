@@ -187,7 +187,7 @@ const BannerSwiperPane = memo(function BannerSwiperPane({
       initialSlide={initialSlide}
       loop={false}
       rewind={false}
-      slideToClickedSlide={multi}
+      slideToClickedSlide={false}
       watchSlidesProgress
       resistanceRatio={0.7}
       creativeEffect={{
@@ -223,6 +223,21 @@ const BannerSwiperPane = memo(function BannerSwiperPane({
         const n = Math.max(items.length, 1);
         onActiveRef.current(swiper.activeIndex % n);
         syncVideos(swiper);
+      }}
+      onClick={(swiper, event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        // Nav / dots live outside slides
+        if (target.closest(".joy-inspire-carousel__nav")) return;
+        const slide = target.closest(".swiper-slide");
+        if (!slide) return;
+        if (slide.classList.contains("swiper-slide-prev")) {
+          swiper.slidePrev();
+          return;
+        }
+        if (slide.classList.contains("swiper-slide-next")) {
+          swiper.slideNext();
+        }
       }}
       onTouchStart={(swiper) => {
         // Drag path never hit button snap — snap before the gesture.
@@ -336,6 +351,23 @@ export function InspireBannerCarousel() {
 
         {multi ? (
           <>
+            {/* Transparent hit strips — 3D transforms make right-side clicks miss the next slide */}
+            <button
+              type="button"
+              className="joy-inspire-carousel__hit is-prev"
+              aria-label="上一张"
+              onClick={() =>
+                stepSlide(swiperRef.current, countRef.current, -1)
+              }
+            />
+            <button
+              type="button"
+              className="joy-inspire-carousel__hit is-next"
+              aria-label="下一张"
+              onClick={() =>
+                stepSlide(swiperRef.current, countRef.current, 1)
+              }
+            />
             <button
               type="button"
               className="joy-inspire-carousel__nav is-prev"
