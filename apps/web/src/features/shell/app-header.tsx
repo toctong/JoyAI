@@ -160,7 +160,14 @@ function HeaderNotifyPanel() {
   );
 }
 
-export function AppHeader({ overlay = false }: { overlay?: boolean }) {
+export function AppHeader({
+  overlay = false,
+  hideCluster = false,
+}: {
+  overlay?: boolean;
+  /** Canvas / manju detail: hide GitHub · admin · notify · theme · user. */
+  hideCluster?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -187,6 +194,7 @@ export function AppHeader({ overlay = false }: { overlay?: boolean }) {
           "joy-app-header",
           overlay && "is-overlay",
           adminActive && "has-admin-nav",
+          hideCluster && "is-minimal",
         )}
         data-app-header
       >
@@ -223,6 +231,7 @@ export function AppHeader({ overlay = false }: { overlay?: boolean }) {
           <div className="joy-app-header-spacer" aria-hidden />
         )}
 
+        {hideCluster ? null : (
         <div className="joy-app-header-cluster">
           <Link
             href="/github"
@@ -316,6 +325,7 @@ export function AppHeader({ overlay = false }: { overlay?: boolean }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        )}
       </header>
     </>
   );
