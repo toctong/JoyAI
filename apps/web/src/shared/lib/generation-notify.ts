@@ -1,6 +1,7 @@
 "use client";
 
 import { pushAppNotify, type AppNotifyAsset } from "@/shared/lib/app-notify-store";
+import { pushGenerationInbox } from "@/shared/lib/generation-inbox-store";
 
 export type GenerationNotifyKind = "image" | "video" | string;
 
@@ -202,8 +203,19 @@ function flushPending() {
   for (const item of batch) unique.set(item.jobId, item);
   const list = [...unique.values()];
 
+  const panel = buildPanel(list);
+  const inboxId = list.map((row) => row.jobId).sort().join("|");
+  pushGenerationInbox({
+    id: `gen-${inboxId}`,
+    jobId: list.length === 1 ? list[0]!.jobId : undefined,
+    tone: panel.tone,
+    title: panel.title,
+    lines: panel.lines,
+    assets: panel.assets,
+    href: "/studio",
+  });
+
   if (isOurTabVisible()) {
-    const panel = buildPanel(list);
     pushAppNotify({
       tone: panel.tone,
       title: panel.title,

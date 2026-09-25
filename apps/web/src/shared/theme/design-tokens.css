@@ -72,6 +72,7 @@
   /* ── Layout chrome ── */
   --joy-sidebar-width: 72px;
   --joy-sidebar-item-gap: 14px;
+  --joy-header-height: 48px;
   --joy-tool-sidebar-width: 360px;
   --joy-tool-history-width: 148px;
 

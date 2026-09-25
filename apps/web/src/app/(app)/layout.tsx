@@ -9,6 +9,7 @@ import {
 } from "@/shared/lib/auth-store";
 import { ApiError, api, isApiCancelError } from "@/shared/lib/api";
 import { AppSidebar } from "@/features/shell/app-sidebar";
+import { AppHeader } from "@/features/shell/app-header";
 import {
   AppearanceTokens,
   WallpaperLayer,
@@ -118,15 +119,22 @@ export default function AppShellLayout({
         )}
       >
         <AppSidebar />
-        <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
-          {ownScroll ? (
-            children
-          ) : (
-            <ScrollArea className="h-full" type="hover">
-              {children}
-            </ScrollArea>
-          )}
-        </main>
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <AppHeader
+            overlay={
+              isCanvasEditor || isManjuWorkbench || isToolDetail
+            }
+          />
+          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            {ownScroll ? (
+              children
+            ) : (
+              <ScrollArea className="h-full" type="hover">
+                {children}
+              </ScrollArea>
+            )}
+          </main>
+        </div>
       </div>
     </>
   );

@@ -1,7 +1,9 @@
 .joy-app-notify-host {
   position: fixed;
   z-index: 80;
-  top: max(12px, env(safe-area-inset-top, 0px));
+  top: calc(
+    var(--joy-header-height, 48px) + max(8px, env(safe-area-inset-top, 0px))
+  );
   right: max(12px, env(safe-area-inset-right, 0px));
   display: flex;
   flex-direction: column;
