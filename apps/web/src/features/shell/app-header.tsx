@@ -8,8 +8,6 @@ import {
   CheckCheck,
   LogOut,
   Settings2,
-  Shield,
-  ShieldCheck,
   Trash2,
 } from "lucide-react";
 import dayjs from "dayjs";
@@ -18,7 +16,6 @@ import "dayjs/locale/zh-cn";
 import { cn } from "@/shared/lib/utils";
 import { useAuthStore } from "@/shared/lib/auth-store";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
-import { TotpSecurityDialog } from "@/features/auth/totp-security-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -173,7 +170,6 @@ export function AppHeader({ overlay = false }: { overlay?: boolean }) {
   const adminActive = pathname === "/admin" || pathname.startsWith("/admin/");
   const githubActive =
     pathname === "/github" || pathname.startsWith("/github/");
-  const [totpOpen, setTotpOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
 
   const items = useGenerationInboxStore((s) => s.items);
@@ -304,24 +300,9 @@ export function AppHeader({ overlay = false }: { overlay?: boolean }) {
                 {user?.username}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {isAdmin ? (
-                <DropdownMenuItem onClick={() => router.push("/admin")}>
-                  <Shield className="h-4 w-4" />
-                  管理后台
-                </DropdownMenuItem>
-              ) : null}
               <DropdownMenuItem onClick={() => router.push("/account")}>
                 <Settings2 className="h-4 w-4" />
                 账户设置
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTotpOpen(true)}>
-                <ShieldCheck className="h-4 w-4" />
-                身份验证器
-                {user?.totpEnabled ? (
-                  <span className="ml-auto text-[10px] text-muted-foreground">
-                    已开
-                  </span>
-                ) : null}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => {
@@ -336,7 +317,6 @@ export function AppHeader({ overlay = false }: { overlay?: boolean }) {
           </DropdownMenu>
         </div>
       </header>
-      <TotpSecurityDialog open={totpOpen} onOpenChange={setTotpOpen} />
     </>
   );
 }

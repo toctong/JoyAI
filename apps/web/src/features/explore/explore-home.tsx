@@ -6,6 +6,7 @@ import { KeepAlive } from "keepalive-for-react";
 import { toast } from "@/shared/lib/toast";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { cn } from "@/shared/lib/utils";
+import { ScrollableTabs } from "@/shared/ui/scrollable-tabs";
 import { writeStudioRemixSeed } from "@/features/studio/studio-remix-seed";
 import { ExploreDetailDialog } from "./explore-detail-dialog";
 import {
@@ -262,7 +263,11 @@ export function ExploreHome() {
   return (
     <div className="joy-explore">
       <header className="joy-explore-header">
-        <div className="joy-explore-tabs" role="tablist">
+        <ScrollableTabs
+          className="joy-explore-tabs"
+          aria-label="探索分类"
+          scrollKey={tab}
+        >
           <button
             type="button"
             role="tab"
@@ -303,7 +308,7 @@ export function ExploreHome() {
               </button>
             );
           })}
-        </div>
+        </ScrollableTabs>
 
         {tab === "feed" ? (
           <div className="joy-explore-cats">

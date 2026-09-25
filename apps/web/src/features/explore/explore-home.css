@@ -10,7 +10,7 @@
 .joy-explore-header {
   flex-shrink: 0;
   z-index: 30;
-  padding: 22px 20px 12px;
+  padding: 0 20px 12px;
   background: var(--background);
 }
 
@@ -64,17 +64,18 @@
 }
 
 .joy-explore-tabs {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 18px 22px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--border);
+}
+
+.joy-explore-tabs .joy-scroll-tabs-viewport {
+  gap: 18px 22px;
 }
 
 .joy-explore-tab {
   position: relative;
   height: 42px;
+  flex-shrink: 0;
   padding: 0 2px;
   border: 0;
   background: transparent;
@@ -82,6 +83,7 @@
   font-size: 16px;
   font-weight: 400;
   letter-spacing: -0.01em;
+  white-space: nowrap;
   cursor: pointer;
 }
 

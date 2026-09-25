@@ -1,0 +1,96 @@
+.joy-scroll-tabs {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  width: 100%;
+}
+
+.joy-scroll-tabs-viewport {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 18px 22px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-behavior: smooth;
+}
+
+.joy-scroll-tabs-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.joy-scroll-tabs-btn {
+  position: absolute;
+  top: 0;
+  bottom: 1px;
+  z-index: 2;
+  display: inline-flex;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: color var(--joy-duration-fast) var(--joy-ease-out);
+}
+
+.joy-scroll-tabs-btn:hover {
+  color: var(--foreground);
+}
+
+.joy-scroll-tabs-btn.is-prev {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    var(--joy-scroll-tabs-fade, var(--background)) 40%,
+    color-mix(
+      in oklab,
+      var(--joy-scroll-tabs-fade, var(--background)) 0%,
+      transparent
+    )
+  );
+}
+
+.joy-scroll-tabs-btn.is-next {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    var(--joy-scroll-tabs-fade, var(--background)) 40%,
+    color-mix(
+      in oklab,
+      var(--joy-scroll-tabs-fade, var(--background)) 0%,
+      transparent
+    )
+  );
+}
+
+.joy-scroll-tabs.has-prev .joy-scroll-tabs-viewport {
+  padding-left: 28px;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 28px,
+    #000 calc(100% - 0px),
+    #000
+  );
+}
+
+.joy-scroll-tabs.has-next .joy-scroll-tabs-viewport {
+  padding-right: 28px;
+}
+
+.joy-scroll-tabs.has-prev.has-next .joy-scroll-tabs-viewport {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 28px,
+    #000 calc(100% - 28px),
+    transparent
+  );
+}
