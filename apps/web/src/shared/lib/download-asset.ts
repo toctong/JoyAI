@@ -15,7 +15,7 @@ export async function downloadAsset(
     a.download =
       preferred && !/\.[a-z0-9]{2,5}$/i.test(preferred)
         ? `${preferred}.${ext}`
-        : preferred || `joyai-${Date.now()}.${ext}`;
+        : preferred || `framerally-${Date.now()}.${ext}`;
     a.click();
     URL.revokeObjectURL(objectUrl);
   } catch {

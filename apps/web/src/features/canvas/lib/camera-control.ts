@@ -1,4 +1,4 @@
-/** Compact camera / lens prompt helpers for canvas generation (JoyAI rewrite). */
+/** Compact camera / lens prompt helpers for canvas generation (FrameRally rewrite). */
 
 export type CameraControlOptions = {
   enabled: boolean;

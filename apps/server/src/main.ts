@@ -55,8 +55,8 @@ async function bootstrap() {
   );
 
   const swagger = new DocumentBuilder()
-    .setTitle("JoyAI API")
-    .setDescription("JoyAI AIGC platform API")
+    .setTitle("FrameRally API")
+    .setDescription("FrameRally AIGC platform API")
     .setVersion("0.1.0")
     .addBearerAuth()
     .build();

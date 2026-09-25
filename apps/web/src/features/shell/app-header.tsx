@@ -307,7 +307,7 @@ export function AppHeader({ overlay = false }: { overlay?: boolean }) {
               <DropdownMenuItem
                 onClick={() => {
                   logout();
-                  router.replace("/login");
+                  router.replace("/frame-rally");
                 }}
               >
                 <LogOut className="h-4 w-4" />

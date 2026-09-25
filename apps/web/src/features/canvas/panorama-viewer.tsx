@@ -61,7 +61,7 @@ function waitFrames(count = 2) {
 
 /**
  * Equirectangular panorama via @photo-sphere-viewer/core.
- * Keeps JoyAI capture / lastView API on top of the plugin.
+ * Keeps FrameRally capture / lastView API on top of the plugin.
  */
 export function PanoramaViewer({
   url,

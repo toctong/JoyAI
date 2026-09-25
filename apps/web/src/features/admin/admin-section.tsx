@@ -14,7 +14,7 @@ export function AdminSection({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated) return;
     if (!token) {
-      router.replace("/login");
+      router.replace("/frame-rally");
       return;
     }
     if (user?.role !== "admin") {

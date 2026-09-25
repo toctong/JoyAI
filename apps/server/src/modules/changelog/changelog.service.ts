@@ -142,7 +142,7 @@ export class ChangelogService implements OnModuleInit {
     const headers: Record<string, string> = {
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "JoyAI-Changelog",
+      "User-Agent": "FrameRally-Changelog",
     };
     if (token) headers.Authorization = `Bearer ${token}`;
     return { headers, token };

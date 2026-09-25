@@ -75,7 +75,7 @@ function buildBrowserBody(items: GenerationNotifyOutcome[]): {
     parts.push(`${failList.length} 个失败`);
   }
   return {
-    title: "JoyAI 创作",
+    title: "FrameRally 创作",
     body: parts.join("；") || "生成结束",
   };
 }

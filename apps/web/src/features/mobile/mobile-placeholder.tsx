@@ -10,7 +10,7 @@ export function MobilePlaceholderPage({
   return (
     <div className="joy-m-page">
       <header className="joy-m-hero">
-        <p className="joy-m-hero-kicker">JoyAI</p>
+        <p className="joy-m-hero-kicker">FrameRally</p>
         <h2 className="joy-m-hero-title">{title}</h2>
         <p className="joy-m-hero-sub">{description}</p>
       </header>

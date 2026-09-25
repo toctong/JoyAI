@@ -1,4 +1,4 @@
-# JoyAI
+# FrameRally
 
 AIGC 创意平台：对话式生图/生视频 + 无限画板。后端 NestJS（Fastify）+ TypeORM（MySQL）+ BullMQ；前端 Next.js + shadcn/ui；首期接入火山引擎 Ark（Seedream / Seedance）与 TOS。
 

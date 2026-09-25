@@ -1,10 +1,10 @@
 ---
-description: JoyAI visual scale, surfaces, and canvas chrome tokens
+description: FrameRally visual scale, surfaces, and canvas chrome tokens
 globs: apps/web/**/*.{css,tsx,ts}
 alwaysApply: false
 ---
 
-# JoyAI style
+# FrameRally style
 
 - Scale and chrome live in `apps/web/src/shared/theme/design-tokens.css`. Bump tokens; do not sprinkle new 10px fonts or one-off control heights in feature CSS.
 - Colors stay on shadcn vars (`bg-background`, `bg-card`, `text-muted-foreground`). Shell and page backgrounds use `bg-card` / `--joy-surface`. Do not abut `bg-background` and `bg-card` or a seam shows.

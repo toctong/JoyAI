@@ -121,7 +121,7 @@ export class AuthService {
     const url = otpauthUrl({
       secret,
       accountName: user.username,
-      issuer: "JoyAI",
+      issuer: "FrameRally",
     });
     return {
       secret,

@@ -25,7 +25,7 @@ const AT_PREFIX_RE = /@(图片|视频|音频|图)/y;
 const BRACE_RE = /\{\{(Image|Video|Audio)\s+(\d+)\}\}/y;
 const OMNI_WIRE_RE = /<<<(image|video|element)_(\d+)>>>/gi;
 
-/** Normalize Kling Omni wire tokens → JoyAI @ mentions (for editor / history). */
+/** Normalize Kling Omni wire tokens → FrameRally @ mentions (for editor / history). */
 export function normalizeOmniWireMentions(text: string): string {
   return String(text ?? "").replace(
     OMNI_WIRE_RE,

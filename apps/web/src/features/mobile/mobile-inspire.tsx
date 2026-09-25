@@ -129,7 +129,7 @@ export function MobileInspirePage() {
           <div className="joy-m-home-banner-brand">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={JOYAI_BRAND.logo} alt="" draggable={false} />
-            <span>JoyAI</span>
+            <span>FrameRally</span>
           </div>
           <h2 className="joy-m-home-banner-title">AI 创作全面升级</h2>
           <div className="joy-m-home-banner-tags" aria-label="能力">

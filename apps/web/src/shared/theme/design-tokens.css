@@ -1,5 +1,5 @@
 /**
- * JoyAI design tokens — single source for chrome, type, color, controls, canvas.
+ * FrameRally design tokens — single source for chrome, type, color, controls, canvas.
  * Swap skins by overriding these variables on :root / .dark / [data-skin="…"].
  *
  * Semantic aliases (`--joy-*`) sit on top of shadcn color vars so existing

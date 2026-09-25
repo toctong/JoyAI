@@ -73,7 +73,7 @@ export async function cropImageToPiece(
   return pieceFromCanvas(canvas, {
     row: 0,
     col: 0,
-    name: "joyai-crop.png",
+    name: "framerally-crop.png",
     title: "裁剪",
   });
 }
@@ -103,7 +103,7 @@ export async function splitImageToPieces(
         await pieceFromCanvas(canvas, {
           row,
           col,
-          name: `joyai-split-${row + 1}-${col + 1}.png`,
+          name: `framerally-split-${row + 1}-${col + 1}.png`,
           title: `切图 ${row + 1}-${col + 1}`,
         }),
       );
@@ -143,7 +143,7 @@ export async function upscaleImageToPiece(
   return pieceFromCanvas(canvas, {
     row: 0,
     col: 0,
-    name: `joyai-upscale-${label}.png`,
+    name: `framerally-upscale-${label}.png`,
     title: `放大 ${label}`,
   });
 }

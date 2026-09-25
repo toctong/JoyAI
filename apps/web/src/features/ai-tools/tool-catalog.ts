@@ -1,7 +1,7 @@
 /**
- * JoyAI AI Tools catalog.
+ * FrameRally AI Tools catalog.
  * Product shape inspired by specialty i2i “tool per page” markets (e.g. PixAI tools),
- * rewritten for JoyAI: BullMQ jobs + reference assets, no pasted third-party modules.
+ * rewritten for FrameRally: BullMQ jobs + reference assets, no pasted third-party modules.
  */
 
 export type AiToolCategory = "image" | "video" | "other";
@@ -473,8 +473,8 @@ export const AI_TOOLS: AiToolDef[] = [
     promptMode: "brand-brief",
     prompt:
       "Design a professional website logo mark (icon / brand glyph only, no long paragraph text). Flat vector style, bold silhouette, readable at 16px favicon size, centered composition, generous padding, clean edges. Prefer transparent or solid neutral studio background. Avoid photorealism, 3D render, purple neon glow, cluttered detail, watermarks, and mockups of browsers or devices. Output a single logo mark suitable for app icon and website favicon.",
-    examples: ["JoyAI，创意 AI 影像工具，极简几何", "Nova，科技创业，蓝绿渐变"],
-    noteHint: "必填：品牌名 + 行业/气质，例如「JoyAI，创意 AI 影像工具，极简几何」；可写配色偏好。",
+    examples: ["FrameRally，创意 AI 影像工具，极简几何", "Nova，科技创业，蓝绿渐变"],
+    noteHint: "必填：品牌名 + 行业/气质，例如「FrameRally，创意 AI 影像工具，极简几何」；可写配色偏好。",
   },
   {
     slug: "website-wordmark",
@@ -494,8 +494,8 @@ export const AI_TOOLS: AiToolDef[] = [
     promptMode: "brand-brief",
     prompt:
       "Design a professional website combination logo: a compact symbol mark beside or above a clean wordmark of the brand name. Horizontal lockup preferred, balanced spacing, modern sans-serif lettering, high legibility. Flat vector brand-identity style, solid or transparent background, no device mockups, no browser chrome, no purple neon glow, no photorealism. Suitable for website header and login splash. Keep the wordmark spelling accurate to the brand brief.",
-    examples: ["JoyAI · 创意工作室工作台，黑白极简", "Lumen Studio，现代无衬线"],
-    noteHint: "必填：完整网站标题/品牌名，可加气质，例如「JoyAI · 创意工作室工作台，黑白极简」。",
+    examples: ["FrameRally · 创意工作室工作台，黑白极简", "Lumen Studio，现代无衬线"],
+    noteHint: "必填：完整网站标题/品牌名，可加气质，例如「FrameRally · 创意工作室工作台，黑白极简」。",
   },
 
   {

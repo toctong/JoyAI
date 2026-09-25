@@ -1,5 +1,5 @@
 /**
- * Unified JoyAI params → vendor field notes.
+ * Unified FrameRally params → vendor field notes.
  * Adapters implement the actual mapping; this module documents the contract
  * and small shared helpers so new models stay on existing adapterIds.
  */

@@ -1,7 +1,7 @@
 ---
 name: manju-script-write
 description: >-
-  JoyAI manju AI script chat (script_write). Read when changing script AI panel,
+  FrameRally manju AI script chat (script_write). Read when changing script AI panel,
   genre starters, or script_write system prompts.
 ---
 

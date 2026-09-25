@@ -5,7 +5,7 @@
 
 export type CapabilityOption = { value: string; label: string };
 
-/** Video / image resolution tiers seen across JoyAI catalogs (canonical casing). */
+/** Video / image resolution tiers seen across FrameRally catalogs (canonical casing). */
 export const RESOLUTION_OPTIONS: readonly CapabilityOption[] = [
   { value: "360p", label: "360p" },
   { value: "480p", label: "480p" },

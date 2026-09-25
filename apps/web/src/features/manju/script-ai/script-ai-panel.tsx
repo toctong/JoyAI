@@ -187,7 +187,7 @@ export function ScriptAiPanel({
             <Sparkles className="size-5" />
           </span>
           <div className="manju-ai-panel__brand-text">
-            <strong>JoyAI 帮写</strong>
+            <strong>FrameRally 帮写</strong>
             <p>说说想怎么改，我来写</p>
           </div>
         </div>

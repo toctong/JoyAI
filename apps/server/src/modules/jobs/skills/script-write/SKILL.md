@@ -1,7 +1,7 @@
 ---
 name: manju-script-write
 description: >-
-  JoyAI 漫剧「AI 帮写」技能：对话生成/润色剧本，经 BullMQ purpose=script_write。
+  FrameRally 漫剧「AI 帮写」技能：对话生成/润色剧本，经 BullMQ purpose=script_write。
   Use when editing manju script AI chat, script_write prompts, or genre starters.
 ---
 

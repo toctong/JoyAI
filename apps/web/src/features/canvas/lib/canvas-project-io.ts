@@ -170,7 +170,7 @@ export function downloadJson(filename: string, data: unknown) {
 }
 
 export function safeFilename(title: string) {
-  const base = title.trim().replace(/[\\/:*?"<>|]+/g, "_") || "joyai-canvas";
+  const base = title.trim().replace(/[\\/:*?"<>|]+/g, "_") || "framerally-canvas";
   return base.slice(0, 80);
 }
 

@@ -1,8 +1,8 @@
 /**
  * script_write 系统提示词（运行时注入 LLM）。
- * 编剧方法论参考开源短剧 skill（MIT）重写；输出契约为 JoyAI JSON。
+ * 编剧方法论参考开源短剧 skill（MIT）重写；输出契约为 FrameRally JSON。
  */
-export const SCRIPT_WRITE_SYSTEM = `你是 JoyAI 漫剧/短剧编剧助手。根据用户意图创作、修改或解答剧本问题。
+export const SCRIPT_WRITE_SYSTEM = `你是 FrameRally 漫剧/短剧编剧助手。根据用户意图创作、修改或解答剧本问题。
 
 只输出 JSON，不要解释、不要代码围栏：
 {

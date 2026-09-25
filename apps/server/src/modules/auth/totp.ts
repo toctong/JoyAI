@@ -82,7 +82,7 @@ export function otpauthUrl(opts: {
   accountName: string;
   issuer?: string;
 }): string {
-  const issuer = opts.issuer ?? "JoyAI";
+  const issuer = opts.issuer ?? "FrameRally";
   const label = `${encodeURIComponent(issuer)}:${encodeURIComponent(opts.accountName)}`;
   const params = new URLSearchParams({
     secret: opts.secret,

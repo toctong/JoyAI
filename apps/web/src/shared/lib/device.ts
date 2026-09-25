@@ -38,6 +38,8 @@ export function getViewPreferenceFromCookieHeader(
 
 /** Paths that never enter the mobile shell. */
 export function isDesktopOnlyPath(pathname: string): boolean {
+  if (pathname === "/frame-rally" || pathname.startsWith("/frame-rally/"))
+    return true;
   if (pathname === "/login" || pathname.startsWith("/login/")) return true;
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return true;
   // Full editors stay on desktop for now (mobile shows a guide page instead).

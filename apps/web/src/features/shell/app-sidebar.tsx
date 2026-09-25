@@ -72,12 +72,12 @@ export function AppSidebar() {
       <Link
         href="/inspire"
         className="mb-1 flex size-10 items-center justify-center"
-        aria-label="JoyAI"
+        aria-label="FrameRally"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={JOYAI_BRAND.logo}
-          alt="JoyAI"
+          alt="FrameRally"
           className="size-9 object-contain"
           draggable={false}
         />

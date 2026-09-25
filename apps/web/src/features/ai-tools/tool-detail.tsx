@@ -55,7 +55,7 @@ import "./ai-tools.css";
 
 /**
  * Specialty tool detail — layout inspired by ai-video `tool-page`
- * (left sidebar form + pinned generate, right preview), rewritten with JoyAI controls.
+ * (left sidebar form + pinned generate, right preview), rewritten with FrameRally controls.
  */
 export function AiToolDetail({ tool }: { tool: AiToolDef }) {
   const router = useRouter();

@@ -1,6 +1,6 @@
 # Canvas — 无限画板参考源与规格
 
-本文定义 JoyAI 无限画板的**正式参考源**、与竞品的能力差距，以及 Phase 4 MVP 之后的演进规格。  
+本文定义 FrameRally 无限画板的**正式参考源**、与竞品的能力差距，以及 Phase 4 MVP 之后的演进规格。  
 实现约束仍服从 `.cursor/skills/joyai-engineering/SKILL.md` 与 [ARCHITECTURE.md](./ARCHITECTURE.md)。
 
 ## 1. 原则
@@ -16,7 +16,7 @@
 |----|------|----------|----------|
 | A. 产品 UX | 交互范式、chrome、节点体验 | Flora、Weavy / Figma Weave、Krea、Floyo、LibTV、即梦智能画布 | 抄 UI 皮肤或闭源实现 |
 | B. 开源实现 | MiniMap、多选、NodeToolbar、edges、registry、创建/连线 UX | `@xyflow/react`、[basketikun/infinite-canvas](https://github.com/basketikun/infinite-canvas)、open-storyboard-canvas、caraca、flowcraft、franklin-canvas | 整仓粘贴；默认换栈；不搬 Ant Design / 插件 / Agent |
-| C. 白板 SDK | 视口、选区、undo 心智 | Excalidraw（MIT）；tldraw（商用需授权） | 当作 JoyAI 主路径 |
+| C. 白板 SDK | 视口、选区、undo 心智 | Excalidraw（MIT）；tldraw（商用需授权） | 当作 FrameRally 主路径 |
 | 0. 旧仓踩坑 | Seedream/Seedance、队列、TOS、快照体积 | `ai-comic-drama`、`ai-video` | 当竞品标杆或代码源 |
 
 ### 2.1 A 层 — 产品竞品（体验）
@@ -37,7 +37,7 @@
 | [xyflow/xyflow](https://github.com/xyflow/xyflow)（`@xyflow/react`） | 节点图引擎 MIT | MiniMap、Controls、Background、NodeToolbar、框选、edges、viewport API |
 | [basketikun/infinite-canvas](https://github.com/basketikun/infinite-canvas) | Vite + Zustand 自研无限画布（MIT） | 右键/连线落空创建菜单、系统剪贴板、网格模式、浮层 no-zoom、hover 工具条、结果落点；**不**引入其插件/Agent/IndexedDB/Ant 皮 |
 | [ganbo-gab/open-storyboard-canvas](https://github.com/ganbo-gab/open-storyboard-canvas) | Tauri + React 分镜/导演台 | 节点类型划分、参考素材、`@` 引用、几何索引/性能 |
-| [CPloscaru/caraca](https://github.com/CPloscaru/caraca) | Next + xyflow + fal | 与 JoyAI 栈接近的节点生图/生视频编排 |
+| [CPloscaru/caraca](https://github.com/CPloscaru/caraca) | Next + xyflow + fal | 与 FrameRally 栈接近的节点生图/生视频编排 |
 | [mblanc/flowcraft](https://github.com/mblanc/flowcraft) | Next + xyflow + Gemini/Veo | 依赖执行、节点运行态、配置面板 |
 | [BlockRunAI/franklin-canvas](https://github.com/BlockRunAI/franklin-canvas) | 节点媒体制作 | 底栏 zoom / Fit / 网格 / 小地图 chrome |
 
@@ -70,7 +70,7 @@
 
 ## 4. 竞品能力差距（相对 Flora / LibTV / xyflow 级体验）
 
-| 能力域 | 竞品常见 | JoyAI 现状 | 下一阶段态度 |
+| 能力域 | 竞品常见 | FrameRally 现状 | 下一阶段态度 |
 |--------|----------|------------|--------------|
 | 视口 chrome | zoom%、Fit、网格、小地图可拖跳 | 有基础 dock + minimap | **必做增强** |
 | 选择模型 | 单击 / 框选 / Shift 加选 / 多选工具条 | 单选为主 | **必做** |

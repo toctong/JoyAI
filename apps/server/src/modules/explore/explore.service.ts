@@ -239,7 +239,7 @@ export class ExploreService implements OnModuleInit {
           timeout: 45_000,
           headers: {
             Accept: "application/json",
-            "User-Agent": "JoyAI/0.1 (+explore-proxy)",
+            "User-Agent": "FrameRally/0.1 (+explore-proxy)",
           },
           validateStatus: () => true,
           ...proxyCfg,

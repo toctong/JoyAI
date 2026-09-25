@@ -1177,14 +1177,14 @@ function rewriteSeedancePromptMentions(prompt: string): string {
 }
 
 /**
- * Map JoyAI `@图片N` / `@视频N` → Kling Omni wire placeholders.
+ * Map FrameRally `@图片N` / `@视频N` → Kling Omni wire placeholders.
  * UI / job storage always keep `@…`; `<<<…>>>` is only for the upstream body.
  */
 function rewriteKlingOmniPlaceholders(
   prompt: string,
   counts: { images: number; videos: number },
 ): string {
-  // Normalize any leaked Omni wire tokens back to JoyAI @ mentions first
+  // Normalize any leaked Omni wire tokens back to FrameRally @ mentions first
   let out = String(prompt ?? "")
     .replace(/<<<image_(\d+)>>>/gi, (_m, n: string) => `@图片${n}`)
     .replace(/<<<element_(\d+)>>>/gi, (_m, n: string) => `@图片${n}`)

@@ -6,7 +6,7 @@
 
 ## 背景
 
-JoyAI 画板是自研 `pan/zoom + React 绝对节点 + Zustand`，已完成 P0/P1（多选、小地图、NodeToolbar、吸附、@ 高亮、定位）。  
+FrameRally 画板是自研 `pan/zoom + React 绝对节点 + Zustand`，已完成 P0/P1（多选、小地图、NodeToolbar、吸附、@ 高亮、定位）。  
 P2 需要显式 edges/handles。业界常用 `@xyflow/react`（React Flow）提供 MiniMap、框选、连线、NodeToolbar 等开箱能力，需书面决定是否换栈。
 
 ## 选项

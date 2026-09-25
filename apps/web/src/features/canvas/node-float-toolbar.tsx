@@ -303,7 +303,7 @@ export function NodeFloatToolbar({
       a.download =
         preferred && !/\.[a-z0-9]{2,5}$/i.test(preferred)
           ? `${preferred}.${ext}`
-          : preferred || `joyai-${node.type}-${node.id.slice(0, 6)}.${ext}`;
+          : preferred || `framerally-${node.type}-${node.id.slice(0, 6)}.${ext}`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {

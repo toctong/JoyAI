@@ -192,7 +192,7 @@ export async function probeMarketProxy(
                 headers: {
                   Accept: "application/json",
                   "Content-Type": "application/json",
-                  "User-Agent": "JoyAI/0.1 (+explore-market-proxy-probe)",
+                  "User-Agent": "FrameRally/0.1 (+explore-market-proxy-probe)",
                   Origin: "https://pixai.art",
                   Referer: "https://pixai.art/zh/market",
                 },
@@ -206,7 +206,7 @@ export async function probeMarketProxy(
                   : {}),
                 headers: {
                   Accept: "application/json",
-                  "User-Agent": "JoyAI/0.1 (+explore-market-proxy-probe)",
+                  "User-Agent": "FrameRally/0.1 (+explore-market-proxy-probe)",
                 },
               });
         lastStatus = res.status;

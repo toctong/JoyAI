@@ -1,7 +1,11 @@
 /** Brand chrome — always local under `public/brand/`. */
 export const JOYAI_BRAND = {
-  /** Sidebar / compact mark (also used on login) */
+  /** Sidebar / compact mark */
   logo: "/brand/mirora-mark.png",
+  /** Login / marketing wordmark (transparent PNG, for dark surfaces) */
+  wordmark: "/brand/framerally-wordmark.png",
+  /** Wordmark for light surfaces (login modal, etc.) */
+  wordmarkDark: "/brand/framerally-wordmark-dark.png",
   /** @deprecated Prefer `logo` + text; kept for older call sites */
   logoFull: "/brand/mirora-logo.png",
   mascot: "/brand/mascot.png",
@@ -27,3 +31,6 @@ export const JOYAI_BRAND = {
     avatar: "/brand/avatar.png",
   },
 } as const;
+
+/** Preferred product alias — same assets as `JOYAI_BRAND`. */
+export const FRAMERALLY_BRAND = JOYAI_BRAND;

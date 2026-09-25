@@ -1,13 +1,13 @@
 ---
 name: joyai-engineering
 description: >-
-  JoyAI monorepo engineering and visual standards for Next.js shadcn apps,
+  FrameRally monorepo engineering and visual standards for Next.js shadcn apps,
   Nest Fastify server, shared types, ai-providers, BullMQ jobs, AI tools,
-  and infinite canvas. Use when writing or reviewing any JoyAI code, adding
+  and infinite canvas. Use when writing or reviewing any FrameRally code, adding
   modules, UI, tools, or providers.
 ---
 
-# JoyAI Engineering
+# FrameRally Engineering
 
 ## Hard rules
 

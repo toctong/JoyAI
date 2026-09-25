@@ -20,7 +20,7 @@ export function PluginsMarket() {
         <header className="joy-plugins-header">
           <h1 className="joy-plugins-title">插件市场</h1>
           <p className="joy-plugins-desc">
-            扩展 JoyAI 前台体验。每个插件独立配置，可随时开关或调整。
+            扩展 FrameRally 前台体验。每个插件独立配置，可随时开关或调整。
           </p>
         </header>
 

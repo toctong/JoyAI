@@ -1,4 +1,4 @@
-﻿# Build the JoyAI image (web + API in one container) and push it to Docker Hub.
+﻿# Build the FrameRally image (web + API in one container) and push it to Docker Hub.
 # MySQL / Redis stay as official images and are not pushed.
 #
 #   powershell -ExecutionPolicy Bypass -File scripts/pack-fnos.ps1

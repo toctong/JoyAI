@@ -239,7 +239,7 @@ export function ProjectLibrary() {
         );
       } else {
         downloadJson(
-          `joyai-canvas-bundle-${payloads.length}.json`,
+          `framerally-canvas-bundle-${payloads.length}.json`,
           buildBundleExport(payloads),
         );
       }

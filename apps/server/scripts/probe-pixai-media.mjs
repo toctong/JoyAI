@@ -8,7 +8,7 @@ import { HttpsProxyAgent } from "https-proxy-agent";
 const proxy =
   process.env.EXPLORE_MARKET_PROXY?.trim() || "http://8.130.171.89:20171";
 const headers = {
-  "User-Agent": "JoyAI/0.1 (+probe-pixai-media)",
+  "User-Agent": "FrameRally/0.1 (+probe-pixai-media)",
   "Content-Type": "application/json",
   Accept: "application/json",
   Origin: "https://pixai.art",

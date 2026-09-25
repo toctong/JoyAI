@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { CreatorLoginView } from "@/features/auth/creator-login-view";
-
-export default function LoginPage() {
-  return <CreatorLoginView />;
+/** Legacy `/login` → `/frame-rally`. */
+export default function LoginRedirectPage() {
+  redirect("/frame-rally");
 }

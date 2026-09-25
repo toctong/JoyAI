@@ -133,7 +133,7 @@
 
 - [x] `/tools` 目录 + `/tools/[slug]` 详情；侧栏入口
 - [x] 工具目录：拍立得 / 公仔 / 杂志 / Logo / 线稿上色 / 贴纸 / 像素 / 海报等，走 `POST /jobs` + `tool-catalog.ts`（新工具只加目录项）
-- [x] 工具详情：左侧栏表单 + 底部生成 + 右侧预览；控件用 JoyAI 模型/参数组件；目录卡本地封面叠层
+- [x] 工具详情：左侧栏表单 + 底部生成 + 右侧预览；控件用 FrameRally 模型/参数组件；目录卡本地封面叠层
 - [x] 接吻 / 拥抱视频（`ai-kiss` / `ai-hug`，走 image→video Job，目录已 `available`）
 - [ ] 高清放大 `upscale`（目录 `coming_soon`；需独立 job kind + 供应商，禁止用图生图提示词冒充）
 

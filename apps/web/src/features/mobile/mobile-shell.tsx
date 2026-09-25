@@ -35,7 +35,7 @@ function titleForPath(pathname: string) {
   for (const [prefix, title] of Object.entries(TITLES)) {
     if (pathname.startsWith(`${prefix}/`)) return title;
   }
-  return "JoyAI";
+  return "FrameRally";
 }
 
 function hideChromeTitleFor(pathname: string) {
@@ -63,7 +63,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   const hideTabbar = hideTabbarFor(pathname);
 
   useEffect(() => {
-    if (hydrated && !token) router.replace("/login");
+    if (hydrated && !token) router.replace("/frame-rally");
   }, [hydrated, token, router]);
 
   if (!hydrated) {
@@ -87,7 +87,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
       <div className="joy-m" data-mobile-shell>
         <div className="joy-m-atmosphere" aria-hidden />
         <header className="joy-m-top">
-          <Link href="/m/inspire" className="joy-m-brand" aria-label="JoyAI">
+          <Link href="/m/inspire" className="joy-m-brand" aria-label="FrameRally">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={JOYAI_BRAND.logo}
@@ -95,7 +95,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
               className="joy-m-brand-mark"
               draggable={false}
             />
-            <span className="joy-m-brand-name">JoyAI</span>
+            <span className="joy-m-brand-name">FrameRally</span>
           </Link>
           {!hideChromeTitle ? (
             <h1 className="joy-m-top-title">{title}</h1>

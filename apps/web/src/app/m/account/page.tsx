@@ -71,7 +71,7 @@ export default function MobileAccountPage() {
           style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           onClick={() => {
             logout();
-            router.replace("/login");
+            router.replace("/frame-rally");
           }}
         >
           <LogOut className="size-3.5" />

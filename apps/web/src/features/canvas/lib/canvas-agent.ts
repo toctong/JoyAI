@@ -5,7 +5,7 @@ import { api } from "@/shared/lib/api";
 export const AGENT_MAX_ROUNDS = 6;
 export const AGENT_ACTIONS_PER_ROUND = 4;
 
-export const CANVAS_AGENT_SYSTEM = `你是 JoyAI 无限画布助手。每一轮只做一小步，看到工具结果后再决定下一步。
+export const CANVAS_AGENT_SYSTEM = `你是 FrameRally 无限画布助手。每一轮只做一小步，看到工具结果后再决定下一步。
 必须只输出一个 JSON 对象（不要 markdown 围栏），格式：
 {"reply":"给用户的简短中文说明","actions":[...]}
 

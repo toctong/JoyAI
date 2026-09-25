@@ -47,7 +47,7 @@ export default function AccountPage() {
   useEffect(() => {
     if (!hydrated) return;
     if (!token) {
-      router.replace("/login");
+      router.replace("/frame-rally");
       return;
     }
     void refreshMe().catch(() => undefined);

@@ -215,7 +215,7 @@ function orderAssetsByTiles(
   return ordered;
 }
 
-/** Repair scrambled 切图 order using joyai-split-R-C filenames when present. */
+/** Repair scrambled 切图 order using framerally-/joyai-split-R-C filenames when present. */
 function orderSplitAssetsByName(assets: Asset[]): Asset[] {
   if (assets.length < 2) return assets;
   const scored: {
@@ -227,7 +227,7 @@ function orderSplitAssetsByName(assets: Asset[]): Asset[] {
   for (let index = 0; index < assets.length; index += 1) {
     const asset = assets[index]!;
     const name = `${asset.meta?.originalName ?? ""} ${asset.url ?? ""}`;
-    const match = name.match(/joyai-split-(\d+)-(\d+)/i);
+    const match = name.match(/(?:framerally|joyai)-split-(\d+)-(\d+)/i);
     if (!match) return assets;
     scored.push({
       asset,

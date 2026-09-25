@@ -45,7 +45,7 @@ export function rewritePromptMentionsForApi(
 ): string {
   let out = String(prompt ?? "")
     .replace(/\u200B/g, "")
-    // Kling Omni wire → JoyAI @ (providers convert again if needed)
+    // Kling Omni wire → FrameRally @ (providers convert again if needed)
     .replace(/<<<image_(\d+)>>>/gi, (_m, n: string) => `@图片${n}`)
     .replace(/<<<element_(\d+)>>>/gi, (_m, n: string) => `@图片${n}`)
     .replace(/<<<video_(\d+)>>>/gi, (_m, n: string) => `@视频${n}`);

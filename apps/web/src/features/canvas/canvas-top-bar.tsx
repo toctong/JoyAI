@@ -50,7 +50,7 @@ type Props = {
   onFocusNode: (id: string) => void;
 };
 
-/** Top chrome — layout aligned to infinite-canvas (JoyAI theme). */
+/** Top chrome — layout aligned to infinite-canvas (FrameRally theme). */
 export function CanvasTopBar({
   projectId,
   canUndo,

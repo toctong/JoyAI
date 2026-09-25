@@ -54,7 +54,7 @@ export default function AppShellLayout({
     isStudio;
 
   useEffect(() => {
-    if (hydrated && !token) router.replace("/login");
+    if (hydrated && !token) router.replace("/frame-rally");
   }, [hydrated, token, router]);
 
   /** Keep local user.id in sync: JWT identity is username, DB id may change. */
@@ -84,7 +84,7 @@ export default function AppShellLayout({
         if (cancelled || isApiCancelError(error)) return;
         if (error instanceof ApiError && error.status === 401) {
           logout();
-          router.replace("/login");
+          router.replace("/frame-rally");
         }
       }
     })();

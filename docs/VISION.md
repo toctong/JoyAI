@@ -2,9 +2,9 @@
 
 ## 产品
 
-JoyAI 是 AIGC 创意工坊：创作者用对话式首页生成图片/视频，用无限画板组织素材与生成卡片；运维 UI 合入 `apps/web` 的 `/admin`（admin 角色门禁），不再单独打包 `apps/admin`。
+FrameRally 是 AIGC 创意工坊：创作者用对话式首页生成图片/视频，用无限画板组织素材与生成卡片；运维 UI 合入 `apps/web` 的 `/admin`（admin 角色门禁），不再单独打包 `apps/admin`。
 
-产品可参考公开 AIGC 产品的能力范式（对话生图、无限画板节点），体验与品牌按 JoyAI 自研。
+产品可参考公开 AIGC 产品的能力范式（对话生图、无限画板节点），体验与品牌按 FrameRally 自研。
 
 无限画板的**正式参考源、竞品差距与 Phase 6 规格**见 [CANVAS.md](./CANVAS.md)。  
 `ai-comic-drama` **不是**画板交互/实现标杆（初版乱、缺小地图与节点小工具等）。

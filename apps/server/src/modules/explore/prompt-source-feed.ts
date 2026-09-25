@@ -12,7 +12,7 @@ import {
 } from "./explore-market-proxy";
 
 const FETCH_TIMEOUT_MS = 45_000;
-const UA = "JoyAI/0.1 (+explore-prompt-sources)";
+const UA = "FrameRally/0.1 (+explore-prompt-sources)";
 
 const TIGER_CASE_FILES = [
   "cases/ad-creative.md",
