@@ -124,7 +124,9 @@ export default function AppShellLayout({
             overlay={
               isCanvasEditor || isManjuWorkbench || isToolDetail
             }
-            hideCluster={isCanvasEditor || isManjuWorkbench}
+            hideCluster={
+              isCanvasEditor || isManjuWorkbench || isInspireHome
+            }
           />
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
             {ownScroll ? (

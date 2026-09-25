@@ -165,7 +165,7 @@ export function AppHeader({
   hideCluster = false,
 }: {
   overlay?: boolean;
-  /** Canvas / manju detail: hide GitHub · admin · notify · theme · user. */
+  /** Canvas / manju detail / inspire: hide GitHub · admin · notify · theme · user. */
   hideCluster?: boolean;
 }) {
   const pathname = usePathname();
