@@ -80,12 +80,22 @@ type CommitsPage = {
   hasMore: boolean;
 };
 
-function dateLabel(iso: string) {
+function datePillLabel(iso: string) {
+  const d = dayjs(iso);
+  const today = dayjs().startOf("day");
+  if (d.isSame(today, "day")) return `今天（${d.format("YYYY/M/D")}）`;
+  if (d.isSame(today.subtract(1, "day"), "day")) {
+    return `昨天（${d.format("YYYY/M/D")}）`;
+  }
+  return `${d.format("dddd YYYY年M月D日")}（${d.format("YYYY/M/D")}）`;
+}
+
+function dateTocLabel(iso: string) {
   const d = dayjs(iso);
   const today = dayjs().startOf("day");
   if (d.isSame(today, "day")) return "今天";
   if (d.isSame(today.subtract(1, "day"), "day")) return "昨天";
-  return d.format("YYYY年M月D日");
+  return d.format("M月D日");
 }
 
 function findShellScrollViewport(from: HTMLElement | null) {
@@ -113,6 +123,7 @@ export function ChangelogPage() {
   const [error, setError] = useState<string | null>(null);
   const [rootEl, setRootEl] = useState<HTMLDivElement | null>(null);
   const [showTop, setShowTop] = useState(false);
+  const [activeDay, setActiveDay] = useState<string | null>(null);
 
   const load = useCallback(async (nextPage: number, append: boolean) => {
     if (append) setLoadingMore(true);
@@ -165,7 +176,52 @@ export function ChangelogPage() {
     return () => el.removeEventListener("scroll", onScroll);
   }, [scrollEl]);
 
+  useEffect(() => {
+    if (groups.length === 0) {
+      setActiveDay(null);
+      return;
+    }
+    const root = scrollEl;
+    const nodes = groups
+      .map(([day]) => document.getElementById(`changelog-day-${day}`))
+      .filter(Boolean) as HTMLElement[];
+    if (nodes.length === 0) return;
+
+    setActiveDay((prev) => prev ?? groups[0]![0]);
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort(
+            (a, b) =>
+              a.boundingClientRect.top - b.boundingClientRect.top,
+          );
+        const id = visible[0]?.target.id;
+        if (id?.startsWith("changelog-day-")) {
+          setActiveDay(id.slice("changelog-day-".length));
+        }
+      },
+      {
+        root: root ?? null,
+        rootMargin: "-12% 0px -55% 0px",
+        threshold: [0, 0.2, 0.5],
+      },
+    );
+    for (const n of nodes) io.observe(n);
+    return () => io.disconnect();
+  }, [groups, scrollEl]);
+
+  function scrollToDay(day: string) {
+    const node = document.getElementById(`changelog-day-${day}`);
+    if (!node) return;
+    setActiveDay(day);
+    node.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   const meta = data?.repoMeta;
+  const showFeed = !loading || items.length > 0;
+  const showToc = showFeed && !error && groups.length > 0;
 
   return (
     <div className="joy-changelog" ref={setRootEl}>
@@ -224,7 +280,9 @@ export function ChangelogPage() {
                     {meta?.private ? "私有" : "公开"}
                   </Badge>
                   {data.configured ? (
-                    <Badge className="rounded-[2px] font-normal">已配置 Token</Badge>
+                    <Badge className="rounded-[2px] font-normal">
+                      已配置 Token
+                    </Badge>
                   ) : (
                     <Badge
                       variant="outline"
@@ -390,159 +448,197 @@ export function ChangelogPage() {
             </Button>
           </div>
         ) : (
-          <div className="joy-changelog-feed">
-            {groups.map(([day, commits]) => (
-              <section key={day} className="joy-changelog-day">
-                <div className="joy-changelog-day-label">
-                  <span className="joy-changelog-day-dot" aria-hidden />
-                  <h2>{dateLabel(commits[0]!.authoredAt)}</h2>
-                  <span className="joy-changelog-day-count">
-                    {commits.length} 条
-                  </span>
-                </div>
-                <ul className="joy-changelog-list">
-                  {commits.map((c) => {
-                    const initial = c.author.name.slice(0, 1).toUpperCase();
-                    const authorLabel = c.author.login || c.author.name;
-                    const committerLabel =
-                      c.committer.login || c.committer.name;
-                    const showCommitter =
-                      Boolean(committerLabel) &&
-                      committerLabel !== authorLabel;
-                    return (
-                      <li key={c.sha} className="joy-changelog-item">
-                        <div className="joy-changelog-rail" aria-hidden>
-                          {c.isMerge ? (
-                            <GitMerge className="joy-changelog-rail-icon" />
-                          ) : (
-                            <GitCommitHorizontal className="joy-changelog-rail-icon" />
-                          )}
-                        </div>
-                        <div className="joy-changelog-card">
-                          <div className="joy-changelog-card-main">
-                            <div className="joy-changelog-msg-row">
-                              <p className="joy-changelog-msg">{c.message}</p>
-                              <div className="joy-changelog-tags">
-                                {c.isMerge ? (
-                                  <Badge
-                                    variant="secondary"
-                                    className="rounded-[2px] font-normal"
-                                  >
-                                    Merge
-                                  </Badge>
+          <div className="joy-changelog-layout">
+            <div className="joy-changelog-feed">
+              {groups.map(([day, commits]) => (
+                <section
+                  key={day}
+                  id={`changelog-day-${day}`}
+                  className="joy-changelog-day"
+                >
+                  <div className="joy-changelog-day-label">
+                    <span className="joy-changelog-day-dot" aria-hidden />
+                    <h2 className="joy-changelog-day-pill">
+                      {datePillLabel(commits[0]!.authoredAt)}
+                    </h2>
+                    <span className="joy-changelog-day-count">
+                      {commits.length} 条
+                    </span>
+                  </div>
+                  <ul className="joy-changelog-list">
+                    {commits.map((c) => {
+                      const initial = c.author.name.slice(0, 1).toUpperCase();
+                      const authorLabel = c.author.login || c.author.name;
+                      const committerLabel =
+                        c.committer.login || c.committer.name;
+                      const showCommitter =
+                        Boolean(committerLabel) &&
+                        committerLabel !== authorLabel;
+                      return (
+                        <li key={c.sha} className="joy-changelog-item">
+                          <div className="joy-changelog-rail" aria-hidden>
+                            {c.isMerge ? (
+                              <GitMerge className="joy-changelog-rail-icon" />
+                            ) : (
+                              <GitCommitHorizontal className="joy-changelog-rail-icon" />
+                            )}
+                          </div>
+                          <div className="joy-changelog-card">
+                            <div className="joy-changelog-card-main">
+                              <div className="joy-changelog-msg-row">
+                                <p className="joy-changelog-msg">{c.message}</p>
+                                <div className="joy-changelog-tags">
+                                  {c.isMerge ? (
+                                    <Badge
+                                      variant="secondary"
+                                      className="rounded-[2px] font-normal"
+                                    >
+                                      Merge
+                                    </Badge>
+                                  ) : null}
+                                  {c.verified ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="rounded-[2px] gap-1 font-normal text-emerald-600"
+                                      title={c.verifyReason ?? "verified"}
+                                    >
+                                      <ShieldCheck className="size-[var(--joy-icon-xs)]" />
+                                      已验证
+                                    </Badge>
+                                  ) : null}
+                                  <span className="joy-changelog-date-chip">
+                                    {dayjs(c.authoredAt).format("YYYY-MM-DD")}
+                                  </span>
+                                </div>
+                              </div>
+                              {c.body ? (
+                                <pre className="joy-changelog-body">
+                                  {c.body}
+                                </pre>
+                              ) : null}
+                              <div className="joy-changelog-meta">
+                                <Avatar className="size-5">
+                                  {c.author.avatarUrl ? (
+                                    <AvatarImage
+                                      src={c.author.avatarUrl}
+                                      alt=""
+                                    />
+                                  ) : null}
+                                  <AvatarFallback className="text-[10px]">
+                                    {initial}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="joy-changelog-author">
+                                  {authorLabel}
+                                </span>
+                                {c.author.email ? (
+                                  <>
+                                    <span className="joy-changelog-sep">·</span>
+                                    <span
+                                      className="joy-changelog-email"
+                                      title={c.author.email}
+                                    >
+                                      {c.author.email}
+                                    </span>
+                                  </>
                                 ) : null}
-                                {c.verified ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="rounded-[2px] gap-1 font-normal text-emerald-600"
-                                    title={c.verifyReason ?? "verified"}
-                                  >
-                                    <ShieldCheck className="size-[var(--joy-icon-xs)]" />
-                                    已验证
-                                  </Badge>
+                                {showCommitter ? (
+                                  <>
+                                    <span className="joy-changelog-sep">·</span>
+                                    <span className="text-muted-foreground">
+                                      提交者 {committerLabel}
+                                    </span>
+                                  </>
+                                ) : null}
+                                <span className="joy-changelog-sep">·</span>
+                                <time
+                                  dateTime={c.authoredAt}
+                                  title={dayjs(c.authoredAt).format(
+                                    "YYYY-MM-DD HH:mm:ss",
+                                  )}
+                                >
+                                  {dayjs(c.authoredAt).format("HH:mm")}
+                                  <span className="joy-changelog-rel">
+                                    （{dayjs(c.authoredAt).fromNow()}）
+                                  </span>
+                                </time>
+                                {c.commentCount > 0 ? (
+                                  <>
+                                    <span className="joy-changelog-sep">·</span>
+                                    <span className="inline-flex items-center gap-1 text-muted-foreground">
+                                      <MessageSquare className="size-[var(--joy-icon-xs)]" />
+                                      {c.commentCount}
+                                    </span>
+                                  </>
                                 ) : null}
                               </div>
                             </div>
-                            {c.body ? (
-                              <pre className="joy-changelog-body">{c.body}</pre>
-                            ) : null}
-                            <div className="joy-changelog-meta">
-                              <Avatar className="size-5">
-                                {c.author.avatarUrl ? (
-                                  <AvatarImage
-                                    src={c.author.avatarUrl}
-                                    alt=""
-                                  />
-                                ) : null}
-                                <AvatarFallback className="text-[10px]">
-                                  {initial}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="joy-changelog-author">
-                                {authorLabel}
-                              </span>
-                              {c.author.email ? (
-                                <>
-                                  <span className="joy-changelog-sep">·</span>
-                                  <span
-                                    className="joy-changelog-email"
-                                    title={c.author.email}
-                                  >
-                                    {c.author.email}
-                                  </span>
-                                </>
-                              ) : null}
-                              {showCommitter ? (
-                                <>
-                                  <span className="joy-changelog-sep">·</span>
-                                  <span className="text-muted-foreground">
-                                    提交者 {committerLabel}
-                                  </span>
-                                </>
-                              ) : null}
-                              <span className="joy-changelog-sep">·</span>
-                              <time
-                                dateTime={c.authoredAt}
-                                title={dayjs(c.authoredAt).format(
-                                  "YYYY-MM-DD HH:mm:ss",
-                                )}
-                              >
-                                {dayjs(c.authoredAt).format("MM-DD HH:mm")}
-                                <span className="joy-changelog-rel">
-                                  （{dayjs(c.authoredAt).fromNow()}）
-                                </span>
-                              </time>
-                              {c.commentCount > 0 ? (
-                                <>
-                                  <span className="joy-changelog-sep">·</span>
-                                  <span className="inline-flex items-center gap-1 text-muted-foreground">
-                                    <MessageSquare className="size-[var(--joy-icon-xs)]" />
-                                    {c.commentCount}
-                                  </span>
-                                </>
-                              ) : null}
-                            </div>
+                            <button
+                              type="button"
+                              className="joy-changelog-sha"
+                              title={`复制完整 SHA\n${c.sha}`}
+                              onClick={() =>
+                                void copyText(c.sha, `已复制 ${c.shortSha}`)
+                              }
+                            >
+                              <span>{c.shortSha}</span>
+                              <Copy className="size-[var(--joy-icon-xs)] opacity-50" />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            className="joy-changelog-sha"
-                            title={`复制完整 SHA\n${c.sha}`}
-                            onClick={() =>
-                              void copyText(c.sha, `已复制 ${c.shortSha}`)
-                            }
-                          >
-                            <span>{c.shortSha}</span>
-                            <Copy className="size-[var(--joy-icon-xs)] opacity-50" />
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </section>
-            ))}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
 
-            {data?.hasMore ? (
-              <div className="joy-changelog-more">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 rounded-[2px]"
-                  disabled={loadingMore}
-                  onClick={() => void load(page + 1, true)}
-                >
-                  {loadingMore ? (
-                    <Loader2 className="size-3.5 animate-spin" />
-                  ) : null}
-                  加载更多
-                </Button>
-              </div>
-            ) : items.length > 0 ? (
-              <p className="joy-changelog-end">
-                <CheckCircle2 className="mr-1.5 inline size-3.5 opacity-60" />
-                没有更多提交了
-              </p>
+              {data?.hasMore ? (
+                <div className="joy-changelog-more">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-[2px]"
+                    disabled={loadingMore}
+                    onClick={() => void load(page + 1, true)}
+                  >
+                    {loadingMore ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : null}
+                    加载更多
+                  </Button>
+                </div>
+              ) : items.length > 0 ? (
+                <p className="joy-changelog-end">
+                  <CheckCircle2 className="mr-1.5 inline size-3.5 opacity-60" />
+                  没有更多提交了
+                </p>
+              ) : null}
+            </div>
+
+            {showToc ? (
+              <aside className="joy-changelog-toc" aria-label="日期导航">
+                <nav className="joy-changelog-toc-nav">
+                  {groups.map(([day, commits]) => (
+                    <button
+                      key={day}
+                      type="button"
+                      className={cn(
+                        "joy-changelog-toc-item",
+                        activeDay === day && "is-on",
+                      )}
+                      onClick={() => scrollToDay(day)}
+                    >
+                      <span className="joy-changelog-toc-label">
+                        {dateTocLabel(commits[0]!.authoredAt)}
+                      </span>
+                      <span className="joy-changelog-toc-count">
+                        {commits.length}
+                      </span>
+                    </button>
+                  ))}
+                </nav>
+              </aside>
             ) : null}
           </div>
         )}
