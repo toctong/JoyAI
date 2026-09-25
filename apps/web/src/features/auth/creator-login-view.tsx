@@ -11,6 +11,8 @@ import {
   ChevronDown,
   Eye,
   EyeOff,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
 import { api, ApiError } from "@/shared/lib/api";
@@ -116,18 +118,23 @@ function LoopVideo({
   src,
   className,
   poster,
+  muted = true,
+  videoRef,
 }: {
   src: string;
   className?: string;
   poster?: string;
+  muted?: boolean;
+  videoRef?: RefObject<HTMLVideoElement | null>;
 }) {
   return (
     <video
+      ref={videoRef}
       className={className}
       src={src}
       poster={poster}
       autoPlay
-      muted
+      muted={muted}
       loop
       playsInline
       preload="metadata"
@@ -319,6 +326,7 @@ export function CreatorLoginView() {
   const token = useAuthStore((s) => s.token);
   const setAuth = useAuthStore((s) => s.setAuth);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const heroVideoRef = useRef<HTMLVideoElement>(null);
 
   const [hydrated, setHydrated] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -333,6 +341,7 @@ export function CreatorLoginView() {
   const [totpCode, setTotpCode] = useState("");
   const [totpUser, setTotpUser] = useState<string | null>(null);
   const [edition, setEdition] = useState<EditionId>("explore");
+  const [heroSoundOn, setHeroSoundOn] = useState(false);
 
   const activeEdition =
     EDITIONS.find((item) => item.id === edition) ?? EDITIONS[0]!;
@@ -381,6 +390,17 @@ export function CreatorLoginView() {
       root.getBoundingClientRect().top +
       root.scrollTop;
     root.scrollTo({ top: Math.max(0, top - 8), behavior: "smooth" });
+  }
+
+  function toggleHeroSound() {
+    const video = heroVideoRef.current;
+    const next = !heroSoundOn;
+    setHeroSoundOn(next);
+    if (!video) return;
+    video.muted = !next;
+    if (next) {
+      void video.play().catch(() => {});
+    }
   }
 
   async function onSubmit(values: FormValues) {
@@ -495,6 +515,8 @@ export function CreatorLoginView() {
             className="login-page__video"
             src={LOGIN_MEDIA.hero}
             poster={JOYAI_BRAND.heroBg}
+            muted={!heroSoundOn}
+            videoRef={heroVideoRef}
           />
           <div className="login-page__veil" />
         </div>
@@ -514,6 +536,23 @@ export function CreatorLoginView() {
             {activeEdition.caption}
           </p>
         </div>
+
+        <button
+          type="button"
+          className={cn(
+            "login-page__sound",
+            heroSoundOn && "is-on",
+          )}
+          aria-label={heroSoundOn ? "关闭声音" : "开启声音"}
+          aria-pressed={heroSoundOn}
+          onClick={toggleHeroSound}
+        >
+          {heroSoundOn ? (
+            <Volume2 className="size-4" strokeWidth={1.75} />
+          ) : (
+            <VolumeX className="size-4" strokeWidth={1.75} />
+          )}
+        </button>
 
         <div className="login-page__hero-bottom">
           <div

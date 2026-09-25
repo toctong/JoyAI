@@ -211,6 +211,46 @@
   overflow: hidden;
 }
 
+.login-page__sound {
+  position: absolute;
+  right: max(20px, 3vw);
+  bottom: 28px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid color-mix(in oklab, #fff 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, #10141c 48%, transparent);
+  color: color-mix(in oklab, #fff 78%, transparent);
+  backdrop-filter: blur(12px) saturate(1.1);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.login-page__sound:hover {
+  color: #fff;
+  border-color: color-mix(in oklab, #fff 28%, transparent);
+  background: color-mix(in oklab, #fff 12%, transparent);
+}
+
+.login-page__sound.is-on {
+  color: #fff;
+  border-color: color-mix(in oklab, #fff 32%, transparent);
+  background: color-mix(in oklab, #fff 16%, transparent);
+}
+
+.login-page__sound:active {
+  transform: scale(0.96);
+}
+
 .login-page__hero-bottom {
   position: absolute;
   left: 0;
@@ -1099,6 +1139,13 @@
     font-size: 12px;
     height: calc(12px * 1.7 * 3);
     width: min(28em, 100%);
+  }
+
+  .login-page__sound {
+    right: 16px;
+    bottom: 20px;
+    width: 36px;
+    height: 36px;
   }
 
   .login-page__section {
