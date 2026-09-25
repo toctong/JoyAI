@@ -1,0 +1,514 @@
+/* Inspire works gallery — neo video-showcase proxy */
+
+.joy-inspire-works {
+  flex-shrink: 0;
+  padding: 4px 20px 28px;
+}
+
+.joy-inspire-works-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.joy-inspire-works-title {
+  margin: 0;
+  font-size: var(--joy-font-title, 16px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.joy-inspire-works-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 2px;
+  margin: 0 -4px;
+}
+
+.joy-inspire-works-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: var(--joy-control-h-sm, 32px);
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.joy-inspire-works-tab:hover {
+  color: var(--foreground);
+}
+
+.joy-inspire-works-tab.is-on {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.joy-inspire-works-tab.is-on::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--foreground);
+}
+
+.joy-inspire-works-tab-skel {
+  display: inline-block;
+  width: 64px;
+  height: 28px;
+  margin: 2px 4px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+}
+
+.joy-inspire-works-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.joy-inspire-works-roam {
+  grid-column: span 2;
+  grid-row: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.joy-inspire-works-roam-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 220px;
+  /* Size from grid/flex only — never from video intrinsic ratio */
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0a0a0a;
+  isolation: isolate;
+}
+
+.joy-inspire-works-roam-label {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.4);
+  font-size: var(--joy-font-label, 14px);
+  color: rgb(255 255 255 / 0.95);
+  pointer-events: none;
+}
+
+.joy-inspire-works-roam-poster,
+.joy-inspire-works-roam-video,
+.joy-inspire-works-roam-empty {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.joy-inspire-works-roam-poster {
+  z-index: 0;
+}
+
+.joy-inspire-works-roam-video {
+  z-index: 1;
+}
+
+.joy-inspire-works-roam-empty {
+  z-index: 0;
+  background: var(--muted);
+}
+
+.joy-inspire-works-roam-controls {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.joy-inspire-works-roam-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.48);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.joy-inspire-works-roam-btn:hover {
+  background: rgb(0 0 0 / 0.68);
+}
+
+.joy-inspire-works-roam-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.joy-inspire-works-roam-skel {
+  grid-column: span 2;
+  grid-row: span 2;
+  min-height: 280px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+  animation: joy-inspire-works-pulse 1.2s ease-in-out infinite;
+}
+
+.joy-inspire-works-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.2s var(--joy-ease-out, ease),
+    box-shadow 0.2s var(--joy-ease-out, ease);
+}
+
+.joy-inspire-works-card:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+.joy-inspire-works-cover {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--muted);
+}
+
+.joy-inspire-works-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-inspire-works-cover img.is-under-video {
+  opacity: 0;
+}
+
+.joy-inspire-works-preview {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+  pointer-events: none;
+}
+
+.joy-inspire-works-cover-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: color-mix(in oklab, var(--muted) 90%, transparent);
+}
+
+.joy-inspire-works-open {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s var(--joy-ease-out, ease);
+}
+
+.joy-inspire-works-card:hover .joy-inspire-works-open,
+.joy-inspire-works-card.is-previewing .joy-inspire-works-open {
+  opacity: 1;
+}
+
+.joy-inspire-works-open-icon {
+  width: 15px;
+  height: 15px;
+}
+
+
+.joy-inspire-works-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 2px;
+}
+
+.joy-inspire-works-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.joy-inspire-works-avatar {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: var(--muted);
+}
+
+.joy-inspire-works-avatar.is-empty {
+  display: inline-block;
+}
+
+.joy-inspire-works-author-name {
+  min-width: 0;
+  font-size: var(--joy-font-caption, 13px);
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-inspire-works-public {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+}
+
+.joy-inspire-works-public-icon {
+  width: 11px;
+  height: 11px;
+}
+
+.joy-inspire-works-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.joy-inspire-works-name {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--joy-font-label, 14px);
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--foreground);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.joy-inspire-works-likes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-top: 1px;
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+}
+
+.joy-inspire-works-heart {
+  width: 14px;
+  height: 14px;
+}
+
+.joy-inspire-works-more {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 0 8px;
+}
+
+.joy-inspire-works-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.joy-inspire-works-more-btn {
+  height: var(--joy-control-h-md, 36px);
+  padding: 0 18px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.joy-inspire-works-more-btn:hover:not(:disabled) {
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--foreground) 18%, var(--border));
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+.joy-inspire-works-more-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.joy-inspire-works-end {
+  margin: 0;
+  font-size: var(--joy-font-caption, 13px);
+  color: var(--muted-foreground);
+}
+
+.joy-inspire-works-skel {
+  aspect-ratio: 16 / 11;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+  animation: joy-inspire-works-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes joy-inspire-works-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.joy-inspire-works-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  min-height: 80px;
+  padding: 16px 4px;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+}
+
+.joy-inspire-works-empty p {
+  margin: 0;
+}
+
+.joy-inspire-works-retry {
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+  font-size: var(--joy-font-label, 14px);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+@media (max-width: 1200px) {
+  .joy-inspire-works-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .joy-inspire-works-roam,
+  .joy-inspire-works-roam-skel {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .joy-inspire-works-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .joy-inspire-works-roam,
+  .joy-inspire-works-roam-skel {
+    grid-column: span 2;
+    grid-row: span 1;
+  }
+
+  .joy-inspire-works-roam-stage {
+    min-height: 200px;
+    aspect-ratio: 16 / 9;
+    flex: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .joy-inspire-works {
+    padding-inline: 12px;
+  }
+
+  .joy-inspire-works-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .joy-inspire-works-roam,
+  .joy-inspire-works-roam-skel {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joy-inspire-works-card,
+  .joy-inspire-works-open {
+    transition: none;
+  }
+
+  .joy-inspire-works-skel {
+    animation: none;
+  }
+}

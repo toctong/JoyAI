@@ -8,6 +8,7 @@
     "build": "nest build",
     "start": "node dist/main.js",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:reset": "node scripts/reset-mysql.cjs"
   },
   "dependencies": {

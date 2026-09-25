@@ -16,6 +16,7 @@ import type { Swiper as SwiperInstance } from "swiper";
 import { api, isApiCancelError } from "@/shared/lib/api";
 import { staticAssetUrl } from "@/shared/lib/static-asset";
 import { cn } from "@/shared/lib/utils";
+import { releaseHtmlMedia } from "@/shared/lib/release-media";
 import "swiper/css";
 import "swiper/css/effect-creative";
 import "./inspire-banner-carousel.css";
@@ -311,6 +312,11 @@ export function InspireBannerCarousel() {
     })();
     return () => {
       cancelled = true;
+      const root = swiperRef.current?.el;
+      if (!root) return;
+      root.querySelectorAll("video").forEach((node) => {
+        if (node instanceof HTMLVideoElement) releaseHtmlMedia(node);
+      });
     };
   }, []);
 

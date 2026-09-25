@@ -2,6 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import { cn } from "@/shared/lib/utils";
+import { releaseHtmlMedia } from "@/shared/lib/release-media";
+import {
+  claimAudibleMedia,
+  releaseAudibleMedia,
+} from "@/shared/lib/exclusive-audible-media";
 import "plyr/dist/plyr.css";
 
 type Props = {
@@ -17,6 +22,9 @@ type Props = {
 type PlyrLike = {
   destroy: () => void;
   playing: boolean;
+  muted: boolean;
+  volume: number;
+  pause: () => void;
   source: unknown;
   on: (event: string, cb: () => void) => void;
   off: (event: string, cb: () => void) => void;
@@ -47,6 +55,22 @@ export function StudioPlyrPlayer({
 
     let destroyed = false;
     let player: PlyrLike | null = null;
+
+    const stopAudible = () => {
+      try {
+        player?.pause();
+      } catch {
+        /* ignore */
+      }
+      releaseAudibleMedia(stopAudible);
+    };
+
+    const syncAudible = () => {
+      if (destroyed || !player) return;
+      const loud = player.playing && !player.muted && player.volume > 0;
+      if (loud) claimAudibleMedia(stopAudible);
+      else releaseAudibleMedia(stopAudible);
+    };
 
     const reportAspect = () => {
       const v = videoRef.current;
@@ -83,19 +107,32 @@ export function StudioPlyrPlayer({
       playerRef.current = player;
       appliedSrcRef.current = src;
       player.on("ended", handleEnded);
+      player.on("playing", syncAudible);
+      player.on("pause", syncAudible);
+      player.on("volumechange", syncAudible);
       reportAspect();
       if (autoPlay) {
         void videoRef.current.play().catch(() => undefined);
       }
+      syncAudible();
     });
 
     return () => {
       destroyed = true;
+      releaseAudibleMedia(stopAudible);
       el.removeEventListener("loadedmetadata", reportAspect);
       el.removeEventListener("ended", handleEnded);
       playerRef.current = null;
       player?.off("ended", handleEnded);
-      player?.destroy();
+      player?.off("playing", syncAudible);
+      player?.off("pause", syncAudible);
+      player?.off("volumechange", syncAudible);
+      try {
+        player?.destroy();
+      } catch {
+        /* ignore */
+      }
+      releaseHtmlMedia(el);
     };
     // Mount once; src hot-swaps handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps

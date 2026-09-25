@@ -19,6 +19,7 @@ import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
+import { JoyReleasedVideo } from "@/shared/ui/joy-released-video";
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import type { AssetsPreviewItem } from "@/features/assets/assets-detail-dialog";
 
@@ -363,7 +364,11 @@ export function MobileAssetsPage() {
             {preview.kind === "video" ? (
               <div className="joy-m-assets-sheet-media">
                 {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                <video src={preview.url} controls playsInline />
+                <JoyReleasedVideo
+                  src={preview.url}
+                  controls
+                  playsInline
+                />
               </div>
             ) : preview.kind === "audio" ? (
               <div className="joy-m-assets-sheet-media is-audio">

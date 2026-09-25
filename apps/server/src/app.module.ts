@@ -22,6 +22,7 @@ import { ChangelogModule } from "./modules/changelog/changelog.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { SkillsModule } from "./modules/skills/skills.module";
 import { InspireBannersModule } from "./modules/inspire-banners/inspire-banners.module";
+import { InspireShowcaseModule } from "./modules/inspire-showcase/inspire-showcase.module";
 import { BootstrapService } from "./common/bootstrap.service";
 
 @Module({
@@ -53,6 +54,7 @@ import { BootstrapService } from "./common/bootstrap.service";
     ModelsModule,
     SkillsModule,
     InspireBannersModule,
+    InspireShowcaseModule,
     JobsModule,
     StorageModule,
     AssetsModule,

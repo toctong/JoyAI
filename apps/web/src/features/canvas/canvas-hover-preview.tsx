@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cn } from "@/shared/lib/utils";
+import { JoyReleasedVideo } from "@/shared/ui/joy-released-video";
 
 export type HoverPreviewPayload = {
   title?: string;
@@ -36,7 +37,7 @@ export function CanvasHoverPreview({ preview, className }: Props) {
     >
       <div className="relative aspect-square w-full bg-muted">
         {kind === "video" ? (
-          <video
+          <JoyReleasedVideo
             src={url.includes("#") ? url : `${url}#t=0.1`}
             muted
             playsInline

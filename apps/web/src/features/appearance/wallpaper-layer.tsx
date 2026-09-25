@@ -5,6 +5,7 @@ import {
   useActiveWallpaper,
   useAppearanceStore,
 } from "./appearance-store";
+import { useReleaseMediaOnUnmount } from "@/shared/lib/use-release-media-on-unmount";
 
 type WallpaperLayerProps = {
   /** Hide on canvas editor — dark board should stay neutral */
@@ -15,6 +16,7 @@ export function WallpaperLayer({ disabled = false }: WallpaperLayerProps) {
   const wallpaper = useActiveWallpaper();
   const paused = useAppearanceStore((s) => s.paused);
   const videoRef = useRef<HTMLVideoElement>(null);
+  useReleaseMediaOnUnmount(videoRef);
 
   useEffect(() => {
     const el = videoRef.current;

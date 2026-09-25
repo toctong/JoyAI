@@ -1,0 +1,444 @@
+.joy-inspire-wd-overlay {
+  background: color-mix(in oklab, #000 55%, transparent) !important;
+  backdrop-filter: blur(2px);
+}
+
+.joy-inspire-wd {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+  color: #fff;
+}
+
+.joy-inspire-wd-blur {
+  position: absolute;
+  inset: -8%;
+  z-index: 0;
+  width: 116%;
+  height: 116%;
+  object-fit: cover;
+  filter: blur(48px) saturate(1.2) brightness(0.45);
+  transform: scale(1.05);
+  pointer-events: none;
+  user-select: none;
+}
+
+.joy-inspire-wd-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 50% 42%,
+      transparent 0%,
+      rgb(0 0 0 / 0.35) 70%,
+      rgb(0 0 0 / 0.62) 100%
+    ),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.25), rgb(0 0 0 / 0.55));
+  pointer-events: none;
+}
+
+.joy-inspire-wd-top {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  padding: 20px 24px 8px;
+}
+
+.joy-inspire-wd-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 14px 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: background 0.15s ease;
+}
+
+.joy-inspire-wd-back:hover {
+  background: rgb(0 0 0 / 0.6);
+}
+
+.joy-inspire-wd-back-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.joy-inspire-wd-who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.joy-inspire-wd-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  object-fit: cover;
+  background: rgb(255 255 255 / 0.12);
+  flex-shrink: 0;
+}
+
+.joy-inspire-wd-avatar.is-empty {
+  display: inline-block;
+}
+
+.joy-inspire-wd-who-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.joy-inspire-wd-author {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.joy-inspire-wd-title {
+  color: rgb(255 255 255 / 0.78);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-inspire-wd-main {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 0;
+  padding: 8px 32px 12px;
+}
+
+.joy-inspire-wd-stage {
+  position: relative;
+  width: min(920px, calc(100vw - 64px));
+  aspect-ratio: 16 / 9;
+  max-height: min(56vh, 560px);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #0a0a0a;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.45);
+}
+
+.joy-inspire-wd-poster,
+.joy-inspire-wd-player,
+.joy-inspire-wd-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #0a0a0a;
+}
+
+.joy-inspire-wd-stage .joy-explore-plyr-host {
+  width: 100%;
+  height: 100%;
+}
+
+.joy-inspire-wd-stage .joy-explore-plyr-host .plyr,
+.joy-inspire-wd-player.plyr {
+  width: 100%;
+  height: 100%;
+}
+
+.joy-inspire-wd-player {
+  --plyr-color-main: #f4f4f5;
+}
+
+.joy-inspire-wd-player.plyr,
+.joy-inspire-wd-stage .plyr {
+  width: 100%;
+  height: 100%;
+}
+
+.joy-inspire-wd-stage .plyr__video-wrapper,
+.joy-inspire-wd-stage video {
+  height: 100%;
+}
+
+.joy-inspire-wd-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.42);
+  backdrop-filter: blur(12px);
+}
+
+.joy-inspire-wd-watch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #111;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.joy-inspire-wd-watch:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.joy-inspire-wd-watch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.joy-inspire-wd-watch-icon {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+}
+
+.joy-inspire-wd-process {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 0.92);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.joy-inspire-wd-process:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.joy-inspire-wd-process-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.joy-inspire-wd-actions-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: rgb(255 255 255 / 0.22);
+}
+
+.joy-inspire-wd-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 0.9);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.joy-inspire-wd-icon-btn:hover {
+  background: rgb(255 255 255 / 0.1);
+}
+
+.joy-inspire-wd-icon-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.joy-inspire-wd-bottom {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 8px 20px 22px;
+}
+
+.joy-inspire-wd-strip-nav,
+.joy-inspire-wd-up {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.15s ease;
+}
+
+.joy-inspire-wd-strip-nav:hover,
+.joy-inspire-wd-up:hover {
+  background: rgb(0 0 0 / 0.65);
+}
+
+.joy-inspire-wd-strip-nav svg,
+.joy-inspire-wd-up svg {
+  width: 18px;
+  height: 18px;
+}
+
+.joy-inspire-wd-up {
+  position: absolute;
+  right: 20px;
+  bottom: calc(22px + 72px + 10px);
+}
+
+.joy-inspire-wd-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 8px 4px 4px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.joy-inspire-wd-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.joy-inspire-wd-thumb {
+  position: relative;
+  flex: 0 0 auto;
+  width: 118px;
+  height: 66px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgb(0 0 0 / 0.35);
+  cursor: pointer;
+  scroll-snap-align: center;
+  opacity: 0.72;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    border-color 0.2s ease,
+    width 0.2s ease,
+    height 0.2s ease;
+}
+
+.joy-inspire-wd-thumb img,
+.joy-inspire-wd-thumb-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.joy-inspire-wd-thumb-empty {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.joy-inspire-wd-thumb-cap {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 16px 6px 5px;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.75), transparent);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-inspire-wd-thumb.is-on {
+  width: 148px;
+  height: 84px;
+  border-color: #fff;
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+
+.joy-inspire-wd-thumb:hover:not(.is-on) {
+  opacity: 0.92;
+}
+
+@media (max-width: 720px) {
+  .joy-inspire-wd-top {
+    padding: 14px 14px 6px;
+  }
+
+  .joy-inspire-wd-main {
+    padding: 6px 14px 10px;
+    gap: 14px;
+  }
+
+  .joy-inspire-wd-stage {
+    width: calc(100vw - 28px);
+    max-height: 42vh;
+    border-radius: 14px;
+  }
+
+  .joy-inspire-wd-actions {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .joy-inspire-wd-process {
+    display: none;
+  }
+
+  .joy-inspire-wd-bottom {
+    padding: 6px 10px 16px;
+  }
+
+  .joy-inspire-wd-up {
+    display: none;
+  }
+
+  .joy-inspire-wd-thumb {
+    width: 96px;
+    height: 54px;
+  }
+
+  .joy-inspire-wd-thumb.is-on {
+    width: 118px;
+    height: 66px;
+  }
+}

@@ -2134,7 +2134,7 @@ function StudioInner() {
       toast.success("已再次提交生成");
       stickToBottomRef.current = true;
       await refreshLatest();
-      requestAnimationFrame(scrollFeedToBottom);
+      requestAnimationFrame(() => scrollFeedToBottom());
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "再次生成失败");
     } finally {

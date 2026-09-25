@@ -1,0 +1,8 @@
+# Typecheck when staged changes include TypeScript.
+# Uses sh so it works under Git for Windows + husky.
+staged=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx|cts|mts)$' || true)
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+pnpm typecheck

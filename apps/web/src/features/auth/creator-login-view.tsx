@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/shared/lib/utils";
+import { useReleaseMediaOnUnmount } from "@/shared/lib/use-release-media-on-unmount";
 import "./auth-login.css";
 
 /**
@@ -327,6 +328,7 @@ export function CreatorLoginView() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
+  useReleaseMediaOnUnmount(heroVideoRef);
 
   const [hydrated, setHydrated] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);

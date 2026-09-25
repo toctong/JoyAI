@@ -28,6 +28,8 @@ import { isBusyStatus } from "../node-registry";
 import { cancelNodeJob } from "../lib/cancel-node-job";
 import { setPlaybackTime } from "../lib/playback-clock";
 import { cn } from "@/shared/lib/utils";
+import { useReleaseMediaOnUnmount } from "@/shared/lib/use-release-media-on-unmount";
+import { releaseHtmlMedia } from "@/shared/lib/release-media";
 
 type Props = {
   node: CanvasNode;
@@ -51,6 +53,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
   const pulsing = useIsNodePulsing(node.id);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const videoRef = useRef<HTMLVideoElement>(null);
+  useReleaseMediaOnUnmount(videoRef);
   const [hovered, setHovered] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
@@ -83,6 +86,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
     setTime(0);
     setDuration(0);
     setPreview(false);
+    return () => releaseHtmlMedia(videoRef.current);
   }, [url]);
 
   useEffect(() => {

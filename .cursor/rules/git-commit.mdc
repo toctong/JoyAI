@@ -1,0 +1,23 @@
+---
+description: Conventional Commits + commitlint rules for FrameRally
+alwaysApply: true
+---
+
+# Git commits
+
+Follow `docs/COMMIT.md`. Messages must pass commitlint (`@commitlint/config-conventional`).
+
+## Required header
+
+```
+type(scope): subject
+```
+
+- **type**（英文）: `feat` | `fix` | `refactor` | `perf` | `style` | `docs` | `test` | `build` | `ci` | `chore` | `revert`
+- **scope**（英文 kebab-case）: `inspire` | `explore` | `studio` | `canvas` | `manju` | `assets` | `tools` | `auth` | `server` | `web` | `shared` | …
+- **subject（推荐中文）**: 简述目的；无句末 `.`；≤100 字。例：`feat(inspire): 作品详情改为全屏弹层`
+- **pre-commit**: 暂存含 TS 时跑 `pnpm typecheck`；失败则禁止提交
+- Do not use `--no-verify` unless the user explicitly asks
+- Never commit secrets / `.env`
+- Prefer one logical change per commit when the user asks to commit
+- When drafting a commit for the user, **default the subject to Chinese**

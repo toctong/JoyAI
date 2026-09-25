@@ -1,11 +1,18 @@
 "use client";
 
-import { memo, useEffect, useRef, useState, type Ref } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import Masonry from "react-masonry-css";
 import { GitFork, Heart, Loader2, Play, WandSparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
+import {
+  VIDEO_HOVER_PREVIEW_DELAY_MS,
+  claimVideoHoverPreview,
+  releaseVideoHoverPreview,
+  shouldSkipVideoHoverPreview,
+  stopHoverVideo,
+} from "@/shared/lib/video-feed-preview";
 import type { ExploreFeedItem } from "./types";
 import "./explore-masonry.css";
 
@@ -66,6 +73,7 @@ function primeVideoFrame(el: HTMLVideoElement) {
 
 function playPreview(el: HTMLVideoElement) {
   if (el.error || !el.currentSrc) return;
+  el.muted = true;
   void el.play().catch(() => undefined);
 }
 
@@ -102,36 +110,6 @@ function resolveAspectRatio(item: ExploreFeedItem): string {
   return item.type === "video" ? "9 / 16" : "3 / 4";
 }
 
-/** Mount video only when near viewport or user hovers (poster-first). */
-function useVideoArm(enabled: boolean, preferHover: boolean) {
-  const ref = useRef<HTMLElement | null>(null);
-  const [armed, setArmed] = useState(false);
-
-  useEffect(() => {
-    if (!enabled || armed) return;
-    if (preferHover) return; // wait for hover
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setArmed(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin: "200px 0px", threshold: 0.01 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [enabled, armed, preferHover]);
-
-  return {
-    ref: ref as Ref<HTMLElement>,
-    armed,
-    arm: () => setArmed(true),
-  } as const;
-}
-
 const ExploreCard = memo(function ExploreCard({
   item,
   index,
@@ -143,21 +121,113 @@ const ExploreCard = memo(function ExploreCard({
   onOpen: (item: ExploreFeedItem) => void;
   onRemix: (item: ExploreFeedItem) => void;
 }) {
+  const cardRef = useRef<HTMLElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [videoMounted, setVideoMounted] = useState(false);
+
   const isVideo = item.type === "video";
   const poster = isVideo ? stillPoster(item) : null;
   const hasPoster = Boolean(poster);
+  const hasPosterRef = useRef(hasPoster);
+  hasPosterRef.current = hasPoster;
+
   const ar = resolveAspectRatio(item);
   const eager = index < EAGER_MEDIA_COUNT;
   const reveal = () => setLoaded(true);
+  const showVideo = isVideo && videoMounted && Boolean(item.mediaUrl);
 
-  const videoArm = useVideoArm(isVideo && Boolean(item.mediaUrl), hasPoster);
-  const showVideo = isVideo && videoArm.armed && Boolean(item.mediaUrl);
+  const ctlRef = useRef({
+    clearTimer() {
+      if (timerRef.current != null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+    },
+    stopPreview() {
+      ctlRef.current.clearTimer();
+      stopHoverVideo(videoRef.current);
+      setPreviewing(false);
+      releaseVideoHoverPreview(ctlRef.current.stopPreview);
+      if (hasPosterRef.current) {
+        setVideoMounted(false);
+      } else if (videoRef.current) {
+        seekPreviewFrame(videoRef.current);
+      }
+    },
+  });
+
+  /** No-poster: mount near viewport, fully tear down when scrolled away. */
+  useEffect(() => {
+    if (!isVideo || !item.mediaUrl || hasPoster) return;
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver !== "function") return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((e) => e.isIntersecting);
+        if (visible) {
+          setVideoMounted(true);
+        } else {
+          ctlRef.current.stopPreview();
+          setVideoMounted(false);
+        }
+      },
+      { rootMargin: "200px 0px", threshold: 0.01 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [isVideo, item.mediaUrl, hasPoster]);
+
+  /** Previewing card scrolled away → stop. */
+  useEffect(() => {
+    if (!previewing) return;
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver !== "function") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.every((e) => !e.isIntersecting)) {
+          ctlRef.current.stopPreview();
+        }
+      },
+      { threshold: 0.01 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [previewing]);
+
+  useEffect(() => () => ctlRef.current.stopPreview(), []);
+
+  /** After mount, actively play — preload=none won't load until play(). */
+  useEffect(() => {
+    if (!previewing || !videoMounted) return;
+    const el = videoRef.current;
+    if (!el) return;
+    playPreview(el);
+  }, [previewing, videoMounted, item.mediaUrl]);
+
+  function onHoverStart() {
+    if (!isVideo || !item.mediaUrl || shouldSkipVideoHoverPreview()) return;
+    ctlRef.current.clearTimer();
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      claimVideoHoverPreview(ctlRef.current.stopPreview);
+      if (hasPoster) setVideoMounted(true);
+      setPreviewing(true);
+    }, VIDEO_HOVER_PREVIEW_DELAY_MS);
+  }
+
+  function onHoverEnd() {
+    if (!isVideo) return;
+    ctlRef.current.stopPreview();
+  }
 
   return (
     <article
-      ref={videoArm.ref}
-      className="joy-explore-card group"
+      ref={cardRef}
+      className={cn("joy-explore-card group", previewing && "is-previewing")}
       style={{ aspectRatio: ar }}
       role="button"
       tabIndex={0}
@@ -168,9 +238,10 @@ const ExploreCard = memo(function ExploreCard({
           onOpen(item);
         }
       }}
-      onMouseEnter={() => {
-        if (isVideo && item.mediaUrl) videoArm.arm();
-      }}
+      onMouseEnter={onHoverStart}
+      onMouseLeave={onHoverEnd}
+      onFocus={onHoverStart}
+      onBlur={onHoverEnd}
     >
       {!loaded ? (
         <Skeleton className="joy-explore-card-skel" aria-hidden />
@@ -200,6 +271,7 @@ const ExploreCard = memo(function ExploreCard({
           ) : null}
           {showVideo ? (
             <video
+              ref={videoRef}
               className={cn(
                 "joy-explore-media",
                 "is-ready",
@@ -209,24 +281,18 @@ const ExploreCard = memo(function ExploreCard({
               muted
               playsInline
               loop
-              preload={hasPoster ? "none" : "metadata"}
+              preload={hasPoster ? "auto" : "metadata"}
               onLoadedMetadata={(e) => {
                 reveal();
-                primeVideoFrame(e.currentTarget);
+                if (!hasPoster) primeVideoFrame(e.currentTarget);
               }}
               onLoadedData={reveal}
               onSeeked={reveal}
               onCanPlay={(e) => {
                 reveal();
-                if (hasPoster) playPreview(e.currentTarget);
+                if (previewing) playPreview(e.currentTarget);
               }}
               onError={reveal}
-              onMouseEnter={(e) => playPreview(e.currentTarget)}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget;
-                el.pause();
-                seekPreviewFrame(el);
-              }}
             >
               <source src={item.mediaUrl!} type={videoMime(item.mediaUrl!)} />
             </video>

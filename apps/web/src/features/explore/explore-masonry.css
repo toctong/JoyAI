@@ -72,15 +72,18 @@ video.joy-explore-media:not(.is-hover-play) {
   opacity: 1;
 }
 
-.joy-explore-card:hover .joy-explore-media.is-hover-play {
+.joy-explore-card:hover .joy-explore-media.is-hover-play,
+.joy-explore-card.is-previewing .joy-explore-media.is-hover-play {
   opacity: 1;
 }
 
-.joy-explore-card:hover .joy-explore-media.is-under-video {
+.joy-explore-card:hover .joy-explore-media.is-under-video,
+.joy-explore-card.is-previewing .joy-explore-media.is-under-video {
   opacity: 0;
 }
 
-.joy-explore-card:hover .joy-explore-media.is-ready {
+.joy-explore-card:hover .joy-explore-media.is-ready,
+.joy-explore-card.is-previewing .joy-explore-media.is-ready {
   transform: scale(1.03);
   transition: opacity 0.2s ease, transform 0.35s ease;
 }

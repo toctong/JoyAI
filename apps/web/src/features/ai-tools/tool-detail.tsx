@@ -37,6 +37,7 @@ import { modelAcceptsImageInput } from "@/features/studio/model-options";
 import { writeStudioRemixSeed } from "@/features/studio/studio-remix-seed";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
+import { JoyReleasedVideo } from "@/shared/ui/joy-released-video";
 import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import {
   AssetsDetailDialog,
@@ -482,7 +483,11 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                       <div className="joy-ai-tool-refs">
                         {videos.map((item) => (
                           <div key={item.localId} className="joy-ai-tool-ref">
-                            <video src={item.previewUrl} muted playsInline />
+                            <JoyReleasedVideo
+                              src={item.previewUrl}
+                              muted
+                              playsInline
+                            />
                             <button
                               type="button"
                               className="joy-ai-tool-ref-remove"
@@ -1289,7 +1294,12 @@ function ResultCard({
     <div className="joy-ai-tool-result">
       {video ? (
         <div className="joy-ai-tool-result-media">
-          <video src={url} controls playsInline preload="metadata" />
+          <JoyReleasedVideo
+            src={url}
+            controls
+            playsInline
+            preload="metadata"
+          />
         </div>
       ) : (
         <button

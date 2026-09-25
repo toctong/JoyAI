@@ -23,6 +23,7 @@ import {
 import { api, isApiCancelError } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { JoyReleasedVideo } from "@/shared/ui/joy-released-video";
 import { writeStudioRemixSeed } from "@/features/studio/studio-remix-seed";
 import type { ExploreFeedItem, ExploreFeedResult } from "@/features/explore/types";
 
@@ -476,7 +477,7 @@ export function MobileExplorePage() {
             <div className="joy-m-explore-detail-media">
               {active.type === "video" && active.mediaUrl ? (
                 // eslint-disable-next-line jsx-a11y/media-has-caption
-                <video
+                <JoyReleasedVideo
                   className="joy-m-explore-detail-video"
                   src={active.mediaUrl}
                   poster={stillPoster(active) ?? undefined}

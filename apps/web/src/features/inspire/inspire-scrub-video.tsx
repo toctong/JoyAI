@@ -6,6 +6,7 @@ import {
   INSPIRE_MEDIA,
   type InspireTransition,
 } from "./inspire-media";
+import { releaseHtmlMedia } from "@/shared/lib/release-media";
 
 const FALLBACK_MS = 1000;
 const ERROR_TIMEOUT_MS = 12_000;
@@ -116,11 +117,11 @@ export function InspireScrubVideo({
     return () => {
       cancelled = true;
       window.clearTimeout(errorTimer);
-      el.pause();
       cancelAnimationFrame(raf);
       el.removeEventListener("canplaythrough", start);
       el.removeEventListener("ended", finish);
       el.removeEventListener("error", startFallback);
+      releaseHtmlMedia(el);
     };
   }, [active, onFinish, onProgress]);
 

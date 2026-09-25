@@ -98,3 +98,4 @@ src/
 - Files: `kebab-case.ts` / `PascalCase.tsx` for components.
 - DB: TypeORM entities (`PascalCase` class), `camelCase` columns; MySQL via `DATABASE_URL` (local `docker compose`, database `joyai`).
 - Queues: `image-generation`, `video-submit`, `video-poll`.
+- Git commits: Conventional Commits — see `docs/COMMIT.md`. Headers must pass husky `commit-msg` → commitlint；`type(scope)` 英文，**subject 推荐中文**.

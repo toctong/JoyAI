@@ -1,0 +1,14 @@
+# FrameRally — rules for Cursor SCM “Generate Commit Message”
+
+When generating a Git commit message for this repository:
+
+1. Use Conventional Commits: `type(scope): subject`
+2. `type` and `scope` must be English (kebab-case scope). Types: feat, fix, refactor, perf, style, docs, test, build, ci, chore, revert.
+3. **subject must be Simplified Chinese** — short, imperative purpose; no trailing period; under ~72 characters preferred (max 100).
+4. One line subject only unless the change truly needs a short body.
+5. Do not invent English subjects just because older history is English.
+
+Examples:
+- feat(inspire): 作品详情改为全屏弹层
+- fix(inspire): 修复漫游取消静音失效
+- chore: 接入 commitlint 与 husky 类型检查
