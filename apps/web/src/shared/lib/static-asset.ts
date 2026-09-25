@@ -1,10 +1,11 @@
-/** Prefer CN-friendly jsDelivr mirror (cdn.jsdelivr.net is often slow inland). */
+/** Prefer a working jsDelivr endpoint; jsdmirror has been unreachable. */
 const DEFAULT_STATIC_CDN =
-  "https://cdn.jsdmirror.com/gh/toctong/image-hosting@main/joyai";
+  "https://cdn.jsdelivr.net/gh/toctong/image-hosting@main/joyai";
 
 /**
  * Core chrome stays on local `public/` — brand, UI icons, loading.
- * CDN is for bulky content: tools covers, inspire stills, manju styles, camera demos.
+ * CDN is for bulky content: tools covers, manju styles, camera demos.
+ * Inspire stage stills live under public/inspire (local-only).
  */
 function isLocalOnlyAsset(path: string): boolean {
   const bare = (path.split("?")[0] ?? path).toLowerCase();
@@ -13,7 +14,9 @@ function isLocalOnlyAsset(path: string): boolean {
     bare.startsWith("/brand/") ||
     bare.startsWith("/icons/") ||
     bare.startsWith("/canvas-icons/") ||
-    bare.startsWith("/loading/")
+    bare.startsWith("/loading/") ||
+    // Inspire stage stills + covers ship in public/inspire (CDN mirror flaky).
+    bare.startsWith("/inspire/")
   );
 }
 

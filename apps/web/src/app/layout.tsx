@@ -24,8 +24,8 @@ export default function RootLayout({
         {/* Explicit favicon — file-based app/icon.png + public fallback */}
         <link rel="icon" href="/brand/mirora-mark.png" type="image/png" sizes="any" />
         <link rel="apple-touch-icon" href="/brand/mirora-mark.png" />
-        <link rel="preconnect" href="https://cdn.jsdmirror.com" crossOrigin="" />
-        <link rel="dns-prefetch" href="https://cdn.jsdmirror.com" />
+        <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
       </head>
       <body
         className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}
