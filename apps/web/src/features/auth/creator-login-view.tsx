@@ -342,6 +342,7 @@ export function CreatorLoginView() {
   const [totpUser, setTotpUser] = useState<string | null>(null);
   const [edition, setEdition] = useState<EditionId>("explore");
   const [heroSoundOn, setHeroSoundOn] = useState(false);
+  const [heroInView, setHeroInView] = useState(true);
 
   const activeEdition =
     EDITIONS.find((item) => item.id === edition) ?? EDITIONS[0]!;
@@ -367,6 +368,23 @@ export function CreatorLoginView() {
   useEffect(() => {
     if (hydrated && token) router.replace(postLoginHome());
   }, [hydrated, token, router]);
+
+  useEffect(() => {
+    const root = scrollerRef.current;
+    const hero = document.getElementById("hero");
+    if (!root || !hero) return;
+
+    const sync = () => {
+      setHeroInView(root.scrollTop < root.clientHeight * 0.45);
+    };
+    sync();
+    root.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
+    return () => {
+      root.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, [hydrated]);
 
   function openLogin() {
     setLoginOpen(true);
@@ -401,6 +419,14 @@ export function CreatorLoginView() {
     if (next) {
       void video.play().catch(() => {});
     }
+  }
+
+  function onHeroSoundClick() {
+    if (!heroInView) {
+      scrollToId("hero");
+      return;
+    }
+    toggleHeroSound();
   }
 
   async function onSubmit(values: FormValues) {
@@ -503,7 +529,7 @@ export function CreatorLoginView() {
         </nav>
 
         <button type="button" className="login-page__cta" onClick={openLogin}>
-          进入{activeEdition.label}
+          进入AI work探索版
           <ArrowRight className="size-4" strokeWidth={1.75} />
         </button>
       </header>
@@ -536,23 +562,6 @@ export function CreatorLoginView() {
             {activeEdition.caption}
           </p>
         </div>
-
-        <button
-          type="button"
-          className={cn(
-            "login-page__sound",
-            heroSoundOn && "is-on",
-          )}
-          aria-label={heroSoundOn ? "关闭声音" : "开启声音"}
-          aria-pressed={heroSoundOn}
-          onClick={toggleHeroSound}
-        >
-          {heroSoundOn ? (
-            <Volume2 className="size-4" strokeWidth={1.75} />
-          ) : (
-            <VolumeX className="size-4" strokeWidth={1.75} />
-          )}
-        </button>
 
         <div className="login-page__hero-bottom">
           <div
@@ -617,6 +626,35 @@ export function CreatorLoginView() {
 
       {/* 04 Slogan */}
       <SloganSection scrollerRef={scrollerRef} />
+
+      <button
+        type="button"
+        className={cn(
+          "login-page__sound",
+          heroSoundOn && "is-on",
+          !heroInView && "is-return",
+        )}
+        aria-label={
+          !heroInView
+            ? "回到首屏"
+            : heroSoundOn
+              ? "关闭声音"
+              : "开启声音"
+        }
+        aria-pressed={heroInView ? heroSoundOn : undefined}
+        onClick={onHeroSoundClick}
+      >
+        {!heroInView ? (
+          <ChevronDown
+            className="size-4 login-page__sound-return-icon"
+            strokeWidth={1.75}
+          />
+        ) : heroSoundOn ? (
+          <Volume2 className="size-4" strokeWidth={1.75} />
+        ) : (
+          <VolumeX className="size-4" strokeWidth={1.75} />
+        )}
+      </button>
 
       <Dialog open={loginOpen} onOpenChange={closeLogin}>
         <DialogContent className="login-modal">
