@@ -3,7 +3,7 @@
 .joy-ai-tools {
   /* Match app shell (`bg-card`); do not paint --background or a seam appears under short pages. */
   min-height: 100%;
-  padding: 28px 32px 64px;
+  padding: 0 32px 64px;
   background: transparent;
   color: var(--foreground);
 }

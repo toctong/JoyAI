@@ -43,6 +43,8 @@ export default function AppShellLayout({
     pathname === "/explore" || pathname.startsWith("/explore/");
   /** Studio owns scroll (chat feed sticks to bottom); avoid shell ScrollArea remount flash. */
   const isStudio = pathname === "/studio" || pathname.startsWith("/studio/");
+  /** Canvas / manju list: sticky tabs+toolbar, grid scrolls inside. */
+  const isWorkspaceList = pathname === "/canvas" || pathname === "/manju";
   const wallpaperActive = isInspireHome && !isCanvasEditor;
   const ownScroll =
     isCanvasEditor ||
@@ -51,7 +53,8 @@ export default function AppShellLayout({
     isAdmin ||
     isInspireHome ||
     isExplore ||
-    isStudio;
+    isStudio ||
+    isWorkspaceList;
 
   useEffect(() => {
     if (hydrated && !token) router.replace("/frame-rally");

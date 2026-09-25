@@ -37,7 +37,7 @@ src/
 - UI: official shadcn + Radix under `components/ui/`. Prefer `npx shadcn@latest add <name>`; do not hand-roll Radix-less fakes.
 - Imports: external → `@joyai/*` → `@/` aliases; no deep relative `../../../`.
 - Ops UI lives under `/admin` (role `admin` only); no separate `apps/admin`.
-- Web IA (left icon rail, this order): 灵感 `/inspire` · 探索 `/explore` · 创作 `/studio` · 画布 `/canvas` · 漫剧 `/manju` · 资产 `/assets` · 工具 `/tools`.
+- Web IA (left icon rail, this order): 灵感 `/inspire` · 探索 `/explore` · 创作 `/studio` · 项目 `/canvas`|`/manju`（列表页 Tab） · 资产 `/assets` · 工具 `/tools`.
 
 ## Visual system
 

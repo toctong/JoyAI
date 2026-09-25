@@ -55,6 +55,8 @@ import {
 } from "./manju-api";
 import { useManjuStore } from "./manju-store";
 import { normalizeProject } from "./manju-types";
+import { WorkspaceModeTabs } from "@/features/shell/workspace-mode-tabs";
+import { writeWorkspaceMode } from "@/features/shell/workspace-nav";
 import "@/features/canvas/project-library.css";
 import "./manju-chrome.css";
 
@@ -116,6 +118,10 @@ export function ManjuProjectList() {
   const [renameValue, setRenameValue] = useState("");
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
+
+  useEffect(() => {
+    writeWorkspaceMode("manju");
+  }, []);
 
   const load = useCallback(async (currentFolderId: string | null) => {
     const query = currentFolderId
@@ -408,9 +414,11 @@ export function ManjuProjectList() {
                 <CanvasIconChevronLeft className="h-4 w-4" />
               </button>
             ) : null}
-            <h1 className="joy-projects-title">
-              {folderTitle ?? "漫剧工作台"}
-            </h1>
+            {folderId ? (
+              <h1 className="joy-projects-title">{folderTitle ?? "合集"}</h1>
+            ) : (
+              <WorkspaceModeTabs active="manju" />
+            )}
           </div>
           <div className="joy-projects-toolbar">
             {showSelectChrome ? (
@@ -494,6 +502,7 @@ export function ManjuProjectList() {
           </div>
         </header>
 
+        <div className="joy-projects-body">
         {loading ? (
           <p className="py-16 text-center text-sm text-muted-foreground">
             加载项目…
@@ -757,6 +766,7 @@ export function ManjuProjectList() {
                 : "还没有漫剧项目"}
           </p>
         ) : null}
+        </div>
       </div>
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>

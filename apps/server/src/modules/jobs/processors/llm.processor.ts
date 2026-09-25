@@ -23,17 +23,7 @@ import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { ManjuService } from "../../manju/manju.service";
 import { AssetsService } from "../../assets/assets.service";
 import { sourceFromJob } from "../../assets/asset-source";
-import {
-  ANALYZE_ASSETS_SYSTEM,
-  AUTHOR_PROMPTS_SYSTEM,
-  CANVAS_TEXT_SYSTEM,
-  PLAN_EPISODES_SYSTEM,
-  PROMPT_OPTIMIZE_SYSTEM,
-  REVERSE_PROMPT_SYSTEM,
-  SCRIPT_PLAN_SYSTEM,
-  SCRIPT_WRITE_SYSTEM,
-  SERIES_MEMORY_SYSTEM,
-} from "../llm-prompts";
+import { SkillsService } from "../../skills/skills.service";
 
 function resolveLlmConcurrency(): number {
   const n = Number(process.env.JOB_LLM_CONCURRENCY);
@@ -53,6 +43,27 @@ function textAssetTitle(purpose: string, toolSlug?: string | null): string {
 
 function shouldSavePromptDocument(purpose: string): boolean {
   return purpose === "reverse_prompt" || purpose === "prompt_optimize";
+}
+
+/** Pipeline purposes that apply structured JSON back to manju draft. */
+const MANJU_PIPELINE_PURPOSES = new Set([
+  "analyze_assets",
+  "split_shots",
+  "script_plan",
+  "author_prompts",
+  "series_memory",
+  "plan_episodes",
+  "script_write",
+  "reverse_prompt",
+  "prompt_optimize",
+  "chat",
+  "canvas_text",
+]);
+
+/** Catalog skills used as free-form advisors (Xiaoluo text skills, etc.). */
+function isAdvisorSkillPurpose(purpose: string): boolean {
+  if (!purpose || MANJU_PIPELINE_PURPOSES.has(purpose)) return false;
+  return true;
 }
 
 function extractJsonObject(text: string): unknown {
@@ -89,6 +100,7 @@ export class LlmProcessor extends WorkerHost {
     private readonly realtime: RealtimeGateway,
     private readonly manju: ManjuService,
     private readonly assets: AssetsService,
+    private readonly skills: SkillsService,
   ) {
     super();
   }
@@ -117,27 +129,11 @@ export class LlmProcessor extends WorkerHost {
         adapterId?: string;
       } | null;
 
-      const systemPrompt =
-        input.systemPrompt?.trim() ||
-        (purpose === "analyze_assets"
-          ? ANALYZE_ASSETS_SYSTEM
-          : purpose === "script_plan" || purpose === "split_shots"
-            ? SCRIPT_PLAN_SYSTEM
-            : purpose === "author_prompts"
-              ? AUTHOR_PROMPTS_SYSTEM
-              : purpose === "series_memory"
-                ? SERIES_MEMORY_SYSTEM
-                : purpose === "plan_episodes"
-                  ? PLAN_EPISODES_SYSTEM
-                  : purpose === "script_write"
-                    ? SCRIPT_WRITE_SYSTEM
-                    : purpose === "reverse_prompt"
-                      ? REVERSE_PROMPT_SYSTEM
-                      : purpose === "prompt_optimize"
-                        ? PROMPT_OPTIMIZE_SYSTEM
-                        : input.canvasProjectId
-                          ? CANVAS_TEXT_SYSTEM
-                          : "你是有帮助的助手。");
+      const systemPrompt = await this.skills.resolveSystemPrompt({
+        purpose,
+        canvasProjectId: input.canvasProjectId,
+        override: input.systemPrompt,
+      });
 
       const imageUrls = (
         await this.jobs.resolveReferenceMedia(
@@ -267,6 +263,16 @@ export class LlmProcessor extends WorkerHost {
           throw new Error("帮写结果缺少剧本文本");
         }
         scriptWrite = parsed.data;
+      } else if (isAdvisorSkillPurpose(purpose)) {
+        // Xiaoluo / catalog advisor skills: free-form text reply (no JSON contract).
+        const reply = String(result.text ?? "").trim();
+        if (!reply) throw new Error("技能输出为空");
+        scriptWrite = {
+          intent: "qa",
+          reply,
+          script: "",
+          hook: "",
+        };
       }
 
       const textOut = String(result.text ?? "").trim();

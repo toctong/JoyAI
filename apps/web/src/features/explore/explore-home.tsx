@@ -299,7 +299,9 @@ export function ExploreHome() {
                     alt=""
                     className={cn(
                       "joy-explore-tab-model-icon",
-                      (family.id === "midjourney" || family.id === "grok") &&
+                      (family.id === "gpt-image" ||
+                        family.id === "midjourney" ||
+                        family.id === "grok") &&
                         "is-mono",
                     )}
                   />

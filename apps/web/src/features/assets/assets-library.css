@@ -2,7 +2,7 @@
 
 .joy-assets {
   min-height: 100%;
-  padding: 28px 32px 64px;
+  padding: 0 32px 64px;
 }
 
 /* 标题统一 16px，文字一律不加粗 */
@@ -271,7 +271,7 @@ img.joy-assets-card {
 
 @media (max-width: 640px) {
   .joy-assets {
-    padding: 20px 16px 48px;
+    padding: 0 16px 48px;
   }
 
   .joy-assets-card {

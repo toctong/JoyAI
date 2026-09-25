@@ -19,6 +19,7 @@ import { StorageModule } from "../storage/storage.module";
 import { RealtimeModule } from "../realtime/realtime.module";
 import { CanvasModule } from "../canvas/canvas.module";
 import { ManjuModule } from "../manju/manju.module";
+import { SkillsModule } from "../skills/skills.module";
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { ManjuModule } from "../manju/manju.module";
     RealtimeModule,
     CanvasModule,
     ManjuModule,
+    SkillsModule,
   ],
   controllers: [JobsController],
   providers: [

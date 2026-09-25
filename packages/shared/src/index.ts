@@ -174,19 +174,12 @@ export function resolveAssetSource(input: {
   return "studio";
 }
 
-/** LLM 任务用途：漫剧分析 / 画布反推 / 工具反推优化 / 通用聊天 */
-export const LlmJobPurposeSchema = z.enum([
-  "analyze_assets",
-  "split_shots",
-  "script_plan",
-  "author_prompts",
-  "series_memory",
-  "plan_episodes",
-  "reverse_prompt",
-  "prompt_optimize",
-  "script_write",
-  "chat",
-]);
+/** LLM 任务用途：漫剧流水线 / 工具 / 画布 / 可扩展技能 purpose */
+export const LlmJobPurposeSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .default("chat");
 export type LlmJobPurpose = z.infer<typeof LlmJobPurposeSchema>;
 
 export const LlmJobInputSchema = z.object({

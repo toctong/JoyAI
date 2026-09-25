@@ -3,8 +3,12 @@
 .joy-projects {
   --jp-media-radius: calc(var(--radius) - 4px);
   --jp-gap: 16px;
-  min-height: 100%;
-  padding: 28px 32px 48px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 32px 0;
 }
 
 /* 标题统一 16px，文字一律不加粗 */
@@ -26,7 +30,12 @@
 }
 
 .joy-projects-inner {
+  display: flex;
+  flex-direction: column;
   width: 100%;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
 }
 
 .joy-projects-header {
@@ -35,14 +44,60 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 28px;
+  flex-shrink: 0;
+  margin-bottom: 20px;
+}
+
+.joy-projects-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 48px;
+  overscroll-behavior: contain;
 }
 
 .joy-projects-title-row {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+}
+
+/* Canvas / manju list switcher (one rail entry → tabs) */
+.joy-workspace-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+.joy-workspace-tabs__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--joy-control-h-sm, 32px);
+  min-width: 64px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+  line-height: 1;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.joy-workspace-tabs__item:hover {
+  color: var(--foreground);
+}
+
+.joy-workspace-tabs__item.is-active {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 10%, transparent);
 }
 
 .joy-projects-title {
@@ -426,7 +481,7 @@
 
 @media (max-width: 640px) {
   .joy-projects {
-    padding: 20px 16px 40px;
+    padding: 0 16px 0;
   }
 
   .joy-projects-search input {

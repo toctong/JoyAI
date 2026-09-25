@@ -12,6 +12,7 @@ export const ADMIN_NAV_TABS: AdminNavTab[] = [
   { href: "/admin/jobs", label: "任务", icon: "jobs" },
   { href: "/admin/channels", label: "渠道", icon: "channels" },
   { href: "/admin/models", label: "模型", icon: "models" },
+  { href: "/admin/skills", label: "技能", icon: "skills" },
   { href: "/admin/plugins", label: "插件", icon: "plugins" },
   { href: "/admin/users", label: "用户", icon: "users" },
   { href: "/admin/logs", label: "日志", icon: "logs" },

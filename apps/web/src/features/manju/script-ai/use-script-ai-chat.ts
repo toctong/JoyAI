@@ -7,6 +7,10 @@ import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import { toast } from "@/shared/lib/toast";
 import { submitManjuScriptWriteJob } from "../manju-api";
 import type { ScriptAiType } from "./script-ai-templates";
+import {
+  scriptAiSkillById,
+  type ScriptAiSkillId,
+} from "./script-ai-skills";
 
 export type ScriptAiMessage = {
   id: string;
@@ -95,6 +99,8 @@ function buildJobPrompt(input: {
   userText: string;
   history: ScriptAiMessage[];
   scriptRef?: string | null;
+  /** Advisor skills: free-form; script_write: JSON contract */
+  jsonContract: boolean;
 }) {
   const recent = input.history
     .filter((m) => !m.pending && !m.error)
@@ -114,10 +120,14 @@ function buildJobPrompt(input: {
   if (recent) parts.push(`【近期对话】\n${recent}`);
   if (input.scriptRef?.trim()) {
     parts.push(
-      `【当前剧本（请在此基础上修改，输出完整改定稿）】\n${input.scriptRef.trim().slice(0, 40_000)}`,
+      input.jsonContract
+        ? `【当前剧本（请在此基础上修改，输出完整改定稿）】\n${input.scriptRef.trim().slice(0, 40_000)}`
+        : `【当前剧本参考】\n${input.scriptRef.trim().slice(0, 40_000)}`,
     );
   }
-  parts.push("请按系统约定只输出 JSON。");
+  if (input.jsonContract) {
+    parts.push("请按系统约定只输出 JSON。");
+  }
   return parts.join("\n\n");
 }
 
@@ -135,6 +145,7 @@ export function useScriptAiChat(input: {
   const [draftPrompt, setDraftPrompt] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
   const [scriptRefEnabled, setScriptRefEnabled] = useState(false);
+  const [skillId, setSkillId] = useState<ScriptAiSkillId>("script_write");
   const [sending, setSending] = useState(false);
   const pendingJobRef = useRef<string | null>(null);
   const loadedForRef = useRef<string | null>(null);
@@ -308,10 +319,11 @@ export function useScriptAiChat(input: {
     onCompleted: (payload) => {
       const jobId = payload.jobId;
       if (!jobId || pendingJobRef.current !== jobId) return;
-      if (payload.result?.purpose && payload.result.purpose !== "script_write") {
-        return;
-      }
-      finishAssistant(jobId, payload.result?.scriptWrite ?? {});
+      // script_write JSON or advisor free-form — both land in scriptWrite
+      const sw = payload.result?.scriptWrite as
+        | { reply?: string; script?: string; hook?: string }
+        | undefined;
+      finishAssistant(jobId, sw ?? { reply: String(payload.result?.text ?? "") });
     },
     onFailed: (payload) => {
       const jobId = payload.jobId;
@@ -360,17 +372,20 @@ export function useScriptAiChat(input: {
       setDraftPrompt("");
       setSending(true);
 
+      const skill = scriptAiSkillById(skillId);
       try {
         const jobPrompt = buildJobPrompt({
           aiType: activeConversation.aiType,
           userText: prompt,
           history: historyForPrompt,
           scriptRef: useRef ? input.scriptText : null,
+          jsonContract: skill.mode === "script_write",
         });
         const job = await submitManjuScriptWriteJob({
           projectId: input.projectId,
           prompt: jobPrompt,
           modelId: input.modelId,
+          purpose: skill.purpose,
         });
         pendingJobRef.current = job.id;
         patchActive((c) => ({
@@ -401,6 +416,7 @@ export function useScriptAiChat(input: {
       input.scriptText,
       patchActive,
       sending,
+      skillId,
     ],
   );
 
@@ -454,6 +470,8 @@ export function useScriptAiChat(input: {
     closeHistory: () => setHistoryOpen(false),
     scriptRefEnabled,
     setScriptRefEnabled,
+    skillId,
+    setSkillId,
     sending,
     createNewChat,
     selectConversation,

@@ -177,13 +177,15 @@ export async function submitManjuScriptWriteJob(input: {
   projectId: string;
   prompt: string;
   modelId?: string;
+  /** Defaults to script_write; advisor skills use catalog purposes */
+  purpose?: string;
 }) {
   return api<{ id: string }>("/jobs", {
     method: "POST",
     body: {
       kind: "llm",
       input: {
-        purpose: "script_write",
+        purpose: input.purpose?.trim() || "script_write",
         prompt: input.prompt,
         manjuProjectId: input.projectId,
         modelId: input.modelId?.trim() || undefined,

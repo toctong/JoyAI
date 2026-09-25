@@ -35,6 +35,7 @@
   --ring: #84b3ff;
   --radius: 0.75rem;
   --atmosphere: #ffffff;
+  --joy-sidebar-bg: #fdfdfd;
 }
 
 /* Dark — 专业深色台 */
@@ -59,6 +60,7 @@
   --input: #27272a;
   --ring: #84b3ff;
   --atmosphere: #09090b;
+  --joy-sidebar-bg: #161618;
 }
 
 @theme inline {
@@ -199,7 +201,7 @@ html body:not(:has(.joy-m)) a:active {
 }
 
 .joy-sidebar {
-  background: var(--card);
+  background: var(--joy-sidebar-bg);
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 

@@ -10,7 +10,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--background);
+  /* Match app shell bg-card (assets / tools / projects). */
+  background: var(--card);
 }
 
 .joy-studio.is-pending .joy-studio-feed,

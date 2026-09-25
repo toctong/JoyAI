@@ -8,6 +8,7 @@ export type AdminTabSvgName =
   | "jobs"
   | "channels"
   | "models"
+  | "skills"
   | "plugins"
   | "users"
   | "logs"

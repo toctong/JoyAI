@@ -15,4 +15,6 @@ description: >-
 
 前端：`apps/web/src/features/manju/script-ai/`。会话按项目存在服务端 `project_chat`（`manju-script`），不写进漫剧草稿，也不放浏览器。
 
+面板可切换技能：默认 `script_write`（JSON 帮写可应用）；小洛文本技能（`film_script_analysis` 等）走 advisor 自由文本回复。图像类小洛技能尚未挂 UI。
+
 禁止从 ai-video / 外部 short-drama 仓库整段粘贴 SKILL 或 references。

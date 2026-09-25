@@ -3,7 +3,8 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: var(--background);
+  /* Match app shell bg-card (assets / tools / projects). */
+  background: var(--card);
   color: var(--foreground);
 }
 
@@ -11,7 +12,7 @@
   flex-shrink: 0;
   z-index: 30;
   padding: 0 20px 12px;
-  background: var(--background);
+  background: transparent;
 }
 
 .joy-explore-panels {
@@ -53,7 +54,7 @@
   height: 40px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: var(--background);
+  background: var(--card);
   color: var(--foreground);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   cursor: pointer;
@@ -120,7 +121,7 @@
   flex-shrink: 0;
 }
 
-/* Midjourney / Grok are black currentColor marks; <img> cannot inherit theme color. */
+/* GPT / Midjourney / Grok are black marks; <img> cannot inherit theme color. */
 .dark .joy-explore-tab-model-icon.is-mono {
   filter: invert(1);
 }
@@ -303,7 +304,7 @@
   justify-content: center;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: color-mix(in oklab, var(--background) 92%, transparent);
+  background: color-mix(in oklab, var(--card) 92%, transparent);
   color: var(--foreground);
   cursor: pointer;
   opacity: 0;
@@ -328,7 +329,7 @@
 }
 
 .joy-explore-models-nav:hover:not(:disabled) {
-  background: var(--background);
+  background: var(--card);
 }
 
 .joy-explore-models-nav:disabled {

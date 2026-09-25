@@ -654,8 +654,12 @@
   margin-top: 6px;
 }
 
-.manju-ai-panel__composer-bar--no-type {
-  justify-content: flex-end;
+.manju-ai-panel__composer-picks {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .manju-ai-panel__type {
@@ -700,6 +704,12 @@
   box-shadow: 0 12px 28px color-mix(in oklab, var(--foreground) 16%, transparent);
 }
 
+.manju-ai-panel__type-menu--skills {
+  min-width: 220px;
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
+}
+
 .manju-ai-panel__type-item {
   width: 100%;
   display: flex;
@@ -713,12 +723,81 @@
   color: var(--foreground);
   font-size: 12px;
   cursor: pointer;
+  text-align: left;
+}
+
+.manju-ai-panel__type-item--skill {
+  align-items: flex-start;
+}
+
+.manju-ai-panel__skill-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.manju-ai-panel__skill-item-text strong {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.manju-ai-panel__skill-item-text em {
+  font-style: normal;
+  font-size: 11px;
+  opacity: 0.62;
+  line-height: 1.35;
 }
 
 .manju-ai-panel__type-item:hover,
 .manju-ai-panel__type-item--active {
   background: color-mix(in oklab, var(--foreground) 6%, transparent);
   color: var(--foreground);
+}
+
+.manju-ai-panel__skill-tips {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.manju-ai-panel__skill-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in oklab, var(--foreground) 8%, transparent);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--foreground) 3%, transparent);
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.manju-ai-panel__skill-tip strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.manju-ai-panel__skill-tip span {
+  font-size: 12px;
+  opacity: 0.65;
+  line-height: 1.4;
+}
+
+.manju-ai-panel__skill-tip:hover,
+.manju-ai-panel__skill-tip--active {
+  border-color: color-mix(in oklab, var(--primary) 35%, transparent);
+  background: color-mix(in oklab, var(--primary) 8%, transparent);
+}
+
+.manju-ai-panel__message-text--pre {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .manju-ai-panel__composer-actions {

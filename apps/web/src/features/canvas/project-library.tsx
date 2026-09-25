@@ -54,6 +54,8 @@ import {
   safeFilename,
 } from "@/features/canvas/lib/canvas-project-io";
 import { normalizeCanvasSnapshot, type CanvasSnapshot } from "@joyai/shared";
+import { WorkspaceModeTabs } from "@/features/shell/workspace-mode-tabs";
+import { writeWorkspaceMode } from "@/features/shell/workspace-nav";
 import "./project-library.css";
 
 dayjs.extend(relativeTime);
@@ -119,6 +121,10 @@ export function ProjectLibrary() {
 
   const [moveOpen, setMoveOpen] = useState(false);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
+
+  useEffect(() => {
+    writeWorkspaceMode("canvas");
+  }, []);
 
   const load = useCallback(async (currentFolderId: string | null) => {
     setLoading(true);
@@ -466,9 +472,11 @@ export function ProjectLibrary() {
                 <CanvasIconChevronLeft className="h-4 w-4" />
               </button>
             ) : null}
-            <h1 className="joy-projects-title">
-              {folderTitle ?? "我的项目"}
-            </h1>
+            {folderId ? (
+              <h1 className="joy-projects-title">{folderTitle ?? "文件夹"}</h1>
+            ) : (
+              <WorkspaceModeTabs active="canvas" />
+            )}
           </div>
 
           <div className="joy-projects-toolbar">
@@ -564,6 +572,7 @@ export function ProjectLibrary() {
           </div>
         </header>
 
+        <div className="joy-projects-body">
         <div className="joy-projects-grid">
           <div className="joy-projects-item is-create">
             <button
@@ -768,6 +777,7 @@ export function ProjectLibrary() {
                 : "还没有画布项目，点击新建开始"
             : "没有更多项目了"}
         </p>
+        </div>
       </div>
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>

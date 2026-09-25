@@ -10,6 +10,7 @@ import { ManjuFolder } from "./manju-folder.entity";
 import { AppSetting } from "./app-setting.entity";
 import { AuditLog } from "./audit-log.entity";
 import { ProjectChat } from "./project-chat.entity";
+import { Skill } from "./skill.entity";
 
 export const ENTITIES = [
   User,
@@ -24,6 +25,7 @@ export const ENTITIES = [
   AppSetting,
   AuditLog,
   ProjectChat,
+  Skill,
 ] as const;
 
 export {
@@ -39,4 +41,5 @@ export {
   AppSetting,
   AuditLog,
   ProjectChat,
+  Skill,
 };
