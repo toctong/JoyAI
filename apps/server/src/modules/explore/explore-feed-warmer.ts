@@ -6,12 +6,12 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { ExploreService } from "./explore.service";
-import { PROMPT_SOURCES } from "./prompt-sources";
+import { EXPLORE_UI_SOURCE_IDS, PROMPT_SOURCES } from "./prompt-sources";
 
 /** Match explore-home first-page request size (cache key includes limit). */
 const WARM_LIMIT = 20;
 
-/** Elser category tags used by explore「灵感发现」. */
+/** Elser chips used by explore Elser tab. */
 const ELSER_WARM_TAGS = [
   "fanart",
   "cp",
@@ -21,13 +21,11 @@ const ELSER_WARM_TAGS = [
   "yandere",
 ] as const;
 
-/** Elser model chips used across explore families. */
 const ELSER_WARM_MODELS = [
   "gpt-image-2",
   "seedream-4-0-250828",
   "gemini-2.5-flash-image",
   "elser-vid-2",
-  "elser-vid-2-fast",
   "kling-o3",
   "midjourney",
 ] as const;
@@ -39,6 +37,10 @@ type WarmFeedParams = {
   tag?: string;
   modelId?: string;
   source?: string;
+  category?: string;
+  model?: string;
+  style?: string;
+  sort?: string;
 };
 
 /**
@@ -107,6 +109,7 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
       const jobs: Array<() => Promise<void>> = [];
 
       for (const src of PROMPT_SOURCES) {
+        if (!EXPLORE_UI_SOURCE_IDS.has(src.id)) continue;
         const id = src.id;
         jobs.push(async () => {
           await this.warmFeedPages({ source: id, limit: WARM_LIMIT });
@@ -130,7 +133,27 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
         });
       }
 
-      // Low concurrency: Civitai/PixAI go through the shared market proxy.
+      // 提示词库按模型聚合
+      for (const model of [
+        "gpt-image",
+        "seedream",
+        "nano-banana",
+        "seedance",
+        "kling",
+        "midjourney",
+        "grok",
+        "veo",
+      ]) {
+        jobs.push(async () => {
+          await this.warmFeedPages({
+            source: "prompt-gallery",
+            model,
+            sort: "trending",
+            limit: WARM_LIMIT,
+          });
+        });
+      }
+
       await mapPool(jobs, 2, async (run) => {
         try {
           await run();
@@ -151,8 +174,6 @@ export class ExploreFeedWarmer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  /** Fetch page 1..N following nextCursor so scroll hits warm keys.
-   * Only page 1 force-refreshes upstream; later pages reuse list/page cache. */
   private async warmFeedPages(base: WarmFeedParams): Promise<void> {
     const pages = Math.max(1, Math.min(this.warmPages, 5));
     let cursor: string | undefined;

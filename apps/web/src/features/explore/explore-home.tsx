@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeepAlive } from "keepalive-for-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ListFilter, X } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
-import { modelIconSrc } from "@/shared/lib/brand-icons";
+import { modelIconSrc, exploreSiteIconSrc } from "@/shared/lib/brand-icons";
 import { cn } from "@/shared/lib/utils";
 import { ScrollableTabs } from "@/shared/ui/scrollable-tabs";
 import { writeStudioRemixSeed } from "@/features/studio/studio-remix-seed";
@@ -17,29 +19,32 @@ import {
 import type { ExploreFeedItem } from "./types";
 import "./explore-home.css";
 
-type CommunityChip = {
+type SiteTab = "elser" | "domer" | "civitai" | "pixai";
+
+type Chip = {
   id: string;
   label: string;
-  /** Elser 模型流 */
   modelId?: string;
-  /** 外部提示词源 */
+  featuredOnly?: boolean;
+  tag?: string;
   source?: string;
 };
 
-type ModelFamily = {
+type PromptModel = {
   id: string;
   label: string;
   iconName: string;
-  communities: CommunityChip[];
+  galleryModel: string;
 };
 
-/** Elser 内容分类（灵感发现） */
-const CATEGORIES: Array<{
-  id: string;
-  label: string;
-  featuredOnly?: boolean;
-  tag?: string;
-}> = [
+const SITE_TABS: Array<{ id: SiteTab; label: string }> = [
+  { id: "elser", label: "Elser" },
+  { id: "domer", label: "Domer" },
+  { id: "civitai", label: "Civitai" },
+  { id: "pixai", label: "PixAI" },
+];
+
+const ELSER_CHIPS: Chip[] = [
   { id: "featured", label: "精选", featuredOnly: true },
   { id: "discover", label: "发现" },
   { id: "fanart", label: "IP二创", tag: "fanart" },
@@ -48,189 +53,180 @@ const CATEGORIES: Array<{
   { id: "furry", label: "兽人", tag: "furry" },
   { id: "waifu", label: "老婆", tag: "waifu" },
   { id: "yandere", label: "病娇", tag: "yandere" },
+  { id: "gpt-image", label: "GPT Image", modelId: "gpt-image-2" },
+  { id: "seedream", label: "Seedream", modelId: "seedream-4-0-250828" },
+  { id: "nano", label: "Nano Banana", modelId: "gemini-2.5-flash-image" },
+  { id: "seedance", label: "Seedance", modelId: "elser-vid-2" },
+  { id: "kling", label: "Kling", modelId: "kling-o3" },
+  { id: "midjourney", label: "Midjourney", modelId: "midjourney" },
 ];
 
-/**
- * 顶部：灵感发现 + 模型族。
- * 选中模型后，第二行按社区 / 开源库加载内容。
- */
-const MODEL_FAMILIES: ModelFamily[] = [
+const DOMER_CHIPS: Chip[] = [
+  { id: "all", label: "全部", source: "domer" },
+  { id: "kling", label: "Kling", source: "domer-kling" },
+  { id: "seedance", label: "Seedance", source: "domer-seedance" },
+  { id: "grok", label: "Grok", source: "domer-grok" },
+  { id: "veo", label: "Veo", source: "domer-veo" },
+];
+
+const CIVITAI_CHIPS: Chip[] = [
+  { id: "hot", label: "Highest Rated", source: "civitai-hot" },
+  { id: "download", label: "Most Downloaded", source: "civitai-download" },
+  { id: "lora", label: "LoRA", source: "civitai-lora" },
+  { id: "newest", label: "Newest", source: "civitai-newest" },
+];
+
+const PIXAI_CHIPS: Chip[] = [
+  { id: "hot", label: "热门模型", source: "pixai-hot" },
+  { id: "newest", label: "最新", source: "pixai-newest" },
+];
+
+const PROMPT_MODELS: PromptModel[] = [
   {
     id: "gpt-image",
     label: "GPT Image 2",
     iconName: "GPT Image",
-    communities: [
-      { id: "elser", label: "Elser 社区", modelId: "gpt-image-2" },
-      { id: "youmind", label: "YouMind", source: "youmind-gpt-image-2" },
-      { id: "xianyu", label: "咸鱼", source: "xianyu-awesome-gptimage2" },
-      { id: "awesome", label: "Awesome GPT Image", source: "awesome-gpt-image" },
-      { id: "gpt4o", label: "GPT-4o Prompts", source: "awesome-gpt4o-image-prompts" },
-      { id: "davidwu", label: "DavidWu", source: "davidwu-gpt-image2-prompts" },
-      { id: "prompts", label: "Awesome GPT Image 2", source: "gpt-image-2-prompts" },
-      { id: "multi", label: "image-prompt-generator", source: "xianyu-multi-model" },
-    ],
+    galleryModel: "gpt-image",
   },
   {
     id: "seedream",
     label: "Seedream",
     iconName: "Seedream",
-    communities: [
-      { id: "elser", label: "Elser 社区", modelId: "seedream-4-0-250828" },
-      { id: "youmind", label: "YouMind Seedream", source: "youmind-seedream-4.5" },
-    ],
+    galleryModel: "seedream",
   },
   {
     id: "nano-banana",
     label: "Nano Banana",
     iconName: "Nano Banana",
-    communities: [
-      { id: "elser", label: "Elser 社区", modelId: "gemini-2.5-flash-image" },
-      { id: "youmind", label: "YouMind Nano Banana", source: "youmind-nano-banana-pro" },
-      { id: "gemini3", label: "YouMind Gemini 3", source: "youmind-gemini-3" },
-      { id: "quicker", label: "Banana Quicker", source: "banana-prompt-quicker" },
-    ],
+    galleryModel: "nano-banana",
   },
   {
     id: "seedance",
     label: "Seedance",
     iconName: "Seedance",
-    communities: [
-      { id: "elser", label: "Elser 社区", modelId: "elser-vid-2" },
-      { id: "elser-fast", label: "Elser Fast", modelId: "elser-vid-2-fast" },
-      { id: "youmind", label: "YouMind Seedance", source: "youmind-seedance-2" },
-      { id: "gallery", label: "Seedance 画廊", source: "ericgood-seedance" },
-      { id: "domer", label: "Domer", source: "domer-seedance" },
-    ],
+    galleryModel: "seedance",
   },
   {
     id: "kling",
     label: "Kling",
     iconName: "Kling",
-    communities: [
-      { id: "elser", label: "Elser 社区", modelId: "kling-o3" },
-      { id: "domer", label: "Domer Kling", source: "domer-kling" },
-    ],
+    galleryModel: "kling",
   },
   {
     id: "midjourney",
     label: "Midjourney",
     iconName: "Midjourney",
-    communities: [
-      { id: "elser", label: "Elser 社区", modelId: "midjourney" },
-    ],
+    galleryModel: "midjourney",
   },
   {
     id: "grok",
     label: "Grok Imagine",
     iconName: "Grok",
-    communities: [
-      { id: "youmind", label: "YouMind Grok Imagine", source: "youmind-grok-imagine" },
-      { id: "domer", label: "Domer Grok", source: "domer-grok" },
-    ],
+    galleryModel: "grok",
   },
   {
     id: "veo",
     label: "Veo",
     iconName: "Veo",
-    communities: [
-      { id: "domer", label: "Domer Veo", source: "domer-veo" },
-    ],
-  },
-  {
-    id: "civitai",
-    label: "Civitai",
-    iconName: "Stability",
-    communities: [
-      { id: "hot", label: "Highest Rated", source: "civitai-hot" },
-      { id: "download", label: "Most Downloaded", source: "civitai-download" },
-      { id: "lora", label: "LoRA", source: "civitai-lora" },
-      { id: "newest", label: "Newest", source: "civitai-newest" },
-    ],
-  },
-  {
-    id: "pixai",
-    label: "PixAI",
-    iconName: "Nano Banana",
-    communities: [
-      { id: "hot", label: "热门模型", source: "pixai-hot" },
-      { id: "newest", label: "最新", source: "pixai-newest" },
-    ],
+    galleryModel: "veo",
   },
 ];
 
-type MainTab = "feed" | string;
+const CHIPS_BY_SITE: Record<SiteTab, Chip[]> = {
+  elser: ELSER_CHIPS,
+  domer: DOMER_CHIPS,
+  civitai: CIVITAI_CHIPS,
+  pixai: PIXAI_CHIPS,
+};
+
+const MONO_ICON_IDS = new Set(["gpt-image", "midjourney", "grok"]);
 
 const KEEP_ALIVE_MAX = 12;
+
+type MainTab =
+  | { kind: "site"; id: SiteTab }
+  | { kind: "model"; id: string };
 
 export function ExploreHome() {
   const router = useRouter();
   const [active, setActive] = useState<ExploreFeedItem | null>(null);
-  const [tab, setTab] = useState<MainTab>("feed");
-  const [category, setCategory] = useState("featured");
-  /** Remember last community per model family (a-tabs style). */
-  const [communityByFamily, setCommunityByFamily] = useState<
-    Record<string, string>
-  >(() => {
-    const init: Record<string, string> = {};
-    for (const family of MODEL_FAMILIES) {
-      init[family.id] = family.communities[0]?.id ?? "";
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [main, setMain] = useState<MainTab>({ kind: "site", id: "elser" });
+  const [chipBySite, setChipBySite] = useState<Record<SiteTab, string>>(() => {
+    const init = {} as Record<SiteTab, string>;
+    for (const key of Object.keys(CHIPS_BY_SITE) as SiteTab[]) {
+      init[key] = CHIPS_BY_SITE[key][0]?.id ?? "";
     }
     return init;
   });
 
-  const activeFamily = useMemo(
-    () => MODEL_FAMILIES.find((f) => f.id === tab) ?? null,
-    [tab],
+  const siteId = main.kind === "site" ? main.id : null;
+  const chips = siteId ? CHIPS_BY_SITE[siteId] : [];
+  const defaultChipId = chips[0]?.id ?? "";
+  const chipId = siteId ? chipBySite[siteId] || defaultChipId : "";
+  const activeChip = useMemo(
+    () => chips.find((c) => c.id === chipId) ?? chips[0],
+    [chips, chipId],
   );
+  const filterActive = Boolean(siteId && chipId && chipId !== defaultChipId);
 
-  const communityId =
-    (activeFamily && communityByFamily[activeFamily.id]) ||
-    activeFamily?.communities[0]?.id ||
-    "";
-
-  const activeCommunity = useMemo(() => {
-    if (!activeFamily) return null;
+  const activePromptModel = useMemo(() => {
+    if (main.kind !== "model") return null;
     return (
-      activeFamily.communities.find((c) => c.id === communityId) ??
-      activeFamily.communities[0]
+      PROMPT_MODELS.find((m) => m.id === main.id) ?? PROMPT_MODELS[0]!
     );
-  }, [activeFamily, communityId]);
+  }, [main]);
 
-  const activeCat = useMemo(
-    () => CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0],
-    [category],
-  );
+  const scrollKey = main.kind === "site" ? main.id : `model:${main.id}`;
 
   const paneQuery = useMemo((): ExplorePaneQuery => {
-    if (tab === "feed") {
+    if (main.kind === "model" && activePromptModel) {
+      return {
+        kind: "gallery",
+        category: "all",
+        model: activePromptModel.galleryModel,
+        style: "all",
+        sort: "trending",
+      };
+    }
+    if (siteId === "elser") {
       return {
         kind: "feed",
-        categoryId: activeCat.id,
-        featuredOnly: activeCat.featuredOnly,
-        tag: activeCat.tag,
+        categoryId: activeChip?.id ?? "featured",
+        featuredOnly: activeChip?.featuredOnly,
+        tag: activeChip?.tag,
+        modelId: activeChip?.modelId,
       };
     }
     return {
       kind: "model",
-      familyId: tab,
-      communityId: activeCommunity?.id ?? "",
-      modelId: activeCommunity?.modelId,
-      source: activeCommunity?.source,
+      familyId: siteId ?? "domer",
+      communityId: activeChip?.id ?? "",
+      source: activeChip?.source,
     };
-  }, [tab, activeCat, activeCommunity]);
+  }, [main, siteId, activeChip, activePromptModel]);
 
   const paneKey = explorePaneKey(paneQuery);
 
-  function selectFamily(familyId: string) {
-    const family = MODEL_FAMILIES.find((f) => f.id === familyId);
-    if (!family) return;
-    setTab(familyId);
+  function selectChip(id: string) {
+    if (!siteId) return;
+    setChipBySite((prev) => ({ ...prev, [siteId]: id }));
+    setFilterOpen(false);
   }
 
-  function selectCommunity(id: string) {
-    if (!activeFamily) return;
-    setCommunityByFamily((prev) => ({ ...prev, [activeFamily.id]: id }));
-  }
+  useEffect(() => {
+    if (!filterOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFilterOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [filterOpen]);
+
+  // Close filter when leaving site tabs (models have no chips).
+  useEffect(() => {
+    if (!siteId && filterOpen) setFilterOpen(false);
+  }, [siteId, filterOpen]);
 
   function remix(item: ExploreFeedItem) {
     const prompt = item.prompt?.trim() || item.title?.trim();
@@ -254,11 +250,17 @@ export function ExploreHome() {
   }
 
   const emptyTitle =
-    tab === "feed" ? "该分类暂无内容" : "该社区暂无内容";
+    main.kind === "model"
+      ? "该模型暂无提示词"
+      : siteId === "elser"
+        ? "该分类暂无内容"
+        : "该来源暂无内容";
   const emptyDesc =
-    tab === "feed"
-      ? "换个标签试试，或稍后再刷新。你也可以先去创作页生成作品。"
-      : "换个社区试试，或回到灵感发现浏览精选。";
+    main.kind === "model"
+      ? "换个模型试试，或稍后再刷新。"
+      : siteId === "elser"
+        ? "换个标签试试，或稍后再刷新。你也可以先去创作页生成作品。"
+        : "换个子分类试试，或切换到其他来源。";
 
   return (
     <div className="joy-explore">
@@ -266,23 +268,14 @@ export function ExploreHome() {
         <ScrollableTabs
           className="joy-explore-tabs"
           aria-label="探索分类"
-          scrollKey={tab}
+          scrollKey={scrollKey}
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={tab === "feed"}
-            className={cn("joy-explore-tab", tab === "feed" && "is-active")}
-            onClick={() => setTab("feed")}
-          >
-            灵感发现
-          </button>
-          {MODEL_FAMILIES.map((family) => {
-            const icon = modelIconSrc({ name: family.iconName });
-            const on = tab === family.id;
+          {SITE_TABS.map((item) => {
+            const on = main.kind === "site" && main.id === item.id;
+            const icon = exploreSiteIconSrc(item.id);
             return (
               <button
-                key={family.id}
+                key={item.id}
                 type="button"
                 role="tab"
                 aria-selected={on}
@@ -290,7 +283,34 @@ export function ExploreHome() {
                   "joy-explore-tab joy-explore-tab-model",
                   on && "is-active",
                 )}
-                onClick={() => selectFamily(family.id)}
+                onClick={() => setMain({ kind: "site", id: item.id })}
+              >
+                {icon ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={icon}
+                    alt=""
+                    className="joy-explore-tab-model-icon"
+                  />
+                ) : null}
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+          {PROMPT_MODELS.map((model) => {
+            const icon = modelIconSrc({ name: model.iconName });
+            const on = main.kind === "model" && main.id === model.id;
+            return (
+              <button
+                key={model.id}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                className={cn(
+                  "joy-explore-tab joy-explore-tab-model",
+                  on && "is-active",
+                )}
+                onClick={() => setMain({ kind: "model", id: model.id })}
               >
                 {icon ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -299,54 +319,15 @@ export function ExploreHome() {
                     alt=""
                     className={cn(
                       "joy-explore-tab-model-icon",
-                      (family.id === "gpt-image" ||
-                        family.id === "midjourney" ||
-                        family.id === "grok") &&
-                        "is-mono",
+                      MONO_ICON_IDS.has(model.id) && "is-mono",
                     )}
                   />
                 ) : null}
-                <span>{family.label}</span>
+                <span>{model.label}</span>
               </button>
             );
           })}
         </ScrollableTabs>
-
-        {tab === "feed" ? (
-          <div className="joy-explore-cats">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                className={cn(
-                  "joy-explore-cat",
-                  category === cat.id && "is-on",
-                )}
-                onClick={() => setCategory(cat.id)}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-        ) : activeFamily ? (
-          <div className="joy-explore-cats" role="listbox">
-            {activeFamily.communities.map((community) => (
-              <button
-                key={community.id}
-                type="button"
-                role="option"
-                aria-selected={activeCommunity?.id === community.id}
-                className={cn(
-                  "joy-explore-cat",
-                  activeCommunity?.id === community.id && "is-on",
-                )}
-                onClick={() => selectCommunity(community.id)}
-              >
-                {community.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
       </header>
 
       <div className="joy-explore-panels">
@@ -364,12 +345,136 @@ export function ExploreHome() {
             onOpen={setActive}
             onRemix={remix}
             onGoFeatured={() => {
-              setTab("feed");
-              setCategory("featured");
+              setMain({ kind: "site", id: "elser" });
+              setChipBySite((prev) => ({ ...prev, elser: "featured" }));
             }}
             onGoStudio={() => router.push("/studio")}
           />
         </KeepAlive>
+
+        {siteId ? (
+          <div className="joy-explore-filter">
+            <AnimatePresence>
+              {filterOpen ? (
+                <motion.button
+                  key="filter-scrim"
+                  type="button"
+                  className="joy-explore-filter-scrim"
+                  aria-label="关闭筛选"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  onClick={() => setFilterOpen(false)}
+                />
+              ) : null}
+            </AnimatePresence>
+
+            <AnimatePresence>
+              {filterOpen ? (
+                <motion.div
+                  key="filter-panel"
+                  className="joy-explore-filter-pop"
+                  role="dialog"
+                  aria-label="筛选"
+                  initial={{ opacity: 0, scale: 0.72, y: 18 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.82, y: 12 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 420,
+                    damping: 28,
+                    mass: 0.75,
+                  }}
+                  style={{ transformOrigin: "bottom left" }}
+                >
+                  <p className="joy-explore-filter-pop-title">筛选</p>
+                  <div
+                    className="joy-explore-filter-pop-list"
+                    role="listbox"
+                    aria-label="子分类"
+                  >
+                    {chips.map((chip, index) => {
+                      const on = activeChip?.id === chip.id;
+                      return (
+                        <motion.button
+                          key={chip.id}
+                          type="button"
+                          role="option"
+                          aria-selected={on}
+                          className={cn(
+                            "joy-explore-filter-pop-item",
+                            on && "is-on",
+                          )}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{
+                            delay: 0.04 + index * 0.028,
+                            duration: 0.22,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
+                          onClick={() => selectChip(chip.id)}
+                        >
+                          <span>{chip.label}</span>
+                          {on ? (
+                            <span
+                              className="joy-explore-filter-pop-check"
+                              aria-hidden
+                            >
+                              ✓
+                            </span>
+                          ) : null}
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            <motion.button
+              type="button"
+              className={cn(
+                "joy-explore-filter-fab",
+                filterActive && "is-active",
+                filterOpen && "is-open",
+              )}
+              aria-label={filterOpen ? "关闭筛选" : "筛选"}
+              aria-expanded={filterOpen}
+              whileTap={{ scale: 0.92 }}
+              onClick={() => setFilterOpen((v) => !v)}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {filterOpen ? (
+                  <motion.span
+                    key="x"
+                    className="joy-explore-filter-fab-icon"
+                    initial={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                    transition={{ duration: 0.16 }}
+                  >
+                    <X className="h-4 w-4" />
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="filter"
+                    className="joy-explore-filter-fab-icon"
+                    initial={{ opacity: 0, rotate: 90, scale: 0.6 }}
+                    animate={{ opacity: 1, rotate: 0, scale: 1 }}
+                    exit={{ opacity: 0, rotate: -90, scale: 0.6 }}
+                    transition={{ duration: 0.16 }}
+                  >
+                    <ListFilter className="h-4 w-4" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+              {filterActive && !filterOpen ? (
+                <span className="joy-explore-filter-fab-dot" aria-hidden />
+              ) : null}
+            </motion.button>
+          </div>
+        ) : null}
       </div>
 
       <ExploreDetailDialog

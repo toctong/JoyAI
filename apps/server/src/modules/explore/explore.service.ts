@@ -5,6 +5,11 @@ import {
   fetchPromptSourceFeed,
   listPromptSources,
 } from "./prompt-source-feed";
+import {
+  fetchPromptGalleryFeed,
+  galleryNeedsElser,
+  type GalleryModelId,
+} from "./prompt-gallery";
 import { findPromptSource } from "./prompt-sources";
 import {
   configureMarketProxyResolver,
@@ -120,14 +125,42 @@ export class ExploreService implements OnModuleInit {
       tag?: string;
       /** 热门模型：对应 Elser model_id */
       modelId?: string;
-      /** 第三方提示词源（与 Elser 互斥） */
+      /** 第三方提示词源（与 Elser 互斥）；`prompt-gallery` = 聚合画廊 */
       source?: string;
+      /** imageprompts 风格筛选（仅 prompt-gallery） */
+      category?: string;
+      model?: string;
+      style?: string;
+      sort?: string;
     },
     options?: ExploreFeedOptions,
   ): Promise<ExploreFeedResult> {
     const limit = Math.max(1, Math.min(Number(params.limit) || 24, 48));
     const sourceId = params.source?.trim() || "";
     const forceRefresh = Boolean(options?.forceRefresh);
+
+    if (sourceId === "prompt-gallery") {
+      const cacheKey = [
+        "gallery",
+        params.model ?? "all",
+        params.category ?? "all",
+        params.style ?? "all",
+        params.sort ?? "trending",
+        `l${limit}`,
+        `c${params.cursor?.trim() || ""}`,
+      ].join(":");
+      return this.readThrough(cacheKey, forceRefresh, () =>
+        this.loadGallery({
+          limit,
+          cursor: params.cursor,
+          category: params.category,
+          model: params.model,
+          style: params.style,
+          sort: params.sort,
+          forceRefresh,
+        }),
+      );
+    }
 
     if (sourceId && sourceId !== "elser") {
       if (!findPromptSource(sourceId)) {
@@ -228,6 +261,65 @@ export class ExploreService implements OnModuleInit {
         const cur = this.cache.get(cacheKey);
         if (cur) cur.refreshing = false;
       });
+  }
+
+  private async loadGallery(params: {
+    limit: number;
+    cursor?: string;
+    category?: string;
+    model?: string;
+    style?: string;
+    sort?: string;
+    forceRefresh?: boolean;
+  }): Promise<ExploreFeedResult> {
+    const model = String(params.model ?? "all").trim().toLowerCase() as GalleryModelId;
+    let elserItems: ExploreFeedItem[] = [];
+    if (galleryNeedsElser(model)) {
+      elserItems = await this.loadElserModelPages("midjourney", 3, params.forceRefresh);
+    }
+    return fetchPromptGalleryFeed({
+      limit: params.limit,
+      cursor: params.cursor,
+      category: params.category,
+      model: params.model,
+      style: params.style,
+      sort: params.sort,
+      elserItems,
+      forceRefresh: params.forceRefresh,
+    });
+  }
+
+  /** Pull a few Elser pages for gallery merge (e.g. Midjourney). */
+  private async loadElserModelPages(
+    modelId: string,
+    maxPages: number,
+    forceRefresh?: boolean,
+  ): Promise<ExploreFeedItem[]> {
+    const base =
+      this.config.get<string>("ELSER_FEED_BASE_URL") ??
+      "https://api.tool.elser.ai/v1";
+    const out: ExploreFeedItem[] = [];
+    const seen = new Set<string>();
+    let cursor: string | undefined;
+    for (let i = 0; i < maxPages; i++) {
+      const url = new URL(`${base.replace(/\/$/, "")}/community/feed`);
+      url.searchParams.set("limit", "24");
+      url.searchParams.set("model_id", modelId);
+      if (cursor) url.searchParams.set("cursor", cursor);
+      const cacheKey = `elser:${url.search}`;
+      const page = await this.readThrough(cacheKey, Boolean(forceRefresh) && i === 0, () =>
+        this.fetchElser(url.toString()),
+      );
+      for (const item of page.items) {
+        const id = String(item.id ?? "").trim();
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        out.push(item);
+      }
+      if (!page.hasMore || !page.nextCursor?.trim()) break;
+      cursor = page.nextCursor.trim();
+    }
+    return out;
   }
 
   private async fetchElser(url: string): Promise<ExploreFeedResult> {

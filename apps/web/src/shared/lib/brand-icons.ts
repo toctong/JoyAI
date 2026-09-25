@@ -8,6 +8,19 @@ const CHANNEL_ICON: Record<string, string> = {
   "openai-compatible": "/brand/models/openai.svg",
 };
 
+/** Explore source-site tabs (Elser / Domer / Civitai / PixAI). */
+const EXPLORE_SITE_ICON: Record<string, string> = {
+  elser: "/brand/explore/elser.png",
+  domer: "/brand/explore/domer.png",
+  civitai: "/brand/explore/civitai.png",
+  pixai: "/brand/explore/pixai.svg",
+};
+
+export function exploreSiteIconSrc(siteId: string): string | null {
+  const key = siteId.trim().toLowerCase();
+  return EXPLORE_SITE_ICON[key] ?? null;
+}
+
 /** Family key → public path (files that exist under public/brand/models). */
 const MODEL_FAMILY_ICON: Record<string, string> = {
   openai: "/brand/models/openai.svg",

@@ -279,3 +279,30 @@ export function findPromptSource(id: string): PromptSourceDef | undefined {
   const key = id.trim();
   return PROMPT_SOURCES.find((s) => s.id === key);
 }
+
+/**
+ * Sources shown in explore UI tabs (warmer prefetches these).
+ * Full PROMPT_SOURCES stay fetchable via ?source=.
+ */
+export const EXPLORE_UI_SOURCE_IDS: ReadonlySet<string> = new Set([
+  "domer",
+  "domer-kling",
+  "domer-seedance",
+  "domer-grok",
+  "domer-veo",
+  "civitai-hot",
+  "civitai-download",
+  "civitai-lora",
+  "civitai-newest",
+  "pixai-hot",
+  "pixai-newest",
+  "youmind-gpt-image-2",
+  "xianyu-awesome-gptimage2",
+  "youmind-seedream-4.5",
+  "youmind-nano-banana-pro",
+  "youmind-gemini-3",
+  "youmind-seedance-2",
+  "ericgood-seedance",
+  "youmind-grok-imagine",
+]);
+

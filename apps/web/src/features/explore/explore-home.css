@@ -64,9 +64,149 @@
   background: var(--muted);
 }
 
+.joy-explore-filter {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.joy-explore-filter-scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: default;
+  pointer-events: auto;
+}
+
+.joy-explore-filter-fab {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 22;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.joy-explore-filter-fab:hover {
+  background: var(--muted);
+}
+
+.joy-explore-filter-fab.is-active,
+.joy-explore-filter-fab.is-open {
+  border-color: var(--foreground);
+}
+
+.joy-explore-filter-fab-icon {
+  display: grid;
+  place-items: center;
+}
+
+.joy-explore-filter-fab-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--foreground);
+}
+
+.joy-explore-filter-pop {
+  position: absolute;
+  left: 24px;
+  bottom: 76px;
+  z-index: 21;
+  width: 228px;
+  max-height: min(52vh, 420px);
+  padding: 10px 8px 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.14);
+  pointer-events: auto;
+}
+
+.joy-explore-filter-pop-title {
+  margin: 0;
+  padding: 2px 8px 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.joy-explore-filter-pop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: min(46vh, 360px);
+  overflow-y: auto;
+  padding: 0;
+}
+
+.joy-explore-filter-pop-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--joy-control-h-sm, 32px);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--joy-radius-md, 10px);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.joy-explore-filter-pop-item:hover {
+  background: var(--muted);
+}
+
+.joy-explore-filter-pop-item.is-on {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.joy-explore-filter-pop-check {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
 .joy-explore-tabs {
-  margin-bottom: 14px;
+  margin-bottom: 0;
   border-bottom: 1px solid var(--border);
+}
+
+.joy-explore-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.joy-explore-model-tabs {
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.joy-explore-model-tabs .joy-scroll-tabs-viewport {
+  gap: 16px 20px;
 }
 
 .joy-explore-tabs .joy-scroll-tabs-viewport {
@@ -160,6 +300,24 @@
 .joy-explore-cat.is-on {
   background: var(--secondary);
   color: var(--secondary-foreground);
+}
+
+.joy-explore-cat-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.joy-explore-cat-model-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.dark .joy-explore-cat-model-icon.is-mono {
+  filter: invert(1);
 }
 
 .joy-explore-state {

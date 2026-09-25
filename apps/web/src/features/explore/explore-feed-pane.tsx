@@ -15,6 +15,8 @@ export type ExplorePaneFeedQuery = {
   categoryId: string;
   featuredOnly?: boolean;
   tag?: string;
+  /** Elser model filter under 灵感发现 */
+  modelId?: string;
 };
 
 export type ExplorePaneModelQuery = {
@@ -25,7 +27,19 @@ export type ExplorePaneModelQuery = {
   source?: string;
 };
 
-export type ExplorePaneQuery = ExplorePaneFeedQuery | ExplorePaneModelQuery;
+/** imageprompts.co-style aggregated gallery */
+export type ExplorePaneGalleryQuery = {
+  kind: "gallery";
+  category: string;
+  model: string;
+  style: string;
+  sort: string;
+};
+
+export type ExplorePaneQuery =
+  | ExplorePaneFeedQuery
+  | ExplorePaneModelQuery
+  | ExplorePaneGalleryQuery;
 
 type Props = {
   query: ExplorePaneQuery;
@@ -88,6 +102,16 @@ export function ExploreFeedPane({
   });
 
   const feedKey = useMemo(() => {
+    if (query.kind === "gallery") {
+      return [
+        "explore",
+        "gallery",
+        query.category,
+        query.model,
+        query.style,
+        query.sort,
+      ] as const;
+    }
     if (query.kind === "feed") {
       return [
         "explore",
@@ -95,6 +119,7 @@ export function ExploreFeedPane({
         query.categoryId,
         query.featuredOnly ? "1" : "0",
         query.tag ?? "",
+        query.modelId ?? "",
       ] as const;
     }
     return [
@@ -116,9 +141,22 @@ export function ExploreFeedPane({
       const qs = new URLSearchParams({ limit: "20" });
       if (pageParam) qs.set("cursor", pageParam);
 
-      if (query.kind === "feed") {
+      if (query.kind === "gallery") {
+        qs.set("source", "prompt-gallery");
+        if (query.category && query.category !== "all") {
+          qs.set("category", query.category);
+        }
+        if (query.model && query.model !== "all") {
+          qs.set("model", query.model);
+        }
+        if (query.style && query.style !== "all") {
+          qs.set("style", query.style);
+        }
+        if (query.sort) qs.set("sort", query.sort);
+      } else if (query.kind === "feed") {
         if (query.featuredOnly) qs.set("featuredOnly", "true");
         if (query.tag) qs.set("tag", query.tag);
+        if (query.modelId) qs.set("modelId", query.modelId);
       } else if (query.modelId) {
         qs.set("modelId", query.modelId);
       } else if (query.source) {
@@ -280,6 +318,11 @@ export function ExploreFeedPane({
 }
 
 export function explorePaneKey(query: ExplorePaneQuery): string {
-  if (query.kind === "feed") return `feed:${query.categoryId}`;
+  if (query.kind === "gallery") {
+    return `gallery:${query.category}:${query.model}:${query.style}:${query.sort}`;
+  }
+  if (query.kind === "feed") {
+    return `feed:${query.categoryId}:${query.modelId ?? ""}`;
+  }
   return `model:${query.familyId}:${query.communityId}`;
 }
