@@ -12,6 +12,7 @@ import {
 } from "@/features/explore/explore-feed-pane";
 import type { ExploreFeedItem } from "@/features/explore/types";
 import { InspireBannerCarousel } from "./inspire-banner-carousel";
+import { InspireToolSpotlight } from "./inspire-tool-spotlight";
 import "@/features/explore/explore-home.css";
 import "./inspire-home.css";
 
@@ -33,13 +34,14 @@ const SHOWCASE_CATS: Array<{
 ];
 
 /**
- * Inspire home — promo carousel + showcase feed (Jimeng-style).
- * Composer lives on /studio; top has no greeting / input.
+ * Inspire home — promo carousel + tools + showcase feed.
+ * Whole page scrolls; feed infinite-scroll uses the outer scroller.
  */
 export function InspireHome() {
   const router = useRouter();
   const [category, setCategory] = useState("featured");
   const [detail, setDetail] = useState<ExploreFeedItem | null>(null);
+  const [scrollRoot, setScrollRoot] = useState<HTMLDivElement | null>(null);
 
   const activeCat =
     SHOWCASE_CATS.find((c) => c.id === category) ?? SHOWCASE_CATS[0]!;
@@ -76,10 +78,12 @@ export function InspireHome() {
 
   return (
     <div className="joy-inspire">
-      <div className="joy-inspire-inner">
+      <div className="joy-inspire-inner" ref={setScrollRoot}>
         <header className="joy-inspire-hero">
           <InspireBannerCarousel />
         </header>
+
+        <InspireToolSpotlight />
 
         <section className="joy-inspire-showcase" aria-label="最近上新">
           <div className="joy-inspire-showcase-head">
@@ -113,6 +117,7 @@ export function InspireHome() {
               onRemix={remix}
               onGoFeatured={() => setCategory("featured")}
               onGoStudio={() => router.push("/studio")}
+              scrollRootEl={scrollRoot}
             />
           </div>
         </section>

@@ -1,0 +1,122 @@
+/* Featured AI tools under inspire carousel — compact 4-up row */
+
+.joy-inspire-tools {
+  flex-shrink: 0;
+  padding: 4px 20px 16px;
+}
+
+.joy-inspire-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* Compact card overrides (tools page keeps full size) */
+.joy-inspire-tools .joy-ai-tool-card {
+  min-height: 96px;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border-radius: 12px;
+}
+
+.joy-inspire-tools .joy-ai-tool-card-title-row {
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.joy-inspire-tools .joy-ai-tool-card-title {
+  font-size: var(--joy-font-label, 14px);
+  line-height: 1.3;
+}
+
+.joy-inspire-tools .joy-ai-tool-badge {
+  height: 16px;
+  padding: 0 5px;
+  font-size: 10px;
+}
+
+.joy-inspire-tools .joy-ai-tool-card-desc {
+  max-width: none;
+  font-size: var(--joy-font-micro, 12px);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.joy-inspire-tools .joy-ai-tool-card-preview {
+  width: 84px;
+  height: 62px;
+}
+
+.joy-inspire-tools .joy-ai-tool-stack-layer,
+.joy-inspire-tools .joy-ai-tool-stack-face {
+  border-radius: 8px;
+}
+
+/* Hover fan inherits `.joy-ai-tool-card` rules from ai-tools.css */
+
+.joy-inspire-tools-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 16px 28px;
+  margin-top: 12px;
+}
+
+.joy-inspire-tools-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--joy-control-h-md, 36px);
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.joy-inspire-tools-more-btn:hover {
+  color: var(--foreground);
+}
+
+.joy-inspire-tools-more-icon {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.22s var(--joy-ease-out, ease);
+}
+
+.joy-inspire-tools-more-btn.is-expanded .joy-inspire-tools-more-icon {
+  transform: rotate(180deg);
+}
+
+.joy-inspire-tools-all {
+  font-size: var(--joy-font-label, 14px);
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.joy-inspire-tools-all:hover {
+  color: var(--foreground);
+}
+
+@media (max-width: 1100px) {
+  .joy-inspire-tools-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .joy-inspire-tools {
+    padding-inline: 12px;
+  }
+
+  .joy-inspire-tools-grid {
+    grid-template-columns: 1fr;
+  }
+}

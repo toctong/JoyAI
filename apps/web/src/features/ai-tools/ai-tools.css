@@ -90,7 +90,6 @@
 }
 
 .joy-ai-tool-card:hover {
-  border-color: color-mix(in oklab, var(--ring) 35%, var(--border));
   box-shadow: 0 14px 40px -26px rgb(0 0 0 / 0.4);
   transform: translateY(-2px);
 }
@@ -148,6 +147,10 @@
   font-size: var(--joy-font-caption);
   line-height: 1.55;
   color: var(--muted-foreground);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 
 .joy-ai-tool-card-preview {
@@ -269,9 +272,7 @@ img.joy-ai-tool-stack-layer {
 
 .joy-ai-tool-card:hover .joy-ai-tool-stack-face {
   transform: translate(-4px, -10px) scale(1.06) rotate(-6deg);
-  box-shadow:
-    0 16px 28px -12px rgb(0 0 0 / 0.45),
-    0 0 0 1px color-mix(in oklab, var(--tool-accent) 28%, transparent);
+  box-shadow: 0 16px 28px -12px rgb(0 0 0 / 0.45);
 }
 
 .joy-ai-tool-card:hover .joy-ai-tool-stack.is-photo .joy-ai-tool-stack-face img {

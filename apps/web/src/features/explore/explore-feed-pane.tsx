@@ -6,6 +6,7 @@ import { useEffectOnActive } from "keepalive-for-react";
 import { ArrowUp, Compass, Sparkles } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
 import { api, isApiCancelError } from "@/shared/lib/api";
+import { cn } from "@/shared/lib/utils";
 import { ExploreMasonry } from "./explore-masonry";
 import { ExploreFeedSkeleton } from "./explore-skeleton";
 import type { ExploreFeedItem, ExploreFeedResult } from "./types";
@@ -49,10 +50,15 @@ type Props = {
   onRemix: (item: ExploreFeedItem) => void;
   onGoFeatured: () => void;
   onGoStudio: () => void;
+  /**
+   * External scroll container (e.g. inspire page).
+   * When set, the pane grows with content and infinite scroll uses this root.
+   */
+  scrollRootEl?: HTMLElement | null;
 };
 
 /** Isolated so scroll threshold does not re-render the masonry tree. */
-function ExploreBackTop({ scrollEl }: { scrollEl: HTMLDivElement | null }) {
+function ExploreBackTop({ scrollEl }: { scrollEl: HTMLElement | null }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
@@ -91,6 +97,7 @@ export function ExploreFeedPane({
   onRemix,
   onGoFeatured,
   onGoStudio,
+  scrollRootEl,
 }: Props) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -100,6 +107,8 @@ export function ExploreFeedPane({
     loading: false,
     loadingMore: false,
   });
+  const embed = Boolean(scrollRootEl);
+  const observerRoot = scrollRootEl ?? scrollEl;
 
   const feedKey = useMemo(() => {
     if (query.kind === "gallery") {
@@ -239,19 +248,22 @@ export function ExploreFeedPane({
   // Keep observer mounted across load-more; only rebind when scroll root / feed appear.
   useEffectOnActive(() => {
     const el = sentinelRef.current;
-    if (!el || !scrollEl || !hasItems) return;
+    if (!el || !hasItems) return;
+    // Page-embed mode: wait until the outer scroller is ready.
+    if (embed && !scrollRootEl) return;
+    if (!embed && !scrollEl) return;
 
     const io = new IntersectionObserver(
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return;
         tryFetchMore();
       },
-      { root: scrollEl, rootMargin: "600px 0px", threshold: 0 },
+      { root: observerRoot, rootMargin: "600px 0px", threshold: 0 },
     );
 
     io.observe(el);
     return () => io.disconnect();
-  }, [scrollEl, tryFetchMore, hasItems]);
+  }, [observerRoot, scrollRootEl, scrollEl, embed, tryFetchMore, hasItems]);
 
   const onOpenStable = useCallback(
     (item: ExploreFeedItem) => onOpen(item),
@@ -263,8 +275,11 @@ export function ExploreFeedPane({
   );
 
   return (
-    <div className="joy-explore-pane-wrap">
-      <div className="joy-explore-pane" ref={setScrollEl}>
+    <div className={cn("joy-explore-pane-wrap", embed && "is-page-scroll")}>
+      <div
+        className={cn("joy-explore-pane", embed && "is-page-scroll")}
+        ref={embed ? undefined : setScrollEl}
+      >
         {loading ? (
           <ExploreFeedSkeleton />
         ) : !hasItems ? (
@@ -312,7 +327,7 @@ export function ExploreFeedPane({
           </>
         )}
       </div>
-      <ExploreBackTop scrollEl={scrollEl} />
+      <ExploreBackTop scrollEl={observerRoot} />
     </div>
   );
 }
