@@ -1,0 +1,226 @@
+/* Recent projects — horizontal thumb + meta cards */
+
+.joy-inspire-recent {
+  flex-shrink: 0;
+  padding: 8px 20px 20px;
+}
+
+.joy-inspire-recent-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-bottom: 12px;
+}
+
+.joy-inspire-recent-title {
+  margin: 0;
+  font-size: var(--joy-font-title, 16px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+}
+
+.joy-inspire-recent-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
+}
+
+.joy-inspire-recent-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--joy-control-h-sm, 32px);
+  min-width: 56px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.joy-inspire-recent-tab:hover {
+  color: var(--foreground);
+}
+
+.joy-inspire-recent-tab.is-on {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+.joy-inspire-recent-all {
+  margin-left: auto;
+  font-size: var(--joy-font-label, 14px);
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.joy-inspire-recent-all:hover {
+  color: var(--foreground);
+}
+
+.joy-inspire-recent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.joy-inspire-recent-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 72px;
+  padding: 10px 14px 10px 10px;
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--muted) 35%, var(--card));
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--joy-duration-normal, 0.2s) var(--joy-ease-out, ease),
+    box-shadow var(--joy-duration-normal, 0.2s) var(--joy-ease-out, ease),
+    transform var(--joy-duration-normal, 0.2s) var(--joy-ease-out, ease);
+}
+
+.joy-inspire-recent-card:hover {
+  border-color: color-mix(in oklab, var(--foreground) 14%, var(--border));
+  box-shadow: 0 12px 28px -22px rgb(0 0 0 / 0.35);
+  transform: translateY(-2px);
+}
+
+.joy-inspire-recent-media {
+  position: relative;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--muted);
+}
+
+.joy-inspire-recent-media .joy-projects-cover,
+.joy-inspire-recent-media .joy-projects-cover-wrap,
+.joy-inspire-recent-media .joy-projects-cover-empty {
+  height: 100%;
+  width: 100%;
+}
+
+.joy-inspire-recent-media .joy-projects-cover-empty svg {
+  width: 22px;
+  height: 22px;
+}
+
+.joy-inspire-recent-meta {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.joy-inspire-recent-name {
+  margin: 0;
+  font-size: var(--joy-font-label, 14px);
+  line-height: 1.35;
+  font-weight: 400;
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-inspire-recent-sub {
+  margin: 0;
+  font-size: var(--joy-font-micro, 12px);
+  line-height: 1.3;
+  color: var(--muted-foreground);
+}
+
+.joy-inspire-recent-skel {
+  height: 72px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+  animation: joy-inspire-recent-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes joy-inspire-recent-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.joy-inspire-recent-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  min-height: 72px;
+  padding: 16px 4px;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+}
+
+.joy-inspire-recent-empty p {
+  margin: 0;
+}
+
+.joy-inspire-recent-empty-link {
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.joy-inspire-recent-empty-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 1100px) {
+  .joy-inspire-recent-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .joy-inspire-recent {
+    padding-inline: 12px;
+  }
+
+  .joy-inspire-recent-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .joy-inspire-recent-all {
+    margin-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joy-inspire-recent-card {
+    transition: none;
+  }
+
+  .joy-inspire-recent-card:hover {
+    transform: none;
+  }
+
+  .joy-inspire-recent-skel {
+    animation: none;
+  }
+}

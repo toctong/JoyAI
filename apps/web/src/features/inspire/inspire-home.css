@@ -1,4 +1,4 @@
-/* Inspire home — page-level scroll (carousel + tools + feed) */
+/* Inspire home — page-level scroll (carousel + tools + recent projects) */
 
 .joy-inspire {
   display: flex;
@@ -18,98 +18,11 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding-bottom: 32px;
 }
 
 .joy-inspire-hero {
   flex-shrink: 0;
   padding: 4px 0 8px;
   overflow: visible;
-}
-
-.joy-inspire-showcase {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  min-height: 0;
-  overflow: visible;
-  padding: 0 20px 0;
-}
-
-.joy-inspire-showcase-head {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding-bottom: 12px;
-}
-
-.joy-inspire-showcase-head h2 {
-  margin: 0;
-  font-size: var(--joy-font-title, 16px);
-  font-weight: 500;
-  letter-spacing: -0.02em;
-}
-
-.joy-inspire-cats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.joy-inspire-cat {
-  display: inline-flex;
-  align-items: center;
-  height: var(--joy-control-h-sm);
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted-foreground);
-  font-size: var(--joy-font-label);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.joy-inspire-cat:hover {
-  color: var(--foreground);
-  background: color-mix(in oklab, var(--muted) 55%, transparent);
-}
-
-.joy-inspire-cat.is-on {
-  color: var(--foreground);
-  background: var(--secondary);
-}
-
-.joy-inspire-feed {
-  position: relative;
-  flex: 0 0 auto;
-  min-height: min(70vh, 720px);
-}
-
-.joy-inspire-feed .joy-explore-pane-wrap.is-page-scroll,
-.joy-inspire-feed .joy-explore-pane.is-page-scroll,
-.joy-inspire-feed .joy-explore-keepalive,
-.joy-inspire-feed .joy-explore-keepalive-node {
-  height: auto;
-  min-height: 0;
-}
-
-.joy-inspire-feed .joy-explore-pane.is-page-scroll {
-  overflow: visible;
-  padding: 0 0 64px;
-}
-
-/* Stick back-to-top to the page scroller viewport, not the feed bottom. */
-.joy-inspire-feed .joy-explore-pane-wrap.is-page-scroll .joy-explore-back-top {
-  position: fixed;
-  right: 28px;
-  bottom: 28px;
-}
-
-@media (max-width: 640px) {
-  .joy-inspire-showcase {
-    padding-inline: 12px;
-  }
 }
