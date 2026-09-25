@@ -822,7 +822,8 @@
 }
 
 .joy-studio-thumb-frame:hover .joy-studio-thumb-hover,
-.joy-studio-thumb-video:hover .joy-studio-thumb-hover {
+.joy-studio-thumb-video:hover .joy-studio-thumb-hover,
+.joy-studio-thumb-hover.is-menu-open {
   opacity: 1;
 }
 
@@ -852,7 +853,7 @@
 
 .joy-studio-thumb-bar--bottom {
   align-self: flex-start;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   max-width: min(100%, 280px);
 }
 

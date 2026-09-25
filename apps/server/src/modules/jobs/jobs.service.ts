@@ -645,14 +645,18 @@ export class JobsService {
       ...(job.input ?? {}),
       n: orderedIds.length,
     };
+    // Rebuild without spreading loosely-typed fields — TypeORM's
+    // QueryDeepPartialEntity rejects `unknown` (e.g. layout).
+    const nextResult: Record<string, unknown> = {
+      assetIds: orderedIds,
+      urls,
+    };
+    if (tiles) nextResult.tiles = tiles;
+    if (result.layout !== undefined) nextResult.layout = result.layout;
+
     await this.jobs.update(jobId, {
       input,
-      result: {
-        ...result,
-        assetIds: orderedIds,
-        urls,
-        ...(tiles ? { tiles } : { tiles: undefined }),
-      },
+      result: nextResult as never,
     });
 
     return this.get(userId, jobId);

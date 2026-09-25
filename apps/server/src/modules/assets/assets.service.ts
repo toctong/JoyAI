@@ -470,33 +470,44 @@ export class AssetsService {
     const knownSource = AssetSourceSchema.safeParse(sourceFilter).success
       ? sourceFilter
       : undefined;
-
-    // Prefer DB `source` when set; still oversample a bit and re-check via
-    // resolveAssetSource for legacy rows that only infer source from job links.
-    const where: FindOptionsWhere<Asset> = { userId };
-    if (
+    const kindFilter =
       kind === "image" ||
       kind === "video" ||
       kind === "audio" ||
       kind === "text"
-    ) {
-      where.kind = kind;
+        ? kind
+        : undefined;
+    // Kind tabs (图片/视频/…) must not mix in user uploads — those live under 上传.
+    const excludeUploads = Boolean(kindFilter) && knownSource !== "upload";
+
+    // Prefer DB `source` when set; still oversample a bit and re-check via
+    // resolveAssetSource for legacy rows that only infer source from job links.
+    const baseWhere: FindOptionsWhere<Asset> = { userId };
+    if (kindFilter) {
+      baseWhere.kind = kindFilter;
     }
     if (fromDate) {
-      where.createdAt = MoreThanOrEqual(fromDate);
+      baseWhere.createdAt = MoreThanOrEqual(fromDate);
     }
     if (knownSource) {
-      where.source = knownSource;
+      baseWhere.source = knownSource;
     }
     if (query.uploaded === "1") {
-      where.jobId = IsNull();
+      baseWhere.jobId = IsNull();
     } else if (query.uploaded === "0") {
-      where.jobId = Not(IsNull());
+      baseWhere.jobId = Not(IsNull());
     }
 
-    const fetchTake = knownSource
-      ? Math.min(take + 40, 300)
-      : take;
+    const where: FindOptionsWhere<Asset> | FindOptionsWhere<Asset>[] =
+      excludeUploads && !knownSource
+        ? [
+            { ...baseWhere, source: Not("upload") },
+            { ...baseWhere, source: IsNull() },
+          ]
+        : baseWhere;
+
+    const fetchTake =
+      knownSource || excludeUploads ? Math.min(take + 40, 300) : take;
 
     const rows = await this.assets.find({
       where,
@@ -507,11 +518,14 @@ export class AssetsService {
     });
 
     const items = rows.map((a) => this.toListItem(a));
-    const filtered = knownSource
+    let filtered = knownSource
       ? items.filter((a) => a.source === knownSource)
       : items;
+    if (excludeUploads) {
+      filtered = filtered.filter((a) => a.source !== "upload");
+    }
 
-    if (filtered.length >= take || !knownSource) {
+    if (filtered.length >= take || (!knownSource && !excludeUploads)) {
       return filtered.slice(0, take);
     }
 
@@ -521,16 +535,16 @@ export class AssetsService {
       userId,
       source: IsNull(),
     };
-    if (
-      kind === "image" ||
-      kind === "video" ||
-      kind === "audio" ||
-      kind === "text"
-    ) {
-      legacyWhere.kind = kind;
+    if (kindFilter) {
+      legacyWhere.kind = kindFilter;
     }
     if (fromDate) {
       legacyWhere.createdAt = MoreThanOrEqual(fromDate);
+    }
+    if (query.uploaded === "1") {
+      legacyWhere.jobId = IsNull();
+    } else if (query.uploaded === "0") {
+      legacyWhere.jobId = Not(IsNull());
     }
     const legacyRows = await this.assets.find({
       where: legacyWhere,
@@ -541,7 +555,8 @@ export class AssetsService {
     for (const row of legacyRows) {
       if (have.has(row.id)) continue;
       const item = this.toListItem(row);
-      if (item.source !== knownSource) continue;
+      if (knownSource && item.source !== knownSource) continue;
+      if (excludeUploads && item.source === "upload") continue;
       filtered.push(item);
       have.add(row.id);
       if (filtered.length >= take) break;

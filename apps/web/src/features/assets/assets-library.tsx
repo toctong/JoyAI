@@ -215,7 +215,7 @@ function emptyCopy(tab: Tab, source: SourceFilter) {
   if (tab === "audio") {
     return {
       title: "暂无音频",
-      hint: "画布或上传的音频会出现在这里",
+      hint: "画布或创作生成的音频会出现在这里",
     };
   }
   if (tab === "document") {

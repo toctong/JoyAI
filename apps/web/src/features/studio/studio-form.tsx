@@ -832,6 +832,8 @@ function StudioJobRefs({ urls }: { urls: string[] }) {
 /** Shared fit box — landscape/square vs taller portrait. */
 const STUDIO_MEDIA_BOX = { maxW: 380, maxH: 270 };
 const STUDIO_MEDIA_BOX_PORTRAIT = { maxW: 230, maxH: 380 };
+/** Hover bottom tools shown inline; the rest go under 「…」. */
+const STUDIO_THUMB_BAR_VISIBLE = 6;
 
 function frameStyleForAspect(
   aspect: string,
@@ -1019,9 +1021,16 @@ function StudioThumbHoverTools({
     onClick: () => void;
   }>);
 
+  const [moreOpen, setMoreOpen] = useState(false);
+  const visibleTools = bottomTools.slice(0, STUDIO_THUMB_BAR_VISIBLE);
+  const overflowTools = bottomTools.slice(STUDIO_THUMB_BAR_VISIBLE);
+
   return (
     <div
-      className="joy-studio-thumb-hover"
+      className={cn(
+        "joy-studio-thumb-hover",
+        moreOpen && "is-menu-open",
+      )}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
@@ -1073,7 +1082,7 @@ function StudioThumbHoverTools({
 
       {bottomTools.length > 0 ? (
         <div className="joy-studio-thumb-bar joy-studio-thumb-bar--bottom">
-          {bottomTools.map((tool) => (
+          {visibleTools.map((tool) => (
             <button
               key={tool.key}
               type="button"
@@ -1089,6 +1098,42 @@ function StudioThumbHoverTools({
               {tool.icon}
             </button>
           ))}
+          {overflowTools.length > 0 ? (
+            <DropdownMenu open={moreOpen} onOpenChange={setMoreOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="joy-studio-thumb-icon"
+                  aria-label="更多"
+                  title="更多"
+                  disabled={busy}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal strokeWidth={1.75} className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                side="top"
+                className="w-40"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {overflowTools.map((tool) => (
+                  <DropdownMenuItem
+                    key={tool.key}
+                    disabled={tool.disabled}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      tool.onClick();
+                    }}
+                  >
+                    {tool.icon}
+                    {tool.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
       ) : null}
     </div>

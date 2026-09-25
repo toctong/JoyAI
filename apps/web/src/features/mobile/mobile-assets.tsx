@@ -110,7 +110,10 @@ function emptyCopy(tab: Tab) {
           : "图片";
   return {
     title: `还没有${noun}`,
-    hint: tab === "image" || tab === "video" ? "去创作台生成第一份作品" : "上传或生成后会显示在这里",
+    hint:
+      tab === "image" || tab === "video"
+        ? "去创作台生成第一份作品"
+        : "生成后会显示在这里",
   };
 }
 
