@@ -653,16 +653,65 @@
 }
 
 .joy-composer-model-menu {
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: min(560px, calc(100vw - 24px));
+  height: min(420px, 60vh);
   max-height: min(420px, 60vh);
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.joy-composer-model-cascade {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+}
+
+.joy-composer-model-primary {
+  display: flex;
+  width: 220px;
+  flex-shrink: 0;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+
+.joy-composer-model-primary-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
   overflow: auto;
-  padding: 6px;
+  padding: 4px 6px 8px;
+}
+
+.joy-composer-model-secondary {
+  display: flex;
+  width: 280px;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 6px;
 }
 
 .joy-composer-model-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px 6px;
+  flex-shrink: 0;
+  margin: 8px 8px 4px;
+  padding: 0 10px;
+  height: var(--joy-control-h-md);
+  border-radius: var(--joy-radius-md, 10px);
+  background: var(--muted);
 }
 
 .joy-composer-model-search-icon {
@@ -670,6 +719,80 @@
   height: 14px;
   flex-shrink: 0;
   opacity: 0.55;
+}
+
+.joy-composer-model-empty {
+  padding: 16px 10px;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-caption);
+  text-align: center;
+}
+
+.joy-composer-model-cat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.joy-composer-model-cat:hover,
+.joy-composer-model-cat.is-active {
+  background: var(--accent);
+}
+
+.joy-composer-model-cat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+}
+
+.joy-composer-model-cat-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.joy-composer-model-cat-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--joy-font-caption);
+  font-weight: 560;
+  line-height: 1.2;
+}
+
+.joy-composer-model-cat-count {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--joy-font-micro);
+  color: var(--muted-foreground);
+  line-height: 1.2;
+}
+
+.joy-composer-model-cat-chevron {
+  flex-shrink: 0;
+  margin-left: 4px;
+  color: var(--muted-foreground);
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.7;
 }
 
 .joy-composer-model-group {
@@ -693,7 +816,7 @@
   display: flex !important;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
+  min-height: 44px;
   padding: 8px 10px !important;
   border-radius: 10px;
 }
@@ -726,6 +849,14 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: var(--joy-font-micro);
   color: var(--muted-foreground);
+}
+
+.joy-composer-model-item-meta {
+  flex-shrink: 0;
+  margin-left: 4px;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-micro);
+  font-variant-numeric: tabular-nums;
 }
 
 .joy-composer-model-item-vendor {
@@ -797,8 +928,18 @@
   white-space: nowrap;
 }
 
+.joy-chip-params-seg.is-muted {
+  opacity: 0.55;
+}
+
 .joy-chip-params-seg svg {
   flex-shrink: 0;
+}
+
+.joy-chip-params-caret {
+  flex-shrink: 0;
+  margin-right: 6px;
+  margin-left: -2px;
 }
 
 .joy-chip-params-sep {
@@ -901,24 +1042,46 @@
   color: #ff7a3d;
 }
 
+.joy-composer-params-menu {
+  overflow: hidden;
+  border-radius: var(--joy-radius-xl, 16px);
+  border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
+  background: var(--popover);
+  box-shadow: 0 12px 40px color-mix(in oklab, var(--foreground) 12%, transparent);
+}
+
 .joy-composer-params-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   min-width: 248px;
   max-width: min(340px, calc(100vw - 48px));
-  padding: 4px;
+  padding: 14px;
 }
 
 .joy-composer-params-row {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
+}
+
+.joy-composer-params-row.is-switch {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--joy-control-h-sm);
+}
+
+.joy-composer-params-row.is-switch .joy-composer-params-label {
+  font-size: var(--joy-font-caption);
+  color: var(--foreground);
 }
 
 .joy-composer-params-label {
   font-size: var(--joy-font-micro);
+  font-weight: 500;
   color: var(--muted-foreground);
 }
 
@@ -947,6 +1110,66 @@
   color: var(--background);
   font-size: var(--joy-font-micro);
   width: fit-content;
+}
+
+.joy-composer-params-duration {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.joy-composer-params-duration-slider {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0;
+  gap: 0;
+}
+
+.joy-composer-params-duration-slider .joy-duration-slider-labels {
+  display: none;
+}
+
+.joy-composer-params-duration-slider .joy-duration-slider-range {
+  background: var(--primary);
+}
+
+.joy-composer-params-duration-slider .joy-duration-slider-thumb {
+  border-color: color-mix(in oklab, var(--background) 80%, #fff);
+  background: #fff;
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--foreground) 22%, transparent);
+}
+
+.joy-composer-params-duration-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.joy-composer-params-duration-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--muted) 88%, transparent);
+  color: var(--foreground);
+  font-size: var(--joy-font-caption);
+  font-weight: 600;
+}
+
+.joy-composer-params-duration-unit {
+  font-size: var(--joy-font-micro);
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+
+.joy-composer-params-switch[data-state="checked"] {
+  background: var(--primary);
 }
 
 /* Duration slider — theme tokens, not marketplace grey/white */
@@ -1067,24 +1290,65 @@
 .joy-composer-params-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   max-width: 100%;
 }
 
+.joy-composer-params-options.is-aspect {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .joy-composer-params-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   height: var(--joy-control-h-sm);
   padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--foreground);
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+  color: color-mix(in oklab, var(--muted-foreground) 92%, var(--foreground));
   font-size: var(--joy-font-micro);
+  font-weight: 500;
   cursor: pointer;
   flex: 0 0 auto;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.joy-composer-params-option:hover {
+  border-color: color-mix(in oklab, var(--foreground) 22%, var(--border));
+  color: var(--foreground);
 }
 
 .joy-composer-params-option.is-on {
-  border-color: transparent;
-  background: var(--foreground);
-  color: var(--background);
+  border-color: var(--foreground);
+  background: color-mix(in oklab, var(--muted) 45%, transparent);
+  color: var(--foreground);
+}
+
+.joy-composer-params-option.is-aspect {
+  flex-direction: column;
+  height: auto;
+  min-height: 54px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  gap: 6px;
+}
+
+.joy-composer-params-aspect-glyph {
+  display: block;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.joy-composer-params-option.is-on .joy-composer-params-aspect-glyph {
+  opacity: 1;
 }

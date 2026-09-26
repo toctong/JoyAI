@@ -9,13 +9,11 @@ import {
   AtSign,
   Box,
   ChevronDown,
-  Clock,
   Eraser,
   Loader2,
   Orbit,
   Plus,
   RectangleHorizontal,
-  Search,
   Sparkles,
   Music,
   X,
@@ -28,15 +26,13 @@ import { api, apiUpload } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { BrandAvatar } from "@/components/admin/brand-avatar";
 import type { ModelCapabilities } from "@joyai/shared";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ComposerModelMenu } from "./composer-model-menu";
 import {
   AiPromptEditor,
   getGeneratePayload,
@@ -45,7 +41,9 @@ import {
   setEditorPlainText,
 } from "@/features/ai-prompt";
 import { cn } from "@/shared/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import { ComposerRipple } from "./composer-ripple";
+import { AspectRatioGlyph } from "./aspect-ratio-glyph";
 import { DurationSlider } from "./duration-slider";
 import { consumeStudioRemixSeed } from "./studio-remix-seed";
 import {
@@ -53,6 +51,7 @@ import {
   formatQualityLabel,
   i2vFollowsSourceAspect,
   layoutControlsFromCapabilities,
+  modelSupportsVideoAudio,
   refModesFromCapabilities,
   resolveResolutionOption,
   showReferenceUpload,
@@ -222,6 +221,7 @@ type KindPrefs = {
   n?: number;
   duration?: number;
   refMode?: RefMode;
+  generateAudio?: boolean;
 };
 
 type ComposerPrefs = {
@@ -416,11 +416,10 @@ export function CreationComposer({
   const [videoQuality, setVideoQuality] = useState("720p");
   const [pixelSize, setPixelSize] = useState("");
   const [duration, setDuration] = useState(5);
+  const [generateAudio, setGenerateAudio] = useState(true);
   const [refMode, setRefMode] = useState<RefMode>("omni");
   const [models, setModels] = useState<PublicModel[]>([]);
   const [modelId, setModelId] = useState("");
-  const [modelMenuOpen, setModelMenuOpen] = useState(false);
-  const [modelQuery, setModelQuery] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [editorFocused, setEditorFocused] = useState(false);
@@ -436,42 +435,6 @@ export function CreationComposer({
     () => models.filter((m) => m.kind === kind),
     [models, kind],
   );
-
-  const filteredKindModels = useMemo(() => {
-    const q = modelQuery.trim().toLowerCase();
-    if (!q) return kindModels;
-    return kindModels.filter((m) => {
-      const hay = [
-        m.name,
-        m.remoteId ?? "",
-        m.channel?.name ?? "",
-        m.channel?.platform ?? "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [kindModels, modelQuery]);
-
-  const modelGroups = useMemo(() => {
-    const map = new Map<
-      string,
-      { key: string; label: string; items: PublicModel[] }
-    >();
-    for (const m of filteredKindModels) {
-      const label = m.channel?.name?.trim() || "未分组渠道";
-      const key = m.channel?.name?.trim() || m.channel?.platform || "unknown";
-      let group = map.get(key);
-      if (!group) {
-        group = { key, label, items: [] };
-        map.set(key, group);
-      }
-      group.items.push(m);
-    }
-    return [...map.values()].sort((a, b) =>
-      a.label.localeCompare(b.label, "zh"),
-    );
-  }, [filteredKindModels]);
 
   const selectedModel = kindModels.find((m) => m.id === modelId);
   const caps = selectedModel?.capabilities ?? null;
@@ -495,6 +458,8 @@ export function CreationComposer({
     () => durationsFromCapabilities(caps),
     [caps],
   );
+  const showVideoAudioToggle =
+    kind === "video" && modelSupportsVideoAudio(caps);
   const refModes = useMemo(
     () => (kind === "video" ? refModesFromCapabilities(caps) : []),
     [caps, kind],
@@ -673,6 +638,7 @@ export function CreationComposer({
     );
     if (next === "video") {
       setDuration(pickDuration(nextDurations, kp.duration));
+      setGenerateAudio(kp.generateAudio !== false);
       const nextModes = refModesFromCapabilities(nextCaps);
       const preferred = normalizeRefModePref(kp.refMode);
       setRefMode(
@@ -749,6 +715,7 @@ export function CreationComposer({
             videoQuality: layout.showResolution ? videoQuality : undefined,
             duration,
             refMode,
+            generateAudio: showVideoAudioToggle ? generateAudio : undefined,
           }),
     };
     patchPrefs({
@@ -765,6 +732,8 @@ export function CreationComposer({
     imageQuality,
     videoQuality,
     duration,
+    generateAudio,
+    showVideoAudioToggle,
     refMode,
     layout.showRatio,
     showRatio,
@@ -1134,6 +1103,9 @@ export function CreationComposer({
         if (resolutionOpt) {
           input.resolution = resolutionOpt.id;
         }
+        if (showVideoAudioToggle) {
+          input.generateAudio = generateAudio;
+        }
         const job = await api<{ id: string }>("/jobs", {
           method: "POST",
           body: { kind: "video", input },
@@ -1420,105 +1392,32 @@ export function CreationComposer({
             </DropdownMenu>
             )}
 
-            <DropdownMenu
-              open={modelMenuOpen}
-              onOpenChange={(open) => {
-                setModelMenuOpen(open);
-                if (!open) setModelQuery("");
-              }}
+            <ComposerModelMenu
+              models={kindModels}
+              selectedId={modelId}
+              onSelect={setModelId}
             >
-              <DropdownMenuTrigger asChild>
-                <button type="button" className="joy-chip joy-chip-model">
-                  {selectedModel ? (
-                    <BrandAvatar
-                      src={selectedBrand.icon}
-                      label={selectedModel.name}
-                      size={16}
-                      rounded="md"
-                    />
-                  ) : (
-                    <Box className="h-3.5 w-3.5 opacity-80" />
-                  )}
-                  <span className="joy-chip-model-name">
-                    {selectedModel
-                      ? selectedBrand.channel
-                        ? `${selectedModel.name}（${selectedBrand.channel}）`
-                        : selectedModel.name
-                      : "选择模型"}
-                  </span>
-                  <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="start"
-                className="joy-composer-model-menu min-w-[300px]"
-                onCloseAutoFocus={(e) => e.preventDefault()}
-              >
-                <div
-                  className="joy-composer-model-search"
-                  onKeyDown={(e) => e.stopPropagation()}
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  <Search className="joy-composer-model-search-icon" />
-                  <Input
-                    value={modelQuery}
-                    onChange={(e) => setModelQuery(e.target.value)}
-                    placeholder="搜索模型 / 渠道…"
-                    className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-                    autoFocus
+              <button type="button" className="joy-chip joy-chip-model">
+                {selectedModel ? (
+                  <BrandAvatar
+                    src={selectedBrand.icon}
+                    label={selectedModel.name}
+                    size={16}
+                    rounded="md"
                   />
-                </div>
-                <DropdownMenuSeparator />
-                {kindModels.length === 0 ? (
-                  <DropdownMenuItem disabled>暂无可用模型</DropdownMenuItem>
-                ) : filteredKindModels.length === 0 ? (
-                  <DropdownMenuItem disabled>无匹配模型</DropdownMenuItem>
                 ) : (
-                  modelGroups.map((group, gi) => (
-                    <div key={group.key}>
-                      {gi > 0 ? <DropdownMenuSeparator /> : null}
-                      <DropdownMenuLabel className="joy-composer-model-group">
-                        {group.label}
-                        <span className="joy-composer-model-group-count">
-                          {group.items.length}
-                        </span>
-                      </DropdownMenuLabel>
-                      {group.items.map((m) => {
-                        const { icon } = modelBrandMeta(m);
-                        const selected = m.id === modelId;
-                        return (
-                          <DropdownMenuItem
-                            key={m.id}
-                            className={cn(
-                              "joy-composer-model-item",
-                              selected && "is-selected",
-                            )}
-                            onClick={() => setModelId(m.id)}
-                          >
-                            <BrandAvatar
-                              src={icon}
-                              label={m.name}
-                              size={22}
-                              rounded="md"
-                            />
-                            <span className="joy-composer-model-item-text">
-                              <span className="joy-composer-model-item-name">
-                                {m.name}
-                              </span>
-                              {m.remoteId ? (
-                                <span className="joy-composer-model-item-id">
-                                  {m.remoteId}
-                                </span>
-                              ) : null}
-                            </span>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </div>
-                  ))
+                  <Box className="h-3.5 w-3.5 opacity-80" />
                 )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <span className="joy-chip-model-name">
+                  {selectedModel
+                    ? selectedBrand.channel
+                      ? `${selectedModel.name}（${selectedBrand.channel}）`
+                      : selectedModel.name
+                    : "选择模型"}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+            </ComposerModelMenu>
 
             {kind === "video" && refModes.length > 0 ? (
               <DropdownMenu>
@@ -1573,9 +1472,25 @@ export function CreationComposer({
                       ratioLockedToRef ? (
                         <span className="joy-chip-params-sep" aria-hidden />
                       ) : null}
-                      <span className="joy-chip-params-seg">
-                        <Clock className="h-3.5 w-3.5 opacity-70" />
-                        {duration}秒
+                      <span className="joy-chip-params-seg">{duration}s</span>
+                    </>
+                  ) : null}
+                  {showVideoAudioToggle ? (
+                    <>
+                      {showRatio ||
+                      layout.showSizePicker ||
+                      layout.showResolution ||
+                      ratioLockedToRef ||
+                      kind === "video" ? (
+                        <span className="joy-chip-params-sep" aria-hidden />
+                      ) : null}
+                      <span
+                        className={cn(
+                          "joy-chip-params-seg",
+                          !generateAudio && "is-muted",
+                        )}
+                      >
+                        {generateAudio ? "音频" : "无音频"}
                       </span>
                     </>
                   ) : null}
@@ -1584,7 +1499,8 @@ export function CreationComposer({
                     layout.showSizePicker ||
                     layout.showResolution ||
                     ratioLockedToRef ||
-                    kind === "video" ? (
+                    kind === "video" ||
+                    showVideoAudioToggle ? (
                       <span className="joy-chip-params-sep" aria-hidden />
                     ) : null}
                     <span className="joy-chip-params-seg">
@@ -1592,27 +1508,29 @@ export function CreationComposer({
                       {kind === "image" ? "张" : "条"}
                     </span>
                   </>
+                  <ChevronDown className="joy-chip-params-caret h-3.5 w-3.5 opacity-70" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="start"
-                className="p-3 max-w-[min(340px,calc(100vw-48px))]"
+                className="joy-composer-params-menu p-0 w-[min(300px,calc(100vw-48px))]"
               >
                 <div className="joy-composer-params-panel">
                   {showRatio ? (
                     <div className="joy-composer-params-row">
                       <span className="joy-composer-params-label">比例</span>
-                      <div className="joy-composer-params-options">
+                      <div className="joy-composer-params-options is-aspect">
                         {aspectOptions.map((a) => (
                           <button
                             key={a.id}
                             type="button"
                             className={cn(
-                              "joy-composer-params-option",
+                              "joy-composer-params-option is-aspect",
                               aspect === a.id && "is-on",
                             )}
                             onClick={() => setAspect(a.id)}
                           >
+                            <AspectRatioGlyph ratio={a.id} />
                             {a.label}
                           </button>
                         ))}
@@ -1648,7 +1566,9 @@ export function CreationComposer({
                   ) : null}
                   {layout.showResolution ? (
                     <div className="joy-composer-params-row">
-                      <span className="joy-composer-params-label">清晰度</span>
+                      <span className="joy-composer-params-label">
+                        {kind === "video" ? "分辨率" : "清晰度"}
+                      </span>
                       <div className="joy-composer-params-options">
                         {resolutionOptions.map((r) => (
                           <button
@@ -1672,24 +1592,41 @@ export function CreationComposer({
                     </div>
                   ) : null}
                   {kind === "video" && durationOptions.length > 0 ? (
-                    <div className="joy-composer-params-row">
-                      <div className="joy-composer-params-label-row">
-                        <span className="joy-composer-params-label">时长</span>
-                        <span className="joy-composer-params-value">
-                          {duration}s
+                    <div className="joy-composer-params-row is-duration">
+                      <span className="joy-composer-params-label">时长</span>
+                      <div className="joy-composer-params-duration">
+                        {durationOptions.length === 1 ? (
+                          <div className="joy-composer-params-slider-fixed">
+                            {durationOptions[0]}s
+                          </div>
+                        ) : (
+                          <DurationSlider
+                            options={durationOptions}
+                            value={duration}
+                            onChange={setDuration}
+                            className="joy-composer-params-duration-slider"
+                          />
+                        )}
+                        <span className="joy-composer-params-duration-value">
+                          <span className="joy-composer-params-duration-num">
+                            {duration}
+                          </span>
+                          <span className="joy-composer-params-duration-unit">
+                            s
+                          </span>
                         </span>
                       </div>
-                      {durationOptions.length === 1 ? (
-                        <div className="joy-composer-params-slider-fixed">
-                          {durationOptions[0]}s
-                        </div>
-                      ) : (
-                        <DurationSlider
-                          options={durationOptions}
-                          value={duration}
-                          onChange={setDuration}
-                        />
-                      )}
+                    </div>
+                  ) : null}
+                  {showVideoAudioToggle ? (
+                    <div className="joy-composer-params-row is-switch">
+                      <span className="joy-composer-params-label">音频</span>
+                      <Switch
+                        checked={generateAudio}
+                        onCheckedChange={setGenerateAudio}
+                        aria-label={generateAudio ? "关闭音频" : "开启音频"}
+                        className="joy-composer-params-switch"
+                      />
                     </div>
                   ) : null}
                   <div className="joy-composer-params-row">

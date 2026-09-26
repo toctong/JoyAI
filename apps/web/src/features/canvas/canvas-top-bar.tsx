@@ -5,7 +5,6 @@ import {
   CanvasIconHistory,
   CanvasIconHome,
   CanvasIconKeyboard,
-  CanvasIconMenu,
   CanvasIconRedo,
   CanvasIconSearch,
   CanvasIconShortcuts,
@@ -15,7 +14,15 @@ import {
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Download, FileJson } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Cloud,
+  CloudOff,
+  Download,
+  FileJson,
+  Images,
+} from "lucide-react";
 import { useCanvasStore } from "./store";
 import { useCanvasRightPanelStore } from "./right-panel-store";
 import { CanvasColorTagBar } from "./canvas-color-tag-bar";
@@ -38,6 +45,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 
 type Props = {
   projectId: string;
@@ -50,7 +58,7 @@ type Props = {
   onFocusNode: (id: string) => void;
 };
 
-/** Top chrome — layout aligned to infinite-canvas (FrameRally theme). */
+/** Top chrome — left/right capsules aligned to Jimeng-like canvas chrome. */
 export function CanvasTopBar({
   projectId,
   canUndo,
@@ -136,25 +144,32 @@ export function CanvasTopBar({
     <div
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className="pointer-events-none absolute inset-x-0 top-0 z-30 flex h-14 items-center justify-between pl-2 pr-4"
+      className="joy-canvas-top pointer-events-none absolute inset-x-0 top-0 z-30 flex h-14 items-center justify-between gap-3 px-3"
     >
-      <div className="pointer-events-auto flex min-w-0 items-center gap-1.5">
+      <div className="pointer-events-auto joy-canvas-top-cluster">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
               title="菜单"
               aria-label="菜单"
-              className="grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
+              className="joy-canvas-top-seg joy-canvas-top-brand"
             >
-              <CanvasIconMenu className="joy-canvas-tool-icon" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={JOYAI_BRAND.logo}
+                alt=""
+                className="size-5 object-contain"
+                draggable={false}
+              />
+              <ChevronDown className="size-3 opacity-55" aria-hidden />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
             <DropdownMenuLabel>画布</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => router.push("/")}>
+            <DropdownMenuItem onClick={() => router.push("/inspire")}>
               <CanvasIconHome className="joy-canvas-tool-icon" />
-              首页
+              返回工作空间
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push("/canvas")}>
               <CanvasIconFolder className="joy-canvas-tool-icon" />
@@ -191,19 +206,9 @@ export function CanvasTopBar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <input
-          ref={jsonImportRef}
-          type="file"
-          accept="application/json,.json"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) void importProjects(file);
-          }}
-        />
+        <span className="joy-canvas-top-sep" aria-hidden />
 
-        <div ref={titleWrapRef} className="flex min-w-0 items-center gap-2 pl-1">
+        <div ref={titleWrapRef} className="joy-canvas-top-title">
           {editing ? (
             <input
               autoFocus
@@ -217,34 +222,59 @@ export function CanvasTopBar({
                   setEditing(false);
                 }
               }}
-              className="max-w-[260px] bg-transparent p-0 text-left text-base font-semibold outline-none"
+              className="joy-canvas-top-title-input"
             />
           ) : (
             <button
               type="button"
-              className="max-w-[260px] truncate border-b border-dashed border-transparent text-left text-base font-semibold transition hover:border-foreground/40"
+              className="joy-canvas-top-title-btn"
               onDoubleClick={() => setEditing(true)}
               title="双击重命名"
             >
-              {title || "未命名项目"}
+              <span className="joy-canvas-top-title-text">
+                {title || "未命名项目"}
+              </span>
+              <ChevronDown className="size-3 opacity-55" aria-hidden />
             </button>
           )}
-          <span
-            className={cn(
-              "shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-medium",
-              dirty
-                ? "bg-amber-500/15 text-amber-700 dark:text-amber-200"
-                : "text-muted-foreground",
-            )}
-          >
-            {dirty ? "未保存" : "已保存"}
-          </span>
         </div>
+
+        <span className="joy-canvas-top-sep" aria-hidden />
+
+        <span
+          className={cn(
+            "joy-canvas-top-status",
+            dirty ? "is-dirty" : "is-saved",
+          )}
+          title={dirty ? "有未保存更改" : "已保存到云端"}
+        >
+          {dirty ? (
+            <CloudOff className="size-3.5" aria-hidden />
+          ) : (
+            <span className="joy-canvas-top-status-ok">
+              <Cloud className="size-3.5" aria-hidden />
+              <Check className="size-2.5" aria-hidden />
+            </span>
+          )}
+        </span>
+
+        <input
+          ref={jsonImportRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void importProjects(file);
+          }}
+        />
       </div>
 
-      <div className="pointer-events-auto flex items-center gap-1.5">
+      <div className="pointer-events-auto flex items-center gap-2">
         <CanvasColorTagBar onFocusNode={onFocusNode} />
-        <div className="joy-canvas-chrome flex items-center gap-0.5 rounded-xl p-1">
+
+        <div className="joy-canvas-top-cluster">
           <button
             type="button"
             data-canvas-right-toggle
@@ -253,8 +283,8 @@ export function CanvasTopBar({
             aria-pressed={rightMode === "nodes"}
             onClick={() => toggleRight("nodes")}
             className={cn(
-              "joy-canvas-chrome-btn grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg",
-              rightMode === "nodes" && "is-active",
+              "joy-canvas-top-seg",
+              rightMode === "nodes" && "is-on",
             )}
           >
             <CanvasIconSearch className="joy-canvas-tool-icon" />
@@ -267,28 +297,34 @@ export function CanvasTopBar({
             aria-pressed={rightMode === "history"}
             onClick={() => toggleRight("history")}
             className={cn(
-              "joy-canvas-chrome-btn grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg",
-              rightMode === "history" && "is-active",
+              "joy-canvas-top-seg",
+              rightMode === "history" && "is-on",
             )}
           >
             <CanvasIconHistory className="joy-canvas-tool-icon" />
           </button>
+
+          <span className="joy-canvas-top-sep" aria-hidden />
+
+          <Link
+            href="/assets"
+            className="joy-canvas-top-seg is-label"
+            title="生成资产"
+          >
+            <Images className="size-[length:var(--joy-canvas-tool-icon)]" />
+            <span>资产</span>
+          </Link>
+
+          <button
+            type="button"
+            title="快捷键"
+            aria-label="快捷键"
+            onClick={onOpenShortcuts}
+            className="joy-canvas-top-seg"
+          >
+            <CanvasIconShortcuts className="joy-canvas-tool-icon" />
+          </button>
         </div>
-        <Link
-          href="/assets"
-          className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-        >
-          生成资产
-        </Link>
-        <button
-          type="button"
-          title="快捷键"
-          aria-label="快捷键"
-          onClick={onOpenShortcuts}
-          className="grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-full text-foreground/80 transition hover:bg-muted"
-        >
-          <CanvasIconShortcuts className="joy-canvas-tool-icon" />
-        </button>
       </div>
     </div>
   );

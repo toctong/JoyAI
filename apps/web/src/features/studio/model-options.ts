@@ -383,6 +383,14 @@ function featureSet(caps?: ModelCapabilities | null): Set<string> {
   return new Set((caps?.features ?? []).map((f) => f.trim().toLowerCase()));
 }
 
+export function modelSupportsVideoAudio(
+  caps?: ModelCapabilities | null,
+): boolean {
+  const features = (caps?.features ?? []).map((f) => f.trim().toLowerCase());
+  if (!features.length) return true;
+  return features.includes("audio");
+}
+
 export function hasOmniRefCapability(caps?: ModelCapabilities | null): boolean {
   const f = featureSet(caps);
   return f.has("omni-ref") || f.has("r2v");

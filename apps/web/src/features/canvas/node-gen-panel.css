@@ -1,11 +1,11 @@
-/* Canvas node generate panel — compact Jimeng-like shell */
+/* Canvas node generate panel — Jimeng-like shell for video/image */
 
 .joy-node-gen {
-  --jng-radius: 22px;
+  --jng-radius: 18px;
   position: relative;
   box-sizing: border-box;
-  width: min(600px, calc(100vw - 24px));
-  padding: 16px 16px 14px;
+  width: min(640px, calc(100vw - 24px));
+  padding: 12px 14px 12px;
   border-radius: var(--jng-radius);
   border: 1px solid color-mix(in oklab, var(--border) 90%, transparent);
   background: color-mix(in oklab, var(--card) 94%, transparent);
@@ -17,20 +17,523 @@
 }
 
 .dark .joy-node-gen {
-  background: rgba(32, 32, 36, 0.94);
+  background: rgba(32, 32, 36, 0.96);
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.04) inset,
     0 22px 56px -24px rgba(0, 0, 0, 0.7);
 }
 
+.joy-node-gen.is-shell {
+  padding-top: 10px;
+}
+
+.joy-node-gen-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.joy-node-gen.is-modal {
+  width: min(840px, calc(100vw - 48px));
+  max-height: min(780px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 28px 80px -20px rgba(0, 0, 0, 0.55);
+}
+
+.dark .joy-node-gen.is-modal {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 32px 90px -18px rgba(0, 0, 0, 0.75);
+}
+
+.joy-node-gen.is-modal .joy-node-gen-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.joy-node-gen.is-modal .joy-ai-prompt .ProseMirror {
+  min-height: 220px;
+  max-height: min(420px, 48vh);
+}
+
+.joy-node-gen-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.joy-node-gen-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+
+.joy-node-gen-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  max-width: 9.5rem;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.joy-node-gen-action:hover:not(:disabled) {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--card) 70%, transparent);
+}
+
+.joy-node-gen-action.is-active {
+  background: color-mix(in oklab, var(--card) 88%, transparent);
+  color: var(--foreground);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 70%, transparent);
+}
+
+.joy-node-gen-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.joy-node-gen-action-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-node-gen-action-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding-inline: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--foreground) 12%, transparent);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+.joy-node-gen-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.joy-node-gen-preset-pop {
+  width: min(360px, calc(100vw - 32px));
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--card) 96%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.55);
+}
+
+.joy-node-gen-preset-pop-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.joy-node-gen-preset-pop-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.joy-node-gen-preset-pop-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.joy-node-gen-preset-pop-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.joy-node-gen-preset-empty {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  min-height: 120px;
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.joy-node-gen-preset-empty-hint {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  line-height: 1.45;
+}
+
+.joy-node-gen-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: min(280px, 40vh);
+  margin: 0 0 10px;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.joy-node-gen-preset-list > li {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+}
+
+.joy-node-gen-preset-row {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--muted) 30%, transparent);
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+
+.joy-node-gen-preset-row:hover {
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+
+.joy-node-gen-preset-row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.joy-node-gen-preset-row-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+}
+
+.joy-node-gen-preset-row-del {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.joy-node-gen-preset-row-del:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.joy-node-gen-preset-create {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: var(--joy-control-h-md, 36px);
+  border: 0;
+  border-radius: 10px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 13px;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.joy-node-gen-preset-create:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.joy-node-gen-preset-create:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 新建 / 编辑预设弹窗 */
+.joy-preset-dialog {
+  z-index: 90 !important;
+  width: min(480px, calc(100vw - 32px));
+  max-width: min(480px, calc(100vw - 32px));
+  gap: 0;
+  padding: 20px 22px 18px;
+  border-radius: 16px;
+  border-color: color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--card) 98%, transparent);
+}
+
+.joy-preset-dialog .joy-preset-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 0 8px;
+}
+
+.joy-preset-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.joy-preset-dialog-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.joy-preset-dialog-count {
+  font-size: 12px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
+
+.joy-preset-dialog-input {
+  height: var(--joy-control-h-lg, 40px);
+  border-radius: 10px;
+}
+
+.joy-preset-dialog-textarea {
+  min-height: 160px;
+  resize: vertical;
+  border-radius: 10px;
+  font-size: 13px !important;
+  line-height: 1.5;
+}
+
+.joy-preset-dialog-footer {
+  gap: 12px !important;
+  margin-top: 8px;
+}
+
+.joy-preset-dialog-cancel {
+  height: var(--joy-control-h-md, 36px);
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.joy-preset-dialog-cancel:hover {
+  color: var(--foreground);
+}
+
+.joy-preset-dialog-save {
+  height: var(--joy-control-h-md, 36px);
+  padding: 0 22px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 14px;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.joy-preset-dialog-save:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.joy-preset-dialog-save:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.joy-node-gen-icon-btn {
+  display: inline-flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.joy-node-gen-icon-btn:hover {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.joy-node-gen-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .joy-node-gen-body {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .joy-node-gen-main {
   min-width: 0;
-  padding-right: 22px;
+}
+
+.joy-node-gen-main.is-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.joy-node-gen-refs {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.joy-node-gen-refs > div {
+  margin-bottom: 0 !important;
+  flex: 1;
+  min-width: 0;
+}
+
+.joy-node-gen-add-ref {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in oklab, var(--border) 90%, transparent);
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    background 0.15s;
+}
+
+.joy-node-gen-add-ref:hover:not(:disabled) {
+  color: var(--foreground);
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+
+.joy-node-gen-add-ref:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.joy-node-gen-frames {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.joy-node-gen-frames-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+
+.joy-node-gen-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 0 2px;
+}
+
+.joy-node-gen-preset {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  background: color-mix(in oklab, var(--muted) 28%, transparent);
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.joy-node-gen-preset:hover {
+  background: color-mix(in oklab, var(--muted) 48%, transparent);
+}
+
+.joy-node-gen-preset.is-on {
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+  background: color-mix(in oklab, var(--muted) 55%, transparent);
+}
+
+.joy-node-gen-preset-label {
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.2;
+}
+
+.joy-node-gen-preset-hint {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  line-height: 1.2;
 }
 
 .joy-node-gen-clear {
@@ -56,9 +559,9 @@
 }
 
 .joy-node-gen .joy-ai-prompt .ProseMirror {
-  min-height: 92px;
-  max-height: 200px;
-  font-size: 15px;
+  min-height: 72px;
+  max-height: 160px;
+  font-size: 14px;
   line-height: 1.55;
 }
 
@@ -67,7 +570,8 @@
   align-items: center;
   gap: 8px;
   margin-top: 10px;
-  padding-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 65%, transparent);
 }
 
 .joy-node-gen-toolbar-left {
@@ -92,6 +596,75 @@
 
 .joy-node-gen-toolbar-left::-webkit-scrollbar {
   display: none;
+}
+
+.joy-node-gen-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 11rem;
+  height: 28px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--muted) 45%, transparent);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.joy-node-gen-mode.is-switch {
+  cursor: pointer;
+  color: var(--foreground);
+}
+
+.joy-node-gen-mode.is-switch:hover {
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+}
+
+.joy-node-gen-mode-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.joy-node-gen-mode-menu {
+  padding: 6px;
+}
+
+.joy-node-gen-mode-item {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px !important;
+  border-radius: 10px;
+}
+
+.joy-node-gen-mode-item.is-selected {
+  background: var(--accent);
+}
+
+.joy-node-gen-mode-item-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.joy-node-gen-mode-item-name {
+  font-size: var(--joy-font-caption, 13px);
+  font-weight: 560;
+  color: var(--foreground);
+}
+
+.joy-node-gen-mode-item-hint {
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+  line-height: 1.3;
 }
 
 .joy-node-gen-send {
@@ -127,11 +700,23 @@
 }
 
 .joy-node-gen .joy-chip-model {
-  max-width: min(240px, 42vw);
+  max-width: min(200px, 36vw);
 }
 
 .joy-node-gen-error {
   margin-top: 6px;
   font-size: 11px;
   color: var(--destructive);
+}
+
+/* Embedded camera inside gen panel */
+.joy-node-gen .joy-camera-panel-embedded {
+  width: 100% !important;
+  max-width: none;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.joy-node-gen .joy-camera-panel-embedded .joy-camera-panel-body {
+  padding: 10px;
 }

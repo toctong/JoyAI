@@ -56,6 +56,8 @@ export type VideoSubmitInput = {
   refMode?: "omni" | "first_last";
   /** When true, first_last uses reference_image + prompt prefix instead of native roles */
   firstLastViaPrompt?: boolean;
+  /** Synthesize / keep audio track when the provider supports it. Default true. */
+  generateAudio?: boolean;
   /** Channel metadata (e.g. dashscopeApiBase) */
   metadata?: Record<string, unknown> | null;
 };

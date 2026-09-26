@@ -119,6 +119,8 @@ export const VideoJobInputSchema = z.object({
   referenceUrls: z.array(z.string().url()).optional(),
   /** omni = multimodal refs; first_last = first/last frame (native or prompt fallback) */
   refMode: z.enum(["omni", "first_last"]).optional(),
+  /** Whether the model should synthesize / keep audio track (provider-dependent). */
+  generateAudio: z.boolean().optional(),
   modelId: z.string().optional(),
   canvasProjectId: z.string().optional(),
   canvasNodeId: z.string().optional(),

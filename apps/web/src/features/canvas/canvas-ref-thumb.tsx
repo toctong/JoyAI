@@ -19,7 +19,7 @@ type Props = {
 /** Thumbnail for a canvas reference: image, video frame, or a type icon. */
 export function CanvasRefThumb({ kind, url, className }: Props) {
   const src = String(url ?? "").trim();
-  const visual = Boolean(src) && !src.startsWith("data:") && !src.startsWith("blob:");
+  const visual = Boolean(src) && !src.startsWith("data:");
 
   if ((kind === "image" || kind === "panorama") && visual) {
     return (

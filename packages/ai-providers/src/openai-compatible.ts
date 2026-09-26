@@ -1817,6 +1817,15 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
         ? buildApiMartVideoBody(submitInput)
         : buildGenericOpenAIVideoBody(submitInput);
 
+    if (typeof submitInput.generateAudio === "boolean") {
+      if ("generate_audio" in body) {
+        body.generate_audio = submitInput.generateAudio;
+      }
+      if ("audio" in body) {
+        body.audio = submitInput.generateAudio;
+      }
+    }
+
     const base = normalizeBase(withMentions.baseUrl);
     // Official OpenAI-compatible video endpoint is /videos/generations.
     // Only fall back on 404/405 — never on 400 (param errors), or lastError

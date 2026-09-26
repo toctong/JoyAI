@@ -4,7 +4,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Job as BullJob, Queue } from "bullmq";
 import { Repository } from "typeorm";
 import { resolveVideoProvider } from "@joyai/ai-providers";
-import { QUEUE } from "@joyai/shared";
+import { QUEUE, type VideoJobInput } from "@joyai/shared";
 import { Job } from "../../../database/entities/job.entity";
 import { JobStatus } from "../../../database/enums";
 import { ChannelsService } from "../../channels/channels.service";
@@ -42,16 +42,7 @@ export class VideoSubmitProcessor extends WorkerHost {
         progress: 5,
       });
 
-      const input = job.input as {
-        prompt: string;
-        duration?: number;
-        ratio?: string;
-        resolution?: string;
-        modelId?: string;
-        referenceAssetIds?: string[];
-        referenceUrls?: string[];
-        refMode?: "omni" | "first_last";
-      };
+      const input = job.input as VideoJobInput;
 
       const model = await this.channels.resolveForKind("video", input.modelId);
       const referenceMedia = await this.jobs.resolveReferenceMedia(
@@ -92,6 +83,7 @@ export class VideoSubmitProcessor extends WorkerHost {
         referenceMediaKinds,
         refMode,
         firstLastViaPrompt,
+        generateAudio: input.generateAudio,
         metadata: channelMeta,
       });
 

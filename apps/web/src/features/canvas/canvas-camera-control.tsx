@@ -39,13 +39,32 @@ type Props = {
   value?: CameraControlOptions | null;
   onChange: (value: CameraControlOptions) => void;
   className?: string;
+  /** Render panel body in-place (no popover chip). */
+  embedded?: boolean;
+  /** Controlled open state when not embedded. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Custom trigger; defaults to the chip button. */
+  children?: ReactNode;
+  title?: string;
 };
 
 const CAMERA_IDS = CAMERA_PROFILES.map((item) => item.id);
 const LENS_IDS = LENS_PROFILES.map((item) => item.id);
 
-export function CanvasCameraControl({ value, onChange, className }: Props) {
-  const [open, setOpen] = useState(false);
+export function CanvasCameraControl({
+  value,
+  onChange,
+  className,
+  embedded = false,
+  open: openProp,
+  onOpenChange,
+  children,
+  title = "运镜",
+}: Props) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const control = value ?? DEFAULT_CAMERA_CONTROL;
   const camera =
     CAMERA_PROFILES.find((item) => item.id === control.camera) ??
@@ -60,26 +79,212 @@ export function CanvasCameraControl({ value, onChange, className }: Props) {
     onChange({ ...control, ...next });
   }
 
+  const body = (
+    <div className="joy-camera-panel-body">
+      <div className="joy-camera-presets">
+        {CAMERA_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            className={cn(
+              "joy-camera-preset",
+              activePresetId === preset.id && control.enabled && "is-on",
+            )}
+            title={preset.hint}
+            onClick={() => onChange(applyCameraPreset(preset.id))}
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
+      <TooltipProvider delayDuration={500}>
+        <div className="joy-camera-columns">
+          <SettingColumn
+            label="相机"
+            tooltipTitle={`${camera.zhName} · ${camera.label}`}
+            tooltipDesc={camera.description}
+            tooltipUseCase={camera.useCase}
+            visual={<CameraVisual profile={camera} />}
+            caption={camera.label}
+            onPrevious={
+              control.camera === CAMERA_IDS[0]
+                ? undefined
+                : () =>
+                    patch({
+                      camera: cycleValue(CAMERA_IDS, control.camera, -1),
+                    })
+            }
+            onNext={
+              control.camera === CAMERA_IDS[CAMERA_IDS.length - 1]
+                ? undefined
+                : () =>
+                    patch({
+                      camera: cycleValue(CAMERA_IDS, control.camera, 1),
+                    })
+            }
+          />
+          <SettingColumn
+            separator
+            label="镜头"
+            tooltipTitle={`${lens.zhName} · ${lens.label}`}
+            tooltipDesc={lens.description}
+            tooltipUseCase={lens.useCase}
+            visual={<LensVisual profile={lens} />}
+            caption={lens.label}
+            onPrevious={
+              control.lens === LENS_IDS[0]
+                ? undefined
+                : () =>
+                    patch({
+                      lens: cycleValue(LENS_IDS, control.lens, -1),
+                    })
+            }
+            onNext={
+              control.lens === LENS_IDS[LENS_IDS.length - 1]
+                ? undefined
+                : () =>
+                    patch({
+                      lens: cycleValue(LENS_IDS, control.lens, 1),
+                    })
+            }
+          />
+          <SettingColumn
+            separator
+            label="焦距"
+            tooltipTitle={`${control.focalLength}mm · ${focalMeta?.zhName ?? ""}`}
+            tooltipDesc={focalMeta?.description}
+            tooltipUseCase={focalMeta?.useCase}
+            badge={focalMeta?.zhName}
+            visual={
+              <div className="joy-camera-number">
+                <span className="joy-camera-number-value">
+                  {control.focalLength}
+                </span>
+                <span className="joy-camera-number-unit">mm</span>
+              </div>
+            }
+            caption="mm"
+            onPrevious={
+              control.focalLength === FOCAL_LENGTHS[0]
+                ? undefined
+                : () =>
+                    patch({
+                      focalLength: cycleValue(
+                        FOCAL_LENGTHS,
+                        control.focalLength as (typeof FOCAL_LENGTHS)[number],
+                        -1,
+                      ),
+                    })
+            }
+            onNext={
+              control.focalLength === FOCAL_LENGTHS[FOCAL_LENGTHS.length - 1]
+                ? undefined
+                : () =>
+                    patch({
+                      focalLength: cycleValue(
+                        FOCAL_LENGTHS,
+                        control.focalLength as (typeof FOCAL_LENGTHS)[number],
+                        1,
+                      ),
+                    })
+            }
+          />
+          <SettingColumn
+            separator
+            label="光圈"
+            tooltipTitle={`f/${control.aperture} · ${apertureMeta?.zhName ?? ""}`}
+            tooltipDesc={apertureMeta?.description}
+            tooltipUseCase={apertureMeta?.useCase}
+            badge={apertureMeta?.zhName}
+            visual={
+              <div className="joy-camera-aperture">
+                <span className="joy-camera-aperture-prefix">f/</span>
+                <span className="joy-camera-number-value">
+                  {control.aperture}
+                </span>
+              </div>
+            }
+            caption={`f/${control.aperture}`}
+            onPrevious={
+              control.aperture === APERTURES[0]
+                ? undefined
+                : () =>
+                    patch({
+                      aperture: cycleValue(
+                        APERTURES,
+                        control.aperture as (typeof APERTURES)[number],
+                        -1,
+                      ),
+                    })
+            }
+            onNext={
+              control.aperture === APERTURES[APERTURES.length - 1]
+                ? undefined
+                : () =>
+                    patch({
+                      aperture: cycleValue(
+                        APERTURES,
+                        control.aperture as (typeof APERTURES)[number],
+                        1,
+                      ),
+                    })
+            }
+          />
+        </div>
+      </TooltipProvider>
+
+      <div className="joy-camera-panel-foot">
+        <span
+          className={cn(
+            "joy-camera-panel-foot-label",
+            control.enabled && "is-on",
+          )}
+        >
+          {control.enabled ? "开启" : "关闭"}
+        </span>
+        <Switch
+          checked={control.enabled}
+          onCheckedChange={(enabled) => patch({ enabled })}
+          aria-label="启用摄像机提示词"
+        />
+      </div>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div
+        className={cn("joy-camera-panel joy-camera-panel-embedded", className)}
+        data-canvas-shortcuts-ignore
+      >
+        {body}
+      </div>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "joy-chip-params-pill joy-camera-trigger",
-            control.enabled && "is-on",
-            className,
-          )}
-          aria-label="摄像机控制"
-          title="摄像机控制"
-        >
-          <span className="joy-chip-params-seg">
-            <Camera className="size-3.5 opacity-80" />
-            {control.enabled
-              ? `${control.focalLength}mm · f/${control.aperture}`
-              : "摄像机"}
-          </span>
-        </button>
+        {children ?? (
+          <button
+            type="button"
+            className={cn(
+              "joy-chip-params-pill joy-camera-trigger",
+              control.enabled && "is-on",
+              className,
+            )}
+            aria-label="运镜控制"
+            title="运镜控制"
+          >
+            <span className="joy-chip-params-seg">
+              <Camera className="size-3.5 opacity-80" />
+              {control.enabled
+                ? `${control.focalLength}mm · f/${control.aperture}`
+                : "运镜"}
+            </span>
+          </button>
+        )}
       </PopoverTrigger>
       <PopoverContent
         align="start"
@@ -88,7 +293,7 @@ export function CanvasCameraControl({ value, onChange, className }: Props) {
         data-canvas-shortcuts-ignore
       >
         <div className="joy-camera-panel-head">
-          <h2 className="joy-camera-panel-title">摄像机</h2>
+          <h2 className="joy-camera-panel-title">{title}</h2>
           <button
             type="button"
             className="joy-camera-panel-close"
@@ -98,178 +303,7 @@ export function CanvasCameraControl({ value, onChange, className }: Props) {
             <X className="size-4" />
           </button>
         </div>
-
-        <div className="joy-camera-panel-body">
-          <div className="joy-camera-presets">
-            {CAMERA_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                className={cn(
-                  "joy-camera-preset",
-                  activePresetId === preset.id && control.enabled && "is-on",
-                )}
-                title={preset.hint}
-                onClick={() => onChange(applyCameraPreset(preset.id))}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-
-          <TooltipProvider delayDuration={500}>
-            <div className="joy-camera-columns">
-              <SettingColumn
-                label="相机"
-                tooltipTitle={`${camera.zhName} · ${camera.label}`}
-                tooltipDesc={camera.description}
-                tooltipUseCase={camera.useCase}
-                visual={<CameraVisual profile={camera} />}
-                caption={camera.label}
-                onPrevious={
-                  control.camera === CAMERA_IDS[0]
-                    ? undefined
-                    : () =>
-                        patch({
-                          camera: cycleValue(CAMERA_IDS, control.camera, -1),
-                        })
-                }
-                onNext={
-                  control.camera === CAMERA_IDS[CAMERA_IDS.length - 1]
-                    ? undefined
-                    : () =>
-                        patch({
-                          camera: cycleValue(CAMERA_IDS, control.camera, 1),
-                        })
-                }
-              />
-              <SettingColumn
-                separator
-                label="镜头"
-                tooltipTitle={`${lens.zhName} · ${lens.label}`}
-                tooltipDesc={lens.description}
-                tooltipUseCase={lens.useCase}
-                visual={<LensVisual profile={lens} />}
-                caption={lens.label}
-                onPrevious={
-                  control.lens === LENS_IDS[0]
-                    ? undefined
-                    : () =>
-                        patch({
-                          lens: cycleValue(LENS_IDS, control.lens, -1),
-                        })
-                }
-                onNext={
-                  control.lens === LENS_IDS[LENS_IDS.length - 1]
-                    ? undefined
-                    : () =>
-                        patch({
-                          lens: cycleValue(LENS_IDS, control.lens, 1),
-                        })
-                }
-              />
-              <SettingColumn
-                separator
-                label="焦距"
-                tooltipTitle={`${control.focalLength}mm · ${focalMeta?.zhName ?? ""}`}
-                tooltipDesc={focalMeta?.description}
-                tooltipUseCase={focalMeta?.useCase}
-                badge={focalMeta?.zhName}
-                visual={
-                  <div className="joy-camera-number">
-                    <span className="joy-camera-number-value">
-                      {control.focalLength}
-                    </span>
-                    <span className="joy-camera-number-unit">mm</span>
-                  </div>
-                }
-                caption="mm"
-                onPrevious={
-                  control.focalLength === FOCAL_LENGTHS[0]
-                    ? undefined
-                    : () =>
-                        patch({
-                          focalLength: cycleValue(
-                            FOCAL_LENGTHS,
-                            control.focalLength as (typeof FOCAL_LENGTHS)[number],
-                            -1,
-                          ),
-                        })
-                }
-                onNext={
-                  control.focalLength ===
-                  FOCAL_LENGTHS[FOCAL_LENGTHS.length - 1]
-                    ? undefined
-                    : () =>
-                        patch({
-                          focalLength: cycleValue(
-                            FOCAL_LENGTHS,
-                            control.focalLength as (typeof FOCAL_LENGTHS)[number],
-                            1,
-                          ),
-                        })
-                }
-              />
-              <SettingColumn
-                separator
-                label="光圈"
-                tooltipTitle={`f/${control.aperture} · ${apertureMeta?.zhName ?? ""}`}
-                tooltipDesc={apertureMeta?.description}
-                tooltipUseCase={apertureMeta?.useCase}
-                badge={apertureMeta?.zhName}
-                visual={
-                  <div className="joy-camera-aperture">
-                    <span className="joy-camera-aperture-prefix">f/</span>
-                    <span className="joy-camera-number-value">
-                      {control.aperture}
-                    </span>
-                  </div>
-                }
-                caption={`f/${control.aperture}`}
-                onPrevious={
-                  control.aperture === APERTURES[0]
-                    ? undefined
-                    : () =>
-                        patch({
-                          aperture: cycleValue(
-                            APERTURES,
-                            control.aperture as (typeof APERTURES)[number],
-                            -1,
-                          ),
-                        })
-                }
-                onNext={
-                  control.aperture === APERTURES[APERTURES.length - 1]
-                    ? undefined
-                    : () =>
-                        patch({
-                          aperture: cycleValue(
-                            APERTURES,
-                            control.aperture as (typeof APERTURES)[number],
-                            1,
-                          ),
-                        })
-                }
-              />
-            </div>
-          </TooltipProvider>
-
-          <div className="joy-camera-panel-foot">
-            <span
-              className={cn(
-                "joy-camera-panel-foot-label",
-                control.enabled && "is-on",
-              )}
-            >
-              {control.enabled ? "开启" : "关闭"}
-            </span>
-            <Switch
-              checked={control.enabled}
-              onCheckedChange={(enabled) => patch({ enabled })}
-              aria-label="启用摄像机提示词"
-            />
-          </div>
-        </div>
+        {body}
       </PopoverContent>
     </Popover>
   );

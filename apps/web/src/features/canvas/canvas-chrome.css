@@ -22,6 +22,151 @@
   box-shadow: none;
 }
 
+/* —— Canvas top capsules (left project / right tools) —— */
+.joy-canvas-top-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  height: var(--joy-control-h-lg, 40px);
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--popover) 92%, transparent);
+  color: var(--popover-foreground);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 28px -18px color-mix(in oklab, #000 55%, transparent);
+}
+
+.joy-canvas-top-sep {
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  margin-inline: 2px;
+  background: color-mix(in oklab, var(--border) 90%, transparent);
+}
+
+.joy-canvas-top-seg {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: calc(var(--joy-control-h-lg, 40px) - 6px);
+  min-width: calc(var(--joy-control-h-lg, 40px) - 6px);
+  padding-inline: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in oklab, var(--popover-foreground) 78%, transparent);
+  font-size: var(--joy-font-caption);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background var(--joy-duration-fast) var(--joy-ease-out),
+    color var(--joy-duration-fast) var(--joy-ease-out);
+}
+
+.joy-canvas-top-seg:hover {
+  background: var(--muted);
+  color: var(--popover-foreground);
+}
+
+.joy-canvas-top-seg.is-on {
+  background: color-mix(in oklab, var(--muted) 88%, var(--foreground) 6%);
+  color: var(--popover-foreground);
+}
+
+.joy-canvas-top-seg.is-label {
+  padding-inline: 10px;
+}
+
+.joy-canvas-top-brand {
+  gap: 2px;
+  padding-inline: 8px 6px;
+}
+
+.joy-canvas-top-title {
+  display: flex;
+  min-width: 0;
+  max-width: min(240px, 36vw);
+  align-items: center;
+}
+
+.joy-canvas-top-title-btn,
+.joy-canvas-top-title-input {
+  display: inline-flex;
+  min-width: 0;
+  width: 100%;
+  align-items: center;
+  gap: 4px;
+  height: calc(var(--joy-control-h-lg, 40px) - 6px);
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--popover-foreground);
+  font-size: var(--joy-font-label);
+  font-weight: 600;
+  line-height: 1.2;
+  outline: none;
+}
+
+.joy-canvas-top-title-btn {
+  cursor: pointer;
+  text-align: left;
+}
+
+.joy-canvas-top-title-btn:hover {
+  background: var(--muted);
+}
+
+.joy-canvas-top-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-canvas-top-status {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: calc(var(--joy-control-h-lg, 40px) - 6px);
+  height: calc(var(--joy-control-h-lg, 40px) - 6px);
+  border-radius: 999px;
+  color: var(--muted-foreground);
+}
+
+.joy-canvas-top-status.is-saved {
+  color: color-mix(in oklab, #22c55e 70%, var(--foreground));
+}
+
+.joy-canvas-top-status.is-dirty {
+  color: color-mix(in oklab, #f59e0b 75%, var(--foreground));
+}
+
+.joy-canvas-top-status-ok {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.joy-canvas-top-status-ok > svg:last-child {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  width: 9px;
+  height: 9px;
+  padding: 1px;
+  border-radius: 999px;
+  background: var(--popover);
+}
+
+
 .joy-canvas-chrome-btn {
   color: color-mix(in oklab, var(--popover-foreground) 78%, transparent);
 }

@@ -21,10 +21,15 @@
   color: var(--foreground);
 }
 
-.dark .joy-camera-panel {
-  background: rgba(28, 28, 32, 0.96);
-  border-color: rgba(255, 255, 255, 0.08);
+.joy-camera-panel-embedded {
+  width: 100% !important;
+  max-width: none;
 }
+
+.joy-camera-panel-embedded .joy-camera-panel-body {
+  padding-top: 10px;
+}
+
 
 .joy-camera-panel-head {
   display: flex;
