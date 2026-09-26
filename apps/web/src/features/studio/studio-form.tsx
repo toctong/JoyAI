@@ -2024,13 +2024,16 @@ function StudioInner() {
     }
   }
 
-  async function commitAngleEdit(params: ImageAngleParams) {
+  async function commitAngleEdit(payload: {
+    params: ImageAngleParams;
+    modelId: string;
+  }) {
     const session = angleEdit;
     if (!session) return;
     setAssetActionBusy(`${session.asset.id}:angle`);
     try {
-      const created = await submitAngleJob(session.asset, params, {
-        modelId: session.modelId,
+      const created = await submitAngleJob(session.asset, payload.params, {
+        modelId: payload.modelId || session.modelId,
       });
       setAngleEdit(null);
       await afterStudioJob(created.id, {
@@ -2490,7 +2493,7 @@ function StudioInner() {
         open={Boolean(angleEdit)}
         url={angleEdit?.asset.url ?? ""}
         onClose={() => setAngleEdit(null)}
-        onConfirm={(params) => void commitAngleEdit(params)}
+        onConfirm={(payload) => void commitAngleEdit(payload)}
       />
       <AudioTrimDialog
         open={Boolean(videoTrim)}
