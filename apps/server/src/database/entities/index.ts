@@ -12,6 +12,9 @@ import { AuditLog } from "./audit-log.entity";
 import { ProjectChat } from "./project-chat.entity";
 import { Skill } from "./skill.entity";
 import { InspireBanner } from "./inspire-banner.entity";
+import { PromptPreset } from "./prompt-preset.entity";
+import { StyleTemplate } from "./style-template.entity";
+import { CameraMove } from "./camera-move.entity";
 
 export const ENTITIES = [
   User,
@@ -28,6 +31,9 @@ export const ENTITIES = [
   ProjectChat,
   Skill,
   InspireBanner,
+  PromptPreset,
+  StyleTemplate,
+  CameraMove,
 ] as const;
 
 export {
@@ -45,4 +51,7 @@ export {
   ProjectChat,
   Skill,
   InspireBanner,
+  PromptPreset,
+  StyleTemplate,
+  CameraMove,
 };

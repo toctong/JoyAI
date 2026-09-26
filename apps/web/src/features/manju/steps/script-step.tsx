@@ -327,7 +327,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               }
               placeholder={`示例：\n\n场景：青石巷口·雨夜\n\n少年：今晚，城门不会为任何人开。\n\n镜头2\n暗色水墨风，镜头缓慢推进巷深。少年握着信笺。`}
               height={420}
-              preview="edit"
             />
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
               <span>{project.scriptText.length} 字</span>
@@ -351,7 +350,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
               }
               placeholder="一两段概括剧情、人物关系与基调…"
               height={280}
-              preview="edit"
             />
           </TabsContent>
 

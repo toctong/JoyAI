@@ -205,7 +205,7 @@ export function AppHeader({
             aria-label="管理分区"
           >
             {ADMIN_NAV_TABS.map((tab) => {
-              const active = isAdminNavActive(pathname, tab.href, tab.end);
+              const active = isAdminNavActive(pathname, tab);
               return (
                 <Link
                   key={tab.href}

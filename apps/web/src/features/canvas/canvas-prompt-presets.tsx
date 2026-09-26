@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Download, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import {
   Popover,
@@ -18,15 +18,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
+import { ApiError } from "@/shared/lib/api";
 import {
-  createPromptPreset,
-  deletePromptPreset,
+  clearLocalPromptPresets,
+  createCanvasPreset,
+  deleteCanvasPreset,
   exportPromptPresetsJson,
-  importPromptPresets,
-  listPromptPresets,
+  fetchCanvasPresets,
+  fetchGlobalPresets,
+  hasPendingLocalPresetMigration,
+  importCanvasPresets,
+  listLocalPromptPresets,
+  parseImportPayload,
   PROMPT_PRESET_TEXT_MAX,
   PROMPT_PRESET_TITLE_MAX,
-  updatePromptPreset,
+  updateCanvasPreset,
   type PromptPreset,
 } from "./lib/prompt-presets";
 
@@ -34,9 +40,12 @@ type EditorState =
   | { mode: "create" }
   | { mode: "edit"; preset: PromptPreset };
 
+type TabId = "global" | "canvas";
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  projectId: string;
   /** Prefill create form from current composer draft. */
   draftText?: string;
   onApply: (text: string) => void;
@@ -44,28 +53,47 @@ type Props = {
 };
 
 /**
- * Canvas prompt-preset module: list / create / edit / delete / import / export.
+ * Canvas prompt-preset module: global (read-only) + per-project CRUD.
  */
 export function CanvasPromptPresets({
   open,
   onOpenChange,
+  projectId,
   draftText = "",
   onApply,
   children,
 }: Props) {
-  const [presets, setPresets] = useState<PromptPreset[]>([]);
+  const [tab, setTab] = useState<TabId>("canvas");
+  const [globalPresets, setGlobalPresets] = useState<PromptPreset[]>([]);
+  const [canvasPresets, setCanvasPresets] = useState<PromptPreset[]>([]);
+  const [loading, setLoading] = useState(false);
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
+  const [showMigrate, setShowMigrate] = useState(false);
 
-  function reload() {
-    setPresets(listPromptPresets());
-  }
+  const reload = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    try {
+      const [globalList, canvasList] = await Promise.all([
+        fetchGlobalPresets(),
+        fetchCanvasPresets(projectId),
+      ]);
+      setGlobalPresets(globalList);
+      setCanvasPresets(canvasList);
+      setShowMigrate(hasPendingLocalPresetMigration());
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "加载预设失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
 
   useEffect(() => {
     if (!open) return;
-    reload();
-  }, [open]);
+    void reload();
+  }, [open, reload]);
 
   useEffect(() => {
     if (!editor) return;
@@ -91,40 +119,46 @@ export function CanvasPromptPresets({
     setEditor(null);
   }
 
-  function saveEditor() {
+  async function saveEditor() {
     try {
       if (editor?.mode === "edit") {
-        updatePromptPreset(editor.preset.id, { title, text });
+        await updateCanvasPreset(projectId, editor.preset.id, { title, text });
         toast.success("已更新预设");
       } else {
-        createPromptPreset({ title, text });
+        await createCanvasPreset(projectId, { title, text });
         toast.success("已新建预设");
       }
-      reload();
+      await reload();
       closeEditor();
+      setTab("canvas");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "保存失败");
+      toast.error(e instanceof ApiError ? e.message : "保存失败");
     }
   }
 
-  function remove(id: string) {
+  async function remove(id: string) {
     if (!window.confirm("确定删除这条预设词？")) return;
-    if (!deletePromptPreset(id)) {
-      toast.error("删除失败");
-      return;
+    try {
+      await deleteCanvasPreset(projectId, id);
+      await reload();
+      toast.success("已删除");
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "删除失败");
     }
-    reload();
-    toast.success("已删除");
   }
 
   function exportJson() {
-    const blob = new Blob([exportPromptPresetsJson(presets)], {
+    const list = tab === "global" ? globalPresets : canvasPresets;
+    const blob = new Blob([exportPromptPresetsJson(list)], {
       type: "application/json",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "joyai-prompt-presets.json";
+    a.download =
+      tab === "global"
+        ? "joyai-global-prompt-presets.json"
+        : "joyai-canvas-prompt-presets.json";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -136,11 +170,13 @@ export function CanvasPromptPresets({
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      void file.text().then((raw) => {
+      void file.text().then(async (raw) => {
         try {
-          const count = importPromptPresets(JSON.parse(raw) as unknown);
-          reload();
-          toast.success(`已导入 ${count} 条预设`);
+          const items = parseImportPayload(JSON.parse(raw) as unknown);
+          const { count } = await importCanvasPresets(projectId, items);
+          await reload();
+          setTab("canvas");
+          toast.success(`已导入 ${count} 条到本画布`);
         } catch (e) {
           toast.error(e instanceof Error ? e.message : "导入失败");
         }
@@ -149,7 +185,31 @@ export function CanvasPromptPresets({
     input.click();
   }
 
+  async function migrateLocal() {
+    const local = listLocalPromptPresets();
+    if (!local.length) {
+      clearLocalPromptPresets();
+      setShowMigrate(false);
+      return;
+    }
+    try {
+      const { count } = await importCanvasPresets(
+        projectId,
+        local.map((p) => ({ title: p.title, text: p.text })),
+      );
+      clearLocalPromptPresets();
+      setShowMigrate(false);
+      await reload();
+      setTab("canvas");
+      toast.success(`已导入本机 ${count} 条预设到本画布`);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : "导入本机预设失败");
+    }
+  }
+
+  const presets = tab === "global" ? globalPresets : canvasPresets;
   const canSave = Boolean(text.trim());
+  const canEdit = tab === "canvas";
 
   return (
     <>
@@ -166,19 +226,21 @@ export function CanvasPromptPresets({
             <div>
               <h2 className="joy-node-gen-preset-pop-title">预设提示词</h2>
               <p className="joy-node-gen-preset-pop-desc">
-                增删改查常用提示词，点一下即可填入
+                全局由运营配置；本画布可自由增删改
               </p>
             </div>
             <div className="joy-node-gen-preset-pop-tools">
-              <button
-                type="button"
-                className="joy-node-gen-icon-btn"
-                title="导入"
-                aria-label="导入预设"
-                onClick={importJson}
-              >
-                <Upload className="size-3.5" />
-              </button>
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="joy-node-gen-icon-btn"
+                  title="导入到本画布"
+                  aria-label="导入预设"
+                  onClick={importJson}
+                >
+                  <Upload className="size-3.5" />
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="joy-node-gen-icon-btn"
@@ -192,11 +254,51 @@ export function CanvasPromptPresets({
             </div>
           </div>
 
-          {presets.length === 0 ? (
+          <div className="joy-node-gen-preset-tabs">
+            <button
+              type="button"
+              className={cn(
+                "joy-node-gen-preset-tab",
+                tab === "global" && "is-active",
+              )}
+              onClick={() => setTab("global")}
+            >
+              全局
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "joy-node-gen-preset-tab",
+                tab === "canvas" && "is-active",
+              )}
+              onClick={() => setTab("canvas")}
+            >
+              本画布
+            </button>
+          </div>
+
+          {showMigrate && canEdit ? (
+            <div className="joy-node-gen-preset-migrate">
+              <span>检测到本机旧预设</span>
+              <button type="button" onClick={() => void migrateLocal()}>
+                导入到本画布
+              </button>
+            </div>
+          ) : null}
+
+          {loading ? (
             <div className="joy-node-gen-preset-empty">
-              <p>还没有预设提示词</p>
+              <p>加载中…</p>
+            </div>
+          ) : presets.length === 0 ? (
+            <div className="joy-node-gen-preset-empty">
+              <p>
+                {tab === "global" ? "暂无全局预设" : "还没有本画布预设"}
+              </p>
               <p className="joy-node-gen-preset-empty-hint">
-                把常用的提示词保存起来，下次点一下就能填入
+                {tab === "global"
+                  ? "由后台「提示词库」配置后会出现在这里"
+                  : "把常用的提示词保存起来，下次点一下就能填入"}
               </p>
             </div>
           ) : (
@@ -219,37 +321,43 @@ export function CanvasPromptPresets({
                       {item.text}
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    className="joy-node-gen-preset-row-del"
-                    title="编辑"
-                    aria-label="编辑预设"
-                    onClick={() => openEdit(item)}
-                  >
-                    <Pencil className="size-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    className="joy-node-gen-preset-row-del"
-                    title="删除"
-                    aria-label="删除预设"
-                    onClick={() => remove(item.id)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  {canEdit ? (
+                    <>
+                      <button
+                        type="button"
+                        className="joy-node-gen-preset-row-del"
+                        title="编辑"
+                        aria-label="编辑预设"
+                        onClick={() => openEdit(item)}
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        className="joy-node-gen-preset-row-del"
+                        title="删除"
+                        aria-label="删除预设"
+                        onClick={() => void remove(item.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
 
-          <button
-            type="button"
-            className={cn("joy-node-gen-preset-create")}
-            onClick={openCreate}
-          >
-            <Plus className="size-3.5" />
-            新建预设
-          </button>
+          {canEdit ? (
+            <button
+              type="button"
+              className={cn("joy-node-gen-preset-create")}
+              onClick={openCreate}
+            >
+              <Plus className="size-3.5" />
+              新建预设
+            </button>
+          ) : null}
         </PopoverContent>
       </Popover>
 
@@ -323,7 +431,7 @@ export function CanvasPromptPresets({
               type="button"
               className="joy-preset-dialog-save"
               disabled={!canSave}
-              onClick={saveEditor}
+              onClick={() => void saveEditor()}
             >
               保存
             </button>

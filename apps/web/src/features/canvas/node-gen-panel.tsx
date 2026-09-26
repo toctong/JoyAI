@@ -12,8 +12,10 @@ import {
   List,
   Maximize2,
   Minimize2,
+  Palette,
   Plus,
   RectangleHorizontal,
+  Sparkles,
   Video,
   X,
 } from "lucide-react";
@@ -48,7 +50,13 @@ import {
   resolveVideoFrameSlots,
 } from "./lib/video-frame-slots";
 import { CanvasCameraControl } from "./canvas-camera-control";
+import {
+  CanvasCameraMovePicker,
+  composePromptWithCameraMoves,
+  type SelectedCameraMove,
+} from "./canvas-camera-move-picker";
 import { CanvasPromptPresets } from "./canvas-prompt-presets";
+import { CanvasStylePicker, composePromptWithStyle, type SelectedCanvasStyle } from "./canvas-style-picker";
 import { CanvasNodeRefDialog } from "./canvas-node-ref-dialog";
 import { CanvasAssetDialog } from "./canvas-asset-dialog";
 import {
@@ -77,6 +85,7 @@ import { ComposerModelMenu } from "@/features/studio/composer-model-menu";
 import {
   AiPromptEditor,
   getGeneratePayload,
+  optimizePromptText,
   setEditorPlainText,
 } from "@/features/ai-prompt";
 import {
@@ -96,7 +105,6 @@ import { CANVAS_TEXT_FONT } from "@/shared/theme";
 type Props = {
   node: CanvasNode;
   viewport: Viewport;
-  onClose?: () => void;
 };
 
 type GenKind = "image" | "video" | "text" | "audio";
@@ -165,10 +173,30 @@ function resolveGenText(data: CanvasNode["data"]): string {
   return String(data.prompt ?? "");
 }
 
+function parseSelectedMoves(raw: unknown): SelectedCameraMove[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SelectedCameraMove[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    const slug = String(row.slug ?? "").trim();
+    const prompt = String(row.prompt ?? "").trim();
+    if (!slug || !prompt) continue;
+    out.push({
+      slug,
+      label: String(row.label ?? "").trim() || slug,
+      prompt,
+      exclusiveGroup:
+        typeof row.exclusiveGroup === "string" ? row.exclusiveGroup : null,
+    });
+  }
+  return out.slice(0, 3);
+}
+
 /**
  * Below-node generate panel — studio-like shell + AI rich prompt.
  */
-export function NodeGenPanel({ node, viewport, onClose }: Props) {
+export function NodeGenPanel({ node, viewport }: Props) {
   const projectId = useCanvasStore((s) => s.projectId);
   const edges = useCanvasStore((s) => s.edges);
   const nodes = useCanvasStore((s) => s.nodes);
@@ -188,6 +216,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
 
   const [prompt, setPrompt] = useState(() => resolveGenText(node.data));
   const [busy, setBusy] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [models, setModels] = useState<PublicModel[]>([]);
   const [modelId, setModelId] = useState(() =>
@@ -235,7 +264,21 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
     return true;
   });
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraMoveOpen, setCameraMoveOpen] = useState(false);
+  const [selectedMoves, setSelectedMoves] = useState<SelectedCameraMove[]>(
+    () => parseSelectedMoves(node.data.genCameraMoves),
+  );
   const [presetOpen, setPresetOpen] = useState(false);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState<SelectedCanvasStyle | null>(
+    () => {
+      const slug = String(node.data.genStyleSlug ?? "").trim();
+      const label = String(node.data.genStyleLabel ?? "").trim();
+      const prompt = String(node.data.genStylePrompt ?? "").trim();
+      if (!slug || !prompt) return null;
+      return { slug, label: label || slug, prompt };
+    },
+  );
   const [videoGenMode, setVideoGenMode] = useState<VideoGenModeId>(() =>
     normalizeVideoGenMode(node.data.genVideoMode, []),
   );
@@ -273,7 +316,20 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
     }
     setExpanded(false);
     setCameraOpen(false);
+    setCameraMoveOpen(false);
     setPresetOpen(false);
+    setStyleOpen(false);
+    setSelectedMoves(parseSelectedMoves(node.data.genCameraMoves));
+    {
+      const slug = String(node.data.genStyleSlug ?? "").trim();
+      const label = String(node.data.genStyleLabel ?? "").trim();
+      const stylePrompt = String(node.data.genStylePrompt ?? "").trim();
+      setSelectedStyle(
+        slug && stylePrompt
+          ? { slug, label: label || slug, prompt: stylePrompt }
+          : null,
+      );
+    }
     setBusy(false);
     setParamsOpen(false);
   }, [node.id, panorama]);
@@ -380,7 +436,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
     [node, viewport],
   );
 
-  const running = isBusyStatus(status) || busy;
+  const running = isBusyStatus(status) || busy || optimizing;
   const edgeRefs = useMemo(
     () => collectIncomingMediaFromEdges(nodes, edges, node.id),
     [edges, node.id, nodes],
@@ -421,6 +477,32 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
   function clearPrompt() {
     writeDraft("");
     setEditorPlainText(editorRef.current, "", mentionItems);
+  }
+
+  async function optimizePrompt() {
+    const raw =
+      getGeneratePayload(editorRef.current).prompt.trim() || prompt.trim();
+    if (!raw || optimizing || busy || isBusyStatus(status)) return;
+    setOptimizing(true);
+    const toastId = toast.loading("正在优化提示词…");
+    try {
+      const next = await optimizePromptText(raw, {
+        modelId: output === "text" ? modelId : undefined,
+      });
+      setEditorPlainText(editorRef.current, next, mentionItems);
+      writeDraft(next);
+      toast.success("提示词已优化", { id: toastId });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        toast.dismiss(toastId);
+        return;
+      }
+      toast.error(error instanceof Error ? error.message : "优化失败", {
+        id: toastId,
+      });
+    } finally {
+      setOptimizing(false);
+    }
   }
 
   function attachPickedNodes(nodeIds: string[]) {
@@ -521,6 +603,12 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
       return;
     }
 
+    const styledText = composePromptWithStyle(text, selectedStyle?.prompt);
+    const jobText =
+      output === "video"
+        ? composePromptWithCameraMoves(styledText, selectedMoves)
+        : styledText;
+
     const assetId = String(node.data.assetId ?? "");
     const includeAv = output === "video";
     const merged = mergeJobReferences(
@@ -576,8 +664,8 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
         }
         const promptText = applyCameraPrompt(
           panorama
-            ? wrapPanoramaPrompt(text, { hasReference: hasMedia })
-            : text,
+            ? wrapPanoramaPrompt(jobText, { hasReference: hasMedia })
+            : jobText,
           panorama ? null : cameraControl,
         );
         const aspect = layout.aspects.find((item) => item.id === ratio);
@@ -647,7 +735,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
             kind: "llm",
             input: {
               purpose: "chat",
-              prompt: text,
+              prompt: jobText,
               modelId,
               canvasProjectId: projectId,
               canvasNodeId: targetId,
@@ -685,7 +773,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           body: {
             kind: "audio",
             input: {
-              prompt: text,
+              prompt: jobText,
               modelId,
               voice,
               format: audioFormat,
@@ -744,13 +832,13 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                     otherUrls: referenceUrls,
                   });
         const jobRefMode = jobRefModeForGenMode(videoGenMode);
-        const videoPrompt = applyCameraPrompt(text, cameraControl);
+        const videoPrompt = jobText;
         updateNodeData(targetId, {
           status: "queued",
           error: "",
           prompt: text,
           genDraft: text,
-          cameraControl,
+          genCameraMoves: selectedMoves,
           genVideoMode: videoGenMode,
           firstFrameNodeId:
             videoGenMode === "t2v" || videoGenMode === "omni"
@@ -784,7 +872,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
         });
         updateNodeData(targetId, { status: "running", jobId: job.id });
         persistParams({
-          cameraControl,
+          genCameraMoves: selectedMoves,
           genVideoMode: videoGenMode,
           genAudio: generateAudio,
           firstFrameNodeId:
@@ -836,10 +924,17 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
   const activePresetId = matchCameraPreset(cameraControl);
   const cameraBtnLabel =
     cameraControl.enabled && activePresetId
-      ? (CAMERA_PRESETS.find((p) => p.id === activePresetId)?.label ?? "运镜")
+      ? (CAMERA_PRESETS.find((p) => p.id === activePresetId)?.label ?? "摄像头")
       : cameraControl.enabled
         ? `${cameraControl.focalLength}mm`
-        : "运镜";
+        : "摄像头";
+  const moveBtnLabel =
+    selectedMoves.length === 0
+      ? "运镜"
+      : selectedMoves.length === 1
+        ? selectedMoves[0]!.label
+        : `${selectedMoves[0]!.label} +${selectedMoves.length - 1}`;
+  const styleBtnLabel = selectedStyle?.label?.trim() || "风格";
   const mediaRefCount = edgeRefs.incoming.filter(
     (item) =>
       item.type === "image" ||
@@ -1185,10 +1280,30 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
       }
       onClick={() => void submit()}
     >
-      {running ? (
+      {running && !optimizing ? (
         <CanvasIconLoader className="size-4 animate-spin" />
       ) : (
         <ArrowUp className="size-4" />
+      )}
+    </button>
+  );
+
+  const optimizeButton = (
+    <button
+      type="button"
+      className={cn(
+        "joy-node-gen-optimize",
+        Boolean(prompt.trim()) && !running && "is-ready",
+      )}
+      disabled={!prompt.trim() || running}
+      aria-label="提示词优化"
+      title="提示词优化"
+      onClick={() => void optimizePrompt()}
+    >
+      {optimizing ? (
+        <CanvasIconLoader className="size-4 animate-spin" />
+      ) : (
+        <Sparkles className="size-4" />
       )}
     </button>
   );
@@ -1198,9 +1313,7 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
       event.preventDefault();
       if (expanded) {
         setExpanded(false);
-        return;
       }
-      onClose?.();
       return;
     }
     if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -1239,49 +1352,65 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
               ) : null}
             </button>
 
-            <CanvasCameraControl
-              open={cameraOpen}
-              onOpenChange={setCameraOpen}
-              value={cameraControl}
-              onChange={(next) => {
-                setCameraControl(next);
-                persistParams({ cameraControl: next });
-              }}
-            >
+            {output === "video" ? (
               <button
                 type="button"
                 className={cn(
                   "joy-node-gen-action",
-                  (cameraOpen || cameraControl.enabled) && "is-active",
+                  (cameraMoveOpen || selectedMoves.length > 0) && "is-active",
                 )}
+                title={
+                  selectedMoves.length
+                    ? selectedMoves.map((m) => m.label).join(" · ")
+                    : "选择运镜"
+                }
+                onClick={() => setCameraMoveOpen(true)}
               >
-                <Camera className="size-3.5 opacity-80" />
-                <span className="joy-node-gen-action-label">
-                  {cameraBtnLabel}
+                <Video className="size-3.5 shrink-0 opacity-80" />
+                <span className="joy-node-gen-action-label joy-node-gen-style-label">
+                  {moveBtnLabel}
                 </span>
               </button>
-            </CanvasCameraControl>
+            ) : null}
 
-            <CanvasPromptPresets
-              open={presetOpen}
-              onOpenChange={setPresetOpen}
-              draftText={prompt}
-              onApply={(text) => {
-                setEditorPlainText(editorRef.current, text);
-                writeDraft(text);
-              }}
-            >
-              <button
-                type="button"
-                className={cn(
-                  "joy-node-gen-action",
-                  presetOpen && "is-active",
-                )}
+            {projectId ? (
+              <CanvasPromptPresets
+                open={presetOpen}
+                onOpenChange={setPresetOpen}
+                projectId={projectId}
+                draftText={prompt}
+                onApply={(text) => {
+                  setEditorPlainText(editorRef.current, text);
+                  writeDraft(text);
+                }}
               >
-                <List className="size-3.5 opacity-80" />
-                预设词
-              </button>
-            </CanvasPromptPresets>
+                <button
+                  type="button"
+                  className={cn(
+                    "joy-node-gen-action",
+                    presetOpen && "is-active",
+                  )}
+                >
+                  <List className="size-3.5 opacity-80" />
+                  预设词
+                </button>
+              </CanvasPromptPresets>
+            ) : null}
+
+            <button
+              type="button"
+              className={cn(
+                "joy-node-gen-action",
+                (styleOpen || selectedStyle) && "is-active",
+              )}
+              title={selectedStyle?.prompt || "选择风格"}
+              onClick={() => setStyleOpen(true)}
+            >
+              <Palette className="size-3.5 shrink-0 opacity-80" />
+              <span className="joy-node-gen-action-label joy-node-gen-style-label">
+                {styleBtnLabel}
+              </span>
+            </button>
           </div>
           <div className="joy-node-gen-head-actions">
             <button
@@ -1296,19 +1425,6 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
                 <Maximize2 className="size-3.5" />
               )}
             </button>
-            {onClose ? (
-              <button
-                type="button"
-                className="joy-node-gen-icon-btn"
-                aria-label="关闭"
-                onClick={() => {
-                  setExpanded(false);
-                  onClose();
-                }}
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : null}
           </div>
         </div>
       ) : prompt.trim() ? (
@@ -1424,8 +1540,37 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
           ) : null}
           {modelMenu}
           {paramsMenu}
+          {output === "image" && !panorama ? (
+            <CanvasCameraControl
+              open={cameraOpen}
+              onOpenChange={setCameraOpen}
+              value={cameraControl}
+              onChange={(next) => {
+                setCameraControl(next);
+                persistParams({ cameraControl: next });
+              }}
+            >
+              <button
+                type="button"
+                className={cn(
+                  "joy-chip-params-pill",
+                  (cameraOpen || cameraControl.enabled) && "is-on",
+                )}
+              >
+                <span className="joy-chip-params-seg">
+                  <Camera className="size-3.5 shrink-0 opacity-80" />
+                  <span className="joy-node-gen-style-label">
+                    {cameraBtnLabel}
+                  </span>
+                </span>
+              </button>
+            </CanvasCameraControl>
+          ) : null}
         </div>
-        {sendButton}
+        <div className="joy-node-gen-toolbar-right">
+          {optimizeButton}
+          {sendButton}
+        </div>
       </div>
     </div>
   );
@@ -1481,6 +1626,36 @@ export function NodeGenPanel({ node, viewport, onClose }: Props) {
         onClose={() => setMaterialOpen(false)}
         onConfirm={attachPickedAssets}
         onConfirmCanvasNodes={attachPickedNodes}
+      />
+      <CanvasStylePicker
+        open={styleOpen}
+        onClose={() => setStyleOpen(false)}
+        selectedSlug={selectedStyle?.slug}
+        onSelect={(style) => {
+          setSelectedStyle(style);
+          persistParams({
+            genStyleSlug: style.slug,
+            genStyleLabel: style.label,
+            genStylePrompt: style.prompt,
+          });
+        }}
+        onClear={() => {
+          setSelectedStyle(null);
+          persistParams({
+            genStyleSlug: "",
+            genStyleLabel: "",
+            genStylePrompt: "",
+          });
+        }}
+      />
+      <CanvasCameraMovePicker
+        open={cameraMoveOpen}
+        onClose={() => setCameraMoveOpen(false)}
+        selected={selectedMoves}
+        onChange={(next) => {
+          setSelectedMoves(next);
+          persistParams({ genCameraMoves: next });
+        }}
       />
     </>
   );

@@ -1,9 +1,8 @@
 import { api } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
-import { useCanvasStore } from "../store";
-import { copyUpstreamPrompt } from "./image-node-actions";
-import { mediaRefFromNode } from "./canvas-media-refs";
 import { CANVAS_TEXT_FONT } from "@/shared/theme";
+import { useCanvasStore } from "../store";
+import { mediaRefFromNode } from "./canvas-media-refs";
 
 /** Same instruction as infinite-canvas `IMAGE_PROMPT_REVERSE_PRESET`. */
 export const IMAGE_PROMPT_REVERSE_PRESET = `请根据参考图片反推一段适合用于 AI 生图的提示词。
@@ -53,10 +52,13 @@ async function resolveKnownPrompt(nodeId: string): Promise<string> {
 
 /**
  * Reverse / extract prompt beside an image node.
- * Known prompts are copied. Otherwise a text node keeps the built-in
- * instruction and an LLM job writes the result into a sibling text node.
+ * Known prompts are copied onto a text node. Otherwise a text node keeps the
+ * built-in instruction and an LLM job writes the result into a sibling text node.
  */
-export async function spawnReversePrompt(nodeId: string) {
+export async function spawnReversePrompt(
+  nodeId: string,
+  modelId?: string,
+) {
   const store = useCanvasStore.getState();
   const node = store.nodes.find((item) => item.id === nodeId);
   if (!node) return;
@@ -90,6 +92,11 @@ export async function spawnReversePrompt(nodeId: string) {
     store.addEdge(node.id, textId);
     store.setSelection([textId]);
     toast.success("已提取原提示词");
+    return;
+  }
+
+  if (!modelId) {
+    toast.message("请先选择语言模型");
     return;
   }
 
@@ -136,6 +143,7 @@ export async function spawnReversePrompt(nodeId: string) {
         kind: "llm",
         input: {
           purpose: "reverse_prompt",
+          modelId,
           prompt: IMAGE_PROMPT_REVERSE_PRESET,
           canvasProjectId: projectId,
           canvasNodeId: resultId,
@@ -153,15 +161,4 @@ export async function spawnReversePrompt(nodeId: string) {
     });
     toast.error(error instanceof Error ? error.message : "反推失败");
   }
-}
-
-/** Copy prompt when available; otherwise open reverse workflow. */
-export function reverseOrCopyPrompt(nodeId: string) {
-  const node = useCanvasStore.getState().nodes.find((item) => item.id === nodeId);
-  const own = String(node?.data.prompt ?? "").trim();
-  if (own) {
-    copyUpstreamPrompt(nodeId);
-    return;
-  }
-  void spawnReversePrompt(nodeId);
 }

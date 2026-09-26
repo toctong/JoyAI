@@ -22,7 +22,6 @@ export type StudioMediaAsset = {
 export type StudioLocalTool =
   | "crop"
   | "split"
-  | "upscale"
   | "inpaint"
   | "angle"
   | "to-panorama"
@@ -153,13 +152,7 @@ export async function commitStudioImagePieces(
   }));
   const localTool =
     opts?.localTool ??
-    (label === "切图"
-      ? "split"
-      : label === "裁剪"
-        ? "crop"
-        : label === "本地放大"
-          ? "upscale"
-          : undefined);
+    (label === "切图" ? "split" : label === "裁剪" ? "crop" : undefined);
   return registerLocalJob({
     kind: "image",
     prompt: label,

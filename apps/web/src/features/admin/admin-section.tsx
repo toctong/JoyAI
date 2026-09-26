@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuthHydrated, useAuthStore } from "@/shared/lib/auth-store";
 import { JoyBootLoading } from "@/shared/ui/joy-boot-loading";
+import { AdminGroupTabs } from "./admin-group-tabs";
 import "./admin-section.css";
 
 export function AdminSection({ children }: { children: React.ReactNode }) {
@@ -35,7 +36,10 @@ export function AdminSection({ children }: { children: React.ReactNode }) {
     <div className="joy-admin">
       <div className="joy-admin-scroll">
         <div className="joy-admin-body">
-          <div className="joy-admin-inner">{children}</div>
+          <div className="joy-admin-inner">
+            <AdminGroupTabs />
+            {children}
+          </div>
         </div>
       </div>
     </div>

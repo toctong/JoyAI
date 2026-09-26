@@ -4,15 +4,20 @@ import type { CSSProperties, MouseEvent } from "react";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { cn } from "@/shared/lib/utils";
-import "@uiw/react-md-editor/markdown-editor.css";
-import "./manju-md-field.css";
+import type { MarkdownPreviewMode } from "@/features/canvas/markdown-editor-pane";
 
-const MDEditor = dynamic(() => import("@uiw/react-md-editor"), {
-  ssr: false,
-  loading: () => (
-    <div className="manju-md-field__skeleton rounded-md border border-border bg-muted/40" />
-  ),
-});
+const MarkdownEditorPane = dynamic(
+  () =>
+    import("@/features/canvas/markdown-editor-pane").then(
+      (m) => m.MarkdownEditorPane,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="manju-md-field__skeleton rounded-md border border-border bg-muted/40" />
+    ),
+  },
+);
 
 type Props = {
   value: string;
@@ -20,8 +25,11 @@ type Props = {
   placeholder?: string;
   /** Fixed editor height in px */
   height?: number;
-  /** edit | live | preview — default edit for dense forms */
-  preview?: "edit" | "live" | "preview";
+  /**
+   * Default live（左写右预览），与画布「编辑文本」一致。
+   * 显式 hideToolbar 或很矮的字段会自动退回 edit。
+   */
+  preview?: MarkdownPreviewMode;
   className?: string;
   hideToolbar?: boolean;
 };
@@ -30,28 +38,22 @@ export function ManjuMdField({
   value,
   onChange,
   placeholder,
-  height = 160,
-  preview = "edit",
+  height = 200,
+  preview = "live",
   className,
   hideToolbar = false,
 }: Props) {
   const { resolvedTheme } = useTheme();
   const colorMode = resolvedTheme === "dark" ? "dark" : "light";
+  /** Too short for a useful live split — keep a single edit pane. */
+  const tooShortForLive = height < 200;
+  const resolvedPreview =
+    hideToolbar || tooShortForLive ? "edit" : preview;
 
   return (
     <div
-      data-color-mode={colorMode}
-      className={cn(
-        "manju-md-field",
-        hideToolbar && "manju-md-field--compact",
-        className,
-      )}
-      style={
-        {
-          minHeight: height,
-          "--manju-md-height": `${height}px`,
-        } as CSSProperties
-      }
+      className={cn("manju-md-field", className)}
+      style={{ minHeight: height } as CSSProperties}
       onMouseDown={(event: MouseEvent<HTMLDivElement>) => {
         const target = event.target as HTMLElement;
         if (target.closest("button, a, .w-md-editor-toolbar")) return;
@@ -59,17 +61,16 @@ export function ManjuMdField({
         if (field && target !== field) field.focus();
       }}
     >
-      <MDEditor
+      <MarkdownEditorPane
         value={value}
-        preview={preview}
+        onChange={onChange}
+        placeholder={placeholder}
+        colorMode={colorMode}
+        preview={resolvedPreview}
         height={height}
-        visibleDragbar={false}
-        highlightEnable={false}
+        fill={false}
         hideToolbar={hideToolbar}
-        textareaProps={{
-          placeholder: placeholder ?? "支持 Markdown",
-        }}
-        onChange={(next) => onChange(next ?? "")}
+        className="manju-md-field__pane"
       />
     </div>
   );

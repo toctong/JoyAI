@@ -1,11 +1,16 @@
-/** Browser-local prompt presets for canvas generate panel (CRUD). */
+/** Canvas prompt presets — API-backed + localStorage migration helpers. */
+
+import { api } from "@/shared/lib/api";
 
 export type PromptPreset = {
   id: string;
   title: string;
   text: string;
-  createdAt: number;
-  updatedAt: number;
+  scope?: "global" | "canvas";
+  enabled?: boolean;
+  sortOrder?: number;
+  createdAt?: string | number;
+  updatedAt?: string | number;
 };
 
 export type PromptPresetInput = {
@@ -14,22 +19,22 @@ export type PromptPresetInput = {
 };
 
 const STORAGE_KEY = "joyai.canvas.prompt-presets";
+const MIGRATED_KEY = "joyai.canvas.prompt-presets.migrated";
 
-function now() {
-  return Date.now();
-}
-
-const TITLE_MAX = 50;
-const TEXT_MAX = 5000;
+export const PROMPT_PRESET_TITLE_MAX = 50;
+export const PROMPT_PRESET_TEXT_MAX = 5000;
 
 function normalizeTitle(title: string, text: string) {
   const t = title.trim() || text.trim().slice(0, 24);
-  return t.slice(0, TITLE_MAX) || "未命名预设";
+  return t.slice(0, PROMPT_PRESET_TITLE_MAX) || "未命名预设";
 }
 
-function parseList(raw: string | null): PromptPreset[] {
-  if (!raw) return [];
+/** Read leftover browser-local presets (pre-server migration). */
+export function listLocalPromptPresets(): PromptPreset[] {
+  if (typeof window === "undefined") return [];
   try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
     return parsed
@@ -38,129 +43,124 @@ function parseList(raw: string | null): PromptPreset[] {
         const row = item as Record<string, unknown>;
         const text = String(row.text ?? "").trim();
         if (!text) return null;
-        const id = String(row.id ?? "").trim() || crypto.randomUUID();
-        const createdAt =
-          typeof row.createdAt === "number"
-            ? row.createdAt
-            : typeof row.updatedAt === "number"
-              ? row.updatedAt
-              : now();
-        const updatedAt =
-          typeof row.updatedAt === "number" ? row.updatedAt : createdAt;
         return {
-          id,
+          id: String(row.id ?? "").trim() || crypto.randomUUID(),
           title: normalizeTitle(String(row.title ?? ""), text),
           text,
-          createdAt,
-          updatedAt,
         } satisfies PromptPreset;
       })
-      .filter((item): item is PromptPreset => Boolean(item))
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+      .filter((item): item is PromptPreset => Boolean(item));
   } catch {
     return [];
   }
 }
 
-function persist(list: PromptPreset[]) {
+export function clearLocalPromptPresets() {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.setItem(MIGRATED_KEY, "1");
   } catch {
-    /* quota / private mode */
+    /* ignore */
   }
 }
 
-export function listPromptPresets(): PromptPreset[] {
-  if (typeof window === "undefined") return [];
+export function hasPendingLocalPresetMigration() {
+  if (typeof window === "undefined") return false;
   try {
-    return parseList(window.localStorage.getItem(STORAGE_KEY));
+    if (window.localStorage.getItem(MIGRATED_KEY) === "1") return false;
+    return listLocalPromptPresets().length > 0;
   } catch {
-    return [];
+    return false;
   }
 }
 
-export function getPromptPreset(id: string): PromptPreset | null {
-  return listPromptPresets().find((item) => item.id === id) ?? null;
+export async function fetchGlobalPresets() {
+  return api<PromptPreset[]>("/prompt-presets");
 }
 
-export function createPromptPreset(input: PromptPresetInput): PromptPreset {
-  const text = input.text.trim().slice(0, TEXT_MAX);
-  if (!text) throw new Error("提示词不能为空");
-  const stamp = now();
-  const item: PromptPreset = {
-    id: crypto.randomUUID(),
-    title: normalizeTitle(input.title.slice(0, TITLE_MAX), text),
-    text,
-    createdAt: stamp,
-    updatedAt: stamp,
-  };
-  persist([item, ...listPromptPresets()]);
-  return item;
-}
-
-export function updatePromptPreset(
-  id: string,
-  input: PromptPresetInput,
-): PromptPreset {
-  const text = input.text.trim().slice(0, TEXT_MAX);
-  if (!text) throw new Error("提示词不能为空");
-  const list = listPromptPresets();
-  const index = list.findIndex((item) => item.id === id);
-  if (index < 0) throw new Error("预设不存在");
-  const prev = list[index]!;
-  const next: PromptPreset = {
-    ...prev,
-    title: normalizeTitle(input.title.slice(0, TITLE_MAX), text),
-    text,
-    updatedAt: now(),
-  };
-  const copy = [...list];
-  copy[index] = next;
-  persist(copy.sort((a, b) => b.updatedAt - a.updatedAt));
-  return next;
-}
-
-export function deletePromptPreset(id: string): boolean {
-  const list = listPromptPresets();
-  const next = list.filter((item) => item.id !== id);
-  if (next.length === list.length) return false;
-  persist(next);
-  return true;
-}
-
-export function replacePromptPresets(list: PromptPreset[]) {
-  persist(
-    [...list].sort((a, b) => b.updatedAt - a.updatedAt),
+export async function fetchCanvasPresets(projectId: string) {
+  return api<PromptPreset[]>(
+    `/canvas/projects/${projectId}/prompt-presets`,
   );
 }
 
-/** Merge imported presets (new ids) into local store. */
-export function importPromptPresets(raw: unknown): number {
+export async function createCanvasPreset(
+  projectId: string,
+  input: PromptPresetInput,
+) {
+  return api<PromptPreset>(`/canvas/projects/${projectId}/prompt-presets`, {
+    method: "POST",
+    body: {
+      title: normalizeTitle(input.title, input.text),
+      text: input.text.trim().slice(0, PROMPT_PRESET_TEXT_MAX),
+    },
+  });
+}
+
+export async function updateCanvasPreset(
+  projectId: string,
+  id: string,
+  input: PromptPresetInput,
+) {
+  return api<PromptPreset>(
+    `/canvas/projects/${projectId}/prompt-presets/${id}`,
+    {
+      method: "PATCH",
+      body: {
+        title: normalizeTitle(input.title, input.text),
+        text: input.text.trim().slice(0, PROMPT_PRESET_TEXT_MAX),
+      },
+    },
+  );
+}
+
+export async function deleteCanvasPreset(projectId: string, id: string) {
+  return api<{ ok: boolean }>(
+    `/canvas/projects/${projectId}/prompt-presets/${id}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function importCanvasPresets(
+  projectId: string,
+  items: PromptPresetInput[],
+) {
+  return api<{ count: number }>(
+    `/canvas/projects/${projectId}/prompt-presets/import`,
+    {
+      method: "POST",
+      body: {
+        items: items.map((item) => ({
+          title: normalizeTitle(item.title, item.text),
+          text: item.text.trim().slice(0, PROMPT_PRESET_TEXT_MAX),
+        })),
+      },
+    },
+  );
+}
+
+export function exportPromptPresetsJson(list: PromptPreset[]): string {
+  return JSON.stringify(
+    list.map((p) => ({ title: p.title, text: p.text })),
+    null,
+    2,
+  );
+}
+
+export function parseImportPayload(raw: unknown): PromptPresetInput[] {
   if (!Array.isArray(raw)) throw new Error("格式无效");
-  const stamp = now();
-  const incoming: PromptPreset[] = [];
+  const items: PromptPresetInput[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const row = item as Record<string, unknown>;
     const text = String(row.text ?? "").trim();
     if (!text) continue;
-    incoming.push({
-      id: crypto.randomUUID(),
+    items.push({
       title: normalizeTitle(String(row.title ?? ""), text),
       text,
-      createdAt: stamp,
-      updatedAt: stamp,
     });
   }
-  if (!incoming.length) throw new Error("没有可用预设");
-  persist([...incoming, ...listPromptPresets()]);
-  return incoming.length;
+  if (!items.length) throw new Error("没有可用预设");
+  return items;
 }
-
-export function exportPromptPresetsJson(list?: PromptPreset[]): string {
-  return JSON.stringify(list ?? listPromptPresets(), null, 2);
-}
-
-export const PROMPT_PRESET_TITLE_MAX = TITLE_MAX;
-export const PROMPT_PRESET_TEXT_MAX = TEXT_MAX;

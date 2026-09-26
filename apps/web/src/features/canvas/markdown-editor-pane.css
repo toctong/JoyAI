@@ -1,22 +1,59 @@
 .joy-md-editor {
   display: flex;
   min-height: 0;
-  flex: 1;
   flex-direction: column;
+  width: 100%;
+}
+
+.joy-md-editor--fill {
+  flex: 1;
+}
+
+.joy-md-editor--fixed {
+  flex: 0 0 auto;
+  min-height: var(--joy-md-height, 160px);
 }
 
 .joy-md-editor .w-md-editor {
   display: flex !important;
-  height: 100% !important;
   min-height: 0 !important;
   flex: 1 1 auto !important;
   flex-direction: column;
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: none !important;
+  border: 1px solid var(--border) !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  --md-editor-font-family: ui-sans-serif, system-ui, sans-serif, "Segoe UI",
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+  --md-editor-background-color: var(--background);
+}
+
+.joy-md-editor--fill .w-md-editor {
+  height: 100% !important;
+}
+
+.joy-md-editor--fixed .w-md-editor {
+  height: var(--joy-md-height, 160px) !important;
+  min-height: var(--joy-md-height, 160px) !important;
+  border-radius: calc(var(--radius) - 2px);
 }
 
 .joy-md-editor .w-md-editor-toolbar {
   flex-shrink: 0;
+  border-bottom: 1px solid var(--border) !important;
+  background: color-mix(in oklab, var(--muted) 70%, transparent) !important;
+}
+
+.joy-md-editor .w-md-editor-toolbar li > button {
+  color: var(--muted-foreground) !important;
+}
+
+.joy-md-editor .w-md-editor-toolbar li > button:hover,
+.joy-md-editor .w-md-editor-toolbar li > button:focus {
+  background: var(--accent) !important;
+  color: var(--foreground) !important;
 }
 
 .joy-md-editor .w-md-editor-content {
@@ -24,6 +61,13 @@
   min-height: 0 !important;
   flex: 1 1 auto !important;
   height: auto !important;
+  overflow: hidden !important;
+  background: var(--background) !important;
+}
+
+.joy-md-editor--fixed .w-md-editor-content {
+  /* Give flex child a definite height so textarea can fill. */
+  height: 0 !important;
 }
 
 .joy-md-editor .w-md-editor-input,
@@ -37,4 +81,35 @@
 
 .joy-md-editor .w-md-editor-text-input {
   overflow: auto !important;
+  color: var(--foreground) !important;
+  caret-color: var(--foreground) !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  font-family: var(--md-editor-font-family) !important;
+  background: var(--background) !important;
+}
+
+.joy-md-editor .w-md-editor-text-input::placeholder {
+  color: var(--muted-foreground) !important;
+  -webkit-text-fill-color: var(--muted-foreground) !important;
+  opacity: 1;
+}
+
+.joy-md-editor .w-md-editor-preview {
+  color: var(--foreground) !important;
+  background: var(--background) !important;
+}
+
+.joy-md-editor .wmde-markdown {
+  background: transparent !important;
+  color: var(--foreground) !important;
+}
+
+/* Compact / edit-only embeds: hide empty preview pane. */
+.joy-md-editor--compact .w-md-editor-show-edit .w-md-editor-preview,
+.joy-md-editor .w-md-editor-show-edit .w-md-editor-preview {
+  display: none !important;
+}
+
+.joy-md-editor--compact .w-md-editor-show-edit .w-md-editor-input {
+  width: 100% !important;
 }

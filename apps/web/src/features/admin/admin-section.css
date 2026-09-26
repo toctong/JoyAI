@@ -788,3 +788,53 @@ body:has(.joy-admin) [data-radix-popper-content-wrapper] > div {
     font-size: 18px;
   }
 }
+
+/* Sibling tabs under a top-nav group (模型 / 内容 / 系统) */
+.admin-group-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 3px;
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 8px;
+  background: var(--ve-hover, #f7f8fa);
+  border: 1px solid var(--ve-border, #e5e6eb);
+}
+
+.admin-group-tab {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ve-text-muted, #86909c);
+  text-decoration: none;
+  transition:
+    color 0.12s ease,
+    background 0.12s ease;
+}
+
+.admin-group-tab:hover {
+  color: var(--ve-text, #1d2129);
+}
+
+.admin-group-tab.is-active {
+  background: var(--ve-surface, #fff);
+  color: var(--ve-text, #1d2129);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.dark .admin-group-tabs,
+.joy-admin.dark .admin-group-tabs {
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+  border-color: var(--border);
+}
+
+.dark .admin-group-tab.is-active {
+  background: var(--card);
+}

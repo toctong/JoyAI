@@ -76,7 +76,7 @@ import {
   captureVideoFrame,
   type VideoFrameAt,
 } from "./lib/capture-video-frame";
-import { api } from "@/shared/lib/api";
+import { api, apiUpload } from "@/shared/lib/api";
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import {
   titleFromPrompt,
@@ -87,21 +87,31 @@ import { toast } from "@/shared/lib/toast";
 import { DirectorDesk } from "./director-desk";
 import { ImageToolDialog, type ImageToolMode } from "./image-tool-dialog";
 import { ImageAngleDialog } from "./image-angle-dialog";
+import { ImageReversePromptDialog } from "./image-reverse-prompt-dialog";
+import { ImageFxDialog } from "./image-fx-dialog";
+import { ImageRotateDialog } from "./image-rotate-dialog";
+import { ImageOutpaintDialog } from "./image-outpaint-dialog";
+import { ImageScribbleDialog } from "./image-scribble-dialog";
+import { ImageLightingDialog } from "./image-lighting-dialog";
 import { NodeInfoDialog } from "./node-info-dialog";
 import { AudioTrimDialog } from "./audio-trim-dialog";
 import { MaskEditDialog } from "./mask-edit-dialog";
+import { ImageRedrawDialog } from "./image-redraw-dialog";
 import { trimMediaToFile } from "./lib/trim-audio";
 import { trimVideoToFile } from "./lib/trim-video";
 import { flagPanoramaAspect } from "./lib/panorama-prompt";
-import { convertImagePanoramaType } from "./lib/convert-media-type";
+import { spawnPanoramaPrompt } from "./lib/spawn-panorama-prompt";
 import { commitImagePieces } from "./lib/commit-image-pieces";
-import {
-  copyUpstreamPrompt,
-  toggleFreeResize,
-} from "./lib/image-node-actions";
+import { downloadNodeMedia } from "./lib/download-node-media";
 import { canSaveNodeAsset, saveNodeAsset } from "./lib/save-node-asset";
 import { spawnReversePrompt } from "./lib/reverse-prompt";
 import { spawnAnglePrompt } from "./lib/spawn-angle-prompt";
+import { spawnImageFx } from "./lib/spawn-image-fx";
+import type { ImageFxMode } from "./lib/image-fx";
+import { spawnRotatedImage } from "./lib/rotate-node-image";
+import { spawnLightingPrompt } from "./lib/spawn-lighting-prompt";
+import { spawnMarkedImageEdit } from "./lib/spawn-marked-edit";
+import { nodeTitleLabel } from "./lib/node-chrome";
 import type { RasterPiece } from "./lib/image-raster";
 import {
   nodeTypeForAssetKind,
@@ -152,7 +162,6 @@ type FocusQuery = {
 const STUDIO_DEEP_TOOLS = new Set([
   "crop",
   "split",
-  "upscale",
   "view",
   "inpaint",
   "angle",
@@ -234,7 +243,6 @@ export function CanvasBoard({
   const [isNodeDragging, setIsNodeDragging] = useState(false);
   const [dropTargetGid, setDropTargetGid] = useState<string | null>(null);
   const [isNodeResizing, setIsNodeResizing] = useState(false);
-  const [genPanelOpen, setGenPanelOpen] = useState(true);
   const [directorId, setDirectorId] = useState<string | null>(null);
   const [miniMapOpen, setMiniMapOpen] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -256,6 +264,17 @@ export function CanvasBoard({
     mode: ImageToolMode;
   } | null>(null);
   const [angleNodeId, setAngleNodeId] = useState<string | null>(null);
+  const [reversePromptNodeId, setReversePromptNodeId] = useState<string | null>(
+    null,
+  );
+  const [imageFx, setImageFx] = useState<{
+    nodeId: string;
+    mode: ImageFxMode;
+  } | null>(null);
+  const [rotateEdit, setRotateEdit] = useState<{
+    nodeId: string;
+    url: string;
+  } | null>(null);
   const [infoNodeId, setInfoNodeId] = useState<string | null>(null);
   const [audioTrim, setAudioTrim] = useState<{
     nodeId: string;
@@ -266,10 +285,25 @@ export function CanvasBoard({
     nodeId: string;
     url: string;
   } | null>(null);
+  const [redrawEdit, setRedrawEdit] = useState<{
+    nodeId: string;
+    url: string;
+  } | null>(null);
+  const [outpaintEdit, setOutpaintEdit] = useState<{
+    nodeId: string;
+    url: string;
+  } | null>(null);
+  const [scribbleEdit, setScribbleEdit] = useState<{
+    nodeId: string;
+    url: string;
+  } | null>(null);
+  const [lightingEdit, setLightingEdit] = useState<{
+    nodeId: string;
+    url: string;
+  } | null>(null);
   const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [projectReady, setProjectReady] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [toolbarPinned, setToolbarPinned] = useState(false);
   const [connectDraft, setConnectDraft] = useState<ConnectDraft | null>(null);
   const focusApplied = useRef(false);
   /** Active connect sources (1 = single green-dot, ≥2 = selection fan-out). */
@@ -400,8 +434,7 @@ export function CanvasBoard({
         return;
       }
       if (tool === "to-panorama") {
-        pushHistory();
-        convertImagePanoramaType(targetId, "panorama");
+        spawnPanoramaPrompt(targetId);
         return;
       }
       if (tool === "trim-video") {
@@ -461,7 +494,6 @@ export function CanvasBoard({
       if (
         tool === "crop" ||
         tool === "split" ||
-        tool === "upscale" ||
         tool === "view"
       ) {
         openImageTool(targetId, tool);
@@ -1494,7 +1526,6 @@ export function CanvasBoard({
   }
 
   function onNodeHoverLeave() {
-    if (toolbarPinned) return;
     clearHoverLeaveTimer();
     hoverLeaveTimer.current = setTimeout(() => {
       setHoveredNodeId(null);
@@ -1679,6 +1710,42 @@ export function CanvasBoard({
     setMaskEdit({ nodeId, url });
   }
 
+  function openRedraw(nodeId: string) {
+    const node = useCanvasStore.getState().nodes.find((item) => item.id === nodeId);
+    const url = String(node?.data.url ?? "");
+    setNodeMenu(null);
+    if (!node || node.type !== "image" || !url || url.startsWith("data:")) {
+      toast.message("请先放入图片");
+      return;
+    }
+    setRedrawEdit({ nodeId, url });
+  }
+
+  function openStudioImage(
+    nodeId: string,
+    setter: (next: { nodeId: string; url: string } | null) => void,
+    opts?: { allowPanorama?: boolean },
+  ) {
+    const node = useCanvasStore.getState().nodes.find((item) => item.id === nodeId);
+    const url = String(node?.data.url ?? "");
+    setNodeMenu(null);
+    const typeOk =
+      node?.type === "image" ||
+      (opts?.allowPanorama && node?.type === "panorama");
+    if (!node || !typeOk || !url || url.startsWith("data:")) {
+      toast.message("请先放入图片");
+      return;
+    }
+    setter({ nodeId, url });
+  }
+
+  function studioNodeTitle(nodeId: string | null | undefined) {
+    if (!nodeId) return undefined;
+    const node = nodes.find((item) => item.id === nodeId);
+    if (!node) return undefined;
+    return nodeTitleLabel(node.type, node.data);
+  }
+
   async function commitAudioTrim(range: { start: number; end: number }) {
     const session = audioTrim;
     if (!session || audioTrimBusy) return;
@@ -1750,96 +1817,74 @@ export function CanvasBoard({
     }
   }
 
-  async function commitMask(payload: { prompt: string; blob: Blob }) {
+  async function commitMask(payload: {
+    prompt: string;
+    blob: Blob;
+    modelId: string;
+    resolution?: string;
+    ratio?: string;
+  }) {
     const session = maskEdit;
     if (!session) return;
-    const node = useCanvasStore
-      .getState()
-      .nodes.find((item) => item.id === session.nodeId);
-    if (!node) {
-      toast.error("节点已不存在");
-      setMaskEdit(null);
-      return;
-    }
-    const toastId = toast.loading("正在提交局部重绘…");
-    try {
-      const file = new File([payload.blob], `mask-${Date.now()}.png`, {
-        type: "image/png",
-      });
-      pushHistory();
-      const box = nodeBox(node);
-      const markedId = await uploadFileToNewNode(
-        file,
-        {
-          x: box.x + box.width + 40,
-          y: box.y,
-        },
-        {
-          history: false,
-          preferredType: "image",
-          title: "涂抹参考",
-        },
-      );
-      const promptId = addNode("prompt", {
-        x: box.x + box.width + 40,
-        y: box.y + box.height + 36,
-      });
-      const marked = useCanvasStore
-        .getState()
-        .nodes.find((item) => item.id === markedId);
-      const markedAssetId = String(marked?.data.assetId ?? "");
-      const markedUrl = String(marked?.data.url ?? "");
-      // Marked composite already includes source + paint — only that as model ref.
-      const referenceAssetIds = markedAssetId ? [markedAssetId] : [];
-      const referenceUrls =
-        markedUrl && !markedUrl.startsWith("data:") ? [markedUrl] : [];
-      if (!referenceUrls.length) {
-        throw new Error("涂抹参考图上传失败");
-      }
-      updateNodeData(promptId, {
-        prompt: payload.prompt,
-        operation: "inpaint",
-        outputKind: "image",
-        status: "queued",
-        error: "",
-        referenceIds: referenceAssetIds,
-        referenceUrls,
-      });
-      addEdge(node.id, promptId);
-      addEdge(markedId, promptId);
-      setSelection([promptId]);
-      setMaskEdit(null);
-
-      const job = await api<{ id: string }>("/jobs", {
-        method: "POST",
-        body: {
-          kind: "image",
-          input: {
-            prompt: payload.prompt,
-            n: 1,
-            canvasProjectId: projectId,
-            canvasNodeId: promptId,
-            referenceAssetIds,
-            referenceUrls,
-            operation: "inpaint",
-          },
-        },
-      });
-      updateNodeData(promptId, { status: "running", jobId: job.id });
-      toast.success("已提交局部重绘", { id: toastId });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "局部重绘失败", {
-        id: toastId,
-      });
-    }
+    await spawnMarkedImageEdit({
+      sourceNodeId: session.nodeId,
+      blob: payload.blob,
+      prompt: payload.prompt,
+      operation: "inpaint",
+      projectId,
+      modelId: payload.modelId,
+      resolution: payload.resolution,
+      ratio: payload.ratio,
+      markedTitle: "涂抹参考",
+      toastLabel: "正在提交局部重绘…",
+    });
+    setMaskEdit(null);
   }
 
-  function handleConvertType(to: "image" | "panorama") {
-    const id = nodeMenu?.nodeId;
-    setNodeMenu(null);
-    if (!id) return;
-    pushHistory();
-    convertImagePanoramaType(id, to);
+  async function commitRedraw(payload: {
+    prompt: string;
+    blob: Blob;
+    modelId: string;
+    resolution?: string;
+    ratio?: string;
+    referenceNodeIds: string[];
+    referenceFiles: File[];
+  }) {
+    const session = redrawEdit;
+    if (!session) return;
+    const extraReferenceAssetIds: string[] = [];
+    const extraReferenceUrls: string[] = [];
+    const storeNodes = useCanvasStore.getState().nodes;
+    for (const id of payload.referenceNodeIds) {
+      const node = storeNodes.find((item) => item.id === id);
+      const assetId = String(node?.data.assetId ?? "");
+      const refUrl = String(node?.data.url ?? "");
+      if (assetId) extraReferenceAssetIds.push(assetId);
+      if (refUrl && !refUrl.startsWith("data:")) extraReferenceUrls.push(refUrl);
+    }
+    for (const file of payload.referenceFiles) {
+      const asset = await apiUpload<{ id: string; url: string }>(
+        "/upload",
+        file,
+      );
+      if (asset.id) extraReferenceAssetIds.push(asset.id);
+      if (asset.url) extraReferenceUrls.push(asset.url);
+    }
+    await spawnMarkedImageEdit({
+      sourceNodeId: session.nodeId,
+      blob: payload.blob,
+      prompt: payload.prompt,
+      operation: "inpaint",
+      projectId,
+      modelId: payload.modelId,
+      resolution: payload.resolution,
+      ratio: payload.ratio,
+      extraReferenceAssetIds,
+      extraReferenceUrls,
+      markedTitle: "重绘参考",
+      toastLabel: "正在提交重绘…",
+    });
+    setRedrawEdit(null);
   }
 
   const chromeBusy = isPanningTool || isNodeDragging || isNodeResizing;
@@ -1853,13 +1898,7 @@ export function CanvasBoard({
   const selectedStatus = String(selectedNodes[0]?.data.status ?? "idle");
   const selectedUploading =
     selectedStatus === "queued" || selectedStatus === "running";
-  const emptyMedia =
-    genCapable &&
-    !selectedUploading &&
-    (!String(selectedNodes[0]?.data.url ?? "") ||
-      String(selectedNodes[0]?.data.url ?? "").startsWith("data:"));
-  const showGenPanel =
-    genCapable && !chromeBusy && !selectedUploading && (genPanelOpen || emptyMedia);
+  const showGenPanel = genCapable && !chromeBusy && !selectedUploading;
 
   const gridSize = (snapToGrid ? 24 : 48) * viewport.zoom;
   const marqueeStyle = marquee
@@ -1997,10 +2036,6 @@ export function CanvasBoard({
             nodes={floatToolbarNodes}
             viewport={viewport}
             onOpenDirector={(id) => setDirectorId(id)}
-            genPanelOpen={genPanelOpen}
-            onToggleGenPanel={
-              genCapable ? () => setGenPanelOpen((v) => !v) : undefined
-            }
             onOpenImageTool={(mode) => {
               const id = floatToolbarNodes[0]?.id;
               if (id) openImageTool(id, mode);
@@ -2009,9 +2044,13 @@ export function CanvasBoard({
               const id = floatToolbarNodes[0]?.id;
               if (id) setAngleNodeId(id);
             }}
-            onOpenInfo={() => {
+            onOpenReversePrompt={() => {
               const id = floatToolbarNodes[0]?.id;
-              if (id) openInfo(id);
+              if (id) setReversePromptNodeId(id);
+            }}
+            onOpenImageFx={(mode) => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) setImageFx({ nodeId: id, mode });
             }}
             onOpenAudioTrim={() => {
               const id = floatToolbarNodes[0]?.id;
@@ -2021,7 +2060,26 @@ export function CanvasBoard({
               const id = floatToolbarNodes[0]?.id;
               if (id) openMask(id);
             }}
-            onPinToolbar={setToolbarPinned}
+            onOpenRedraw={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openRedraw(id);
+            }}
+            onOpenOutpaint={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openStudioImage(id, setOutpaintEdit);
+            }}
+            onOpenScribble={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openStudioImage(id, setScribbleEdit);
+            }}
+            onOpenLighting={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openStudioImage(id, setLightingEdit);
+            }}
+            onOpenRotate={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openStudioImage(id, setRotateEdit, { allowPanorama: true });
+            }}
           />
         </div>
       ) : null}
@@ -2030,7 +2088,6 @@ export function CanvasBoard({
         <NodeGenPanel
           node={selectedNodes[0]}
           viewport={viewport}
-          onClose={() => setGenPanelOpen(false)}
         />
       ) : null}
 
@@ -2302,50 +2359,6 @@ export function CanvasBoard({
                 }
               : undefined
           }
-          onCaptureFrame={
-            nodeMenu.nodeType === "video" && nodeMenu.hasMedia
-              ? (at) => void handleCaptureVideoFrame(at)
-              : undefined
-          }
-          onExtractAudio={
-            nodeMenu.nodeType === "video" && nodeMenu.hasMedia
-              ? () => void handleExtractAudio()
-              : undefined
-          }
-          onConvertType={
-            nodeMenu.hasMedia &&
-            (nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama")
-              ? handleConvertType
-              : undefined
-          }
-          onImageTool={
-            nodeMenu.hasMedia &&
-            (nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama")
-              ? (mode) => {
-                  const id = nodeMenu.nodeId;
-                  setNodeMenu(null);
-                  openImageTool(id, mode);
-                }
-              : undefined
-          }
-          onCopyPrompt={
-            nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama"
-              ? () => {
-                  copyUpstreamPrompt(nodeMenu.nodeId);
-                  setNodeMenu(null);
-                }
-              : undefined
-          }
-          onReversePrompt={
-            nodeMenu.hasMedia &&
-            (nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama")
-              ? () => {
-                  const id = nodeMenu.nodeId;
-                  setNodeMenu(null);
-                  void spawnReversePrompt(id);
-                }
-              : undefined
-          }
           onSaveAsset={
             canSaveNodeAsset(
               useCanvasStore
@@ -2359,41 +2372,22 @@ export function CanvasBoard({
                 }
               : undefined
           }
-          onOpenAngle={
-            nodeMenu.hasMedia &&
-            (nodeMenu.nodeType === "image" || nodeMenu.nodeType === "panorama")
+          onDownload={
+            nodeMenu.hasMedia
               ? () => {
-                  const id = nodeMenu.nodeId;
+                  const node = useCanvasStore
+                    .getState()
+                    .nodes.find((item) => item.id === nodeMenu.nodeId);
                   setNodeMenu(null);
-                  setAngleNodeId(id);
+                  if (node) void downloadNodeMedia(node);
                 }
               : undefined
           }
-          onToggleFreeResize={
-            nodeMenu.nodeType === "image" ||
-            nodeMenu.nodeType === "panorama" ||
-            nodeMenu.nodeType === "video"
-              ? () => {
-                  toggleFreeResize(nodeMenu.nodeId);
-                  setNodeMenu(null);
-                }
-              : undefined
-          }
-          freeResize={Boolean(
-            nodes.find((item) => item.id === nodeMenu.nodeId)?.data.freeResize,
-          )}
-          onInfo={() => openInfo(nodeMenu.nodeId)}
-          onTrimAudio={
-            nodeMenu.hasMedia &&
-            (nodeMenu.nodeType === "audio" || nodeMenu.nodeType === "video")
-              ? () => openAudioTrim(nodeMenu.nodeId)
-              : undefined
-          }
-          onMaskEdit={
-            nodeMenu.hasMedia && nodeMenu.nodeType === "image"
-              ? () => openMask(nodeMenu.nodeId)
-              : undefined
-          }
+          onInfo={() => {
+            const id = nodeMenu.nodeId;
+            setNodeMenu(null);
+            openInfo(id);
+          }}
           onClose={() => setNodeMenu(null)}
         />
       ) : null}
@@ -2401,6 +2395,7 @@ export function CanvasBoard({
       <ImageToolDialog
         mode={imageTool?.mode ?? null}
         url={imageTool?.url ?? ""}
+        nodeTitle={studioNodeTitle(imageTool?.nodeId)}
         onClose={() => setImageTool(null)}
         onCommit={commitImageTool}
       />
@@ -2410,11 +2405,60 @@ export function CanvasBoard({
         url={String(
           nodes.find((item) => item.id === angleNodeId)?.data.url ?? "",
         )}
+        nodeTitle={studioNodeTitle(angleNodeId)}
         onClose={() => setAngleNodeId(null)}
-        onConfirm={(params) => {
+        onConfirm={({ params, modelId }) => {
           const id = angleNodeId;
           setAngleNodeId(null);
-          if (id) spawnAnglePrompt(id, params);
+          if (id) spawnAnglePrompt(id, params, modelId);
+        }}
+      />
+
+      <ImageReversePromptDialog
+        open={Boolean(reversePromptNodeId)}
+        url={String(
+          nodes.find((item) => item.id === reversePromptNodeId)?.data.url ??
+            "",
+        )}
+        nodeTitle={studioNodeTitle(reversePromptNodeId)}
+        onClose={() => setReversePromptNodeId(null)}
+        onConfirm={({ modelId }) => {
+          const id = reversePromptNodeId;
+          setReversePromptNodeId(null);
+          if (id) void spawnReversePrompt(id, modelId);
+        }}
+      />
+
+      <ImageFxDialog
+        open={Boolean(imageFx)}
+        mode={imageFx?.mode ?? null}
+        url={String(
+          nodes.find((item) => item.id === imageFx?.nodeId)?.data.url ?? "",
+        )}
+        nodeTitle={studioNodeTitle(imageFx?.nodeId)}
+        onClose={() => setImageFx(null)}
+        onConfirm={({ mode, note, stylePrompt, modelId }) => {
+          const id = imageFx?.nodeId;
+          setImageFx(null);
+          if (id) {
+            spawnImageFx(id, { mode, note, stylePrompt, modelId });
+          }
+        }}
+      />
+
+      <ImageRotateDialog
+        open={Boolean(rotateEdit)}
+        url={rotateEdit?.url ?? ""}
+        nodeTitle={studioNodeTitle(rotateEdit?.nodeId)}
+        onClose={() => setRotateEdit(null)}
+        onConfirm={async (payload) => {
+          const id = rotateEdit?.nodeId;
+          if (!id) {
+            setRotateEdit(null);
+            return;
+          }
+          await spawnRotatedImage(id, payload);
+          setRotateEdit(null);
         }}
       />
 
@@ -2440,8 +2484,71 @@ export function CanvasBoard({
       <MaskEditDialog
         url={maskEdit?.url ?? ""}
         open={Boolean(maskEdit)}
+        nodeTitle={studioNodeTitle(maskEdit?.nodeId)}
         onClose={() => setMaskEdit(null)}
         onConfirm={commitMask}
+      />
+      <ImageRedrawDialog
+        url={redrawEdit?.url ?? ""}
+        open={Boolean(redrawEdit)}
+        sourceNodeId={redrawEdit?.nodeId}
+        nodeTitle={studioNodeTitle(redrawEdit?.nodeId)}
+        onClose={() => setRedrawEdit(null)}
+        onConfirm={commitRedraw}
+      />
+      <ImageOutpaintDialog
+        open={Boolean(outpaintEdit)}
+        url={outpaintEdit?.url ?? ""}
+        nodeTitle={studioNodeTitle(outpaintEdit?.nodeId)}
+        onClose={() => setOutpaintEdit(null)}
+        onConfirm={async (payload) => {
+          const id = outpaintEdit?.nodeId;
+          if (!id) return;
+          await spawnMarkedImageEdit({
+            sourceNodeId: id,
+            blob: payload.blob,
+            prompt: payload.prompt,
+            operation: "outpaint",
+            projectId,
+            modelId: payload.modelId,
+            resolution: payload.resolution,
+            ratio: payload.ratio,
+            markedTitle: "扩图参考",
+            toastLabel: "正在提交扩图…",
+          });
+          setOutpaintEdit(null);
+        }}
+      />
+      <ImageScribbleDialog
+        open={Boolean(scribbleEdit)}
+        url={scribbleEdit?.url ?? ""}
+        nodeTitle={studioNodeTitle(scribbleEdit?.nodeId)}
+        onClose={() => setScribbleEdit(null)}
+        onConfirm={async (payload) => {
+          const id = scribbleEdit?.nodeId;
+          if (!id) return;
+          await spawnMarkedImageEdit({
+            sourceNodeId: id,
+            blob: payload.blob,
+            prompt: payload.prompt,
+            operation: "generate",
+            projectId,
+            markedTitle: "涂鸦参考",
+            toastLabel: "正在提交涂鸦改图…",
+          });
+          setScribbleEdit(null);
+        }}
+      />
+      <ImageLightingDialog
+        open={Boolean(lightingEdit)}
+        url={lightingEdit?.url ?? ""}
+        nodeTitle={studioNodeTitle(lightingEdit?.nodeId)}
+        onClose={() => setLightingEdit(null)}
+        onConfirm={({ prompt }) => {
+          const id = lightingEdit?.nodeId;
+          setLightingEdit(null);
+          if (id) spawnLightingPrompt(id, prompt);
+        }}
       />
 
       <input

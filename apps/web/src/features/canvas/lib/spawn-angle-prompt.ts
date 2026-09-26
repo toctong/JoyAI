@@ -8,7 +8,11 @@ import {
 } from "./angle-prompt";
 
 /** Spawn an image-edit prompt for a new camera angle. */
-export function spawnAnglePrompt(nodeId: string, params: ImageAngleParams) {
+export function spawnAnglePrompt(
+  nodeId: string,
+  params: ImageAngleParams,
+  modelId?: string,
+) {
   const store = useCanvasStore.getState();
   const node = store.nodes.find((item) => item.id === nodeId);
   if (!node || (node.type !== "image" && node.type !== "panorama")) {
@@ -33,6 +37,7 @@ export function spawnAnglePrompt(nodeId: string, params: ImageAngleParams) {
     operation: "generate",
     outputKind: "image",
     title: buildAngleLabel(params),
+    ...(modelId ? { genModelId: modelId } : {}),
     ...refs,
   });
   store.addEdge(node.id, promptId);

@@ -5,6 +5,7 @@ export {
   hydrateEditorMentions,
   setEditorPlainText,
 } from "./ai-prompt-helpers";
+export { optimizePromptText } from "./optimize-prompt";
 export {
   mentionExpandText,
   normalizeOmniWireMentions,

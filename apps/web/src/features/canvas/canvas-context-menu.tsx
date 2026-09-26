@@ -4,37 +4,25 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CanvasNodeType } from "@joyai/shared";
 import {
   CanvasIconAudio,
-  CanvasIconBrush,
-  CanvasIconClose,
   CanvasIconCopy,
   CanvasIconDirector,
-  CanvasIconFile,
+  CanvasIconDownload,
   CanvasIconFolder,
   CanvasIconFolderPlus,
-  CanvasIconFrame,
-  CanvasIconGrid,
   CanvasIconGroup,
   CanvasIconImage,
   CanvasIconInfo,
-  CanvasIconLock,
-  CanvasIconMaximize,
-  CanvasIconMessage,
   CanvasIconPanorama,
-  CanvasIconScissors,
   CanvasIconSparkles,
   CanvasIconText,
   CanvasIconTrash,
   CanvasIconUngroup,
-  CanvasIconUnlock,
   CanvasIconUpload,
   CanvasIconVideo,
-  CanvasIconWand,
-  CanvasIconZoomIn,
 } from "./icons/canvas-icons";
 import { NODE_TYPE_LIST } from "./node-registry";
 import { clampMenuPosition } from "./lib/clamp-menu";
 import { cn } from "@/shared/lib/utils";
-import type { ImageToolMode } from "./image-tool-dialog";
 
 const ICONS: Record<CanvasNodeType, typeof CanvasIconText> = {
   text: CanvasIconText,
@@ -236,22 +224,16 @@ type NodeMenuProps = {
   onDelete: () => void;
   onGroup?: () => void;
   onUngroup?: () => void;
-  onCaptureFrame?: (at: "first" | "last" | "current") => void;
-  onExtractAudio?: () => void;
-  onConvertType?: (to: "image" | "panorama") => void;
-  onImageTool?: (mode: ImageToolMode) => void;
-  onCopyPrompt?: () => void;
-  onReversePrompt?: () => void;
   onSaveAsset?: () => void;
-  onOpenAngle?: () => void;
-  onToggleFreeResize?: () => void;
-  freeResize?: boolean;
+  onDownload?: () => void;
   onInfo?: () => void;
-  onTrimAudio?: () => void;
-  onMaskEdit?: () => void;
   onClose: () => void;
 };
 
+/**
+ * Node right-click — manage actions (存素材 / 下载 / 信息 / 复制 / 删除).
+ * Image / video creative tools live on the float toolbar.
+ */
 export function CanvasNodeContextMenu({
   menu,
   viewportSize,
@@ -259,19 +241,9 @@ export function CanvasNodeContextMenu({
   onDelete,
   onGroup,
   onUngroup,
-  onCaptureFrame,
-  onExtractAudio,
-  onConvertType,
-  onImageTool,
-  onCopyPrompt,
-  onReversePrompt,
   onSaveAsset,
-  onOpenAngle,
-  onToggleFreeResize,
-  freeResize,
+  onDownload,
   onInfo,
-  onTrimAudio,
-  onMaskEdit,
   onClose,
 }: NodeMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -293,6 +265,13 @@ export function CanvasNodeContextMenu({
     return () => document.removeEventListener("pointerdown", close, true);
   }, [onClose]);
 
+  const hasManageSep =
+    Boolean(onSaveAsset || onDownload || onInfo) &&
+    Boolean(
+      (menu.canGroup && onGroup) ||
+        (menu.canUngroup && onUngroup),
+    );
+
   return (
     <div
       ref={ref}
@@ -302,205 +281,6 @@ export function CanvasNodeContextMenu({
       style={{ left: pos.x, top: pos.y }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      {menu.nodeType === "video" && menu.hasMedia && onCaptureFrame ? (
-        <>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onCaptureFrame("first")}
-          >
-            <CanvasIconFrame className="size-3.5 opacity-70" />
-            截取首帧
-          </button>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onCaptureFrame("current")}
-          >
-            <CanvasIconFrame className="size-3.5 opacity-70" />
-            截取当前帧
-          </button>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onCaptureFrame("last")}
-          >
-            <CanvasIconFrame className="size-3.5 opacity-70" />
-            截取尾帧
-          </button>
-          {onExtractAudio ? (
-            <button
-              type="button"
-              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-              onClick={onExtractAudio}
-            >
-              <CanvasIconAudio className="size-3.5 opacity-70" />
-              分离音频
-            </button>
-          ) : null}
-          {onTrimAudio ? (
-            <button
-              type="button"
-              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-              onClick={onTrimAudio}
-            >
-              <CanvasIconScissors className="size-3.5 opacity-70" />
-              剪辑
-            </button>
-          ) : null}
-          {onToggleFreeResize ? (
-            <button
-              type="button"
-              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-              onClick={onToggleFreeResize}
-            >
-              {freeResize ? (
-                <CanvasIconUnlock className="size-3.5 opacity-70" />
-              ) : (
-                <CanvasIconLock className="size-3.5 opacity-70" />
-              )}
-              {freeResize ? "锁定比例" : "自由比例"}
-            </button>
-          ) : null}
-          <div className="joy-canvas-chrome-sep my-1 h-px" />
-        </>
-      ) : null}
-      {menu.nodeType === "audio" && menu.hasMedia && onTrimAudio ? (
-        <>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={onTrimAudio}
-          >
-            <CanvasIconScissors className="size-3.5 opacity-70" />
-            截取音频
-          </button>
-          <div className="joy-canvas-chrome-sep my-1 h-px" />
-        </>
-      ) : null}
-      {menu.hasMedia &&
-      (menu.nodeType === "image" || menu.nodeType === "panorama") &&
-      onImageTool ? (
-        <>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onImageTool("crop")}
-          >
-            <CanvasIconScissors className="size-3.5 opacity-70" />
-            裁剪
-          </button>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onImageTool("split")}
-          >
-            <CanvasIconGrid className="size-3.5 opacity-70" />
-            切图
-          </button>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onImageTool("upscale")}
-          >
-            <CanvasIconZoomIn className="size-3.5 opacity-70" />
-            本地放大
-          </button>
-          {onOpenAngle ? (
-            <button
-              type="button"
-              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-              onClick={onOpenAngle}
-            >
-              <CanvasIconWand className="size-3.5 opacity-70" />
-              多角度
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onImageTool("view")}
-          >
-            <CanvasIconMaximize className="size-3.5 opacity-70" />
-            查看大图
-          </button>
-          {menu.nodeType === "image" && onMaskEdit ? (
-            <button
-              type="button"
-              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-              onClick={onMaskEdit}
-            >
-              <CanvasIconBrush className="size-3.5 opacity-70" />
-              局部涂抹
-            </button>
-          ) : null}
-          {onReversePrompt ? (
-            <button
-              type="button"
-              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-              onClick={onReversePrompt}
-            >
-              <CanvasIconMessage className="size-3.5 opacity-70" />
-              反推提示词
-            </button>
-          ) : null}
-          {onCopyPrompt ? (
-            <button
-              type="button"
-              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-              onClick={onCopyPrompt}
-            >
-              <CanvasIconFile className="size-3.5 opacity-70" />
-              复制提示词
-            </button>
-          ) : null}
-          {onToggleFreeResize ? (
-            <button
-              type="button"
-              className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-              onClick={onToggleFreeResize}
-            >
-              {freeResize ? (
-                <CanvasIconUnlock className="size-3.5 opacity-70" />
-              ) : (
-                <CanvasIconLock className="size-3.5 opacity-70" />
-              )}
-              {freeResize ? "锁定比例" : "自由比例"}
-            </button>
-          ) : null}
-          <div className="joy-canvas-chrome-sep my-1 h-px" />
-        </>
-      ) : null}
-      {menu.hasMedia &&
-      menu.nodeType === "image" &&
-      onConvertType ? (
-        <>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onConvertType("panorama")}
-          >
-            <CanvasIconPanorama className="size-3.5 opacity-70" />
-            转为全景
-          </button>
-          <div className="joy-canvas-chrome-sep my-1 h-px" />
-        </>
-      ) : null}
-      {menu.hasMedia &&
-      menu.nodeType === "panorama" &&
-      onConvertType ? (
-        <>
-          <button
-            type="button"
-            className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
-            onClick={() => onConvertType("image")}
-          >
-            <CanvasIconImage className="size-3.5 opacity-70" />
-            转为普通图像
-          </button>
-          <div className="joy-canvas-chrome-sep my-1 h-px" />
-        </>
-      ) : null}
       {menu.canGroup && onGroup ? (
         <button
           type="button"
@@ -521,6 +301,9 @@ export function CanvasNodeContextMenu({
           解组
         </button>
       ) : null}
+      {hasManageSep ? (
+        <div className="joy-canvas-chrome-sep my-1 h-px" />
+      ) : null}
       {onSaveAsset ? (
         <button
           type="button"
@@ -531,6 +314,16 @@ export function CanvasNodeContextMenu({
           存素材
         </button>
       ) : null}
+      {onDownload ? (
+        <button
+          type="button"
+          className="joy-canvas-menu-item flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition"
+          onClick={onDownload}
+        >
+          <CanvasIconDownload className="size-3.5 opacity-70" />
+          下载
+        </button>
+      ) : null}
       {onInfo ? (
         <button
           type="button"
@@ -538,7 +331,7 @@ export function CanvasNodeContextMenu({
           onClick={onInfo}
         >
           <CanvasIconInfo className="size-3.5 opacity-70" />
-          节点信息
+          信息
         </button>
       ) : null}
       <button

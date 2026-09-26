@@ -187,7 +187,6 @@
 }
 
 .joy-composer.is-compact .joy-composer-toolbar-left,
-.joy-composer.is-compact .joy-composer-cost,
 .joy-composer.is-compact .joy-composer-params-panel,
 .joy-composer.is-compact .joy-composer-clear,
 .joy-composer.is-compact .joy-composer-ripple {
@@ -595,6 +594,36 @@
     max-height 0.34s var(--joy-ease-out);
 }
 
+.joy-composer-optimize {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent);
+  cursor: not-allowed;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    transform 0.15s;
+}
+
+.joy-composer-optimize.is-ready {
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.joy-composer-optimize.is-ready:hover {
+  background: color-mix(in oklab, var(--muted) 80%, transparent);
+  transform: translateY(-1px);
+}
+
+.joy-composer-optimize:disabled {
+  opacity: 0.55;
+}
+
 .joy-chip {
   display: inline-flex;
   align-items: center;
@@ -959,16 +988,6 @@
   padding: 0;
   justify-content: center;
   border-radius: 999px;
-}
-
-.joy-composer-cost {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-right: 2px;
-  font-size: var(--joy-font-micro);
-  font-weight: 600;
-  color: var(--muted-foreground);
 }
 
 .joy-composer-send {

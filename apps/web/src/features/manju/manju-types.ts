@@ -127,7 +127,7 @@ export const DEFAULT_SETTINGS: ManjuVideoSettings = {
   duration: 5,
 };
 
-/** @deprecated 用 STYLE_TEMPLATES；保留兼容旧引用 */
+/** @deprecated 历史字符串列表；风格目录已迁到 GET /styles */
 export const STYLE_PRESETS = [
   "真人写实",
   "3D玄幻",

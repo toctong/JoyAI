@@ -1,0 +1,73 @@
+/** Canvas style library dialog cards — aligned with manju style cards. */
+
+.joy-style-pick-card {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: center;
+  cursor: pointer;
+}
+
+.joy-style-pick-card__thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--muted);
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.joy-style-pick-card__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  user-select: none;
+}
+
+.joy-style-pick-card:hover .joy-style-pick-card__thumb {
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+}
+
+.joy-style-pick-card.is-active .joy-style-pick-card__thumb {
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.joy-style-pick-card:focus-visible .joy-style-pick-card__thumb {
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.joy-style-pick-card__label {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 1;
+  padding: 18px 6px 8px;
+  font-size: var(--joy-font-micro, 12px);
+  font-weight: 500;
+  line-height: 1.2;
+  color: #fff;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.28) 55%,
+    transparent 100%
+  );
+}

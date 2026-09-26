@@ -60,7 +60,7 @@ export function CanvasCameraControl({
   open: openProp,
   onOpenChange,
   children,
-  title = "运镜",
+  title = "摄像头",
 }: Props) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = openProp ?? uncontrolledOpen;
@@ -246,7 +246,7 @@ export function CanvasCameraControl({
         <Switch
           checked={control.enabled}
           onCheckedChange={(enabled) => patch({ enabled })}
-          aria-label="启用摄像机提示词"
+          aria-label="启用摄像头提示词"
         />
       </div>
     </div>
@@ -274,14 +274,14 @@ export function CanvasCameraControl({
               control.enabled && "is-on",
               className,
             )}
-            aria-label="运镜控制"
-            title="运镜控制"
+            aria-label="摄像头控制"
+            title="摄像头控制"
           >
             <span className="joy-chip-params-seg">
               <Camera className="size-3.5 opacity-80" />
               {control.enabled
                 ? `${control.focalLength}mm · f/${control.aperture}`
-                : "运镜"}
+                : "摄像头"}
             </span>
           </button>
         )}

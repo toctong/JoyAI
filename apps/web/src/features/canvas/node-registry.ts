@@ -10,16 +10,21 @@ export type NodeToolbarAction =
   | "spawn-video"
   | "outpaint"
   | "inpaint"
+  | "redraw"
+  | "scribble"
+  | "lighting"
   | "capture-frame"
   | "extract-audio"
   | "crop"
   | "split"
-  | "upscale"
+  | "rotate"
+  | "lineart"
+  | "colorize"
+  | "character-sheet"
+  | "node-history"
   | "angle"
   | "view-image"
-  | "copy-prompt"
   | "reverse-prompt"
-  | "toggle-resize"
   | "to-panorama"
   | "to-image"
   | "open-director"
@@ -70,14 +75,19 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       "to-panorama",
       "outpaint",
       "inpaint",
+      "redraw",
+      "scribble",
+      "lighting",
       "crop",
       "split",
-      "upscale",
+      "rotate",
+      "lineart",
+      "colorize",
+      "character-sheet",
+      "node-history",
       "angle",
       "view-image",
-      "copy-prompt",
       "reverse-prompt",
-      "toggle-resize",
       "save-asset",
       "download",
       "duplicate",
@@ -95,7 +105,6 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       "capture-frame",
       "extract-audio",
       "trim-audio",
-      "toggle-resize",
       "spawn-prompt",
       "save-asset",
       "download",
@@ -134,12 +143,11 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       "spawn-prompt",
       "crop",
       "split",
-      "upscale",
+      "rotate",
+      "node-history",
       "angle",
       "view-image",
-      "copy-prompt",
       "reverse-prompt",
-      "toggle-resize",
       "to-image",
       "save-asset",
       "download",

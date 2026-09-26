@@ -5,14 +5,26 @@ import {
   getCommands,
   getExtraCommands,
 } from "@uiw/react-md-editor/commands-cn";
+import type { CSSProperties } from "react";
+import { cn } from "@/shared/lib/utils";
 import "@uiw/react-md-editor/markdown-editor.css";
 import "./markdown-editor-pane.css";
+
+export type MarkdownPreviewMode = "edit" | "live" | "preview";
 
 type Props = {
   value: string;
   placeholder?: string;
   colorMode: "light" | "dark";
   onChange: (value: string) => void;
+  /** Default live — write left / preview right, same as canvas「编辑文本」. */
+  preview?: MarkdownPreviewMode;
+  /** Fill parent (dialog). Ignore when `height` is set. */
+  fill?: boolean;
+  /** Fixed height in px for embedded form fields. */
+  height?: number | string;
+  hideToolbar?: boolean;
+  className?: string;
 };
 
 export function MarkdownEditorPane({
@@ -20,18 +32,41 @@ export function MarkdownEditorPane({
   placeholder,
   colorMode,
   onChange,
+  preview = "live",
+  fill = true,
+  height,
+  hideToolbar = false,
+  className,
 }: Props) {
+  const resolvedPreview = hideToolbar ? "edit" : preview;
+  const useFixedHeight = height != null;
+
   return (
     <div
       data-color-mode={colorMode}
-      className="joy-md-editor flex min-h-0 flex-1 flex-col"
+      className={cn(
+        "joy-md-editor",
+        fill && !useFixedHeight && "joy-md-editor--fill",
+        useFixedHeight && "joy-md-editor--fixed",
+        hideToolbar && "joy-md-editor--compact",
+        className,
+      )}
+      style={
+        useFixedHeight
+          ? ({
+              "--joy-md-height":
+                typeof height === "number" ? `${height}px` : height,
+            } as CSSProperties)
+          : undefined
+      }
     >
       <MDEditor
         value={value}
-        preview="live"
-        height="100%"
+        preview={resolvedPreview}
+        height={useFixedHeight ? height : "100%"}
         visibleDragbar={false}
         highlightEnable={false}
+        hideToolbar={hideToolbar}
         commands={getCommands()}
         extraCommands={getExtraCommands()}
         textareaProps={{

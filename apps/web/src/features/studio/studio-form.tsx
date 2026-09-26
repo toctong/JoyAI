@@ -45,7 +45,6 @@ import {
   CanvasIconPanorama,
   CanvasIconScissors,
   CanvasIconWand,
-  CanvasIconZoomIn,
 } from "@/features/canvas/icons/canvas-icons";
 import {
   captureStudioFrame,
@@ -944,7 +943,7 @@ function StudioThumbHoverTools({
     mediaKind === "image" && onCanvasTool
       ? {
           key: "to-panorama",
-          label: "转全景",
+          label: "转720°全景",
           icon: <CanvasIconPanorama className="size-3.5" />,
           disabled: busy,
           onClick: () => onCanvasTool("to-panorama"),
@@ -966,15 +965,6 @@ function StudioThumbHoverTools({
           icon: <CanvasIconScissors className="size-3.5" />,
           disabled: busy,
           onClick: () => onCanvasTool("crop"),
-        }
-      : null,
-    mediaKind === "image" && onCanvasTool
-      ? {
-          key: "upscale",
-          label: "本地放大",
-          icon: <CanvasIconZoomIn className="size-3.5" />,
-          disabled: busy,
-          onClick: () => onCanvasTool("upscale"),
         }
       : null,
     mediaKind === "image" && onCanvasTool
@@ -1928,7 +1918,7 @@ function StudioInner() {
     const modelId = job?.input?.modelId;
     const basePrompt = job?.input?.prompt?.trim();
 
-    if (tool === "crop" || tool === "split" || tool === "upscale") {
+    if (tool === "crop" || tool === "split") {
       setImageTool({ mode: tool, asset });
       return;
     }
@@ -1955,10 +1945,10 @@ function StudioInner() {
         });
         await afterStudioJob(created.id, {
           kind: "image",
-          prompt: "转全景",
+          prompt: "转720°全景",
           modelName: job?.modelName,
         });
-        toast.success("已提交转全景任务");
+        toast.success("已提交转720°全景任务");
         return;
       }
       if (tool === "capture-frame") {
@@ -1992,7 +1982,6 @@ function StudioInner() {
     const labels: Record<ImageToolMode, string> = {
       crop: "裁剪",
       split: "切图",
-      upscale: "本地放大",
       view: "查看大图",
     };
     const label = labels[session.mode] ?? "本地编辑";

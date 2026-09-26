@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/shared/lib/utils";
 import { staticAssetUrl } from "@/shared/lib/static-asset";
+import { api, ApiError } from "@/shared/lib/api";
+import { toast } from "@/shared/lib/toast";
 import { useManjuStore } from "../manju-store";
 import {
   MODE_OPTIONS,
@@ -24,10 +26,11 @@ import {
   type ManjuVideoSettings,
 } from "../manju-types";
 import {
-  STYLE_TEMPLATES,
+  mapStyleApiRows,
   styleIdFromPrompt,
   styleTemplateById,
   type ManjuStyleTemplate,
+  type StyleApiRow,
 } from "../config/manju-style-templates";
 
 const FormSchema = ManjuVideoSettingsSchema;
@@ -81,13 +84,30 @@ export function VideoSettingsStep({
     Boolean(s.videoJobId || s.videoUrl),
   );
 
+  const [styles, setStyles] = useState<ManjuStyleTemplate[]>([]);
+
   useEffect(() => {
     markStepComplete(project.id, "video-settings");
   }, [markStepComplete, project.id]);
 
+  useEffect(() => {
+    let alive = true;
+    void api<StyleApiRow[]>("/styles?surface=manju")
+      .then((rows) => {
+        if (!alive) return;
+        setStyles(mapStyleApiRows(rows));
+      })
+      .catch((e) => {
+        toast.error(e instanceof ApiError ? e.message : "加载风格库失败");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const resolvedStyleId =
     project.settings.styleId ||
-    styleIdFromPrompt(project.settings.style) ||
+    styleIdFromPrompt(project.settings.style, styles) ||
     undefined;
 
   const form = useForm<FormValues>({
@@ -117,12 +137,12 @@ export function VideoSettingsStep({
       llmModelId: next.llmModelId || undefined,
       imageModelId: next.imageModelId || undefined,
       videoModelId: next.videoModelId || undefined,
-      styleId: next.styleId || styleIdFromPrompt(next.style),
+      styleId: next.styleId || styleIdFromPrompt(next.style, styles),
     });
   };
 
   const pickStyle = (id: string) => {
-    const tpl = styleTemplateById(id);
+    const tpl = styleTemplateById(id, styles);
     if (!tpl) return;
     commit({ styleId: tpl.id, style: tpl.prompt });
     setStyleLibraryOpen(false);
@@ -130,16 +150,16 @@ export function VideoSettingsStep({
 
   /** 有效选中 id：忽略已废弃的 styleId，回退到提示词匹配 */
   const activeStyleId =
-    (settings.styleId && styleTemplateById(settings.styleId)?.id) ||
-    styleIdFromPrompt(settings.style) ||
+    (settings.styleId && styleTemplateById(settings.styleId, styles)?.id) ||
+    styleIdFromPrompt(settings.style, styles) ||
     undefined;
 
   const isStyleActive = (id: string) => activeStyleId === id;
 
   const previewStyles = (() => {
-    const head = STYLE_TEMPLATES.slice(0, STYLE_PREVIEW_COUNT);
+    const head = styles.slice(0, STYLE_PREVIEW_COUNT);
     if (!activeStyleId || head.some((t) => t.id === activeStyleId)) return head;
-    const active = STYLE_TEMPLATES.find((t) => t.id === activeStyleId);
+    const active = styles.find((t) => t.id === activeStyleId);
     if (!active) return head;
     return [active, ...head.slice(0, STYLE_PREVIEW_COUNT - 1)];
   })();
@@ -313,11 +333,11 @@ export function VideoSettingsStep({
               <DialogTitle>风格库</DialogTitle>
             </DialogHeader>
             <div className="manju-style-dialog__body">
-              {STYLE_TEMPLATES.length === 0 ? (
+              {styles.length === 0 ? (
                 <div className="manju-style-dialog__empty">暂无风格模板</div>
               ) : (
                 <div className="manju-style-dialog__grid">
-                  {STYLE_TEMPLATES.map((t) => (
+                  {styles.map((t) => (
                     <StyleCard
                       key={t.id}
                       template={t}
@@ -360,7 +380,7 @@ export function VideoSettingsStep({
               const style = e.target.value.trim();
               commit({
                 style: style || project.settings.style,
-                styleId: styleIdFromPrompt(style),
+                styleId: styleIdFromPrompt(style, styles),
               });
             }}
             placeholder="自定义风格描述"

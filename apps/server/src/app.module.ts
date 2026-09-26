@@ -23,6 +23,9 @@ import { AuditModule } from "./modules/audit/audit.module";
 import { SkillsModule } from "./modules/skills/skills.module";
 import { InspireBannersModule } from "./modules/inspire-banners/inspire-banners.module";
 import { InspireShowcaseModule } from "./modules/inspire-showcase/inspire-showcase.module";
+import { PromptPresetsModule } from "./modules/prompt-presets/prompt-presets.module";
+import { StylesModule } from "./modules/styles/styles.module";
+import { CameraMovesModule } from "./modules/camera-moves/camera-moves.module";
 import { BootstrapService } from "./common/bootstrap.service";
 
 @Module({
@@ -55,6 +58,9 @@ import { BootstrapService } from "./common/bootstrap.service";
     SkillsModule,
     InspireBannersModule,
     InspireShowcaseModule,
+    PromptPresetsModule,
+    StylesModule,
+    CameraMovesModule,
     JobsModule,
     StorageModule,
     AssetsModule,

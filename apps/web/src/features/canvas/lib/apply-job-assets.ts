@@ -178,6 +178,9 @@ export function applyJobAssetsToMatches(opts: {
       .filter((edge) => edge.source === promptNode.id)
       .map((edge) => state.nodes.find((item) => item.id === edge.target))
       .filter((item): item is CanvasNode => Boolean(item));
+    const upstream = state.edges
+      .filter((edge) => edge.target === promptNode.id)
+      .map((edge) => edge.source);
 
     let emptySlots = outgoing.filter(
       (item) =>
@@ -200,6 +203,12 @@ export function applyJobAssetsToMatches(opts: {
         kind === "panorama" ? { projection: "equirectangular" } : {};
       const titlePatch = named ? { title: named } : {};
 
+      const wireResult = (resultId: string) => {
+        const live = useCanvasStore.getState();
+        live.addEdge(promptNode.id, resultId);
+        for (const source of upstream) live.addEdge(source, resultId);
+      };
+
       const slot = emptySlots[0];
       if (slot && (slot.type === kind || isEmptyMedia(slot))) {
         emptySlots = emptySlots.slice(1);
@@ -208,6 +217,7 @@ export function applyJobAssetsToMatches(opts: {
           ...titlePatch,
           ...projection,
         });
+        wireResult(slot.id);
         promptFilled.push(slot.id);
         if (kind === "panorama") opts.onPanoramaNote?.(slot.id, asset.url);
         else if (kind === "image" || kind === "video") {
@@ -227,7 +237,7 @@ export function applyJobAssetsToMatches(opts: {
         ...titlePatch,
         ...projection,
       });
-      useCanvasStore.getState().addEdge(promptNode.id, id);
+      wireResult(id);
       promptFilled.push(id);
       if (kind === "panorama") opts.onPanoramaNote?.(id, asset.url);
       else if (kind === "image" || kind === "video") {

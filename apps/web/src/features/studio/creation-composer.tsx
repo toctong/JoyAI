@@ -14,8 +14,8 @@ import {
   Orbit,
   Plus,
   RectangleHorizontal,
-  Sparkles,
   Music,
+  WandSparkles,
   X,
 } from "lucide-react";
 import { ImageGenIcon, VideoGenIcon } from "./gen-kind-icons";
@@ -38,6 +38,7 @@ import {
   getGeneratePayload,
   mentionExpandText,
   normalizeOmniWireMentions,
+  optimizePromptText,
   setEditorPlainText,
 } from "@/features/ai-prompt";
 import { cn } from "@/shared/lib/utils";
@@ -421,6 +422,7 @@ export function CreationComposer({
   const [models, setModels] = useState<PublicModel[]>([]);
   const [modelId, setModelId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [editorFocused, setEditorFocused] = useState(false);
   const [composerHovered, setComposerHovered] = useState(false);
@@ -1150,7 +1152,30 @@ export function CreationComposer({
     editorRef.current?.commands.focus("end");
   }
 
-  const cost = kind === "image" ? n : Math.max(1, Math.round(duration / 2));
+  async function optimizePrompt() {
+    const raw =
+      getGeneratePayload(editorRef.current).prompt.trim() || prompt.trim();
+    if (!raw || optimizing || submitting) return;
+    setOptimizing(true);
+    const toastId = toast.loading("正在优化提示词…");
+    try {
+      const next = await optimizePromptText(raw);
+      setEditorPlainText(editorRef.current, next);
+      setPrompt(next);
+      toast.success("提示词已优化", { id: toastId });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        toast.dismiss(toastId);
+        return;
+      }
+      toast.error(error instanceof Error ? error.message : "优化失败", {
+        id: toastId,
+      });
+    } finally {
+      setOptimizing(false);
+    }
+  }
+
   const rippleIdle =
     !prompt.trim() &&
     refs.length === 0 &&
@@ -1339,6 +1364,7 @@ export function CreationComposer({
                 initialText={prompt}
                 mentionItems={mentionItems}
                 placeholder={placeholder}
+                disabled={submitting || optimizing}
                 onPlainChange={setPrompt}
                 onKindCommand={(next) => {
                   if (lockedKind) return;
@@ -1663,14 +1689,27 @@ export function CreationComposer({
           </div>
 
           <div className="joy-composer-toolbar-right">
-            <span className="joy-composer-cost" title="预计消耗">
-              <Sparkles className="h-3.5 w-3.5" />
-              {cost}
-            </span>
+            <button
+              type="button"
+              className={cn(
+                "joy-composer-optimize",
+                Boolean(prompt.trim()) && !submitting && !optimizing && "is-ready",
+              )}
+              disabled={!prompt.trim() || submitting || optimizing}
+              aria-label="提示词优化"
+              title="提示词优化"
+              onClick={() => void optimizePrompt()}
+            >
+              {optimizing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <WandSparkles className="h-4 w-4" />
+              )}
+            </button>
             <button
               type="button"
               className={cn("joy-composer-send", canSend && "is-ready")}
-              disabled={submitting || !canSend}
+              disabled={submitting || optimizing || !canSend}
               onClick={() => void submit()}
               aria-label="生成"
             >

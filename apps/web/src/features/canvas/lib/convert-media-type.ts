@@ -95,7 +95,7 @@ export function convertImagePanoramaType(
     }
   }
 
-  toast.success(to === "panorama" ? "已转为全景节点" : "已转为图像节点");
+  toast.success(to === "panorama" ? "已转为720°全景节点" : "已转为图像节点");
 }
 
 /** Prefer keeping the source box; only force 2:1 when already landscape-wide. */
