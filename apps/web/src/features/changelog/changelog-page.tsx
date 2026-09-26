@@ -80,6 +80,30 @@ type CommitsPage = {
   hasMore: boolean;
 };
 
+/** Conventional Commit type → display emoji（更新日志扫一眼用） */
+const COMMIT_TYPE_EMOJI: Record<string, string> = {
+  feat: "🚀",
+  fix: "🐞",
+  docs: "📝",
+  style: "🌈",
+  refactor: "♻️",
+  perf: "⚡",
+  test: "✅",
+  build: "📦",
+  ci: "👷",
+  chore: "🔧",
+  revert: "⏪",
+};
+
+function commitEmoji(message: string, isMerge: boolean) {
+  if (isMerge) return "🔀";
+  const m = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]*\))?!?\s*:/i.exec(
+    message.trim(),
+  );
+  if (!m) return "📌";
+  return COMMIT_TYPE_EMOJI[m[1]!.toLowerCase()] ?? "📌";
+}
+
 function datePillLabel(iso: string) {
   const d = dayjs(iso);
   const today = dayjs().startOf("day");
@@ -239,114 +263,180 @@ export function ChangelogPage() {
             </p>
             <h1 className="joy-changelog-title">更新日志</h1>
             <p className="joy-changelog-desc">
-              {data ? (
-                <>
-                  仓库{" "}
-                  <span className="joy-changelog-repo">
-                    {data.owner}/{data.repo}
-                  </span>
-                  {" · "}提交记录（应用内只读，不跳转外站）
-                </>
-              ) : (
-                "拉取仓库提交记录"
-              )}
+              {data
+                ? "应用内只读提交记录，不跳转外站"
+                : "拉取仓库提交记录"}
             </p>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-8 shrink-0 rounded-[2px] shadow-none"
-            disabled={loading}
-            onClick={() => void load(1, false)}
-          >
-            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-            刷新
-          </Button>
+          {!data ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 shrink-0 rounded-[2px] shadow-none"
+              disabled={loading}
+              onClick={() => void load(1, false)}
+            >
+              <RefreshCw
+                className={cn("size-3.5", loading && "animate-spin")}
+              />
+              刷新
+            </Button>
+          ) : null}
         </header>
 
         {data ? (
           <div className="joy-changelog-summary">
-            <div className="joy-changelog-summary-top">
-              <div className="joy-changelog-summary-repo">
-                <span className="joy-changelog-summary-name">
-                  {data.owner}/{data.repo}
+            <div className="joy-changelog-summary-main">
+              <div className="joy-changelog-summary-identity">
+                <span className="joy-changelog-summary-mark" aria-hidden>
+                  <Github className="joy-changelog-summary-gh" />
                 </span>
-                <div className="joy-changelog-badges">
-                  <Badge
-                    variant="secondary"
-                    className="rounded-[2px] font-normal"
-                  >
-                    {meta?.private ? "私有" : "公开"}
-                  </Badge>
-                  {data.configured ? (
-                    <Badge className="rounded-[2px] font-normal">
-                      已配置 Token
-                    </Badge>
-                  ) : (
-                    <Badge
+                <div className="joy-changelog-summary-text">
+                  <div className="joy-changelog-summary-title-row">
+                    <h2 className="joy-changelog-summary-name">
+                      <span className="joy-changelog-summary-owner">
+                        {data.owner}
+                      </span>
+                      <span className="joy-changelog-summary-slash">/</span>
+                      <span className="joy-changelog-summary-repo-name">
+                        {data.repo}
+                      </span>
+                    </h2>
+                    <Button
+                      type="button"
                       variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 rounded-[2px] shadow-none"
+                      disabled={loading}
+                      onClick={() => void load(1, false)}
+                    >
+                      <RefreshCw
+                        className={cn("size-3.5", loading && "animate-spin")}
+                      />
+                      刷新
+                    </Button>
+                  </div>
+                  <div className="joy-changelog-badges">
+                    <Badge
+                      variant="secondary"
                       className="rounded-[2px] font-normal"
                     >
-                      未配置 Token
+                      {meta?.private ? "私有" : "公开"}
                     </Badge>
-                  )}
-                  {meta?.defaultBranch ? (
                     <Badge
                       variant="outline"
-                      className="rounded-[2px] gap-1 font-normal"
+                      className={cn(
+                        "rounded-[2px] font-normal",
+                        data.configured
+                          ? "border-emerald-500/35 text-emerald-700 dark:text-emerald-400"
+                          : "border-amber-500/35 text-amber-700 dark:text-amber-400",
+                      )}
                     >
-                      <GitBranch className="size-[var(--joy-icon-xs)]" />
-                      {meta.defaultBranch}
+                      {data.configured ? "Token 已配置" : "未配置 Token"}
                     </Badge>
-                  ) : null}
-                  {meta?.language ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-[2px] font-normal"
-                    >
-                      {meta.language}
-                    </Badge>
-                  ) : null}
-                  {meta?.license ? (
-                    <Badge
-                      variant="outline"
-                      className="rounded-[2px] gap-1 font-normal"
-                    >
-                      <Scale className="size-[var(--joy-icon-xs)]" />
-                      {meta.license}
-                    </Badge>
+                    {meta?.defaultBranch ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-[2px] gap-1 font-normal"
+                      >
+                        <GitBranch className="size-[var(--joy-icon-xs)]" />
+                        {meta.defaultBranch}
+                      </Badge>
+                    ) : null}
+                    {meta?.language ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-[2px] font-normal"
+                      >
+                        {meta.language}
+                      </Badge>
+                    ) : null}
+                    {meta?.license ? (
+                      <Badge
+                        variant="outline"
+                        className="rounded-[2px] gap-1 font-normal"
+                      >
+                        <Scale className="size-[var(--joy-icon-xs)]" />
+                        {meta.license}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {meta?.description ? (
+                    <p className="joy-changelog-summary-desc">
+                      {meta.description}
+                    </p>
                   ) : null}
                 </div>
               </div>
-              {meta?.description ? (
-                <p className="joy-changelog-summary-desc">{meta.description}</p>
-              ) : null}
             </div>
+
             <div className="joy-changelog-stats">
-              <span className="joy-changelog-stat">
-                <Star className="size-[var(--joy-icon-xs)]" />
-                {meta?.stars ?? "—"} Stars
-              </span>
-              <span className="joy-changelog-stat">
-                <GitFork className="size-[var(--joy-icon-xs)]" />
-                {meta?.forks ?? "—"} Forks
-              </span>
-              <span className="joy-changelog-stat">
-                <CircleDot className="size-[var(--joy-icon-xs)]" />
-                {meta?.openIssues ?? "—"} Issues
-              </span>
-              <span className="joy-changelog-stat">
-                <GitCommitHorizontal className="size-[var(--joy-icon-xs)]" />
-                已加载 {items.length} 条
-                {data.hasMore ? " · 还有更多" : ""}
-              </span>
-              {meta?.pushedAt ? (
-                <span className="joy-changelog-stat">
-                  <Clock3 className="size-[var(--joy-icon-xs)]" />
-                  最近推送 {dayjs(meta.pushedAt).fromNow()}
-                </span>
-              ) : null}
+              <div className="joy-changelog-stats-metrics">
+                <div className="joy-changelog-stat">
+                  <Star
+                    className="joy-changelog-stat-icon"
+                    aria-hidden
+                  />
+                  <div className="joy-changelog-stat-body">
+                    <span className="joy-changelog-stat-val">
+                      {meta?.stars ?? "—"}
+                    </span>
+                    <span className="joy-changelog-stat-label">Stars</span>
+                  </div>
+                </div>
+                <div className="joy-changelog-stat">
+                  <GitFork
+                    className="joy-changelog-stat-icon"
+                    aria-hidden
+                  />
+                  <div className="joy-changelog-stat-body">
+                    <span className="joy-changelog-stat-val">
+                      {meta?.forks ?? "—"}
+                    </span>
+                    <span className="joy-changelog-stat-label">Forks</span>
+                  </div>
+                </div>
+                <div className="joy-changelog-stat">
+                  <CircleDot
+                    className="joy-changelog-stat-icon"
+                    aria-hidden
+                  />
+                  <div className="joy-changelog-stat-body">
+                    <span className="joy-changelog-stat-val">
+                      {meta?.openIssues ?? "—"}
+                    </span>
+                    <span className="joy-changelog-stat-label">Issues</span>
+                  </div>
+                </div>
+              </div>
+              <div className="joy-changelog-stats-meta">
+                <div className="joy-changelog-stat-meta">
+                  <GitCommitHorizontal
+                    className="joy-changelog-stat-icon"
+                    aria-hidden
+                  />
+                  <span>
+                    已加载{" "}
+                    <strong className="joy-changelog-stat-em">
+                      {items.length}
+                    </strong>{" "}
+                    条
+                    {data.hasMore ? " · 还有更多" : ""}
+                  </span>
+                </div>
+                {meta?.pushedAt ? (
+                  <div className="joy-changelog-stat-meta">
+                    <Clock3
+                      className="joy-changelog-stat-icon"
+                      aria-hidden
+                    />
+                    <span>
+                      最近推送 {dayjs(meta.pushedAt).fromNow()}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         ) : null}
@@ -474,19 +564,34 @@ export function ChangelogPage() {
                       const showCommitter =
                         Boolean(committerLabel) &&
                         committerLabel !== authorLabel;
+                      const emoji = commitEmoji(c.message, c.isMerge);
                       return (
                         <li key={c.sha} className="joy-changelog-item">
-                          <div className="joy-changelog-rail" aria-hidden>
+                          <div
+                            className={cn(
+                              "joy-changelog-rail",
+                              c.isMerge && "is-merge",
+                            )}
+                            aria-hidden
+                          >
                             {c.isMerge ? (
                               <GitMerge className="joy-changelog-rail-icon" />
-                            ) : (
-                              <GitCommitHorizontal className="joy-changelog-rail-icon" />
-                            )}
+                            ) : null}
                           </div>
                           <div className="joy-changelog-card">
                             <div className="joy-changelog-card-main">
                               <div className="joy-changelog-msg-row">
-                                <p className="joy-changelog-msg">{c.message}</p>
+                                <p className="joy-changelog-msg">
+                                  <span
+                                    className="joy-changelog-emoji"
+                                    aria-hidden
+                                  >
+                                    {emoji}
+                                  </span>
+                                  <span className="joy-changelog-msg-text">
+                                    {c.message}
+                                  </span>
+                                </p>
                                 <div className="joy-changelog-tags">
                                   {c.isMerge ? (
                                     <Badge
@@ -506,9 +611,6 @@ export function ChangelogPage() {
                                       已验证
                                     </Badge>
                                   ) : null}
-                                  <span className="joy-changelog-date-chip">
-                                    {dayjs(c.authoredAt).format("YYYY-MM-DD")}
-                                  </span>
                                 </div>
                               </div>
                               {c.body ? (

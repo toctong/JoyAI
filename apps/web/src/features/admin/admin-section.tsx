@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useAuthHydrated, useAuthStore } from "@/shared/lib/auth-store";
+import { JoyBootLoading } from "@/shared/ui/joy-boot-loading";
 import "./admin-section.css";
 
 export function AdminSection({ children }: { children: React.ReactNode }) {
@@ -23,11 +24,7 @@ export function AdminSection({ children }: { children: React.ReactNode }) {
   }, [hydrated, token, user, router]);
 
   if (!hydrated) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        加载中…
-      </div>
-    );
+    return <JoyBootLoading fullScreen={false} label="加载中" />;
   }
 
   if (!token || user?.role !== "admin") {

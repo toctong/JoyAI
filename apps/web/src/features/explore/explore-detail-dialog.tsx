@@ -26,6 +26,7 @@ import {
   isJoyPhotoOpen,
   useDialogPhotoGuard,
 } from "@/shared/ui/use-dialog-photo-guard";
+import { stopAllVideoHoverPreviews } from "@/shared/lib/video-feed-preview";
 import { ExplorePlyrPlayer } from "./explore-plyr-player";
 import { ExploreDialogSkeleton } from "./explore-skeleton";
 import type { ExploreFeedItem } from "./types";
@@ -63,6 +64,7 @@ export function ExploreDetailDialog({
 
   useEffect(() => {
     if (!open) return;
+    stopAllVideoHoverPreviews();
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {

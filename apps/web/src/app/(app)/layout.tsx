@@ -12,6 +12,7 @@ import { AppSidebar } from "@/features/shell/app-sidebar";
 import { AppHeader } from "@/features/shell/app-header";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/shared/lib/utils";
+import { JoyBootLoading } from "@/shared/ui/joy-boot-loading";
 
 export default function AppShellLayout({
   children,
@@ -91,11 +92,7 @@ export default function AppShellLayout({
   }, [hydrated, token, setAuth, logout, router]);
 
   if (!hydrated) {
-    return (
-      <div className="flex h-svh items-center justify-center text-sm text-muted-foreground">
-        加载中…
-      </div>
-    );
+    return <JoyBootLoading label="正在进入" />;
   }
 
   if (!token) {

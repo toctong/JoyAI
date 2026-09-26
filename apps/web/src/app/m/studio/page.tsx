@@ -1,15 +1,10 @@
 import { Suspense } from "react";
 import { MobileStudioPage } from "@/features/mobile";
+import { JoyBootLoading } from "@/shared/ui/joy-boot-loading";
 
 export default function Page() {
   return (
-    <Suspense
-      fallback={
-        <div className="joy-m-page">
-          <p className="joy-m-page-desc">加载中…</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<JoyBootLoading fullScreen={false} label="加载中" />}>
       <MobileStudioPage />
     </Suspense>
   );

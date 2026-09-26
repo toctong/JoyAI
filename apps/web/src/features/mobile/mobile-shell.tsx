@@ -12,6 +12,7 @@ import {
   useAuthStore,
 } from "@/shared/lib/auth-store";
 import { VIEW_PREF_COOKIE, toDesktopPath } from "@/shared/lib/device";
+import { JoyBootLoading } from "@/shared/ui/joy-boot-loading";
 import { MobileTabbar } from "./mobile-tabbar";
 import "antd-mobile/es/global";
 import "./mobile.css";
@@ -67,15 +68,7 @@ export function MobileShell({ children }: { children: React.ReactNode }) {
   }, [hydrated, token, router]);
 
   if (!hydrated) {
-    return (
-      <div className="joy-m">
-        <div className="joy-m-body">
-          <div className="joy-m-page">
-            <p className="joy-m-page-desc">加载中…</p>
-          </div>
-        </div>
-      </div>
-    );
+    return <JoyBootLoading label="正在进入" />;
   }
 
   if (!token) {

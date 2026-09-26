@@ -231,10 +231,14 @@ const ExploreCard = memo(function ExploreCard({
       style={{ aspectRatio: ar }}
       role="button"
       tabIndex={0}
-      onClick={() => onOpen(item)}
+      onClick={() => {
+        ctlRef.current.stopPreview();
+        onOpen(item);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
+          ctlRef.current.stopPreview();
           onOpen(item);
         }
       }}

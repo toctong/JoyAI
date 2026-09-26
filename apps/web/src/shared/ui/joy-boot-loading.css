@@ -1,0 +1,43 @@
+/* Quiet boot — mark only, no chrome */
+
+.joy-boot-loading {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--joy-space-6);
+  background: var(--joy-surface);
+}
+
+.joy-boot-loading.is-fullscreen {
+  min-height: 100svh;
+}
+
+.joy-boot-loading.is-fill {
+  min-height: 100%;
+}
+
+.joy-boot-loading-mark {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  opacity: 0.55;
+  animation: joy-boot-fade 1.4s ease-in-out infinite;
+}
+
+@keyframes joy-boot-fade {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joy-boot-loading-mark {
+    animation: none;
+    opacity: 0.7;
+  }
+}

@@ -2,16 +2,11 @@
 
 import { Suspense } from "react";
 import { InspireHome } from "@/features/inspire/inspire-home";
+import { JoyBootLoading } from "@/shared/ui/joy-boot-loading";
 
 export default function InspirePage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-full items-center justify-center text-muted-foreground">
-          加载中…
-        </div>
-      }
-    >
+    <Suspense fallback={<JoyBootLoading fullScreen={false} label="加载中" />}>
       <InspireHome />
     </Suspense>
   );

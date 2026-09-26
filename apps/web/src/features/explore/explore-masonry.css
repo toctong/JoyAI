@@ -20,7 +20,8 @@
   cursor: pointer;
   /* 比例占位：避免图片未加载时高度塌陷导致大空白 */
   width: 100%;
-  contain: layout paint;
+  /* layout only — paint contain + transforming <video> tears on Windows GPU */
+  contain: layout;
 }
 
 .joy-explore-card-skel {
@@ -82,10 +83,16 @@ video.joy-explore-media:not(.is-hover-play) {
   opacity: 0;
 }
 
-.joy-explore-card:hover .joy-explore-media.is-ready,
-.joy-explore-card.is-previewing .joy-explore-media.is-ready {
+/* Scale poster/image only — never transform a playing <video> (GPU tear) */
+.joy-explore-card:hover img.joy-explore-media.is-ready,
+.joy-explore-card.is-previewing img.joy-explore-media.is-ready {
   transform: scale(1.03);
   transition: opacity 0.2s ease, transform 0.35s ease;
+}
+
+.joy-explore-card:hover video.joy-explore-media,
+.joy-explore-card.is-previewing video.joy-explore-media {
+  transform: none;
 }
 
 /* 悬停遮罩叠在媒体上，保持深色渐变以保证字可读 */
