@@ -29,6 +29,8 @@ type Props = {
   initialView?: Partial<PanoramaView>;
   /** Inline previews pass false so the node can still be dragged. */
   orbit?: boolean;
+  /** Slow yaw spin while true. */
+  autorotate?: boolean;
   onReady?: (api: PanoramaViewerApi) => void;
   onViewChange?: (view: PanoramaView) => void;
 };
@@ -37,6 +39,10 @@ type Props = {
 const MIN_FOV = 25;
 const MAX_FOV = 110;
 const DEFAULT_VIEW: PanoramaView = { yaw: 0, pitch: 0, fov: 67.5 };
+/** rad/s — gentle spin for auto preview */
+const AUTOROTATE_SPEED = 0.12;
+
+export { DEFAULT_VIEW, MIN_FOV, MAX_FOV };
 
 function clampFov(fov: number) {
   return Math.max(MIN_FOV, Math.min(MAX_FOV, fov));
@@ -69,6 +75,7 @@ export function PanoramaViewer({
   active = true,
   initialView,
   orbit = true,
+  autorotate = false,
   onReady,
   onViewChange,
 }: Props) {
@@ -264,6 +271,33 @@ export function PanoramaViewer({
       /* viewer may be disposing */
     }
   }, [orbit]);
+
+  useEffect(() => {
+    if (!active || !autorotate) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const viewer = viewerRef.current;
+      if (viewer) {
+        const dt = Math.min(0.05, (now - last) / 1000);
+        last = now;
+        try {
+          const pos = viewer.getPosition();
+          viewer.rotate({
+            yaw: pos.yaw + AUTOROTATE_SPEED * dt,
+            pitch: pos.pitch,
+          });
+        } catch {
+          /* disposing */
+        }
+      } else {
+        last = now;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [active, autorotate]);
 
   if (!active) {
     return (

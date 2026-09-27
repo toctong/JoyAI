@@ -36,16 +36,15 @@ import {
   CanvasIconSparkles,
   CanvasIconUpload,
 } from "./icons/canvas-icons";
-import { captureVideoFrame } from "./lib/capture-video-frame";
+import { spawnVideoFrameNode } from "./lib/spawn-video-frame-node";
 import { separateAudioToNode } from "./lib/extract-audio-to-node";
 import { videoRefMode } from "./lib/video-ref-mode";
-import { getPlaybackTime } from "./lib/playback-clock";
 import { wrapPanoramaPrompt } from "./lib/panorama-prompt";
 import { convertImagePanoramaType } from "./lib/convert-media-type";
 import {
   collectIncomingMediaFromEdges,
 } from "./lib/canvas-media-refs";
-import { uploadFileIntoNode, uploadFileToNewNode } from "./lib/upload-to-node";
+import { uploadFileIntoNode } from "./lib/upload-to-node";
 import { api } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
@@ -75,6 +74,7 @@ type Props = {
   onOpenReversePrompt?: () => void;
   onOpenImageFx?: (mode: "lineart" | "colorize" | "character-sheet") => void;
   onOpenAudioTrim?: () => void;
+  onOpenFramePick?: () => void;
   onOpenMask?: () => void;
   onOpenRedraw?: () => void;
   onOpenOutpaint?: () => void;
@@ -140,6 +140,8 @@ const RASTER_ACTIONS = new Set<NodeToolbarAction>([
 
 /** Shown as their own buttons. Copy / delete are appended after the menus. */
 const BAR_ACTIONS = new Set<NodeToolbarAction>([
+  "autorotate",
+  "spawn-prompt",
   "capture-frame",
   "extract-audio",
   "trim-audio",
@@ -178,6 +180,7 @@ export function NodeFloatToolbar({
   onOpenReversePrompt,
   onOpenImageFx,
   onOpenAudioTrim,
+  onOpenFramePick,
   onOpenMask,
   onOpenRedraw,
   onOpenOutpaint,
@@ -323,33 +326,18 @@ export function NodeFloatToolbar({
     addEdge(node.id, id);
   }
 
-  async function captureFrame() {
+  async function captureFrameAt(at: "first" | "last") {
     if (!node || node.type !== "video" || !url || url.startsWith("data:")) {
       return;
     }
     try {
-      pushHistory();
-      const file = await captureVideoFrame(
-        url,
-        "current",
-        getPlaybackTime(node.id),
-      );
-      const imageId = await uploadFileToNewNode(
-        file,
-        {
-          x: node.x + (node.width ?? 280) + 40,
-          y: node.y,
-        },
-        {
-          history: false,
-          preferredType: "image",
-          title: "视频截帧",
-        },
-      );
-      addEdge(node.id, imageId);
-      toast.success("已截取当前帧");
+      await spawnVideoFrameNode(node, {
+        at,
+        title: at === "first" ? "首帧" : "尾帧",
+      });
+      toast.success(at === "first" ? "已抽取首帧" : "已抽取尾帧");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "截帧失败");
+      toast.error(e instanceof Error ? e.message : "抽帧失败");
     }
   }
 
@@ -520,46 +508,18 @@ export function NodeFloatToolbar({
             node.type !== "video" &&
             node.type !== "panorama" &&
             node.type !== "audio") ||
-          !url
+          !hasMedia
         ) {
           return null;
         }
         return (
           <ToolBtn
             key={action}
-            title={
-              node.type === "panorama"
-                ? "旁路生全景"
-                : node.type === "audio"
-                  ? "用音频生视频"
-                  : node.type === "video"
-                    ? "旁路生图"
-                    : "旁路生图"
-            }
-            label={
-              node.type === "panorama"
-                ? "生全景"
-                : node.type === "audio"
-                  ? "生视频"
-                  : "生图"
-            }
-            onClick={() =>
-              spawnPromptBeside(
-                node.type === "panorama"
-                  ? "生成可无缝衔接的 2:1 全景"
-                  : node.type === "audio"
-                    ? "基于参考音频生成视频"
-                    : "基于参考生成",
-                "generate",
-                node.type === "panorama"
-                  ? "panorama"
-                  : node.type === "audio"
-                    ? "video"
-                    : "image",
-              )
-            }
+            title="选择参考"
+            label="参考"
+            onClick={() => setRefPickerOpen(true)}
           >
-            <CanvasIconSparkles className="joy-canvas-tool-icon" />
+            <CanvasIconImage className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
       case "extract-audio":
@@ -601,6 +561,29 @@ export function NodeFloatToolbar({
             <CanvasIconImage className="joy-canvas-tool-icon" />
           </ToolBtn>
         );
+      case "autorotate": {
+        if (node.type !== "panorama" || !hasMedia) return null;
+        if (!node.data.panoramaPreview) return null;
+        const on = Boolean(node.data.panoramaAutorotate);
+        return (
+          <ToolBtn
+            key={action}
+            title={on ? "停止自动旋转" : "自动旋转"}
+            label="自动旋转"
+            onClick={() =>
+              updateNodeData(node.id, { panoramaAutorotate: !on })
+            }
+          >
+            <RotateCw
+              className={cn(
+                "joy-canvas-tool-icon",
+                on && "animate-spin text-primary",
+              )}
+              style={on ? { animationDuration: "2.4s" } : undefined}
+            />
+          </ToolBtn>
+        );
+      }
       case "open-director":
         if (node.type !== "director") return null;
         return (
@@ -630,14 +613,32 @@ export function NodeFloatToolbar({
       case "capture-frame":
         if (node.type !== "video" || !hasMedia) return null;
         return (
-          <ToolBtn
+          <ToolDrop
             key={action}
-            title="截取当前帧"
-            label="截帧"
-            onClick={() => void captureFrame()}
-          >
-            <CanvasIconFrame className="joy-canvas-tool-icon" />
-          </ToolBtn>
+            title="抽取视频帧"
+            label="抽帧"
+            icon={<CanvasIconImage className="joy-canvas-tool-icon" />}
+            items={[
+              {
+                id: "frame-first",
+                label: "首帧",
+                icon: null,
+                run: () => void captureFrameAt("first"),
+              },
+              {
+                id: "frame-last",
+                label: "尾帧",
+                icon: null,
+                run: () => void captureFrameAt("last"),
+              },
+              {
+                id: "frame-custom",
+                label: "自定义",
+                icon: null,
+                run: () => onOpenFramePick?.(),
+              },
+            ]}
+          />
         );
       case "outpaint":
         if (node.type !== "image" || !url || url.startsWith("data:")) return null;
@@ -846,6 +847,23 @@ export function NodeFloatToolbar({
   const moreItems: ToolMenuItem[] = [];
 
   if (!multi && node.type === "panorama") {
+    if (actions.includes("autorotate") && hasMedia && node.data.panoramaPreview) {
+      const on = Boolean(node.data.panoramaAutorotate);
+      primaryItems.push({
+        id: "autorotate",
+        label: "自动旋转",
+        icon: (
+          <RotateCw
+            className={cn(
+              "joy-canvas-tool-icon opacity-70",
+              on && "animate-spin text-primary opacity-100",
+            )}
+            style={on ? { animationDuration: "2.4s" } : undefined}
+          />
+        ),
+        run: () => updateNodeData(node.id, { panoramaAutorotate: !on }),
+      });
+    }
     if (actions.includes("to-image") && hasMedia) {
       primaryItems.push({
         id: "to-image",
@@ -937,14 +955,6 @@ export function NodeFloatToolbar({
         label: "角色设定图",
         icon: <CanvasIconSubject className="joy-canvas-tool-icon opacity-70" />,
         run: () => onOpenImageFx?.("character-sheet"),
-      });
-    }
-    if (actions.includes("node-history") && hasMedia) {
-      editItems.push({
-        id: "node-history",
-        label: "节点历史生成",
-        icon: <CanvasIconHistory className="joy-canvas-tool-icon opacity-70" />,
-        run: () => onOpenNodeHistory?.(),
       });
     }
     if (actions.includes("angle") && hasMedia) {
@@ -1051,6 +1061,14 @@ export function NodeFloatToolbar({
                 : "替换图片",
         icon: <CanvasIconUpload className="joy-canvas-tool-icon opacity-70" />,
         run: () => fileRef.current?.click(),
+      });
+    }
+    if (actions.includes("node-history") && hasMedia) {
+      moreItems.push({
+        id: "node-history",
+        label: "节点历史生成",
+        icon: <CanvasIconHistory className="joy-canvas-tool-icon opacity-70" />,
+        run: () => onOpenNodeHistory?.(),
       });
     }
     if (actions.includes("to-panorama") && node.type === "image" && hasMedia) {
@@ -1260,11 +1278,23 @@ export function NodeFloatToolbar({
         />
       ) : null}
 
-      {!multi && (node.type === "image" || node.type === "panorama") ? (
+      {!multi &&
+      (node.type === "image" ||
+        node.type === "video" ||
+        node.type === "panorama" ||
+        node.type === "audio") ? (
         <CanvasNodeRefDialog
           open={refPickerOpen}
           hostId={node.id}
-          hostLabel={node.type === "panorama" ? "全景" : "图像"}
+          hostLabel={
+            node.type === "panorama"
+              ? "全景"
+              : node.type === "video"
+                ? "视频"
+                : node.type === "audio"
+                  ? "音频"
+                  : "图像"
+          }
           onClose={() => setRefPickerOpen(false)}
           onConfirm={attachPickedRefs}
         />

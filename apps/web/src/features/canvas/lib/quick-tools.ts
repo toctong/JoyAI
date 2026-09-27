@@ -18,6 +18,7 @@ export const QUICK_TOOL_IDS = [
   "view-image",
   "upload",
   "to-image",
+  "autorotate",
   "save-asset",
   "download",
   "info",
@@ -31,7 +32,7 @@ export type QuickToolId = (typeof QUICK_TOOL_IDS)[number];
  * Reference float bar (image):
  * 参考 | 裁切 擦除 重绘 宫格 | 编辑▾ 效果▾ | 查看 …更多
  */
-export const LEAD_BAR_TOOL_IDS: QuickToolId[] = ["spawn-prompt"];
+export const LEAD_BAR_TOOL_IDS: QuickToolId[] = ["autorotate", "spawn-prompt"];
 
 export const PRIMARY_BAR_TOOL_IDS: QuickToolId[] = [
   "crop",
@@ -89,6 +90,7 @@ export const DEFAULT_QUICK_TOOL_IDS: QuickToolId[] = [
 ];
 
 export const DEFAULT_PANORAMA_QUICK_TOOL_IDS: QuickToolId[] = [
+  "autorotate",
   "spawn-prompt",
   "crop",
   "split",

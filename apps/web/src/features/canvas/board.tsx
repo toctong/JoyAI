@@ -72,10 +72,8 @@ import {
   type CanvasEdgeVisibility,
   type CanvasGridMode,
 } from "./lib/canvas-prefs";
-import {
-  captureVideoFrame,
-  type VideoFrameAt,
-} from "./lib/capture-video-frame";
+import { spawnVideoFrameNode } from "./lib/spawn-video-frame-node";
+import { getPlaybackTime } from "./lib/playback-clock";
 import { api, apiUpload } from "@/shared/lib/api";
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import {
@@ -96,6 +94,7 @@ import { ImageScribbleDialog } from "./image-scribble-dialog";
 import { ImageLightingDialog } from "./image-lighting-dialog";
 import { NodeInfoDialog } from "./node-info-dialog";
 import { AudioTrimDialog } from "./audio-trim-dialog";
+import { VideoFramePickDialog } from "./video-frame-dialog";
 import { MaskEditDialog } from "./mask-edit-dialog";
 import { ImageRedrawDialog } from "./image-redraw-dialog";
 import { trimMediaToFile } from "./lib/trim-audio";
@@ -122,7 +121,6 @@ import {
 import { separateAudioToNode } from "./lib/extract-audio-to-node";
 import { uploadFileToNewNode } from "./lib/upload-to-node";
 import { frameNodeToMedia } from "./lib/fit-node-size";
-import { getPlaybackTime } from "./lib/playback-clock";
 import {
   expandIdsWithBatch,
   isHiddenBatchChild,
@@ -285,6 +283,12 @@ export function CanvasBoard({
     url: string;
   } | null>(null);
   const [audioTrimBusy, setAudioTrimBusy] = useState(false);
+  const [framePick, setFramePick] = useState<{
+    nodeId: string;
+    url: string;
+    initialTime: number;
+  } | null>(null);
+  const [framePickBusy, setFramePickBusy] = useState(false);
   const [maskEdit, setMaskEdit] = useState<{
     nodeId: string;
     url: string;
@@ -473,24 +477,13 @@ export function CanvasBoard({
           const url = String(node.data.url ?? "");
           if (!url || url.startsWith("data:")) return;
           try {
-            pushHistory();
-            const file = await captureVideoFrame(url, "first", 0);
-            const imageId = await uploadFileToNewNode(
-              file,
-              {
-                x: node.x + (node.width ?? 280) + 40,
-                y: node.y,
-              },
-              {
-                history: false,
-                preferredType: "image",
-                title: "视频截帧",
-              },
-            );
-            addEdge(node.id, imageId);
-            toast.success("已截取帧并创建图像节点");
+            await spawnVideoFrameNode(node, {
+              at: "first",
+              title: "首帧",
+            });
+            toast.success("已抽取首帧");
           } catch (e) {
-            toast.error(e instanceof Error ? e.message : "截帧失败");
+            toast.error(e instanceof Error ? e.message : "抽帧失败");
           }
         })();
         return;
@@ -1602,41 +1595,6 @@ export function CanvasBoard({
     setAssetPickerOpen(false);
   }
 
-  async function handleCaptureVideoFrame(at: VideoFrameAt) {
-    const id = nodeMenu?.nodeId;
-    setNodeMenu(null);
-    if (!id) return;
-    const node = useCanvasStore.getState().nodes.find((n) => n.id === id);
-    if (!node || node.type !== "video") return;
-    const url = String(node.data.url ?? "");
-    if (!url || url.startsWith("data:")) return;
-    try {
-      pushHistory();
-      const file = await captureVideoFrame(
-        url,
-        at,
-        at === "current" ? getPlaybackTime(id) : 0,
-      );
-      const imageId = await uploadFileToNewNode(
-        file,
-        {
-          x: node.x + (node.width ?? 280) + 40,
-          y: node.y,
-        },
-        {
-          history: false,
-          preferredType: "image",
-          title:
-            at === "first" ? "首帧" : at === "last" ? "尾帧" : "当前帧",
-        },
-      );
-      addEdge(node.id, imageId);
-      toast.success("已截取帧并创建图像节点");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "截帧失败");
-    }
-  }
-
   function openImageTool(nodeId: string, mode: ImageToolMode) {
     const node = useCanvasStore.getState().nodes.find((item) => item.id === nodeId);
     const url = String(node?.data.url ?? "");
@@ -1701,6 +1659,48 @@ export function CanvasBoard({
       return;
     }
     setAudioTrim({ nodeId, url });
+  }
+
+  function openFramePick(nodeId: string) {
+    const node = useCanvasStore.getState().nodes.find((item) => item.id === nodeId);
+    const url = String(node?.data.url ?? "");
+    setNodeMenu(null);
+    if (!node || node.type !== "video" || !url || url.startsWith("data:")) {
+      toast.message("请先放入视频");
+      return;
+    }
+    setFramePick({
+      nodeId,
+      url,
+      initialTime: getPlaybackTime(nodeId),
+    });
+  }
+
+  async function commitFramePick(time: number) {
+    const session = framePick;
+    if (!session || framePickBusy) return;
+    const node = useCanvasStore
+      .getState()
+      .nodes.find((item) => item.id === session.nodeId);
+    if (!node || node.type !== "video") {
+      toast.error("节点已不存在");
+      setFramePick(null);
+      return;
+    }
+    setFramePickBusy(true);
+    try {
+      await spawnVideoFrameNode(node, {
+        at: "current",
+        currentTime: time,
+        title: "抽帧",
+      });
+      toast.success("已抽取帧并创建图像节点");
+      setFramePick(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "抽帧失败");
+    } finally {
+      setFramePickBusy(false);
+    }
   }
 
   function openMask(nodeId: string) {
@@ -2059,6 +2059,10 @@ export function CanvasBoard({
             onOpenAudioTrim={() => {
               const id = floatToolbarNodes[0]?.id;
               if (id) openAudioTrim(id);
+            }}
+            onOpenFramePick={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) openFramePick(id);
             }}
             onOpenMask={() => {
               const id = floatToolbarNodes[0]?.id;
@@ -2513,6 +2517,16 @@ export function CanvasBoard({
           if (!audioTrimBusy) setAudioTrim(null);
         }}
         onConfirm={(range) => void commitAudioTrim(range)}
+      />
+      <VideoFramePickDialog
+        url={framePick?.url ?? ""}
+        open={Boolean(framePick)}
+        busy={framePickBusy}
+        initialTime={framePick?.initialTime ?? 0}
+        onClose={() => {
+          if (!framePickBusy) setFramePick(null);
+        }}
+        onConfirm={(time) => void commitFramePick(time)}
       />
       <MaskEditDialog
         url={maskEdit?.url ?? ""}

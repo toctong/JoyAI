@@ -46,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
+import { CanvasProjectSwitcher } from "./canvas-project-switcher";
 
 type Props = {
   projectId: string;
@@ -78,8 +79,10 @@ export function CanvasTopBar({
   const toggleRight = useCanvasRightPanelStore((s) => s.toggle);
   const [draft, setDraft] = useState(title);
   const [editing, setEditing] = useState(false);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const titleWrapRef = useRef<HTMLDivElement>(null);
   const jsonImportRef = useRef<HTMLInputElement>(null);
+  const clickTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setDraft(title);
@@ -95,6 +98,14 @@ export function CanvasTopBar({
     document.addEventListener("pointerdown", close, true);
     return () => document.removeEventListener("pointerdown", close, true);
   }, [editing, draft, title]);
+
+  useEffect(() => {
+    return () => {
+      if (clickTimerRef.current != null) {
+        window.clearTimeout(clickTimerRef.current);
+      }
+    };
+  }, []);
 
   async function commitTitle() {
     setEditing(false);
@@ -138,6 +149,11 @@ export function CanvasTopBar({
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "导入失败");
     }
+  }
+
+  function openSwitcher() {
+    if (editing) return;
+    setSwitcherOpen(true);
   }
 
   return (
@@ -225,17 +241,48 @@ export function CanvasTopBar({
               className="joy-canvas-top-title-input"
             />
           ) : (
-            <button
-              type="button"
-              className="joy-canvas-top-title-btn"
-              onDoubleClick={() => setEditing(true)}
-              title="双击重命名"
+            <CanvasProjectSwitcher
+              projectId={projectId}
+              open={switcherOpen}
+              onOpenChange={setSwitcherOpen}
             >
-              <span className="joy-canvas-top-title-text">
-                {title || "未命名项目"}
-              </span>
-              <ChevronDown className="size-3 opacity-55" aria-hidden />
-            </button>
+              <button
+                type="button"
+                className="joy-canvas-top-title-btn"
+                title="点击切换画布 · 双击重命名"
+                aria-expanded={switcherOpen}
+                onClick={() => {
+                  if (clickTimerRef.current != null) {
+                    window.clearTimeout(clickTimerRef.current);
+                  }
+                  clickTimerRef.current = window.setTimeout(() => {
+                    clickTimerRef.current = null;
+                    openSwitcher();
+                  }, 220);
+                }}
+                onDoubleClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  if (clickTimerRef.current != null) {
+                    window.clearTimeout(clickTimerRef.current);
+                    clickTimerRef.current = null;
+                  }
+                  setSwitcherOpen(false);
+                  setEditing(true);
+                }}
+              >
+                <span className="joy-canvas-top-title-text">
+                  {title || "未命名项目"}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "size-3 shrink-0 opacity-55 transition-transform",
+                    switcherOpen && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </button>
+            </CanvasProjectSwitcher>
           )}
         </div>
 

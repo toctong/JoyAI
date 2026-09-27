@@ -2,13 +2,10 @@
 
 import {
   CanvasIconCamera,
-  CanvasIconClose,
-  CanvasIconMaximize,
+  CanvasIconImage,
   CanvasIconPanorama,
-  CanvasIconRetry,
 } from "../icons/canvas-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import type { CanvasNode } from "@joyai/shared";
 import {
   useCanvasStore,
@@ -27,6 +24,7 @@ import {
 import { isBusyStatus } from "../node-registry";
 import { cancelNodeJob } from "../lib/cancel-node-job";
 import {
+  DEFAULT_VIEW,
   PanoramaViewer,
   canvasToPngFile,
   type PanoramaViewerApi,
@@ -42,40 +40,16 @@ type Props = {
   onPointerDown: (e: React.PointerEvent) => void;
 };
 
-/** Cap simultaneous WebGL previews on the board (immersive always wins). */
-const LIVE_PREVIEW_LIMIT = 3;
-
-type PreviewEntry = {
-  id: string;
-  setActive: (active: boolean) => void;
-};
-
-const activePreviews: PreviewEntry[] = [];
-
-function releasePreview(entry: PreviewEntry) {
-  const index = activePreviews.indexOf(entry);
-  if (index >= 0) activePreviews.splice(index, 1);
+function formatViewLabel(view: PanoramaView) {
+  const yaw = Math.round((view.yaw * 180) / Math.PI);
+  const pitch = Math.round((view.pitch * 180) / Math.PI);
+  const zoom =
+    view.fov > 0 ? Math.max(0.1, DEFAULT_VIEW.fov / view.fov) : 1;
+  return `横 ${yaw}° · 纵 ${pitch}° · 缩放 ${zoom.toFixed(1)}x`;
 }
 
-function claimPreview(entry: PreviewEntry, force: boolean) {
-  const existing = activePreviews.indexOf(entry);
-  if (existing >= 0) {
-    activePreviews.splice(existing, 1);
-    activePreviews.push(entry);
-    entry.setActive(true);
-    return true;
-  }
-  if (activePreviews.length >= LIVE_PREVIEW_LIMIT) {
-    if (!force) {
-      entry.setActive(false);
-      return false;
-    }
-    activePreviews.shift()?.setActive(false);
-  }
-  activePreviews.push(entry);
-  entry.setActive(true);
-  return true;
-}
+const overlayPill =
+  "inline-flex items-center gap-1.5 rounded-lg bg-black/55 px-2.5 py-1.5 text-[12px] font-medium text-white backdrop-blur-sm";
 
 export function PanoramaNode({ node, onPointerDown }: Props) {
   const selected = useIsNodeSelected(node.id);
@@ -84,12 +58,12 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const addEdge = useCanvasStore((s) => s.addEdge);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
-  const [immersive, setImmersive] = useState(false);
+  const previewing = Boolean(node.data.panoramaPreview);
+  const autorotate = Boolean(node.data.panoramaAutorotate);
   const [hovered, setHovered] = useState(false);
-  const [livePreview, setLivePreview] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [liveView, setLiveView] = useState<PanoramaView | null>(null);
   const apiRef = useRef<PanoramaViewerApi | null>(null);
-  const entryRef = useRef<PreviewEntry | null>(null);
 
   const url = String(node.data.url ?? "");
   const status = String(node.data.status ?? "idle");
@@ -101,45 +75,28 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
   const onCancel = canCancel
     ? () => void cancelNodeJob(node.id)
     : undefined;
-  const wantLive = framed && (selected || hovered || immersive);
-  /** Immersive owns its own WebGL; the node shows the sphere, not the flat source. */
-  const showNodeViewer = livePreview && !immersive;
 
   useEffect(() => {
-    const entry: PreviewEntry = {
-      id: node.id,
-      setActive: setLivePreview,
-    };
-    entryRef.current = entry;
-    return () => {
-      releasePreview(entry);
-      if (entryRef.current === entry) entryRef.current = null;
-    };
-  }, [node.id]);
-
-  useEffect(() => {
-    const entry = entryRef.current;
-    if (!entry) return;
-    if (!wantLive) {
-      releasePreview(entry);
-      setLivePreview(false);
-      return;
+    if (previewing) return;
+    setLiveView(null);
+    apiRef.current = null;
+    if (autorotate) {
+      updateNodeData(node.id, { panoramaAutorotate: false });
     }
-    claimPreview(entry, immersive || selected);
-  }, [immersive, selected, wantLive]);
+  }, [previewing, autorotate, node.id, updateNodeData]);
 
   useEffect(() => {
-    if (!immersive) return;
+    if (!previewing) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        closeImmersive();
+        exitPreview();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [immersive]);
+  }, [previewing]);
 
   const persistView = useCallback(
     (view?: PanoramaView) => {
@@ -150,13 +107,21 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
     [node.id, updateNodeData],
   );
 
-  function closeImmersive() {
+  function exitPreview() {
     persistView();
-    setImmersive(false);
+    updateNodeData(node.id, {
+      panoramaPreview: false,
+      panoramaAutorotate: false,
+    });
   }
 
   const onReady = useCallback((api: PanoramaViewerApi) => {
     apiRef.current = api;
+    setLiveView(api.getView());
+  }, []);
+
+  const onViewChange = useCallback((view: PanoramaView) => {
+    setLiveView(view);
   }, []);
 
   async function captureView() {
@@ -186,12 +151,8 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
         },
       );
       addEdge(node.id, imageId);
-      const view = api?.getView();
-      if (view) {
-        updateNodeData(node.id, {
-          lastView: view,
-        });
-      }
+      const view = api.getView();
+      updateNodeData(node.id, { lastView: view });
       toast.success("已把当前视角落到画布", { id: toastId });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "截帧失败", {
@@ -213,189 +174,198 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
         })
       : undefined;
 
+  function enterPreview(event?: React.SyntheticEvent) {
+    event?.stopPropagation();
+    if (!framed) return;
+    updateNodeData(node.id, { panoramaPreview: true });
+  }
+
+  const viewLabel = formatViewLabel(
+    liveView ?? {
+      yaw: storedView?.yaw ?? DEFAULT_VIEW.yaw,
+      pitch: storedView?.pitch ?? DEFAULT_VIEW.pitch,
+      fov: storedView?.fov ?? DEFAULT_VIEW.fov,
+    },
+  );
+
   return (
-    <>
+    <div
+      onPointerDown={(event) => {
+        if ((event.target as HTMLElement).closest("[data-panorama-controls]")) {
+          event.stopPropagation();
+          return;
+        }
+        onPointerDown(event);
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onDoubleClick={(e) => {
+        if (!framed || previewing) return;
+        e.stopPropagation();
+        updateNodeData(node.id, { panoramaPreview: true });
+      }}
+      className={cn(
+        "absolute cursor-grab overflow-visible rounded-md active:cursor-grabbing",
+        nodeChromeClass({ selected, highlighted, pulsing, framed }),
+      )}
+      style={{
+        left: node.x,
+        top: node.y,
+        width: node.width ?? 340,
+        height: node.height ?? 170,
+      }}
+    >
+      <NodeTitleChip
+        nodeId={node.id}
+        label={nodeTitleLabel("panorama", node.data)}
+        customTitle={String(node.data.title ?? "")}
+        visible={framed || busy || selected || hovered}
+        icon={<CanvasIconPanorama />}
+        onDragPointerDown={onPointerDown}
+      />
       <div
-        onPointerDown={onPointerDown}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        onDoubleClick={(e) => {
-          if (!framed) return;
-          e.stopPropagation();
-          setImmersive(true);
-        }}
         className={cn(
-          "absolute cursor-grab overflow-visible rounded-md active:cursor-grabbing",
-          nodeChromeClass({ selected, highlighted, pulsing, framed }),
+          "relative h-full w-full overflow-hidden rounded-md",
+          framed && "bg-black",
         )}
-        style={{
-          left: node.x,
-          top: node.y,
-          width: node.width ?? 340,
-          height: node.height ?? 170,
-        }}
       >
-        <NodeTitleChip
-          nodeId={node.id}
-          label={nodeTitleLabel("panorama", node.data)}
-          customTitle={String(node.data.title ?? "")}
-          visible={framed || busy || selected || hovered}
-          icon={<CanvasIconPanorama />}
-          onDragPointerDown={onPointerDown}
-        />
-        <div
-          className={cn(
-            "relative h-full w-full overflow-hidden rounded-md",
-            framed && "bg-black",
-          )}
-        >          {framed ? (
-            showNodeViewer ? (
-              <PanoramaViewer
-                url={url}
-                active
-                orbit={selected}
-                initialView={storedView}
-                onReady={onReady}
-              />
-            ) : (
-              <div className="grid h-full w-full place-items-center bg-black">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt=""
-                  draggable={false}
-                  className="pointer-events-none max-h-full max-w-full select-none object-contain opacity-80"
-                  onDragStart={(event) => event.preventDefault()}
-                />
-              </div>
-            )
-          ) : busy ? (
-            <MediaBusyState
-              label={mediaBusyLabel(node.data)}
-              onCancel={onCancel}
+        {framed ? (
+          previewing ? (
+            <PanoramaViewer
+              url={url}
+              active
+              orbit
+              autorotate={autorotate}
+              initialView={storedView}
+              onReady={onReady}
+              onViewChange={onViewChange}
             />
           ) : (
-            <MediaUploadLabel nodeId={node.id} kind="panorama">
-              <CanvasIconPanorama />
-            </MediaUploadLabel>
-          )}
-          {framed && busy ? (
-            <MediaBusyState
-              overlay
-              label={mediaBusyLabel(node.data)}
-              onCancel={onCancel}
-            />
-          ) : null}
-          {framed && String(node.data.aspectHint ?? "") === "non-2:1" ? (
-            <div className="pointer-events-none absolute left-2 top-2 rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] text-black">
-              建议 2:1 全景图
+            <div className="grid h-full w-full place-items-center bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt=""
+                draggable={false}
+                className="pointer-events-none max-h-full max-w-full select-none object-contain"
+                onDragStart={(event) => event.preventDefault()}
+              />
             </div>
-          ) : null}
-          {framed ? (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-1 bg-gradient-to-t from-black/70 to-transparent p-2">
-              <div className="pointer-events-auto flex gap-1">
-                <button
-                  type="button"
-                  className="rounded-md bg-black/55 px-2 py-1 text-[11px] text-white hover:bg-black/70 disabled:opacity-40"
-                  title="截取当前视角"
-                  disabled={capturing || !showNodeViewer}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => void captureView()}
-                >
-                  <CanvasIconCamera className="mr-1 inline size-3" />
-                  截帧
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md bg-black/55 px-2 py-1 text-[11px] text-white hover:bg-black/70 disabled:opacity-40"
-                  title="重置视角"
-                  disabled={!showNodeViewer}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => apiRef.current?.resetView()}
-                >
-                  <CanvasIconRetry className="mr-1 inline size-3" />
-                  复位
-                </button>
-              </div>
-              <button
-                type="button"
-                className="pointer-events-auto rounded-md bg-black/55 px-2 py-1 text-[11px] text-white hover:bg-black/70"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => setImmersive(true)}
-              >
-                <CanvasIconMaximize className="mr-1 inline size-3" />
-                环视
-              </button>
-            </div>
-          ) : null}
-          <NodeRuntimeBadge
-            status={busy ? "idle" : status}
-            error={error}
-            busyLabel={mediaBusyLabel(node.data)}
-            onRetry={
-              status === "failed"
-                ? () =>
-                    updateNodeData(node.id, {
-                      status: "idle",
-                      error: "",
-                      jobId: "",
-                      busyLabel: "",
-                    })
-                : undefined
-            }
-          />
-        </div>
-      </div>
-
-      {immersive && framed && typeof document !== "undefined"
-        ? createPortal(
-            <div
-              className="fixed inset-0 z-[80] flex flex-col bg-black"
-              data-canvas-shortcuts-ignore
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-white">
-                <span>全景环视 · 拖动查看 · 滚轮缩放 · Esc 关闭</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-white/10 disabled:opacity-40"
-                    disabled={capturing}
-                    onClick={() => void captureView()}
-                  >
-                    <CanvasIconCamera className="size-3.5" />
-                    {capturing ? "截取中…" : "截取当前视角"}
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-white/10"
-                    onClick={() => apiRef.current?.resetView()}
-                  >
-                    <CanvasIconRetry className="size-3.5" />
-                    复位
-                  </button>
-                  <button
-                    type="button"
-                    className="grid size-8 place-items-center rounded-md hover:bg-white/10"
-                    aria-label="关闭"
-                    onClick={closeImmersive}
-                  >
-                    <CanvasIconClose className="size-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="min-h-0 flex-1">
-                <PanoramaViewer
-                  url={url}
-                  active
-                  initialView={storedView}
-                  onReady={onReady}
-                />
-              </div>
-            </div>,
-            document.body,
           )
-        : null}
-    </>
+        ) : busy ? (
+          <MediaBusyState
+            label={mediaBusyLabel(node.data)}
+            onCancel={onCancel}
+          />
+        ) : (
+          <MediaUploadLabel nodeId={node.id} kind="panorama">
+            <CanvasIconPanorama />
+          </MediaUploadLabel>
+        )}
+        {framed && busy ? (
+          <MediaBusyState
+            overlay
+            label={mediaBusyLabel(node.data)}
+            onCancel={onCancel}
+          />
+        ) : null}
+
+        {framed ? (
+          <>
+            <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-2">
+              <div className="flex flex-col gap-1">
+                <span className={cn(overlayPill, "w-fit rounded-full px-2 py-1 text-[11px]")}>
+                  <CanvasIconPanorama className="size-3 opacity-90" />
+                  720°全景
+                </span>
+                {!previewing &&
+                String(node.data.aspectHint ?? "") === "non-2:1" ? (
+                  <span className="w-fit rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] text-black">
+                    建议 2:1 全景图
+                  </span>
+                ) : null}
+              </div>
+              <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1.5">
+                {previewing ? (
+                  <>
+                    <button
+                      type="button"
+                      data-panorama-controls
+                      data-canvas-no-zoom
+                      title="截取当前视角"
+                      disabled={capturing}
+                      className={cn(
+                        overlayPill,
+                        "hover:bg-black/70 disabled:opacity-40",
+                      )}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void captureView();
+                      }}
+                    >
+                      <CanvasIconCamera className="size-3.5" />
+                      {capturing ? "截取中…" : "截帧"}
+                    </button>
+                    <button
+                      type="button"
+                      data-panorama-controls
+                      data-canvas-no-zoom
+                      title="退出预览"
+                      className={cn(overlayPill, "hover:bg-black/70")}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        exitPreview();
+                      }}
+                    >
+                      <CanvasIconImage className="size-3.5" />
+                      退出预览
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    data-panorama-controls
+                    data-canvas-no-zoom
+                    title="进入全景预览"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[12px] font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={enterPreview}
+                  >
+                    <CanvasIconPanorama className="size-3.5" />
+                    进入全景预览
+                  </button>
+                )}
+              </div>
+            </div>
+            {previewing ? (
+              <div className="pointer-events-none absolute bottom-2 right-2 z-10">
+                <span className={cn(overlayPill, "tabular-nums text-[11px]")}>
+                  {viewLabel}
+                </span>
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        <NodeRuntimeBadge
+          status={busy ? "idle" : status}
+          error={error}
+          busyLabel={mediaBusyLabel(node.data)}
+          onRetry={
+            status === "failed"
+              ? () =>
+                  updateNodeData(node.id, {
+                    status: "idle",
+                    error: "",
+                    jobId: "",
+                    busyLabel: "",
+                  })
+              : undefined
+          }
+        />
+      </div>
+    </div>
   );
 }

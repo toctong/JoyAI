@@ -27,6 +27,7 @@ export type NodeToolbarAction =
   | "reverse-prompt"
   | "to-panorama"
   | "to-image"
+  | "autorotate"
   | "open-director"
   | "text-to-prompt"
   | "font-down"
@@ -101,11 +102,12 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
     defaultHeight: CANVAS_NODE_SIZE.video.height,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
     toolbar: [
+      "spawn-prompt",
       "upload",
       "capture-frame",
       "extract-audio",
       "trim-audio",
-      "spawn-prompt",
+      "node-history",
       "save-asset",
       "download",
       "duplicate",
@@ -139,6 +141,7 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
       projection: "equirectangular",
     }),
     toolbar: [
+      "autorotate",
       "upload",
       "spawn-prompt",
       "crop",
@@ -162,9 +165,10 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
     defaultHeight: CANVAS_NODE_SIZE.audio.height,
     defaultData: () => ({ url: "", assetId: "", status: "idle" }),
     toolbar: [
+      "spawn-prompt",
       "upload",
       "trim-audio",
-      "spawn-prompt",
+      "node-history",
       "save-asset",
       "download",
       "duplicate",

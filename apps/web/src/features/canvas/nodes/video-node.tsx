@@ -47,6 +47,11 @@ function formatClock(seconds: number) {
   return `${m}:${ss}`;
 }
 
+function readDuration(video: HTMLVideoElement) {
+  const next = video.duration;
+  return Number.isFinite(next) && next > 0 ? next : 0;
+}
+
 export function VideoNode({ node, onPointerDown }: Props) {
   const selected = useIsNodeSelected(node.id);
   const highlighted = useIsNodeHighlighted(node.id);
@@ -80,6 +85,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
       ? `${Math.round(mediaW)} × ${Math.round(mediaH)}`
       : undefined;
   const showControls = framed && (selected || hovered);
+  const canSeek = duration > 0;
 
   useEffect(() => {
     setPlaying(false);
@@ -90,8 +96,44 @@ export function VideoNode({ node, onPointerDown }: Props) {
   }, [url]);
 
   useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !url) return;
+
+    const syncDuration = () => {
+      const next = readDuration(video);
+      if (next > 0) setDuration(next);
+    };
+
+    syncDuration();
+    video.addEventListener("loadedmetadata", syncDuration);
+    video.addEventListener("durationchange", syncDuration);
+    return () => {
+      video.removeEventListener("loadedmetadata", syncDuration);
+      video.removeEventListener("durationchange", syncDuration);
+    };
+  }, [url]);
+
+  useEffect(() => {
     if (!selected) videoRef.current?.pause();
   }, [selected, url]);
+
+  useEffect(() => {
+    if (!playing) return;
+    let raf = 0;
+    const tick = () => {
+      const video = videoRef.current;
+      if (video) {
+        const next = video.currentTime;
+        setTime(next);
+        setPlaybackTime(node.id, next);
+        const dur = readDuration(video);
+        if (dur > 0) setDuration(dur);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, node.id]);
 
   useEffect(() => {
     if (!preview) return;
@@ -105,8 +147,13 @@ export function VideoNode({ node, onPointerDown }: Props) {
   function togglePlayback() {
     const video = videoRef.current;
     if (!video) return;
-    if (video.paused) void video.play();
-    else video.pause();
+    if (video.paused) {
+      void video.play().catch(() => {
+        setPlaying(false);
+      });
+    } else {
+      video.pause();
+    }
   }
 
   function openPreview() {
@@ -115,7 +162,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
   }
 
   function seekToClientX(clientX: number, track: HTMLElement) {
-    if (duration <= 0) return;
+    if (!canSeek) return;
     const rect = track.getBoundingClientRect();
     if (rect.width <= 0) return;
     const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
@@ -127,7 +174,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
     setPlaybackTime(node.id, next);
   }
 
-  const progress = duration > 0 ? Math.min(time / duration, 1) : 0;
+  const progress = canSeek ? Math.min(Math.max(time / duration, 0), 1) : 0;
 
   return (
     <div
@@ -173,22 +220,22 @@ export function VideoNode({ node, onPointerDown }: Props) {
             src={url}
             draggable={false}
             playsInline
+            preload="metadata"
             className={cn(
               "pointer-events-none h-full w-full select-none",
               node.data.freeResize ? "object-fill" : "object-contain",
             )}
             onDragStart={(event) => event.preventDefault()}
-            onLoadedMetadata={(event) => {
-              const next = event.currentTarget.duration;
-              setDuration(Number.isFinite(next) ? next : 0);
-            }}
             onTimeUpdate={(event) => {
               const next = event.currentTarget.currentTime;
               setTime(next);
               setPlaybackTime(node.id, next);
+              const dur = readDuration(event.currentTarget);
+              if (dur > 0) setDuration(dur);
             }}
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
+            onEnded={() => setPlaying(false)}
           />
         ) : busy ? (
           <MediaBusyState
@@ -207,9 +254,9 @@ export function VideoNode({ node, onPointerDown }: Props) {
             onCancel={onCancel}
           />
         ) : null}
-        {showControls && duration > 0 ? (
+        {showControls && canSeek ? (
           <span className="pointer-events-none absolute left-2 top-2 z-20 rounded-md bg-black/55 px-2 py-1 text-[11px] font-medium text-white">
-            {formatClock(duration)}
+            {formatClock(time)} / {formatClock(duration)}
           </span>
         ) : null}
         {showControls ? (
@@ -217,6 +264,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
             <button
               type="button"
               data-video-controls
+              data-canvas-no-zoom
               title={playing ? "暂停" : "播放"}
               aria-label={playing ? "暂停" : "播放"}
               className="absolute bottom-2 left-2 z-20 flex size-7 items-center justify-center rounded-md bg-black/55 text-white hover:bg-black/75"
@@ -235,6 +283,7 @@ export function VideoNode({ node, onPointerDown }: Props) {
             <button
               type="button"
               data-video-controls
+              data-canvas-no-zoom
               title="放大预览"
               aria-label="放大预览"
               className="absolute bottom-2 right-2 z-20 flex size-7 items-center justify-center rounded-md bg-black/55 text-white hover:bg-black/75"
@@ -248,22 +297,28 @@ export function VideoNode({ node, onPointerDown }: Props) {
             </button>
             <div
               data-video-controls
+              data-canvas-no-zoom
               role="slider"
               aria-label="视频进度"
               aria-valuemin={0}
               aria-valuemax={duration || 0}
               aria-valuenow={Math.min(time, duration || 0)}
-              className="absolute bottom-2 left-11 right-11 z-20 flex h-7 cursor-pointer items-center"
+              className={cn(
+                "absolute bottom-2 left-11 right-11 z-20 flex h-7 items-center",
+                canSeek ? "cursor-pointer" : "cursor-default opacity-60",
+              )}
               style={{ touchAction: "none" }}
               onPointerDown={(event) => {
-                if (event.button !== 0 || duration <= 0) return;
+                if (event.button !== 0 || !canSeek) return;
                 event.stopPropagation();
                 event.preventDefault();
                 event.currentTarget.setPointerCapture(event.pointerId);
                 seekToClientX(event.clientX, event.currentTarget);
               }}
               onPointerMove={(event) => {
-                if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  return;
+                }
                 event.stopPropagation();
                 seekToClientX(event.clientX, event.currentTarget);
               }}

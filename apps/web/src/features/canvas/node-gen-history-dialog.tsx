@@ -187,7 +187,7 @@ export function NodeGenHistoryDialog({
       <DialogContent
         data-canvas-no-zoom
         data-canvas-shortcuts-ignore
-        className="flex max-h-[min(88vh,720px)] max-w-3xl flex-col gap-0 overflow-hidden p-0"
+        className="flex h-[min(640px,calc(100vh-48px))] w-[min(920px,calc(100vw-48px))] max-w-none flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:rounded-2xl"
         onPointerDown={(event) => event.stopPropagation()}
       >
         <DialogHeader className="shrink-0 space-y-1 border-b px-5 py-4 text-left">
@@ -212,7 +212,7 @@ export function NodeGenHistoryDialog({
               暂无生成记录。对本节点再生成一次后，旧版本会出现在这里。
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
               {rows.map((row, index) => (
                   <button
                     key={row.key}
