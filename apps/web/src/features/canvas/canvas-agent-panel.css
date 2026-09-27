@@ -2,17 +2,17 @@
 
 .joy-agent-composer {
   border-top: 1px solid var(--border);
-  padding: 10px 12px 12px;
+  padding: 8px 12px 10px;
 }
 
 .joy-agent-composer-shell {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: color-mix(in oklab, var(--muted) 35%, var(--background));
-  padding: 10px 10px 8px;
+  padding: 8px 8px 6px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -22,17 +22,19 @@
 }
 
 .joy-agent-composer-input {
-  min-height: 64px;
-  max-height: 160px;
+  min-height: 22px;
+  max-height: 120px;
   width: 100%;
   resize: none;
+  overflow-y: auto;
   border: 0;
   background: transparent;
   padding: 2px 4px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--foreground);
   outline: none;
+  field-sizing: content;
 }
 
 .joy-agent-composer-input::placeholder {

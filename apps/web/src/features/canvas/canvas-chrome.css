@@ -372,6 +372,109 @@
   transform: translateY(-50%);
 }
 
+/* Shared shell size for materials library dialogs (资产 / Skill / 提示词 / 探索) */
+.joy-canvas-library-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(880px, calc(100vw - 48px));
+  height: min(680px, calc(100vh - 48px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 24px 64px color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+/* Bottom toolbar — materials / library popover */
+.joy-canvas-library-pop {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 12px 40px color-mix(in oklab, var(--foreground) 12%, transparent);
+  overflow: hidden;
+}
+
+.joy-canvas-library-pop-head {
+  padding: 10px 12px 6px;
+  font-size: var(--joy-font-caption);
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.joy-canvas-library-pop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px 8px;
+}
+
+.joy-canvas-library-pop-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  padding: 8px 8px;
+  text-align: left;
+  color: var(--popover-foreground);
+  transition: background 0.12s ease;
+}
+
+.joy-canvas-library-pop-item:hover {
+  background: color-mix(in oklab, var(--muted) 75%, transparent);
+}
+
+.joy-canvas-library-pop-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  color: color-mix(in oklab, var(--popover-foreground) 82%, transparent);
+}
+
+.joy-canvas-library-pop-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.joy-canvas-library-pop-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--joy-font-label);
+  font-weight: 550;
+  line-height: 1.2;
+}
+
+.joy-canvas-library-pop-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  border-radius: 999px;
+  padding: 0 5px;
+  background: color-mix(in oklab, var(--primary) 16%, transparent);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.joy-canvas-library-pop-hint {
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--muted-foreground);
+}
+
 .joy-canvas-menu-item {
   color: var(--popover-foreground);
 }

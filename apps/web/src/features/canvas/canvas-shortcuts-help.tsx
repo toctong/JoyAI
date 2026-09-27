@@ -153,7 +153,7 @@ export function CanvasShortcutsHelp({ open, onClose }: Props) {
     },
     {
       title: "从资产添加",
-      desc: "底栏资产或左侧资产库，把素材插入画布。",
+      desc: "底栏素材库 → 资产库，或左侧资产入口，把素材插入画布。",
       Icon: CanvasIconFolderPlus,
     },
   ];

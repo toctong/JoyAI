@@ -109,10 +109,24 @@ class UpdateSkillDto {
   sortOrder?: number;
 }
 
+class ListPublicSkillsQueryDto {
+  @IsOptional()
+  @IsIn(SKILL_CATEGORIES)
+  category?: SkillCategory;
+}
+
 @ApiTags("skills")
 @Controller()
 export class SkillsController {
   constructor(private readonly skills: SkillsService) {}
+
+  /** Enabled skills for product UIs (no systemPrompt). */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get("skills")
+  listPublic(@Query() query: ListPublicSkillsQueryDto) {
+    return this.skills.listPublic(query);
+  }
 
   @ApiBearerAuth()
   @Roles("admin")

@@ -81,7 +81,8 @@ export type CanvasSvgName =
   | "move"
   | "folder-plus"
   | "cloud-check"
-  | "cloud-upload";
+  | "cloud-upload"
+  | "library";
 
 type Props = {
   name: CanvasSvgName;
@@ -89,7 +90,7 @@ type Props = {
   title?: string;
 };
 
-const CANVAS_ICON_REV = "director-cube-2";
+const CANVAS_ICON_REV = "library-1";
 
 /**
  * Canvas icons from `/public/canvas-icons/*.svg` (Lucide outline → CSS mask).

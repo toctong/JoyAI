@@ -10,6 +10,9 @@ import type {
 } from "@joyai/shared";
 import { useCanvasStore } from "./store";
 import { CanvasToolbar } from "./toolbar";
+import { CanvasSkillLibraryDialog } from "./canvas-skill-library-dialog";
+import { CanvasPromptLibraryDialog } from "./canvas-prompt-library-dialog";
+import { CanvasExploreDialog } from "./canvas-explore-dialog";
 import { CanvasCreateRail } from "./canvas-create-rail";
 import { CanvasTopBar } from "./canvas-top-bar";
 import { CanvasDock, MINIMAP_BASE } from "./canvas-dock";
@@ -253,6 +256,9 @@ export function CanvasBoard({
   const [miniMapOpen, setMiniMapOpen] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [skillLibOpen, setSkillLibOpen] = useState(false);
+  const [promptLibOpen, setPromptLibOpen] = useState(false);
+  const [exploreLibOpen, setExploreLibOpen] = useState(false);
   const [gridMode, setGridMode] = useState<CanvasGridMode>("dots");
   const [edgeVisibility, setEdgeVisibility] =
     useState<CanvasEdgeVisibility>("all");
@@ -2088,17 +2094,77 @@ export function CanvasBoard({
         onUndo={undo}
         onRedo={redo}
         onOpenAssets={() => setAssetPickerOpen(true)}
-        onAddGroup={() => {
-          if (selectedIds.length < 2) return;
-          pushHistory();
-          groupSelection();
-        }}
+        onOpenSkills={() => setSkillLibOpen(true)}
+        onOpenPrompts={() => setPromptLibOpen(true)}
+        onOpenExplore={() => setExploreLibOpen(true)}
         onDeleteSelected={() => {
           if (!selectedIds.length) return;
           pushHistory();
           removeNodes(selectedIds);
         }}
         onClearCanvas={clearCanvas}
+      />
+      <CanvasSkillLibraryDialog
+        open={skillLibOpen}
+        onClose={() => setSkillLibOpen(false)}
+      />
+      <CanvasPromptLibraryDialog
+        open={promptLibOpen}
+        onClose={() => setPromptLibOpen(false)}
+      />
+      <CanvasExploreDialog
+        open={exploreLibOpen}
+        onClose={() => setExploreLibOpen(false)}
+        onRemix={(item) => {
+          void (async () => {
+            const promptText = item.prompt?.trim() || item.title?.trim();
+            if (!promptText) {
+              toast.error("没有可用的提示词");
+              return;
+            }
+            const mediaUrl = item.mediaUrl?.trim();
+            if (!mediaUrl) {
+              toast.error("没有可用的媒体");
+              return;
+            }
+            pushHistory();
+            const kind = item.type === "video" ? "video" : "image";
+            const mediaId = await insertAssetAtCenter(
+              {
+                id: "",
+                url: mediaUrl,
+                kind,
+                originalName: item.title?.trim() || null,
+              },
+              { history: false },
+            );
+            const media = useCanvasStore
+              .getState()
+              .nodes.find((n) => n.id === mediaId);
+            const box = media ? nodeBox(media) : null;
+            const promptId = addNode(
+              "prompt",
+              box
+                ? { x: box.x + box.width + 72, y: box.y }
+                : undefined,
+            );
+            const refUrls = [
+              mediaUrl,
+              ...(item.referenceUrls ?? []).map((u) => String(u || "").trim()),
+            ].filter((u) => u && !u.startsWith("data:"));
+            updateNodeData(promptId, {
+              prompt: promptText,
+              title: item.title?.trim() || "同款提示词",
+              outputKind: kind === "video" ? "video" : "image",
+              referenceIds: [mediaId],
+              referenceUrls: refUrls,
+            });
+            addEdge(mediaId, promptId);
+            setSelection([mediaId, promptId]);
+            setExploreLibOpen(false);
+            toast.success("已一键同款到画布");
+          })();
+        }}
       />
       <CanvasCreateRail
         onAddNode={(type) => {

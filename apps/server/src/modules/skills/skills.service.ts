@@ -241,6 +241,24 @@ export class SkillsService implements OnModuleInit {
     return qb.getMany();
   }
 
+  /** Enabled skills for product UIs — no systemPrompt. */
+  async listPublic(query: { category?: SkillCategory } = {}) {
+    const rows = await this.list({
+      category: query.category,
+      enabled: true,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      description: row.description,
+      category: row.category,
+      purpose: row.purpose,
+      builtin: row.builtin,
+      sortOrder: row.sortOrder,
+    }));
+  }
+
   async get(id: string) {
     const row = await this.skills.findOne({ where: { id } });
     if (!row) throw new NotFoundException("技能不存在");

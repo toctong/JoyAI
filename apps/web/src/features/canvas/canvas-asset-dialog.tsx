@@ -283,10 +283,10 @@ export function CanvasAssetDialog({
       }}
     >
       <div
-        className="flex h-[min(680px,calc(100vh-48px))] w-[min(960px,calc(100vw-48px))] flex-col overflow-hidden rounded-2xl border border-border bg-background text-foreground shadow-2xl"
+        className="joy-canvas-library-dialog"
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center gap-1 px-5 pt-4">
+        <div className="flex shrink-0 items-center gap-1 px-5 pt-4">
           <span className="mr-3 text-base font-semibold">选择素材</span>
           {MAIN_TABS.map((tab) => {
             if (tab.id === "canvas" && !showCanvasTab) return null;

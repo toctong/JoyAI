@@ -141,6 +141,7 @@ export function CanvasAgentPanel({ projectId, compactHeader = false }: Props) {
   const pendingJobRef = useRef<string | null>(null);
   const resolveRef = useRef<((text: string) => void) | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const refsRef = useRef(new AgentNodeRefs());
   const sessionRef = useRef<Session | null>(null);
   const runIdRef = useRef(0);
@@ -175,6 +176,13 @@ export function CanvasAgentPanel({ projectId, compactHeader = false }: Props) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, busy, pending, status]);
+
+  useEffect(() => {
+    const el = composerRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [draft]);
 
   useJobLifecycle({
     getBusyJobIds: () => {
@@ -638,9 +646,10 @@ export function CanvasAgentPanel({ projectId, compactHeader = false }: Props) {
       >
         <div className="joy-agent-composer-shell">
           <textarea
+            ref={composerRef}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            rows={3}
+            rows={1}
             disabled={locked}
             placeholder={
               pending ? "请先确认或跳过生成…" : "描述你想在画布上做的事…"

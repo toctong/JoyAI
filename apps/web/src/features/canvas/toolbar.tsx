@@ -1,15 +1,22 @@
 "use client";
 
+import { useState } from "react";
+import { Compass, Sparkles, Wand2 } from "lucide-react";
 import {
   CanvasIconEraser,
   CanvasIconFolder,
-  CanvasIconGroup,
   CanvasIconHand,
+  CanvasIconLibrary,
   CanvasIconRedo,
   CanvasIconSelect,
   CanvasIconTrash,
   CanvasIconUndo,
 } from "./icons/canvas-icons";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -21,7 +28,9 @@ type Props = {
   onUndo: () => void;
   onRedo: () => void;
   onOpenAssets: () => void;
-  onAddGroup: () => void;
+  onOpenSkills: () => void;
+  onOpenPrompts: () => void;
+  onOpenExplore: () => void;
   onDeleteSelected: () => void;
   onClearCanvas: () => void;
 };
@@ -38,7 +47,7 @@ function ToolBtn({
   active?: boolean;
   danger?: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  onClick?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -63,7 +72,15 @@ function Sep() {
   return <span className="joy-canvas-chrome-sep mx-0.5 h-4 w-px" aria-hidden />;
 }
 
-/** Bottom-center dock — select / history / extras (create tools live on left rail). */
+type LibraryItem = {
+  id: string;
+  label: string;
+  hint?: string;
+  Icon: (props: { className?: string }) => React.ReactNode;
+  run: () => void;
+};
+
+/** Bottom-center dock — select / history / library / clear. */
 export function CanvasToolbar({
   panMode,
   canUndo,
@@ -73,10 +90,63 @@ export function CanvasToolbar({
   onUndo,
   onRedo,
   onOpenAssets,
-  onAddGroup,
+  onOpenSkills,
+  onOpenPrompts,
+  onOpenExplore,
   onDeleteSelected,
   onClearCanvas,
 }: Props) {
+  const [libraryOpen, setLibraryOpen] = useState(false);
+
+  const libraryItems: LibraryItem[] = [
+    {
+      id: "assets",
+      label: "资产库",
+      hint: "历史生成与素材",
+      Icon: ({ className }) => <CanvasIconFolder className={className} />,
+      run: () => {
+        setLibraryOpen(false);
+        onOpenAssets();
+      },
+    },
+    {
+      id: "skills",
+      label: "Skill 库",
+      hint: "后台技能目录",
+      Icon: ({ className }) => (
+        <Wand2 className={className} strokeWidth={1.75} />
+      ),
+      run: () => {
+        setLibraryOpen(false);
+        onOpenSkills();
+      },
+    },
+    {
+      id: "prompts",
+      label: "提示词",
+      hint: "后台提示词库",
+      Icon: ({ className }) => (
+        <Sparkles className={className} strokeWidth={1.75} />
+      ),
+      run: () => {
+        setLibraryOpen(false);
+        onOpenPrompts();
+      },
+    },
+    {
+      id: "explore",
+      label: "探索",
+      hint: "一键同款到画布",
+      Icon: ({ className }) => (
+        <Compass className={className} strokeWidth={1.75} />
+      ),
+      run: () => {
+        setLibraryOpen(false);
+        onOpenExplore();
+      },
+    },
+  ];
+
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center">
       <div
@@ -105,12 +175,57 @@ export function CanvasToolbar({
 
         <Sep />
 
-        <ToolBtn title="资产" onClick={onOpenAssets}>
-          <CanvasIconFolder className="joy-canvas-tool-icon" />
-        </ToolBtn>
-        <ToolBtn title="成组选中 ⌘G" onClick={onAddGroup}>
-          <CanvasIconGroup className="joy-canvas-tool-icon" />
-        </ToolBtn>
+        <Popover open={libraryOpen} onOpenChange={setLibraryOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              title="素材库"
+              aria-label="素材库"
+              aria-expanded={libraryOpen}
+              className={cn(
+                "joy-canvas-chrome-btn grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg transition",
+                libraryOpen && "is-active",
+              )}
+            >
+              <CanvasIconLibrary className="joy-canvas-tool-icon" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            side="top"
+            align="center"
+            sideOffset={12}
+            className="joy-canvas-library-pop w-[220px] p-0"
+            data-canvas-shortcuts-ignore
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
+            <div className="joy-canvas-library-pop-head">素材库</div>
+            <div className="joy-canvas-library-pop-list" role="menu">
+              {libraryItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="menuitem"
+                  className="joy-canvas-library-pop-item"
+                  onClick={item.run}
+                >
+                  <span className="joy-canvas-library-pop-icon">
+                    <item.Icon className="size-[18px]" />
+                  </span>
+                  <span className="joy-canvas-library-pop-copy">
+                    <span className="joy-canvas-library-pop-label">
+                      {item.label}
+                    </span>
+                    {item.hint ? (
+                      <span className="joy-canvas-library-pop-hint">
+                        {item.hint}
+                      </span>
+                    ) : null}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <Sep />
 
