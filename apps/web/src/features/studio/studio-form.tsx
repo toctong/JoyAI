@@ -1865,7 +1865,7 @@ function StudioInner() {
     });
   }
 
-  function useAssetAsReference(asset: StudioMediaAsset, asVideo = false) {
+  function applyAssetAsReference(asset: StudioMediaAsset, asVideo = false) {
     setRemixPrompt("");
     setRemixRefs([asset.url]);
     setRemixRefAssetIds(asset.id ? [asset.id] : []);
@@ -2348,7 +2348,7 @@ function StudioInner() {
                             canCopy={Boolean(job.input?.prompt?.trim())}
                             busyAction={busyKey}
                             onCopyPrompt={() => void copyPrompt(job)}
-                            onUseAsRef={() => useAssetAsReference(media, true)}
+                            onUseAsRef={() => applyAssetAsReference(media, true)}
                             onOpenCanvas={() => void openAssetCanvas(media)}
                             onCanvasTool={(tool) =>
                               void runLocalTool(media, tool, job)
@@ -2369,7 +2369,7 @@ function StudioInner() {
                             canCopy={Boolean(job.input?.prompt?.trim())}
                             busyAction={busyKey}
                             onCopyPrompt={() => void copyPrompt(job)}
-                            onUseAsRef={() => useAssetAsReference(media)}
+                            onUseAsRef={() => applyAssetAsReference(media)}
                             onOpenCanvas={() => void openAssetCanvas(media)}
                             onCanvasTool={(tool) =>
                               void runLocalTool(media, tool, job)

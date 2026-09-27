@@ -39,14 +39,16 @@ import "./auth-login.css";
  */
 const LOGIN_MEDIA = {
   hero: "https://ai-video-e1.tos-cn-beijing.volces.com/ai-video/login/login.mp4",
-  story: "https://zenvideo.gtimg.com/anime/dist/static/shot-06.2320766c.mp4",
+  /** First frame of `hero` — local so the stage paints before the mp4 buffers. */
+  heroPoster: "/brand/login-hero-poster.jpg",
+  story: "https://aigc-joyai.tos-cn-beijing.volces.com/uploads/by-hash/8159b4cb1a2aece3e99b3e3bb00cacf6.mp4",
   cards: [
-    "https://zenvideo.gtimg.com/anime/dist/static/layout-engine.570c5bf2.mp4",
-    "https://zenvideo.gtimg.com/anime/dist/static/model-3d.4b55c6c4.mp4",
-    "https://zenvideo.gtimg.com/anime/dist/static/relight.f9eb1ac4.mp4",
-    "https://zenvideo.gtimg.com/anime/dist/static/shot-02.dc356f4b.mp4",
+    "https://aivideodb.oss-cn-hangzhou.aliyuncs.com/videos/2026/09/21/ec0dd017-f08f-473a-9efe-a8202ee23c17.mp4?Expires=2105345121&OSSAccessKeyId=LTAI5t7cBRByqekzb4P2H8Ad&Signature=n1vPxR89srYIrK6nj0AWb1wFN3M%3D",
+    "https://aigc-joyai.tos-cn-beijing.volces.com/uploads/by-hash/0813e255f4114e70d2549157fb888a74.mp4",
+    "https://aivideodb.oss-cn-hangzhou.aliyuncs.com/videos/2026/09/27/fec5276b-4038-444b-9dce-78d27d488c36.mp4?Expires=2105881331&OSSAccessKeyId=LTAI5t7cBRByqekzb4P2H8Ad&Signature=53WLS5rlr5eboXxRvQN0PwmjGmY%3D",
+    "https://aivideodb.oss-cn-hangzhou.aliyuncs.com/videos/2026/09/21/cgt-20260921180656-jxq44.mp4?Expires=2105345436&OSSAccessKeyId=LTAI5t7cBRByqekzb4P2H8Ad&Signature=1%2B8P9WLSNixiRIAZjYT6iFU1P9U%3D",
   ],
-  slogan: "https://zenvideo.gtimg.com/anime/dist/static/shot-01.13d22be2.mp4",
+  slogan: "https://aivideodb.oss-cn-hangzhou.aliyuncs.com/videos/2026/09/27/89d6a8f7-325f-4b07-93a4-28f56e2ccfd8.mp4?Expires=2105882805&OSSAccessKeyId=LTAI5t7cBRByqekzb4P2H8Ad&Signature=9HqTYvFIgZEAct6B9d4g8t%2BVoaI%3D",
 } as const;
 
 const NAV_LINKS = [
@@ -121,12 +123,17 @@ function LoopVideo({
   poster,
   muted = true,
   videoRef,
+  /** Hero: buffer while poster shows; others stay light. */
+  preload = "metadata",
+  onReady,
 }: {
   src: string;
   className?: string;
   poster?: string;
   muted?: boolean;
   videoRef?: RefObject<HTMLVideoElement | null>;
+  preload?: "none" | "metadata" | "auto";
+  onReady?: () => void;
 }) {
   return (
     <video
@@ -138,10 +145,12 @@ function LoopVideo({
       muted={muted}
       loop
       playsInline
-      preload="metadata"
+      preload={preload}
       disablePictureInPicture
       controlsList="nodownload nofullscreen noremoteplayback"
       onContextMenu={(e) => e.preventDefault()}
+      onCanPlay={onReady}
+      onPlaying={onReady}
     />
   );
 }
@@ -345,6 +354,7 @@ export function CreatorLoginView() {
   const [edition, setEdition] = useState<EditionId>("explore");
   const [heroSoundOn, setHeroSoundOn] = useState(false);
   const [heroInView, setHeroInView] = useState(true);
+  const [heroReady, setHeroReady] = useState(false);
 
   const activeEdition =
     EDITIONS.find((item) => item.id === edition) ?? EDITIONS[0]!;
@@ -539,12 +549,26 @@ export function CreatorLoginView() {
       {/* 01 Hero — full viewport, free scroll continues below */}
       <section className="login-page__hero" id="hero">
         <div className="login-page__stage" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            className="login-page__poster"
+            src={LOGIN_MEDIA.heroPoster}
+            alt=""
+            draggable={false}
+            fetchPriority="high"
+            decoding="async"
+          />
           <LoopVideo
-            className="login-page__video"
+            className={cn(
+              "login-page__video",
+              heroReady && "is-ready",
+            )}
             src={LOGIN_MEDIA.hero}
-            poster={JOYAI_BRAND.heroBg}
+            poster={LOGIN_MEDIA.heroPoster}
             muted={!heroSoundOn}
             videoRef={heroVideoRef}
+            preload="auto"
+            onReady={() => setHeroReady(true)}
           />
           <div className="login-page__veil" />
         </div>
