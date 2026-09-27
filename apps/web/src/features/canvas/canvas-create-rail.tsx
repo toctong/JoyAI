@@ -110,7 +110,7 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
           title={labelsOpen ? undefined : tool.title}
           aria-label={tool.title}
           onClick={() => runTool(tool)}
-          className="joy-canvas-chrome-btn relative grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-xl"
+          className="joy-canvas-chrome-btn relative grid size-[length:var(--joy-canvas-tool-btn)] place-items-center rounded-lg"
         >
           <tool.Icon className="joy-canvas-tool-icon shrink-0 opacity-90" />
           {tool.beta ? (
@@ -152,9 +152,9 @@ export function CanvasCreateRail({ onAddNode, onOpenAssets }: Props) {
         onMouseEnter={() => setLabelsOpen(true)}
         onMouseLeave={() => setLabelsOpen(false)}
       >
-        <div className="joy-canvas-chrome flex w-[var(--joy-canvas-tool-rail-width)] flex-col gap-1 rounded-2xl p-1.5">
+        <div className="joy-canvas-chrome flex w-[var(--joy-canvas-tool-rail-width)] flex-col gap-0.5 rounded-xl p-1">
           {PRIMARY.map(renderTool)}
-          <div className="joy-canvas-chrome-sep mx-1.5 my-1 h-px" />
+          <div className="joy-canvas-chrome-sep mx-1 my-0.5 h-px" />
           {SECONDARY.map(renderTool)}
         </div>
       </div>

@@ -271,7 +271,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
         : outputKind === "video"
           ? "生成视频"
           : outputKind === "panorama"
-            ? "生成全景"
+            ? "生成环视"
             : outputKind === "text"
               ? "生成文本"
               : "生成图像";
@@ -311,7 +311,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
           {(
             [
               { id: "image" as const, label: "图像", Icon: CanvasIconImage },
-              { id: "panorama" as const, label: "全景", Icon: CanvasIconPanorama },
+              { id: "panorama" as const, label: "环视", Icon: CanvasIconPanorama },
               { id: "video" as const, label: "视频", Icon: CanvasIconVideo },
               { id: "text" as const, label: "文本", Icon: CanvasIconText },
             ] as const

@@ -100,7 +100,7 @@ import { toast } from "@/shared/lib/toast";
 import { isBusyStatus } from "./node-registry";
 import "@/features/studio/creation-composer.css";
 import "./node-gen-panel.css";
-import { CANVAS_TEXT_FONT } from "@/shared/theme";
+import { CANVAS_NODE_SIZE, CANVAS_TEXT_FONT } from "@/shared/theme";
 
 type Props = {
   node: CanvasNode;
@@ -721,7 +721,9 @@ export function NodeGenPanel({ node, viewport }: Props) {
         });
         addEdge(node.id, targetId);
         createdTarget = true;
-        useCanvasStore.getState().updateNode(targetId, { width: 360, height: 160 });
+        useCanvasStore.getState().updateNode(targetId, {
+          ...CANVAS_NODE_SIZE.text,
+        });
         const named = titleFromPrompt(text);
         updateNodeData(targetId, {
           status: "queued",
@@ -891,7 +893,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
       writeDraft(text);
       toast.success(
         panorama
-          ? "已提交全景任务"
+          ? "已提交环视任务"
           : output === "video"
             ? "已提交视频任务"
             : output === "audio"
@@ -946,7 +948,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
     output === "video" ? videoGenModeLabelById(videoGenMode) : null;
 
   const placeholder = panorama
-    ? "描述全景场景，将按 2:1 等距圆柱生成… / 指令 · @ 引用"
+    ? "描述环视场景，将按 2:1 等距圆柱生成… / 指令 · @ 引用"
     : output === "audio"
       ? "输入要朗读的文本… /语音"
       : shellLayout
@@ -1272,7 +1274,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
       disabled={!ready}
       aria-label={
         panorama
-          ? "生成全景"
+          ? "生成环视"
           : output === "video"
             ? "生成视频"
             : output === "audio"
@@ -1611,7 +1613,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
         hostId={node.id}
         hostLabel={
           panorama
-            ? "全景"
+            ? "环视"
             : output === "video"
               ? "视频"
               : output === "audio"

@@ -104,7 +104,7 @@ export default function AppShellLayout({
       data-app-shell
       className="relative z-10 flex h-svh overflow-hidden bg-card"
     >
-      <AppSidebar />
+      {isCanvasEditor ? null : <AppSidebar />}
       <div
         className={cn(
           "relative flex min-h-0 min-w-0 flex-1 flex-col",

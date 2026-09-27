@@ -20,14 +20,14 @@ const ACCEPT: Record<Kind, string> = {
 const LABEL: Record<Kind, string> = {
   image: "上传图片",
   video: "上传视频",
-  panorama: "上传全景 · 2:1",
+  panorama: "上传素材 · 2:1",
   audio: "上传音频",
 };
 
 const HINT: Record<Kind, string> = {
   image: "尝试上传或生成图片",
   video: "尝试上传或生成视频",
-  panorama: "尝试上传或生成全景",
+  panorama: "上传 2:1 环视素材，或从下方生成",
   audio: "尝试上传或生成音频",
 };
 
@@ -113,7 +113,7 @@ export function MediaUploadLabel({
     >
       <span
         aria-hidden
-        className="pointer-events-none text-muted-foreground [&>*]:size-12 [&>*]:opacity-45"
+        className="joy-media-empty-icon pointer-events-none text-muted-foreground"
       >
         {children}
       </span>

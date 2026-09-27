@@ -72,7 +72,7 @@ export function DirectorDesk({ nodeId, onClose }: Props) {
           imageUrl: String(source.data.url),
           fileName:
             String(source.data.title ?? "").trim() ||
-            (source.type === "panorama" ? "全景" : "图像"),
+            (source.type === "panorama" ? "环视" : "图像"),
           projectionMode:
             source.type === "panorama"
               ? ("equirectangular" as const)

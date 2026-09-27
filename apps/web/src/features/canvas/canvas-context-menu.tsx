@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { CanvasNodeType } from "@joyai/shared";
+import { ChevronRight } from "lucide-react";
 import {
   CanvasIconAudio,
   CanvasIconCopy,
@@ -41,7 +42,7 @@ const CREATE_LABELS: Record<CanvasNodeType, string> = {
   video: "视频",
   audio: "音频",
   prompt: "提示词",
-  panorama: "全景",
+  panorama: "环视图",
   director: "导演台",
 };
 
@@ -54,6 +55,11 @@ const CREATE_ORDER: CanvasNodeType[] = [
   "panorama",
   "director",
 ];
+
+function shortcutMod() {
+  if (typeof navigator === "undefined") return "Ctrl";
+  return /Mac|iPhone|iPad/.test(navigator.userAgent) ? "⌘" : "Ctrl";
+}
 
 export type CreateMenuKind = "blank" | "connect";
 
@@ -89,8 +95,89 @@ type CreateProps = {
   onCreate: (type: CanvasNodeType) => void;
   onUpload?: () => void;
   onOpenAssets?: () => void;
+  onPaste?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
   onClose: () => void;
 };
+
+function CreateTypeList({
+  types,
+  preferredType,
+  showSources,
+  onCreate,
+  onUpload,
+  onOpenAssets,
+}: {
+  types: { type: CanvasNodeType; label: string }[];
+  preferredType?: CanvasNodeType;
+  showSources?: boolean;
+  onCreate: (type: CanvasNodeType) => void;
+  onUpload?: () => void;
+  onOpenAssets?: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5 px-1.5">
+      {types.map((item) => {
+        const Icon = ICONS[item.type];
+        const preferred = preferredType === item.type;
+        return (
+          <button
+            key={item.type}
+            type="button"
+            className={cn(
+              "joy-canvas-menu-item flex h-9 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[13px] font-medium transition",
+              preferred && "is-preferred",
+            )}
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              if (e.detail > 1) return;
+              onCreate(item.type);
+            }}
+          >
+            <Icon className="size-4 shrink-0 opacity-90" />
+            <span className="min-w-0 truncate">{item.label}</span>
+          </button>
+        );
+      })}
+      {showSources && (onOpenAssets || onUpload) ? (
+        <>
+          <div className="joy-canvas-chrome-sep mx-2 my-1.5 h-px" />
+          {onOpenAssets ? (
+            <button
+              type="button"
+              className="joy-canvas-menu-item flex h-9 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[13px] font-medium transition"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                if (e.detail > 1) return;
+                onOpenAssets();
+              }}
+            >
+              <CanvasIconFolder className="size-4 shrink-0 opacity-90" />
+              <span className="min-w-0 truncate">从资产库添加</span>
+            </button>
+          ) : null}
+          {onUpload ? (
+            <button
+              type="button"
+              className="joy-canvas-menu-item flex h-9 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[13px] font-medium transition"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                if (e.detail > 1) return;
+                onUpload();
+              }}
+            >
+              <CanvasIconUpload className="size-4 shrink-0 opacity-90" />
+              <span className="min-w-0 truncate">本地上传</span>
+            </button>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 export function CanvasCreateMenu({
   menu,
@@ -98,10 +185,17 @@ export function CanvasCreateMenu({
   onCreate,
   onUpload,
   onOpenAssets,
+  onPaste,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
   onClose,
 }: CreateProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: menu.x, y: menu.y });
+  const [createOpen, setCreateOpen] = useState(false);
+  const mod = shortcutMod();
 
   const types = useMemo(() => {
     const list = CREATE_ORDER.map((type) => ({
@@ -127,7 +221,7 @@ export function CanvasCreateMenu({
     if (!el) return;
     const rect = el.getBoundingClientRect();
     setPos(clampMenuPosition(menu.x, menu.y, rect, viewportSize));
-  }, [menu.x, menu.y, viewportSize]);
+  }, [menu.x, menu.y, viewportSize, createOpen, menu.kind]);
 
   useEffect(() => {
     const close = (event: PointerEvent) => {
@@ -138,81 +232,131 @@ export function CanvasCreateMenu({
     return () => document.removeEventListener("pointerdown", close, true);
   }, [onClose]);
 
+  if (menu.kind === "connect") {
+    return (
+      <div
+        ref={ref}
+        data-canvas-no-zoom
+        data-canvas-shortcuts-ignore
+        className="joy-canvas-chrome absolute z-40 w-[200px] overflow-hidden rounded-2xl py-2"
+        style={{ left: pos.x, top: pos.y }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <div className="px-3.5 pb-1.5 pt-0.5">
+          <span className="joy-canvas-chrome-muted text-[12px] font-medium">
+            {menu.sourceIds && menu.sourceIds.length > 1
+              ? `批量连接到新节点（${menu.sourceIds.length}）`
+              : "连接到新节点"}
+          </span>
+        </div>
+        <CreateTypeList
+          types={types}
+          preferredType={menu.preferredType}
+          onCreate={onCreate}
+        />
+      </div>
+    );
+  }
+
   return (
     <div
       ref={ref}
       data-canvas-no-zoom
       data-canvas-shortcuts-ignore
-      className="joy-canvas-chrome absolute z-40 w-[200px] overflow-hidden rounded-2xl py-2"
+      className="absolute z-40 flex items-start"
       style={{ left: pos.x, top: pos.y }}
       onPointerDown={(e) => e.stopPropagation()}
+      onMouseLeave={() => setCreateOpen(false)}
     >
-      <div className="px-3.5 pb-1.5 pt-0.5">
-        <span className="joy-canvas-chrome-muted text-[12px] font-medium">
-          {menu.kind === "connect"
-            ? menu.sourceIds && menu.sourceIds.length > 1
-              ? `批量连接到新节点（${menu.sourceIds.length}）`
-              : "连接到新节点"
-            : "添加节点"}
-        </span>
+      <div className="joy-canvas-chrome min-w-[200px] overflow-hidden rounded-2xl py-1.5">
+        <button
+          type="button"
+          className={cn(
+            "joy-canvas-menu-item flex h-9 w-full items-center justify-between gap-3 px-3.5 text-left text-[13px] font-medium transition",
+            createOpen && "is-preferred",
+          )}
+          onPointerDown={(e) => e.preventDefault()}
+          onMouseEnter={() => setCreateOpen(true)}
+          onFocus={() => setCreateOpen(true)}
+        >
+          <span>新建节点</span>
+          <ChevronRight
+            className="size-3.5 shrink-0 opacity-55"
+            aria-hidden
+          />
+        </button>
+
+        <div className="joy-canvas-chrome-sep mx-3 my-1.5 h-px" />
+
+        <button
+          type="button"
+          className="joy-canvas-menu-item flex h-9 w-full items-center justify-between gap-4 px-3.5 text-left text-[13px] font-medium transition"
+          onPointerDown={(e) => e.preventDefault()}
+          onMouseEnter={() => setCreateOpen(false)}
+          onClick={(e) => {
+            if (e.detail > 1) return;
+            onPaste?.();
+          }}
+        >
+          <span>粘贴</span>
+          <span className="joy-canvas-chrome-muted text-[12px] font-normal tabular-nums">
+            {mod}+V
+          </span>
+        </button>
+        <button
+          type="button"
+          disabled={!canRedo}
+          className="joy-canvas-menu-item flex h-9 w-full items-center justify-between gap-4 px-3.5 text-left text-[13px] font-medium transition disabled:pointer-events-none disabled:opacity-40"
+          onPointerDown={(e) => e.preventDefault()}
+          onMouseEnter={() => setCreateOpen(false)}
+          onClick={(e) => {
+            if (e.detail > 1 || !canRedo) return;
+            onRedo?.();
+          }}
+        >
+          <span>重做</span>
+          <span className="joy-canvas-chrome-muted text-[12px] font-normal tabular-nums">
+            {mod}+Shift+Z
+          </span>
+        </button>
+        <button
+          type="button"
+          disabled={!canUndo}
+          className="joy-canvas-menu-item flex h-9 w-full items-center justify-between gap-4 px-3.5 text-left text-[13px] font-medium transition disabled:pointer-events-none disabled:opacity-40"
+          onPointerDown={(e) => e.preventDefault()}
+          onMouseEnter={() => setCreateOpen(false)}
+          onClick={(e) => {
+            if (e.detail > 1 || !canUndo) return;
+            onUndo?.();
+          }}
+        >
+          <span>撤销</span>
+          <span className="joy-canvas-chrome-muted text-[12px] font-normal tabular-nums">
+            {mod}+Z
+          </span>
+        </button>
       </div>
-      <div className="flex flex-col gap-0.5 px-1.5">
-        {types.map((item) => {
-          const Icon = ICONS[item.type];
-          const preferred = menu.preferredType === item.type;
-          return (
-            <button
-              key={item.type}
-              type="button"
-              className={cn(
-                "joy-canvas-menu-item flex h-9 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[13px] font-medium transition",
-                preferred && "is-preferred",
-              )}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={(e) => {
-                if (e.detail > 1) return;
-                onCreate(item.type);
-              }}
-            >
-              <Icon className="size-4 shrink-0 opacity-90" />
-              <span className="min-w-0 truncate">{item.label}</span>
-            </button>
-          );
-        })}
-        {menu.kind === "blank" && (onOpenAssets || onUpload) ? (
-          <>
-            <div className="joy-canvas-chrome-sep mx-2 my-1.5 h-px" />
-            {onOpenAssets ? (
-              <button
-                type="button"
-                className="joy-canvas-menu-item flex h-9 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[13px] font-medium transition"
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  if (e.detail > 1) return;
-                  onOpenAssets();
-                }}
-              >
-                <CanvasIconFolder className="size-4 shrink-0 opacity-90" />
-                <span className="min-w-0 truncate">从资产库添加</span>
-              </button>
-            ) : null}
-            {onUpload ? (
-              <button
-                type="button"
-                className="joy-canvas-menu-item flex h-9 w-full items-center gap-3 rounded-xl px-2.5 text-left text-[13px] font-medium transition"
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  if (e.detail > 1) return;
-                  onUpload();
-                }}
-              >
-                <CanvasIconUpload className="size-4 shrink-0 opacity-90" />
-                <span className="min-w-0 truncate">本地上传</span>
-              </button>
-            ) : null}
-          </>
-        ) : null}
-      </div>
+
+      {createOpen ? (
+        <div
+          className="joy-canvas-chrome ml-1 w-[200px] overflow-hidden rounded-2xl py-2"
+          onMouseEnter={() => setCreateOpen(true)}
+        >
+          <div className="px-3.5 pb-1.5 pt-0.5">
+            <span className="joy-canvas-chrome-muted text-[12px] font-medium">
+              添加节点
+            </span>
+          </div>
+          <CreateTypeList
+            types={types}
+            preferredType={menu.preferredType}
+            showSources
+            onCreate={onCreate}
+            onUpload={onUpload}
+            onOpenAssets={onOpenAssets}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

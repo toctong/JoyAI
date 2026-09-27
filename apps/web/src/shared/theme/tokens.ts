@@ -4,15 +4,18 @@
  * `design-tokens.css` when bumping the visual scale.
  */
 
-/** Default canvas node box sizes (~+15% vs early defaults). */
+/** Shared blank-node frame (16:9). Panorama stays 2:1 for equirect. */
+const CANVAS_BLANK_16x9 = { width: 480, height: 270 } as const;
+
+/** Default canvas node box sizes. */
 export const CANVAS_NODE_SIZE = {
-  text: { width: 400, height: 184 },
-  image: { width: 390, height: 276 },
-  video: { width: 480, height: 270 },
-  prompt: { width: 320, height: 208 },
-  panorama: { width: 390, height: 196 },
-  audio: { width: 436, height: 230 },
-  director: { width: 320, height: 208 },
+  text: CANVAS_BLANK_16x9,
+  image: CANVAS_BLANK_16x9,
+  video: CANVAS_BLANK_16x9,
+  prompt: CANVAS_BLANK_16x9,
+  panorama: { width: 480, height: 240 },
+  audio: CANVAS_BLANK_16x9,
+  director: CANVAS_BLANK_16x9,
 } as const;
 
 export const CANVAS_TEXT_FONT = {

@@ -1,16 +1,11 @@
 "use client";
 
 import { useRef } from "react";
+import { MoveDiagonal2 } from "lucide-react";
 import type { CanvasNode } from "@joyai/shared";
 import { useCanvasStore } from "./store";
 import { nodeBox } from "./lib/node-box";
 import { cn } from "@/shared/lib/utils";
-
-export type ResizeCorner =
-  | "top-left"
-  | "top-right"
-  | "bottom-left"
-  | "bottom-right";
 
 const MIN_W = 140;
 const MIN_H = 88;
@@ -18,19 +13,24 @@ const MIN_H = 88;
 type Props = {
   node: CanvasNode;
   zoom: number;
+  visible: boolean;
   onResizingChange?: (resizing: boolean) => void;
 };
 
 /**
- * Four-corner resize for the selected node (world-space).
+ * Bottom-center stretch control for a selected node (world-space).
  * Image/video/panorama keep aspect unless `data.freeResize`.
  * Shift flips that default for the current drag.
  */
-export function NodeResizeHandles({ node, zoom, onResizingChange }: Props) {
+export function NodeResizeHandle({
+  node,
+  zoom,
+  visible,
+  onResizingChange,
+}: Props) {
   const resizeNode = useCanvasStore((s) => s.resizeNode);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
   const session = useRef<{
-    corner: ResizeCorner;
     startX: number;
     startY: number;
     left: number;
@@ -41,7 +41,7 @@ export function NodeResizeHandles({ node, zoom, onResizingChange }: Props) {
     ratio: number;
   } | null>(null);
 
-  function start(e: React.PointerEvent, corner: ResizeCorner) {
+  function start(e: React.PointerEvent) {
     e.stopPropagation();
     e.preventDefault();
     pushHistory();
@@ -51,7 +51,6 @@ export function NodeResizeHandles({ node, zoom, onResizingChange }: Props) {
       node.type === "video" ||
       node.type === "panorama";
     session.current = {
-      corner,
       startX: e.clientX,
       startY: e.clientY,
       left: box.x,
@@ -68,13 +67,9 @@ export function NodeResizeHandles({ node, zoom, onResizingChange }: Props) {
       if (!s) return;
       const dx = (ev.clientX - s.startX) / zoom;
       const dy = (ev.clientY - s.startY) / zoom;
-      const fromLeft = s.corner.includes("left");
-      const fromTop = s.corner.includes("top");
-      const startRight = s.left + s.width;
-      const startBottom = s.top + s.height;
 
-      let width = Math.max(MIN_W, s.width + (fromLeft ? -dx : dx));
-      let height = Math.max(MIN_H, s.height + (fromTop ? -dy : dy));
+      let width = Math.max(MIN_W, s.width + dx);
+      let height = Math.max(MIN_H, s.height + dy);
 
       const lock = s.lockByDefault ? !ev.shiftKey : ev.shiftKey;
       if (lock) {
@@ -97,8 +92,8 @@ export function NodeResizeHandles({ node, zoom, onResizingChange }: Props) {
       resizeNode(node.id, {
         width,
         height,
-        x: fromLeft ? startRight - width : s.left,
-        y: fromTop ? startBottom - height : s.top,
+        x: s.left,
+        y: s.top,
       });
     };
 
@@ -113,19 +108,7 @@ export function NodeResizeHandles({ node, zoom, onResizingChange }: Props) {
     window.addEventListener("pointerup", onUp);
   }
 
-  const corners: ResizeCorner[] = [
-    "top-left",
-    "top-right",
-    "bottom-left",
-    "bottom-right",
-  ];
-
-  const posClass: Record<ResizeCorner, string> = {
-    "top-left": "-left-1.5 -top-1.5 cursor-nwse-resize",
-    "top-right": "-right-1.5 -top-1.5 cursor-nesw-resize",
-    "bottom-left": "-left-1.5 -bottom-1.5 cursor-nesw-resize",
-    "bottom-right": "-right-1.5 -bottom-1.5 cursor-nwse-resize",
-  };
+  if (!visible) return null;
 
   const box = nodeBox(node);
 
@@ -134,18 +117,20 @@ export function NodeResizeHandles({ node, zoom, onResizingChange }: Props) {
       className="pointer-events-none absolute z-[40000]"
       style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
     >
-      {corners.map((corner) => (
-        <button
-          key={corner}
-          type="button"
-          aria-label={`缩放 ${corner}`}
-          className={cn(
-            "pointer-events-auto absolute z-30 size-2.5 rounded-full border border-foreground/80 bg-background",
-            posClass[corner],
-          )}
-          onPointerDown={(e) => start(e, corner)}
-        />
-      ))}
+      <button
+        type="button"
+        title="拖动缩放"
+        aria-label="拖动缩放"
+        className={cn(
+          "pointer-events-auto absolute bottom-1.5 right-1.5 z-30 flex size-7 items-center justify-center rounded-md",
+          "bg-black/45 text-white shadow-sm backdrop-blur-sm transition",
+          "hover:bg-black/60 active:scale-[0.96]",
+          "cursor-nwse-resize",
+        )}
+        onPointerDown={start}
+      >
+        <MoveDiagonal2 className="size-3.5 opacity-90" strokeWidth={2.25} />
+      </button>
     </div>
   );
 }

@@ -82,24 +82,24 @@ export function ImagePanoramaDialog({
   return (
     <CanvasStudioShell
       open={open}
-      title="转720°全景"
+      title="转 720° 环视"
       subtitle={nodeTitle}
       titleIcon={<Globe className="size-4 opacity-80" />}
       sourceUrl={url}
       onClose={onClose}
-      stageHint="基于当前画面生成 720° 全景 · 2:1 画幅 · 生成后可在舞台环视"
+      stageHint="基于当前画面生成 720° 环视图 · 2:1 画幅 · 生成后可在舞台环视"
       center={
         <StudioImageStage url={url} className="max-h-[min(70vh,760px)]" />
       }
-      sideTitle="转720°全景"
-      sideMeta="基于当前画面生成 720° 全景 · 2:1 画幅"
+      sideTitle="转 720° 环视"
+      sideMeta="基于当前画面生成 720° 环视图 · 2:1 画幅"
       side={
         <StudioSidePanels
           defaultOpen={["model", "hint", "note"]}
           items={[
             {
               id: "model",
-              title: "全景模型",
+              title: "环视模型",
               icon: <Globe />,
               badge: selectedModel?.name,
               content: (
@@ -173,7 +173,7 @@ export function ImagePanoramaDialog({
           ]}
         />
       }
-      sideFoot="确认后新开全景节点并用所选模型图生图"
+      sideFoot="确认后新开环视节点并用所选模型图生图"
       footerHint={
         modelsError ||
         "底部选择模型，点生成才会提交 · 不会打开弹框就自动跑"
@@ -221,7 +221,7 @@ export function ImagePanoramaDialog({
               onConfirm({ note, modelId });
             }}
           >
-            生成全景
+            生成环视
           </button>
         </>
       }

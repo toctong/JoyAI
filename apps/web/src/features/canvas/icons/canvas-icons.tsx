@@ -90,6 +90,8 @@ export const CanvasIconMore = icon("more");
 export const CanvasIconChevronLeft = icon("chevron-left");
 export const CanvasIconMove = icon("move");
 export const CanvasIconFolderPlus = icon("folder-plus");
+export const CanvasIconCloudCheck = icon("cloud-check");
+export const CanvasIconCloudUpload = icon("cloud-upload");
 
 /** AI / prompt mark — real SVG from thesvg.org OpenAI brand. */
 export function CanvasIconAi({ className, title }: IconProps) {

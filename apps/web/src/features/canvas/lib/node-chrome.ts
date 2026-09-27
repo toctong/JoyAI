@@ -47,7 +47,7 @@ export function nodeTitleLabel(type: string, data: Record<string, unknown>) {
         : type === "video"
           ? "视频"
           : type === "panorama"
-            ? "全景"
+            ? "环视图"
             : "音频";
     return resolveMediaTitle(data, { fallback });
   }

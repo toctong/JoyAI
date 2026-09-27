@@ -22,6 +22,30 @@
   box-shadow: none;
 }
 
+/* Bottom-left dock — compact pill + satellite chips (参考无限画布) */
+.joy-canvas-dock-pill {
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--popover) 92%, transparent);
+  color: var(--popover-foreground);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 28px -18px color-mix(in oklab, #000 55%, transparent);
+}
+
+.joy-canvas-dock-sat {
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--popover) 92%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 28px -18px color-mix(in oklab, #000 55%, transparent);
+}
+
+.joy-canvas-minimap {
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  background: color-mix(in oklab, var(--popover) 94%, transparent);
+  color: var(--popover-foreground);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 32px -16px color-mix(in oklab, #000 55%, transparent);
+}
+
 /* —— Canvas top capsules (left project / right tools) —— */
 .joy-canvas-top-cluster {
   display: inline-flex;
@@ -137,33 +161,20 @@
   width: calc(var(--joy-control-h-lg, 40px) - 6px);
   height: calc(var(--joy-control-h-lg, 40px) - 6px);
   border-radius: 999px;
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent);
+}
+
+.joy-canvas-top-status .joy-canvas-tool-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .joy-canvas-top-status.is-saved {
-  color: color-mix(in oklab, #22c55e 70%, var(--foreground));
+  color: color-mix(in oklab, var(--muted-foreground) 70%, #22c55e 30%);
 }
 
 .joy-canvas-top-status.is-dirty {
-  color: color-mix(in oklab, #f59e0b 75%, var(--foreground));
-}
-
-.joy-canvas-top-status-ok {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.joy-canvas-top-status-ok > svg:last-child {
-  position: absolute;
-  right: -4px;
-  bottom: -3px;
-  width: 9px;
-  height: 9px;
-  padding: 1px;
-  border-radius: 999px;
-  background: var(--popover);
+  color: color-mix(in oklab, var(--muted-foreground) 55%, #d97706 45%);
 }
 
 
@@ -224,6 +235,19 @@
   transform: none;
 }
 
+/* Blank-node hero mark — larger than chrome tool icons (token 18px) */
+.joy-media-empty-icon {
+  display: grid;
+  place-items: center;
+  opacity: 0.5;
+}
+
+.joy-media-empty-icon > .joy-canvas-tool-icon,
+.joy-media-empty-icon.joy-canvas-tool-icon {
+  width: 40px;
+  height: 40px;
+}
+
 .joy-color-tag-trigger {
   cursor: pointer;
 }
@@ -235,8 +259,7 @@
 }
 
 .joy-canvas-agent-fab-icon {
-  background: color-mix(in oklab, var(--primary) 18%, transparent);
-  color: var(--primary);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
 }
 
 .joy-canvas-agent-resize {
@@ -286,12 +309,29 @@
     color-mix(in oklab, #38bdf8 70%, transparent);
 }
 
+/* Canvas chrome / empty hints are not browser-selectable text. */
+.joy-canvas-surface {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.joy-canvas-surface input,
+.joy-canvas-surface textarea,
+.joy-canvas-surface [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .joy-canvas-empty-hint {
   color: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .joy-canvas-empty-hint-sub {
   color: color-mix(in oklab, var(--muted-foreground) 70%, transparent);
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .joy-canvas-surface[data-grid="dots"] {
@@ -361,22 +401,50 @@
     color-mix(in oklab, var(--foreground) 28%, transparent);
 }
 
-/* Edge flow dash */
-.joy-canvas-edge-flow {
-  stroke-dasharray: 8 10;
-  animation: joy-edge-flow 0.9s linear infinite;
+/*
+ * Edge flow — Jimeng-style infusion slug:
+ * solid tube + one long liquid segment (pathLength=1) sliding along the curve.
+ */
+.joy-canvas-edge-flow-slug {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 0.28 0.72;
+  animation: joy-edge-infusion 1.35s linear infinite;
+  pointer-events: none;
 }
 
-@keyframes joy-edge-flow {
+.joy-canvas-edge-flow-slug--glow {
+  stroke-width: 6;
+  stroke: #38bdf8;
+  opacity: 0.28;
+  stroke-dasharray: 0.34 0.66;
+  filter: blur(2.5px);
+}
+
+.joy-canvas-edge-flow-slug--body {
+  stroke-width: 2.6;
+  stroke: url(#joy-edge-infusion);
+  opacity: 0.95;
+  filter: url(#joy-edge-infusion-glow);
+}
+
+.joy-canvas-edge-flow-slug--head {
+  stroke-width: 2.1;
+  stroke: #fde68a;
+  opacity: 0.9;
+  stroke-dasharray: 0.09 0.91;
+}
+
+@keyframes joy-edge-infusion {
   to {
-    stroke-dashoffset: -18;
+    stroke-dashoffset: -1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .joy-canvas-edge-flow {
+  .joy-canvas-edge-flow-slug {
     animation: none;
-    stroke-dasharray: none;
+    display: none;
   }
 }
 
@@ -492,4 +560,145 @@
   --vc-handle-line-bg: color-mix(in oklab, #000 55%, transparent);
   --vc-dim-overlay: color-mix(in oklab, #000 55%, transparent);
   --vc-track-time-bg: color-mix(in oklab, #000 72%, transparent);
+}
+
+/* Canvas project boot — quiet veil over the surface (not auth boot / gen mesh) */
+.joy-canvas-boot {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  opacity: 1;
+  transition:
+    opacity 0.45s var(--joy-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    visibility 0.45s linear;
+}
+
+.joy-canvas-boot.is-leave {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.joy-canvas-boot-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 70% 55% at 50% 42%,
+      color-mix(in oklab, var(--background) 70%, transparent) 0%,
+      var(--background) 72%
+    ),
+    var(--background);
+}
+
+.joy-canvas-boot-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  background-image: radial-gradient(
+    circle,
+    var(--joy-canvas-grid) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+  background-position: center;
+  mask-image: radial-gradient(
+    ellipse 55% 45% at 50% 45%,
+    #000 20%,
+    transparent 75%
+  );
+  animation: joy-canvas-boot-grid-breathe 2.4s ease-in-out infinite;
+}
+
+.joy-canvas-boot-core {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.joy-canvas-boot-mark {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  opacity: 0.72;
+  animation: joy-canvas-boot-mark-pulse 1.6s ease-in-out infinite;
+}
+
+.joy-canvas-boot-bar {
+  display: block;
+  width: 72px;
+  height: 2px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: color-mix(in oklab, var(--muted-foreground) 18%, transparent);
+}
+
+.joy-canvas-boot-bar::after {
+  content: "";
+  display: block;
+  width: 36%;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in oklab, var(--foreground) 55%, transparent);
+  animation: joy-canvas-boot-bar-slide 1.15s ease-in-out infinite;
+}
+
+@keyframes joy-canvas-boot-mark-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+}
+
+@keyframes joy-canvas-boot-bar-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes joy-canvas-boot-grid-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .joy-canvas-boot-mark,
+  .joy-canvas-boot-bar::after,
+  .joy-canvas-boot-grid {
+    animation: none;
+  }
+
+  .joy-canvas-boot-mark {
+    opacity: 0.75;
+    transform: none;
+  }
+
+  .joy-canvas-boot-bar::after {
+    width: 100%;
+    transform: none;
+    opacity: 0.45;
+  }
+
+  .joy-canvas-boot-grid {
+    opacity: 0.45;
+  }
 }

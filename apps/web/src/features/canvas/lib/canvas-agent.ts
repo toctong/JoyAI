@@ -1,6 +1,7 @@
 import type { CanvasNode, CanvasNodeType } from "@joyai/shared";
 import { useCanvasStore } from "../store";
 import { api } from "@/shared/lib/api";
+import { CANVAS_NODE_SIZE } from "@/shared/theme";
 
 export const AGENT_MAX_ROUNDS = 6;
 export const AGENT_ACTIONS_PER_ROUND = 4;
@@ -625,8 +626,7 @@ export async function executeAgentActions(
         }
         ctx.pushHistoryOnce();
         useCanvasStore.getState().updateNode(target.id, {
-          width: 360,
-          height: 160,
+          ...CANVAS_NODE_SIZE.text,
         });
         useCanvasStore.getState().updateNodeData(target.id, {
           status: "queued",

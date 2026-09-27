@@ -276,12 +276,12 @@ export function PanoramaNode({ node, onPointerDown }: Props) {
               <div className="flex flex-col gap-1">
                 <span className={cn(overlayPill, "w-fit rounded-full px-2 py-1 text-[11px]")}>
                   <CanvasIconPanorama className="size-3 opacity-90" />
-                  720°全景
+                  720° 环视
                 </span>
                 {!previewing &&
                 String(node.data.aspectHint ?? "") === "non-2:1" ? (
                   <span className="w-fit rounded bg-amber-500/90 px-1.5 py-0.5 text-[10px] text-black">
-                    建议 2:1 全景图
+                    建议 2:1 环视图
                   </span>
                 ) : null}
               </div>

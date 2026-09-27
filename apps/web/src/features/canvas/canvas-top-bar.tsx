@@ -1,27 +1,23 @@
 "use client";
 
 import {
+  CanvasIconCloudCheck,
+  CanvasIconCloudUpload,
   CanvasIconFolder,
   CanvasIconHistory,
   CanvasIconHome,
   CanvasIconKeyboard,
   CanvasIconRedo,
   CanvasIconSearch,
-  CanvasIconShortcuts,
   CanvasIconUndo,
   CanvasIconUpload,
 } from "./icons/canvas-icons";
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Check,
   ChevronDown,
-  Cloud,
-  CloudOff,
   Download,
   FileJson,
-  Images,
 } from "lucide-react";
 import { useCanvasStore } from "./store";
 import { useCanvasRightPanelStore } from "./right-panel-store";
@@ -294,14 +290,12 @@ export function CanvasTopBar({
             dirty ? "is-dirty" : "is-saved",
           )}
           title={dirty ? "有未保存更改" : "已保存到云端"}
+          aria-label={dirty ? "有未保存更改" : "已保存到云端"}
         >
           {dirty ? (
-            <CloudOff className="size-3.5" aria-hidden />
+            <CanvasIconCloudUpload className="joy-canvas-tool-icon" />
           ) : (
-            <span className="joy-canvas-top-status-ok">
-              <Cloud className="size-3.5" aria-hidden />
-              <Check className="size-2.5" aria-hidden />
-            </span>
+            <CanvasIconCloudCheck className="joy-canvas-tool-icon" />
           )}
         </span>
 
@@ -349,27 +343,6 @@ export function CanvasTopBar({
             )}
           >
             <CanvasIconHistory className="joy-canvas-tool-icon" />
-          </button>
-
-          <span className="joy-canvas-top-sep" aria-hidden />
-
-          <Link
-            href="/assets"
-            className="joy-canvas-top-seg is-label"
-            title="生成资产"
-          >
-            <Images className="size-[length:var(--joy-canvas-tool-icon)]" />
-            <span>资产</span>
-          </Link>
-
-          <button
-            type="button"
-            title="快捷键"
-            aria-label="快捷键"
-            onClick={onOpenShortcuts}
-            className="joy-canvas-top-seg"
-          >
-            <CanvasIconShortcuts className="joy-canvas-tool-icon" />
           </button>
         </div>
       </div>

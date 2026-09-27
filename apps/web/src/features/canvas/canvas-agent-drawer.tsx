@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
 import { CanvasIconClose } from "./icons/canvas-icons";
 import { CanvasAgentPanel } from "./canvas-agent-panel";
 import { useCanvasRightPanelStore } from "./right-panel-store";
@@ -11,6 +10,7 @@ import {
   readAgentDrawerWidth,
   writeAgentDrawerWidth,
 } from "./lib/canvas-prefs";
+import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -88,7 +88,13 @@ export function CanvasAgentDrawer({ projectId }: Props) {
           )}
         >
           <span className="joy-canvas-agent-fab-icon grid size-6 place-items-center rounded-full">
-            <Sparkles className="size-3.5" strokeWidth={2.25} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={JOYAI_BRAND.logo}
+              alt=""
+              className="size-4 object-contain"
+              draggable={false}
+            />
           </span>
           与 AI 对话
         </button>
@@ -122,7 +128,13 @@ export function CanvasAgentDrawer({ projectId }: Props) {
           />
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2.5 pl-4">
             <div className="inline-flex min-w-0 items-center gap-2">
-              <Sparkles className="size-3.5 shrink-0 text-primary" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={JOYAI_BRAND.logo}
+                alt=""
+                className="size-4 shrink-0 object-contain"
+                draggable={false}
+              />
               <span className="truncate text-sm font-semibold">与 AI 对话</span>
             </div>
             <button

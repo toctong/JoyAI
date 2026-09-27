@@ -3,6 +3,8 @@
 import { Suspense, use, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { CanvasBoard } from "@/features/canvas/board";
+import { CanvasBootOverlay } from "@/features/canvas/canvas-boot-overlay";
+import "@/features/canvas/canvas-chrome.css";
 
 function CanvasProjectInner({ id }: { id: string }) {
   const searchParams = useSearchParams();
@@ -28,11 +30,11 @@ export default function CanvasProjectPage({
   const { id } = use(params);
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="joy-canvas-board relative h-full overflow-hidden">
       <Suspense
         fallback={
-          <div className="grid h-full place-items-center text-sm text-white/40">
-            加载画布…
+          <div className="relative h-full min-h-[480px]">
+            <CanvasBootOverlay visible />
           </div>
         }
       >

@@ -1,6 +1,6 @@
 import { api } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
-import { CANVAS_TEXT_FONT } from "@/shared/theme";
+import { CANVAS_NODE_SIZE, CANVAS_TEXT_FONT } from "@/shared/theme";
 import { useCanvasStore } from "../store";
 import { mediaRefFromNode } from "./canvas-media-refs";
 
@@ -82,7 +82,7 @@ export async function spawnReversePrompt(
       x: node.x + width + gap,
       y: node.y,
     });
-    store.updateNode(textId, { width: 360, height: 160 });
+    store.updateNode(textId, { ...CANVAS_NODE_SIZE.text });
     store.updateNodeData(textId, {
       text: known,
       title: "提取的提示词",
@@ -110,7 +110,7 @@ export async function spawnReversePrompt(
     x: node.x + width + gap,
     y: node.y,
   });
-  store.updateNode(textId, { width: 360, height: 160 });
+  store.updateNode(textId, { ...CANVAS_NODE_SIZE.text });
   store.updateNodeData(textId, {
     text: IMAGE_PROMPT_REVERSE_PRESET,
     title: "反推提示词",
@@ -119,10 +119,10 @@ export async function spawnReversePrompt(
   });
 
   const resultId = store.addNode("text", {
-    x: node.x + width + gap + 360 + gap,
+    x: node.x + width + gap + CANVAS_NODE_SIZE.text.width + gap,
     y: node.y,
   });
-  store.updateNode(resultId, { width: 360, height: 160 });
+  store.updateNode(resultId, { ...CANVAS_NODE_SIZE.text });
   store.updateNodeData(resultId, {
     text: "",
     title: "反推结果",

@@ -4,7 +4,7 @@ import { frameNodeToMedia } from "./fit-node-size";
 import { nodeBox } from "./node-box";
 import { titleFromPrompt } from "./node-title";
 import { flagPanoramaAspect } from "./panorama-prompt";
-import { CANVAS_TEXT_FONT } from "@/shared/theme";
+import { CANVAS_NODE_SIZE, CANVAS_TEXT_FONT } from "@/shared/theme";
 
 export type JobAssetLike = { id?: string; url?: string | null };
 
@@ -99,7 +99,7 @@ export function handleCanvasJobCompleted(
             x: box.x + box.width + 40,
             y: box.y,
           });
-          live.updateNode(textId, { width: 360, height: 160 });
+          live.updateNode(textId, { ...CANVAS_NODE_SIZE.text });
           live.updateNodeData(textId, {
             text: llmText,
             status: "succeeded",

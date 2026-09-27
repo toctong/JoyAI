@@ -12,19 +12,21 @@ import { useCanvasStore } from "./store";
 import { CanvasToolbar } from "./toolbar";
 import { CanvasCreateRail } from "./canvas-create-rail";
 import { CanvasTopBar } from "./canvas-top-bar";
-import { CanvasDock } from "./canvas-dock";
+import { CanvasDock, MINIMAP_BASE } from "./canvas-dock";
 import {
   CanvasMinimap,
   readMinimapOpenPreference,
   writeMinimapOpenPreference,
 } from "./canvas-minimap";
+import { useDockOverlayStore } from "./dock-overlay-store";
 import { CanvasShortcutsHelp } from "./canvas-shortcuts-help";
+import { CanvasBootOverlay } from "./canvas-boot-overlay";
 import { NodeFloatToolbar } from "./node-float-toolbar";
 import { MultiSelectToolbar } from "./multi-select-toolbar";
 import { GroupBoundsOverlay, GROUP_PAD, SELECTION_PAD } from "./group-bounds-overlay";
 import { NodeView } from "./node-view";
-import { NodeResizeHandles } from "./node-resize-handles";
 import { NodeGenPanel } from "./node-gen-panel";
+import { NodeResizeHandle } from "./node-resize-handle";
 import {
   CanvasEdges,
   NodeHandles,
@@ -75,6 +77,7 @@ import {
 import { spawnVideoFrameNode } from "./lib/spawn-video-frame-node";
 import { getPlaybackTime } from "./lib/playback-clock";
 import { api, apiUpload } from "@/shared/lib/api";
+import { confirmDialog } from "@/shared/lib/confirm";
 import { useJobLifecycle } from "@/shared/lib/use-job-lifecycle";
 import {
   titleFromPrompt,
@@ -241,8 +244,8 @@ export function CanvasBoard({
   const [panMode, setPanMode] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [isNodeDragging, setIsNodeDragging] = useState(false);
-  const [dropTargetGid, setDropTargetGid] = useState<string | null>(null);
   const [isNodeResizing, setIsNodeResizing] = useState(false);
+  const [dropTargetGid, setDropTargetGid] = useState<string | null>(null);
   const [directorId, setDirectorId] = useState<string | null>(null);
   const [miniMapOpen, setMiniMapOpen] = useState(true);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -389,7 +392,13 @@ export function CanvasBoard({
   }, [mentionHighlights, setHighlightedIds, connectDraft]);
 
   useEffect(() => {
-    setMiniMapOpen(readMinimapOpenPreference(true));
+    const mapOpen = readMinimapOpenPreference(true);
+    setMiniMapOpen(mapOpen);
+    if (mapOpen) {
+      useDockOverlayStore
+        .getState()
+        .open("minimap", MINIMAP_BASE.w, MINIMAP_BASE.h);
+    }
     setSnapToGrid(readSnapPreference(true));
     setGridMode(readGridModePreference("dots"));
     setEdgeVisibility(readEdgeVisibilityPreference("all"));
@@ -603,7 +612,7 @@ export function CanvasBoard({
     [pushHistory, setSelection],
   );
 
-  const pasteInternal = useCallback(() => {
+  const pasteInternal = useCallback((at?: { x: number; y: number }) => {
     const srcList = clipboard.current.nodes;
     if (!srcList.length) return false;
     pushHistory();
@@ -620,12 +629,16 @@ export function CanvasBoard({
     }
     const rect = containerRef.current?.getBoundingClientRect();
     const vp = useCanvasStore.getState().viewport;
-    const centerX = rect
-      ? (-vp.x + rect.width / 2) / vp.zoom
-      : (minX + maxX) / 2 + 36;
-    const centerY = rect
-      ? (-vp.y + rect.height / 2) / vp.zoom
-      : (minY + maxY) / 2 + 36;
+    const centerX =
+      at?.x ??
+      (rect
+        ? (-vp.x + rect.width / 2) / vp.zoom
+        : (minX + maxX) / 2 + 36);
+    const centerY =
+      at?.y ??
+      (rect
+        ? (-vp.y + rect.height / 2) / vp.zoom
+        : (minY + maxY) / 2 + 36);
     const ox = centerX - (minX + maxX) / 2;
     const oy = centerY - (minY + maxY) / 2;
     const idMap = new Map<string, string>();
@@ -653,16 +666,19 @@ export function CanvasBoard({
     return true;
   }, [addEdge, addNode, pushHistory, setSelection, updateNodeData]);
 
-  const pasteSystemClipboard = useCallback(async () => {
+  const pasteSystemClipboard = useCallback(
+    async (atPos?: { x: number; y: number }) => {
     if (!navigator.clipboard) return;
     const rect = containerRef.current?.getBoundingClientRect();
     const vp = useCanvasStore.getState().viewport;
-    const at = rect
-      ? {
-          x: (-vp.x + rect.width * 0.35) / vp.zoom,
-          y: (-vp.y + rect.height * 0.3) / vp.zoom,
-        }
-      : undefined;
+    const at =
+      atPos ??
+      (rect
+        ? {
+            x: (-vp.x + rect.width * 0.35) / vp.zoom,
+            y: (-vp.y + rect.height * 0.3) / vp.zoom,
+          }
+        : undefined);
     try {
       if (typeof navigator.clipboard.read === "function") {
         const items = await navigator.clipboard.read();
@@ -687,9 +703,45 @@ export function CanvasBoard({
     } catch {
       /* permission denied or empty */
     }
-  }, [addNode, ingestFiles, pushHistory, setSelection, updateNodeData]);
+  },
+    [addNode, ingestFiles, pushHistory, setSelection, updateNodeData],
+  );
 
   useEffect(() => {
+    /** Capture: steal Ctrl/⌘ +/- / 0 from browser page-zoom. */
+    const onBrowserZoomKeys = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const { key, code } = e;
+      const zoomIn =
+        key === "+" ||
+        key === "=" ||
+        code === "Equal" ||
+        code === "NumpadAdd";
+      const zoomOut =
+        key === "-" ||
+        key === "_" ||
+        code === "Minus" ||
+        code === "NumpadSubtract";
+      const zoomReset =
+        key === "0" || code === "Digit0" || code === "Numpad0";
+      if (!zoomIn && !zoomOut && !zoomReset) return;
+      e.preventDefault();
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        Boolean(target?.isContentEditable);
+      if (typing) return;
+      if (zoomIn) {
+        zoomAt(Math.min(5, useCanvasStore.getState().viewport.zoom * 1.1));
+      } else if (zoomOut) {
+        zoomAt(Math.max(0.05, useCanvasStore.getState().viewport.zoom * 0.9));
+      } else {
+        fitToContent();
+      }
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const typing =
@@ -745,6 +797,7 @@ export function CanvasBoard({
         return;
       }
       if (mod && e.key.toLowerCase() === "c") {
+        e.preventDefault();
         const state = useCanvasStore.getState();
         const idSet = new Set(state.selectedIds);
         const picked = state.nodes.filter((n) => idSet.has(n.id));
@@ -756,6 +809,10 @@ export function CanvasBoard({
             ),
           };
         }
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "x") {
+        e.preventDefault();
         return;
       }
       if (mod && e.key.toLowerCase() === "v") {
@@ -844,16 +901,6 @@ export function CanvasBoard({
         fitSelection();
         return;
       }
-      if (mod && (e.key === "=" || e.key === "+")) {
-        e.preventDefault();
-        zoomAt(Math.min(5, useCanvasStore.getState().viewport.zoom * 1.1));
-        return;
-      }
-      if (mod && e.key === "-") {
-        e.preventDefault();
-        zoomAt(Math.max(0.05, useCanvasStore.getState().viewport.zoom * 0.9));
-        return;
-      }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === "Space") setSpaceDown(false);
@@ -861,13 +908,40 @@ export function CanvasBoard({
     const onBlur = () => {
       setSpaceDown(false);
     };
+    const onCopyCut = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        Boolean(target?.isContentEditable);
+      if (typing) return;
+      // Block browser text copy from canvas chrome / empty hints / nodes.
+      if (target?.closest(".joy-canvas-surface")) e.preventDefault();
+    };
+    const onSelectStart = (e: Event) => {
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        Boolean(target?.isContentEditable);
+      if (typing) return;
+      if (target?.closest(".joy-canvas-surface")) e.preventDefault();
+    };
+    window.addEventListener("keydown", onBrowserZoomKeys, true);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
+    document.addEventListener("copy", onCopyCut, true);
+    document.addEventListener("cut", onCopyCut, true);
+    document.addEventListener("selectstart", onSelectStart, true);
     return () => {
+      window.removeEventListener("keydown", onBrowserZoomKeys, true);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
+      document.removeEventListener("copy", onCopyCut, true);
+      document.removeEventListener("cut", onCopyCut, true);
+      document.removeEventListener("selectstart", onSelectStart, true);
     };
   }, [
     clearSelection,
@@ -1488,9 +1562,21 @@ export function CanvasBoard({
     setMiniMapOpen((v) => {
       const next = !v;
       writeMinimapOpenPreference(next);
+      if (next) {
+        useDockOverlayStore
+          .getState()
+          .open("minimap", MINIMAP_BASE.w, MINIMAP_BASE.h);
+      } else {
+        useDockOverlayStore.getState().close("minimap");
+      }
       return next;
     });
   }
+
+  const dockOverlay = useDockOverlayStore((s) => s.active);
+  const showMiniMap =
+    miniMapOpen &&
+    (dockOverlay == null || dockOverlay.kind === "minimap");
 
   function toggleSnap() {
     setSnapToGrid(!snapToGrid);
@@ -1502,9 +1588,15 @@ export function CanvasBoard({
     writeGridModePreference(mode);
   }
 
-  function clearCanvas() {
+  async function clearCanvas() {
     if (!nodes.length) return;
-    if (!window.confirm("确定清空画布上的全部节点？此操作可撤销。")) return;
+    const ok = await confirmDialog({
+      title: "清空画布？",
+      description: "将移除画布上的全部节点。此操作可撤销。",
+      confirmText: "清空",
+      destructive: true,
+    });
+    if (!ok) return;
     pushHistory();
     removeNodes(nodes.map((n) => n.id));
     clearSelection();
@@ -1917,6 +2009,7 @@ export function CanvasBoard({
   return (
     <div className="joy-canvas-board flex h-full min-h-[480px] overflow-hidden">
       <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+      <CanvasBootOverlay visible={!projectReady} />
       <CanvasTopBar
         projectId={projectId}
         canUndo={past.length > 0}
@@ -1955,18 +2048,11 @@ export function CanvasBoard({
         panMode={panMode}
         canUndo={past.length > 0}
         canRedo={future.length > 0}
-        snapToGrid={snapToGrid}
-        gridMode={gridMode}
         selectedCount={selectedIds.length}
         onPanModeChange={setPanMode}
         onUndo={undo}
         onRedo={redo}
-        onToggleSnap={toggleSnap}
-        onGridModeChange={setGridModePref}
-        onAddNode={(type) => {
-          pushHistory();
-          addNode(type);
-        }}
+        onOpenAssets={() => setAssetPickerOpen(true)}
         onAddGroup={() => {
           if (selectedIds.length < 2) return;
           pushHistory();
@@ -1991,7 +2077,15 @@ export function CanvasBoard({
         miniMapOpen={miniMapOpen}
         shortcutsOpen={shortcutsOpen}
         edgeVisibility={edgeVisibility}
+        gridMode={gridMode}
+        snapToGrid={snapToGrid}
         onZoomChange={(z) => zoomAt(Math.min(5, Math.max(0.05, z)))}
+        onZoomIn={() =>
+          zoomAt(Math.min(5, useCanvasStore.getState().viewport.zoom * 1.1))
+        }
+        onZoomOut={() =>
+          zoomAt(Math.max(0.05, useCanvasStore.getState().viewport.zoom * 0.9))
+        }
         onFit={fitToContent}
         onToggleMiniMap={toggleMiniMap}
         onToggleShortcuts={() => setShortcutsOpen((v) => !v)}
@@ -2002,11 +2096,20 @@ export function CanvasBoard({
             return next;
           });
         }}
+        onGridModeChange={setGridModePref}
+        onToggleSnap={toggleSnap}
       />
 
       <CanvasShortcutsHelp
         open={shortcutsOpen}
-        onClose={() => setShortcutsOpen(false)}
+        onClose={() => {
+          setShortcutsOpen(false);
+          if (miniMapOpen) {
+            useDockOverlayStore
+              .getState()
+              .open("minimap", MINIMAP_BASE.w, MINIMAP_BASE.h);
+          }
+        }}
       />
       <CanvasAssetDialog
         open={assetPickerOpen}
@@ -2014,12 +2117,24 @@ export function CanvasBoard({
         onConfirm={(assets) => void insertPickedAssets(assets)}
       />
 
-      {miniMapOpen ? (
+      {showMiniMap ? (
         <CanvasMinimap
           nodes={nodes}
           viewport={viewport}
           viewportSize={viewportSize}
           onViewportChange={setViewport}
+          width={
+            dockOverlay?.kind === "minimap" ? dockOverlay.w : MINIMAP_BASE.w
+          }
+          height={
+            dockOverlay?.kind === "minimap" ? dockOverlay.h : MINIMAP_BASE.h
+          }
+          onClose={() => {
+            setMiniMapOpen(false);
+            writeMinimapOpenPreference(false);
+            useDockOverlayStore.getState().close("minimap");
+          }}
+          onFit={fitToContent}
         />
       ) : null}
 
@@ -2109,7 +2224,7 @@ export function CanvasBoard({
 
       <div
         ref={containerRef}
-        className="joy-canvas-surface absolute inset-0 touch-none"
+        className="joy-canvas-surface absolute inset-0 touch-none select-none"
         data-grid={gridMode}
         style={{
           cursor:
@@ -2203,6 +2318,7 @@ export function CanvasBoard({
             edges={edges}
             selectedEdgeId={selectedEdgeId}
             selectedNodeIds={selectedIds}
+            hoveredNodeId={hoveredNodeId}
             edgeVisibility={edgeVisibility}
             draft={connectDraft}
             onSelectEdge={(id) => {
@@ -2278,22 +2394,20 @@ export function CanvasBoard({
                     }
                     onConnectStart={onConnectStart}
                   />
+                  {(selected || hovered) &&
+                  selectedIds.length <= 1 &&
+                  !isPanningTool ? (
+                    <NodeResizeHandle
+                      node={node}
+                      zoom={viewport.zoom}
+                      visible
+                      onResizingChange={setIsNodeResizing}
+                    />
+                  ) : null}
                 </div>
               );
             });
           })()}
-          {selectedIds.length === 1 && !isPanningTool
-            ? (() => {
-                const n = nodes.find((x) => x.id === selectedIds[0]);
-                return n ? (
-                  <NodeResizeHandles
-                    node={n}
-                    zoom={viewport.zoom}
-                    onResizingChange={setIsNodeResizing}
-                  />
-                ) : null;
-              })()
-            : null}
         </div>
 
         {marqueeStyle ? (
@@ -2339,6 +2453,36 @@ export function CanvasBoard({
                 }
               : undefined
           }
+          onPaste={
+            createMenu.kind === "blank"
+              ? () => {
+                  const at = {
+                    x: createMenu.worldX,
+                    y: createMenu.worldY,
+                  };
+                  setCreateMenu(null);
+                  if (!pasteInternal(at)) void pasteSystemClipboard(at);
+                }
+              : undefined
+          }
+          onUndo={
+            createMenu.kind === "blank"
+              ? () => {
+                  setCreateMenu(null);
+                  undo();
+                }
+              : undefined
+          }
+          onRedo={
+            createMenu.kind === "blank"
+              ? () => {
+                  setCreateMenu(null);
+                  redo();
+                }
+              : undefined
+          }
+          canUndo={past.length > 0}
+          canRedo={future.length > 0}
           onClose={() => setCreateMenu(null)}
         />
       ) : null}

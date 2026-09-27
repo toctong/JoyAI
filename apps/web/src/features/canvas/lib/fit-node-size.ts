@@ -2,7 +2,12 @@ import type { CanvasNodeType } from "@joyai/shared";
 import { useCanvasStore } from "../store";
 import { nodeDefaultSize } from "../node-registry";
 
-/** Fit media into the default box while keeping aspect. Same idea as infinite-canvas `fitNodeSize`. */
+/**
+ * Fit media keeping aspect.
+ * Uses the longer side of the max box as the target edge so portrait
+ * (竖图) and landscape get similar on-canvas weight — not squeezed into
+ * a short landscape frame.
+ */
 export function fitNodeSize(
   width: number,
   height: number,
@@ -11,7 +16,8 @@ export function fitNodeSize(
 ) {
   const w = Math.max(1, width);
   const h = Math.max(1, height);
-  const scale = Math.min(1, maxWidth / w, maxHeight / h);
+  const maxEdge = Math.max(maxWidth, maxHeight);
+  const scale = Math.min(1, maxEdge / Math.max(w, h));
   return {
     width: Math.max(48, Math.round(w * scale)),
     height: Math.max(48, Math.round(h * scale)),
@@ -76,11 +82,13 @@ export async function frameNodeToMedia(
       : await probeFileMediaSize(source);
   if (!natural) return;
   const max = nodeDefaultSize(kind);
+  // Slightly larger than blank 16:9 so portrait nodes read clearly.
+  const fitEdge = Math.max(max.width, max.height, 500);
   const fitted = fitNodeSize(
     natural.width,
     natural.height,
-    max.width,
-    max.height,
+    fitEdge,
+    fitEdge,
   );
   const state = useCanvasStore.getState();
   const node = state.nodes.find((item) => item.id === nodeId);

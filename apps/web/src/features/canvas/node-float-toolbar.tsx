@@ -490,8 +490,8 @@ export function NodeFloatToolbar({
                     : "上传音频"
                   : node.type === "panorama"
                     ? url
-                      ? "替换全景"
-                      : "上传全景"
+                      ? "替换素材"
+                      : "上传素材"
                     : url
                       ? "替换图片"
                       : "上传图片"
@@ -539,8 +539,8 @@ export function NodeFloatToolbar({
         return (
           <ToolBtn
             key={action}
-            title="转720°全景"
-            label="转720°全景"
+            title="转 720° 环视"
+            label="转环视"
             onClick={() => onOpenPanorama?.()}
           >
             <CanvasIconPanorama className="joy-canvas-tool-icon" />
@@ -878,7 +878,7 @@ export function NodeFloatToolbar({
     if (actions.includes("upload")) {
       primaryItems.push({
         id: "upload",
-        label: url ? "替换全景" : "上传全景",
+        label: url ? "替换素材" : "上传素材",
         icon: <CanvasIconUpload className="joy-canvas-tool-icon opacity-70" />,
         run: () => fileRef.current?.click(),
       });
@@ -1057,7 +1057,7 @@ export function NodeFloatToolbar({
             : node.type === "audio"
               ? "替换音频"
               : node.type === "panorama"
-                ? "替换全景"
+                ? "替换素材"
                 : "替换图片",
         icon: <CanvasIconUpload className="joy-canvas-tool-icon opacity-70" />,
         run: () => fileRef.current?.click(),
@@ -1074,7 +1074,7 @@ export function NodeFloatToolbar({
     if (actions.includes("to-panorama") && node.type === "image" && hasMedia) {
       moreItems.push({
         id: "to-panorama",
-        label: "转720°全景",
+        label: "转 720° 环视",
         icon: <CanvasIconPanorama className="joy-canvas-tool-icon opacity-70" />,
         run: () => onOpenPanorama?.(),
       });

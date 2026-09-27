@@ -93,10 +93,10 @@
   --joy-canvas-chrome-font-sm: var(--joy-font-caption);
   --joy-canvas-port: 22px;
   --joy-canvas-text-default: 16px;
-  /* Left rail / bottom dock / float toolbars */
-  --joy-canvas-tool-icon: 20px;
-  --joy-canvas-tool-btn: 40px;
-  --joy-canvas-tool-rail-width: 56px;
+  /* Left rail / bottom dock / float toolbars — compact */
+  --joy-canvas-tool-icon: 18px;
+  --joy-canvas-tool-btn: 32px;
+  --joy-canvas-tool-rail-width: 42px;
   --joy-canvas-float-icon: 18px;
   --joy-canvas-float-btn: 36px;
   --joy-canvas-title-edit-icon: 12px;

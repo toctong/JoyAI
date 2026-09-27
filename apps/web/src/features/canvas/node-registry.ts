@@ -131,7 +131,7 @@ export const NODE_REGISTRY: Record<CanvasNodeType, NodeRegistryEntry> = {
   },
   panorama: {
     type: "panorama",
-    label: "全景",
+    label: "环视图",
     defaultWidth: CANVAS_NODE_SIZE.panorama.width,
     defaultHeight: CANVAS_NODE_SIZE.panorama.height,
     defaultData: () => ({

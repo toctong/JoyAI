@@ -51,6 +51,8 @@ type Props = {
   edges: CanvasEdge[];
   selectedEdgeId: string | null;
   selectedNodeIds?: string[];
+  /** Focus mode: only edges touching the hovered node are revealed + flow. */
+  hoveredNodeId?: string | null;
   edgeVisibility?: CanvasEdgeVisibility;
   draft?: ConnectDraft | null;
   onSelectEdge: (id: string | null) => void;
@@ -62,6 +64,7 @@ export function CanvasEdges({
   edges,
   selectedEdgeId,
   selectedNodeIds = [],
+  hoveredNodeId = null,
   edgeVisibility = "all",
   draft,
   onSelectEdge,
@@ -69,7 +72,8 @@ export function CanvasEdges({
 }: Props) {
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const focusIds = new Set(selectedNodeIds);
+  const selectedFocus = new Set(selectedNodeIds);
+  const focusMode = edgeVisibility === "focus";
   const pad = 2400;
   let minX = 0;
   let minY = 0;
@@ -87,20 +91,51 @@ export function CanvasEdges({
   const width = Math.max(1, maxX - minX + pad * 2);
   const height = Math.max(1, maxY - minY + pad * 2);
 
-  const visibleEdges =
-    edgeVisibility === "focus"
-      ? focusIds.size
-        ? edges.filter(
-            (edge) => focusIds.has(edge.source) || focusIds.has(edge.target),
-          )
-        : []
-      : edges;
+  // Focus / 隐藏连线：悬停或选中节点时露出相关连线。
+  const visibleEdges = focusMode
+    ? edges.filter(
+        (edge) =>
+          (hoveredNodeId != null &&
+            (edge.source === hoveredNodeId ||
+              edge.target === hoveredNodeId)) ||
+          selectedFocus.has(edge.source) ||
+          selectedFocus.has(edge.target) ||
+          edge.id === selectedEdgeId,
+      )
+    : edges;
 
   return (
     <svg
       className="pointer-events-none absolute z-[1] overflow-visible text-foreground/40"
       style={{ left, top, width, height }}
     >
+      <defs>
+        <linearGradient
+          id="joy-edge-infusion"
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="0%"
+        >
+          <stop offset="0%" stopColor="#22d3ee" />
+          <stop offset="40%" stopColor="#4ade80" />
+          <stop offset="72%" stopColor="#facc15" />
+          <stop offset="100%" stopColor="#fb923c" />
+        </linearGradient>
+        <filter
+          id="joy-edge-infusion-glow"
+          x="-80%"
+          y="-80%"
+          width="260%"
+          height="260%"
+        >
+          <feGaussianBlur stdDeviation="1.8" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
       <g transform={`translate(${-left} ${-top})`}>
         {visibleEdges.map((edge) => {
           const source = byId.get(edge.source);
@@ -110,8 +145,17 @@ export function CanvasEdges({
           const b = nodeCenterLeft(target);
           const selected = selectedEdgeId === edge.id;
           const hovered = hoveredEdgeId === edge.id;
-          const related =
-            focusIds.has(edge.source) || focusIds.has(edge.target);
+          const relatedToHover =
+            hoveredNodeId != null &&
+            (edge.source === hoveredNodeId || edge.target === hoveredNodeId);
+          const relatedToSelection =
+            selectedFocus.has(edge.source) || selectedFocus.has(edge.target);
+          // 显示全部：仅选中播流动画。隐藏连线：悬停露出并流动画；选中也播（线需已可见）。
+          const related = focusMode
+            ? relatedToHover || relatedToSelection
+            : relatedToSelection;
+          const flowing =
+            relatedToSelection || (focusMode && relatedToHover);
           const active = selected || hovered || related;
           const mid = bezierMid(a.x, a.y, b.x, b.y);
           const d = bezierPath(a.x, a.y, b.x, b.y);
@@ -144,10 +188,29 @@ export function CanvasEdges({
                 className={cn(
                   "pointer-events-none transition-[stroke-width,opacity] duration-200",
                   active ? "text-foreground/80" : "text-foreground/35",
-                  (selected || related) && "joy-canvas-edge-flow text-primary",
-                  hovered && !selected && "text-primary/80",
+                  hovered && !selected && !related && "text-primary/80",
+                  flowing && "text-sky-500/55",
                 )}
               />
+              {flowing ? (
+                <>
+                  <path
+                    d={d}
+                    pathLength={1}
+                    className="joy-canvas-edge-flow-slug joy-canvas-edge-flow-slug--glow"
+                  />
+                  <path
+                    d={d}
+                    pathLength={1}
+                    className="joy-canvas-edge-flow-slug joy-canvas-edge-flow-slug--body"
+                  />
+                  <path
+                    d={d}
+                    pathLength={1}
+                    className="joy-canvas-edge-flow-slug joy-canvas-edge-flow-slug--head"
+                  />
+                </>
+              ) : null}
               {selected || hovered ? (
                 <foreignObject
                   x={mid.x - 14}
@@ -202,15 +265,31 @@ export function CanvasEdges({
                 if (!source) return null;
                 const a = nodeCenterRight(source);
                 return (
-                  <path
-                    key={`draft-${id}`}
-                    d={bezierPath(a.x, a.y, draft.x, draft.y)}
-                    fill="none"
-                    stroke="currentColor"
-                    className="joy-canvas-edge-flow text-primary"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                  />
+                  <g key={`draft-${id}`}>
+                    <path
+                      d={bezierPath(a.x, a.y, draft.x, draft.y)}
+                      fill="none"
+                      stroke="currentColor"
+                      className="text-sky-500/55"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                    />
+                    <path
+                      d={bezierPath(a.x, a.y, draft.x, draft.y)}
+                      pathLength={1}
+                      className="joy-canvas-edge-flow-slug joy-canvas-edge-flow-slug--glow"
+                    />
+                    <path
+                      d={bezierPath(a.x, a.y, draft.x, draft.y)}
+                      pathLength={1}
+                      className="joy-canvas-edge-flow-slug joy-canvas-edge-flow-slug--body"
+                    />
+                    <path
+                      d={bezierPath(a.x, a.y, draft.x, draft.y)}
+                      pathLength={1}
+                      className="joy-canvas-edge-flow-slug joy-canvas-edge-flow-slug--head"
+                    />
+                  </g>
                 );
               });
             })()

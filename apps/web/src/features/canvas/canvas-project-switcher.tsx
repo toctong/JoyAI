@@ -28,6 +28,20 @@ type Props = {
   children: React.ReactNode;
 };
 
+function formatUpdatedAt(value: string) {
+  const t = Date.parse(value);
+  if (!Number.isFinite(t)) return "";
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "刚刚";
+  if (min < 60) return `${min} 分钟前`;
+  const hour = Math.floor(min / 60);
+  if (hour < 24) return `${hour} 小时前`;
+  const day = Math.floor(hour / 24);
+  if (day < 30) return `${day} 天前`;
+  return new Date(t).toLocaleDateString();
+}
+
 export function CanvasProjectSwitcher({
   projectId,
   open,
@@ -104,80 +118,108 @@ export function CanvasProjectSwitcher({
       <PopoverAnchor asChild>{children}</PopoverAnchor>
       <PopoverContent
         align="start"
-        sideOffset={8}
+        sideOffset={10}
         data-canvas-no-zoom
         data-canvas-shortcuts-ignore
-        className="joy-canvas-chrome w-[min(320px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border p-0 shadow-xl"
+        className={cn(
+          "joy-canvas-project-switcher w-[min(300px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border/70 p-0 shadow-2xl",
+          "bg-popover/95 text-popover-foreground backdrop-blur-xl",
+        )}
         onOpenAutoFocus={(event) => event.preventDefault()}
         onPointerDown={(event) => event.stopPropagation()}
       >
-        <div className="border-b border-border p-3">
-          <label className="flex h-9 items-center gap-2 rounded-full bg-muted px-3 text-muted-foreground">
-            <CanvasIconSearch className="size-3.5 shrink-0" />
+        <div className="border-b border-border/60 px-3 pb-3 pt-3">
+          <p className="mb-2 px-0.5 text-[11px] font-medium tracking-wide text-muted-foreground">
+            切换画布
+          </p>
+          <label className="flex h-9 items-center gap-2 rounded-xl border border-border/50 bg-muted/70 px-2.5 text-muted-foreground transition focus-within:border-border focus-within:bg-muted">
+            <CanvasIconSearch className="size-3.5 shrink-0 opacity-70" />
             <input
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
-              placeholder="搜索画布"
-              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              placeholder="搜索画布名称…"
+              className="w-full bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground/80"
               autoFocus
             />
           </label>
         </div>
 
-        <div className="max-h-[min(360px,50vh)] overflow-y-auto py-1.5">
+        <div className="max-h-[min(340px,48vh)] overflow-y-auto px-1.5 py-1.5">
           {loading ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            <p className="px-3 py-10 text-center text-[13px] text-muted-foreground">
               加载中…
             </p>
           ) : filtered.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+            <p className="px-3 py-10 text-center text-[13px] text-muted-foreground">
               {keyword.trim() ? "没有匹配的画布" : "还没有画布"}
             </p>
           ) : (
-            filtered.map((item) => {
-              const active = item.id === projectId;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={cn(
-                    "flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-muted/80",
-                    active && "bg-muted/60",
-                  )}
-                  onClick={() => selectProject(item.id)}
-                >
-                  <span className="relative size-9 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
-                    <ProjectCover
-                      url={item.coverUrl}
-                      showVideoMark={false}
-                      className="!size-full !rounded-full object-cover"
-                      emptyClassName="flex size-full items-center justify-center rounded-full bg-muted [&>svg]:size-3.5 [&>svg]:opacity-50"
-                    />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {item.title || "未命名项目"}
-                  </span>
-                  {active ? (
-                    <Check
-                      className="size-4 shrink-0 text-foreground"
-                      strokeWidth={2.25}
-                      aria-hidden
-                    />
-                  ) : null}
-                </button>
-              );
-            })
+            <ul className="flex flex-col gap-0.5">
+              {filtered.map((item) => {
+                const active = item.id === projectId;
+                const updated = formatUpdatedAt(item.updatedAt);
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "group flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition",
+                        active
+                          ? "bg-muted shadow-sm"
+                          : "hover:bg-muted/70",
+                      )}
+                      onClick={() => selectProject(item.id)}
+                    >
+                      <span
+                        className={cn(
+                          "relative size-10 shrink-0 overflow-hidden rounded-xl bg-muted ring-1 ring-border/60",
+                          active && "ring-foreground/20",
+                        )}
+                      >
+                        <ProjectCover
+                          url={item.coverUrl}
+                          showVideoMark={false}
+                          className="!size-full !rounded-xl object-cover"
+                          emptyClassName="flex size-full items-center justify-center rounded-xl bg-muted [&>svg]:size-4 [&>svg]:opacity-45"
+                        />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13px] font-medium leading-snug text-foreground">
+                          {item.title || "未命名项目"}
+                        </span>
+                        {updated ? (
+                          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                            {updated}
+                          </span>
+                        ) : null}
+                      </span>
+                      {active ? (
+                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-background">
+                          <Check className="size-3.5" strokeWidth={2.5} />
+                        </span>
+                      ) : (
+                        <span className="size-6 shrink-0" aria-hidden />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
 
-        <div className="border-t border-border p-1.5">
+        <div className="border-t border-border/60 p-2">
           <button
             type="button"
             disabled={creating}
-            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-muted disabled:opacity-50"
+            className={cn(
+              "flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-medium transition",
+              "bg-foreground text-background hover:opacity-90",
+              "disabled:cursor-not-allowed disabled:opacity-45",
+            )}
             onClick={() => void createProject()}
           >
-            <Plus className="size-4 opacity-70" />
+            <Plus className="size-3.5" strokeWidth={2.5} />
             {creating ? "创建中…" : "新建画布"}
           </button>
         </div>

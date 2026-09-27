@@ -49,8 +49,10 @@ export function DirectorNode({ node, onPointerDown, onOpenDirector }: Props) {
         visible={selected || hovered}
         onDragPointerDown={onPointerDown}
       />
-      <div className="flex h-full flex-col items-center justify-center gap-2 rounded-md border border-border bg-card p-3 text-center">
-        <CanvasIconDirector className="size-7 text-primary/80" />
+      <div className="flex h-full flex-col items-center justify-center gap-2.5 rounded-md border border-border bg-card p-3 text-center">
+        <span className="joy-media-empty-icon text-primary/75">
+          <CanvasIconDirector />
+        </span>
         <div className="text-sm font-medium">3D 导演台</div>
         <p className="text-[11px] text-muted-foreground">
           在 3D 空间搭建场景、机位并截图
