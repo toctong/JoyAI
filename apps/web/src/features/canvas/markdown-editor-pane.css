@@ -104,12 +104,21 @@
   color: var(--foreground) !important;
 }
 
-/* Compact / edit-only embeds: hide empty preview pane. */
-.joy-md-editor--compact .w-md-editor-show-edit .w-md-editor-preview,
+/* Edit mode: hide zero-width preview so the write pane fills cleanly. */
 .joy-md-editor .w-md-editor-show-edit .w-md-editor-preview {
   display: none !important;
 }
 
-.joy-md-editor--compact .w-md-editor-show-edit .w-md-editor-input {
+.joy-md-editor .w-md-editor-show-edit .w-md-editor-input {
   width: 100% !important;
+}
+
+/* Live split: keep absolute preview visible beside the input. */
+.joy-md-editor .w-md-editor-show-live .w-md-editor-content {
+  position: relative !important;
+}
+
+.joy-md-editor .w-md-editor-show-live .w-md-editor-preview {
+  display: flex !important;
+  width: 50% !important;
 }

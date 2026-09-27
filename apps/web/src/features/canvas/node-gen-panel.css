@@ -440,6 +440,16 @@
   background: color-mix(in oklab, var(--card) 98%, transparent);
 }
 
+.joy-preset-dialog--md {
+  width: min(720px, calc(100vw - 32px));
+  max-width: min(720px, calc(100vw - 32px));
+}
+
+.joy-preset-dialog-md-skeleton {
+  min-height: 280px;
+  width: 100%;
+}
+
 .joy-preset-dialog .joy-preset-dialog-body {
   display: flex;
   flex-direction: column;

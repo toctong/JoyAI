@@ -68,7 +68,8 @@ export function MarkdownEditorDialog({
         <DialogHeader className="shrink-0 pr-8">
           <DialogTitle>{title}</DialogTitle>
           <p className="text-xs text-muted-foreground">
-            左侧编写，右侧预览。支持标题、列表、代码和表格。Ctrl / ⌘ + Enter 保存。
+            支持标题、列表、代码和表格。工具栏可切换实时预览。Ctrl / ⌘ + Enter
+            保存。
           </p>
         </DialogHeader>
         {open ? (
@@ -77,6 +78,7 @@ export function MarkdownEditorDialog({
               value={draft}
               placeholder={placeholder}
               colorMode={resolvedTheme === "dark" ? "dark" : "light"}
+              preview="edit"
               onChange={setDraft}
             />
           </div>

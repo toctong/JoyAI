@@ -609,7 +609,7 @@ export function AssetsStep({
           if (!open) closeEdit();
         }}
       >
-        <DialogContent className="manju-dialog max-w-lg gap-4 border-border bg-card p-5 shadow-none sm:rounded-xl">
+        <DialogContent className="manju-dialog max-w-2xl gap-4 border-border bg-card p-5 shadow-none sm:rounded-xl">
           {editing ? (
             <>
               <DialogHeader>
@@ -646,8 +646,7 @@ export function AssetsStep({
                       updateAsset(project.id, editing.id, { description })
                     }
                     placeholder={descPlaceholder(editing)}
-                    height={140}
-                    hideToolbar
+                    height={240}
                   />
                 </div>
                 {editing.kind === "character" && !editing.parentId ? (

@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 import { ApiError } from "@/shared/lib/api";
@@ -35,6 +36,17 @@ import {
   updateCanvasPreset,
   type PromptPreset,
 } from "./lib/prompt-presets";
+
+const MarkdownEditorPane = dynamic(
+  () =>
+    import("./markdown-editor-pane").then((m) => m.MarkdownEditorPane),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="joy-preset-dialog-md-skeleton animate-pulse rounded-[10px] bg-muted/50" />
+    ),
+  },
+);
 
 type EditorState =
   | { mode: "create" }
@@ -63,6 +75,7 @@ export function CanvasPromptPresets({
   onApply,
   children,
 }: Props) {
+  const { resolvedTheme } = useTheme();
   const [tab, setTab] = useState<TabId>("canvas");
   const [globalPresets, setGlobalPresets] = useState<PromptPreset[]>([]);
   const [canvasPresets, setCanvasPresets] = useState<PromptPreset[]>([]);
@@ -368,7 +381,7 @@ export function CanvasPromptPresets({
         }}
       >
         <DialogContent
-          className="joy-preset-dialog"
+          className="joy-preset-dialog joy-preset-dialog--md"
           data-canvas-shortcuts-ignore
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
@@ -400,22 +413,25 @@ export function CanvasPromptPresets({
 
             <div className="joy-preset-dialog-field">
               <div className="joy-preset-dialog-label-row">
-                <label htmlFor="joy-preset-text">提示词内容</label>
+                <span>提示词内容</span>
                 <span className="joy-preset-dialog-count">
                   {text.length}/{PROMPT_PRESET_TEXT_MAX}
                 </span>
               </div>
-              <Textarea
-                id="joy-preset-text"
-                value={text}
-                onChange={(e) =>
-                  setText(e.target.value.slice(0, PROMPT_PRESET_TEXT_MAX))
-                }
-                placeholder="填入常用的提示词内容"
-                maxLength={PROMPT_PRESET_TEXT_MAX}
-                rows={8}
-                className="joy-preset-dialog-textarea"
-              />
+              {editor ? (
+                <MarkdownEditorPane
+                  value={text}
+                  placeholder="填入常用的提示词内容"
+                  colorMode={resolvedTheme === "dark" ? "dark" : "light"}
+                  preview="edit"
+                  height={280}
+                  fill={false}
+                  onChange={(next) =>
+                    setText(next.slice(0, PROMPT_PRESET_TEXT_MAX))
+                  }
+                  className="joy-preset-dialog-md"
+                />
+              ) : null}
             </div>
           </div>
 

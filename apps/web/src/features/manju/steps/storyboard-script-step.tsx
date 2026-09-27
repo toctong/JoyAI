@@ -359,7 +359,7 @@ function ShotEditDialog({
         if (!next) onClose();
       }}
     >
-      <DialogContent className="manju-dialog max-w-lg gap-4 border-border bg-card p-5 shadow-none sm:rounded-xl">
+      <DialogContent className="manju-dialog max-w-2xl gap-4 border-border bg-card p-5 shadow-none sm:rounded-xl">
         <DialogHeader>
           <DialogTitle>
             编辑分镜 {String(shot.index).padStart(2, "0")}
@@ -374,8 +374,7 @@ function ShotEditDialog({
                 updateShot(project.id, shot.id, { visual })
               }
               placeholder="画面描述…"
-              height={120}
-              hideToolbar
+              height={220}
             />
           </div>
           <div className="space-y-1.5">
@@ -386,8 +385,7 @@ function ShotEditDialog({
                 updateShot(project.id, shot.id, { dialogue })
               }
               placeholder="对白…"
-              height={72}
-              hideToolbar
+              height={140}
             />
           </div>
           {project.episodes.length > 0 ? (

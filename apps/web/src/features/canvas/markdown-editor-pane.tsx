@@ -17,7 +17,10 @@ type Props = {
   placeholder?: string;
   colorMode: "light" | "dark";
   onChange: (value: string) => void;
-  /** Default live — write left / preview right, same as canvas「编辑文本」. */
+  /**
+   * Default edit — toolbar + full-width write pane (弹框「编辑提示词」形态).
+   * Toolbar 可切到 live / preview.
+   */
   preview?: MarkdownPreviewMode;
   /** Fill parent (dialog). Ignore when `height` is set. */
   fill?: boolean;
@@ -32,7 +35,7 @@ export function MarkdownEditorPane({
   placeholder,
   colorMode,
   onChange,
-  preview = "live",
+  preview = "edit",
   fill = true,
   height,
   hideToolbar = false,

@@ -26,8 +26,8 @@ type Props = {
   /** Fixed editor height in px */
   height?: number;
   /**
-   * Default live（左写右预览），与画布「编辑文本」一致。
-   * 显式 hideToolbar 或很矮的字段会自动退回 edit。
+   * Default edit（工具栏 + 单栏），与画布弹框「编辑提示词」一致。
+   * 显式 hideToolbar 时退回无工具栏单栏。
    */
   preview?: MarkdownPreviewMode;
   className?: string;
@@ -39,16 +39,12 @@ export function ManjuMdField({
   onChange,
   placeholder,
   height = 200,
-  preview = "live",
+  preview = "edit",
   className,
   hideToolbar = false,
 }: Props) {
   const { resolvedTheme } = useTheme();
   const colorMode = resolvedTheme === "dark" ? "dark" : "light";
-  /** Too short for a useful live split — keep a single edit pane. */
-  const tooShortForLive = height < 200;
-  const resolvedPreview =
-    hideToolbar || tooShortForLive ? "edit" : preview;
 
   return (
     <div
@@ -66,7 +62,7 @@ export function ManjuMdField({
         onChange={onChange}
         placeholder={placeholder}
         colorMode={colorMode}
-        preview={resolvedPreview}
+        preview={hideToolbar ? "edit" : preview}
         height={height}
         fill={false}
         hideToolbar={hideToolbar}
