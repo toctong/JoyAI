@@ -842,7 +842,7 @@ export function ImageRedrawDialog({
                     : undefined,
                   content: (
                     <>
-                      <p className="text-xs text-white/45">
+                      <p className="joy-studio-panels__hint">
                         把选区变成什么？留空则智能填充、与周围环境协调。
                       </p>
                       <label className="joy-studio-shell__field">
@@ -860,13 +860,13 @@ export function ImageRedrawDialog({
                         />
                         <span className="joy-studio-shell__field-label">
                           <span />
-                          <span className="tabular-nums text-white/35">
+                          <span className="tabular-nums text-muted-foreground">
                             {prompt.length}/{PROMPT_MAX}
                           </span>
                         </span>
                       </label>
                       {error ? (
-                        <p className="text-xs text-red-400">{error}</p>
+                        <p className="text-xs text-destructive">{error}</p>
                       ) : null}
                     </>
                   ),
@@ -877,7 +877,7 @@ export function ImageRedrawDialog({
                   icon: <Lightbulb />,
                   content: (
                     <>
-                      <p className="text-xs text-white/45">
+                      <p className="joy-studio-panels__hint">
                         点击填入描述框，『 』处替换成你想要的内容即可。
                       </p>
                       <div className="grid grid-cols-2 gap-2">
@@ -885,13 +885,13 @@ export function ImageRedrawDialog({
                           <button
                             key={item.id}
                             type="button"
-                            className="rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-2 text-left hover:bg-white/[0.06]"
+                            className="joy-studio-shell__option-card"
                             onClick={() => applyPreset(item.prompt)}
                           >
-                            <span className="block text-sm text-white/85">
+                            <span className="joy-studio-shell__option-card-title">
                               {item.label}
                             </span>
-                            <span className="mt-0.5 block text-[11px] text-white/40">
+                            <span className="joy-studio-shell__option-card-desc">
                               {item.hint}
                             </span>
                           </button>
@@ -914,13 +914,13 @@ export function ImageRedrawDialog({
                       : undefined,
                   content: (
                     <>
-                      <p className="text-xs text-white/45">
+                      <p className="joy-studio-panels__hint">
                         让 AI 参照颜色、款式或材质；左侧连线到底图的图片也会作为参考。
                       </p>
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md border border-dashed border-white/20 text-xs text-white/70 hover:border-white/35 hover:text-white"
+                          className="joy-studio-shell__dash-btn"
                           onClick={() => fileRef.current?.click()}
                         >
                           <Upload className="size-3.5 opacity-80" />
@@ -928,7 +928,7 @@ export function ImageRedrawDialog({
                         </button>
                         <button
                           type="button"
-                          className="inline-flex h-10 items-center justify-center gap-1.5 rounded-md border border-dashed border-white/20 text-xs text-white/70 hover:border-white/35 hover:text-white"
+                          className="joy-studio-shell__dash-btn"
                           disabled={!sourceNodeId}
                           onClick={() => setPickCanvas(true)}
                         >
@@ -941,7 +941,7 @@ export function ImageRedrawDialog({
                           {refFiles.map((item) => (
                             <div
                               key={item.id}
-                              className="relative size-14 overflow-hidden rounded-md border border-white/15"
+                              className="relative size-14 overflow-hidden rounded-md border border-border"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
@@ -951,7 +951,7 @@ export function ImageRedrawDialog({
                               />
                               <button
                                 type="button"
-                                className="absolute right-0.5 top-0.5 rounded bg-black/70 p-0.5"
+                                className="absolute right-0.5 top-0.5 rounded bg-background/80 p-0.5 text-foreground shadow-sm"
                                 onClick={() => {
                                   URL.revokeObjectURL(item.preview);
                                   setRefFiles((prev) =>
@@ -959,14 +959,14 @@ export function ImageRedrawDialog({
                                   );
                                 }}
                               >
-                                <X className="size-3 text-white" />
+                                <X className="size-3" />
                               </button>
                             </div>
                           ))}
                           {refNodeThumbs.map((item) => (
                             <div
                               key={item.id}
-                              className="relative size-14 overflow-hidden rounded-md border border-white/15"
+                              className="relative size-14 overflow-hidden rounded-md border border-border"
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
@@ -976,14 +976,14 @@ export function ImageRedrawDialog({
                               />
                               <button
                                 type="button"
-                                className="absolute right-0.5 top-0.5 rounded bg-black/70 p-0.5"
+                                className="absolute right-0.5 top-0.5 rounded bg-background/80 p-0.5 text-foreground shadow-sm"
                                 onClick={() =>
                                   setRefNodeIds((prev) =>
                                     prev.filter((id) => id !== item.id),
                                   )
                                 }
                               >
-                                <X className="size-3 text-white" />
+                                <X className="size-3" />
                               </button>
                             </div>
                           ))}
@@ -1019,7 +1019,7 @@ export function ImageRedrawDialog({
                   content: (
                     <>
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-sm text-white/85">显示选区高亮</p>
+                        <p className="text-sm text-foreground">显示选区高亮</p>
                         <Switch
                           checked={showMask}
                           onCheckedChange={setShowMask}
@@ -1027,12 +1027,11 @@ export function ImageRedrawDialog({
                       </div>
                       <span className="joy-studio-shell__field-label">
                         <span>透明度</span>
-                        <span className="tabular-nums text-white/45">
+                        <span className="tabular-nums text-muted-foreground">
                           {maskOpacity}%
                         </span>
                       </span>
                       <Slider
-                        tone="onDark"
                         min={15}
                         max={90}
                         step={1}
@@ -1040,7 +1039,7 @@ export function ImageRedrawDialog({
                         onValueChange={([v]) => setMaskOpacity(v ?? 55)}
                         disabled={!showMask}
                       />
-                      <p className="text-xs text-white/40">
+                      <p className="joy-studio-panels__hint">
                         高亮颜色与透明度只影响显示，不影响生成结果。
                       </p>
                     </>

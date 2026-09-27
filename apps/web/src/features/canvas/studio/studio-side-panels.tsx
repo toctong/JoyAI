@@ -56,7 +56,7 @@ export function StudioSidePanels({
           value={item.id}
           className="joy-studio-panels__item"
         >
-          <AccordionTrigger className="joy-studio-panels__trigger hover:no-underline">
+          <AccordionTrigger className="joy-studio-panels__trigger hover:no-underline focus-visible:ring-0">
             <span className="joy-studio-panels__lead">
               {item.icon ? (
                 <span className="joy-studio-panels__icon">{item.icon}</span>
