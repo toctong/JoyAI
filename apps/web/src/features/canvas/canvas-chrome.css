@@ -357,6 +357,21 @@
   background: color-mix(in oklab, var(--ring) 12%, transparent);
 }
 
+/* Smart align guides while dragging nodes */
+.joy-canvas-guide {
+  position: absolute;
+  background: color-mix(in oklab, #0ea5e9 90%, transparent);
+  box-shadow: 0 0 0 0.5px color-mix(in oklab, #0284c7 45%, transparent);
+}
+
+.joy-canvas-guide.is-v {
+  transform: translateX(-50%);
+}
+
+.joy-canvas-guide.is-h {
+  transform: translateY(-50%);
+}
+
 .joy-canvas-menu-item {
   color: var(--popover-foreground);
 }

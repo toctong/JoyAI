@@ -132,6 +132,8 @@ import {
   handleCanvasJobCompleted,
   handleCanvasJobFailed,
 } from "./lib/handle-job-event";
+import { computeGuideSnap, type GuideLine } from "./lib/guides";
+import { CanvasGuides } from "./canvas-guides";
 import { isBusyStatus } from "./node-registry";
 import "./canvas-chrome.css";
 
@@ -245,6 +247,7 @@ export function CanvasBoard({
   const [isPanning, setIsPanning] = useState(false);
   const [isNodeDragging, setIsNodeDragging] = useState(false);
   const [isNodeResizing, setIsNodeResizing] = useState(false);
+  const [guideLines, setGuideLines] = useState<GuideLine[]>([]);
   const [dropTargetGid, setDropTargetGid] = useState<string | null>(null);
   const [directorId, setDirectorId] = useState<string | null>(null);
   const [miniMapOpen, setMiniMapOpen] = useState(true);
@@ -1170,12 +1173,43 @@ export function CanvasBoard({
       const dy = (e.clientY - drag.current.oy) / zoom;
       const state = useCanvasStore.getState();
       const movedIds = drag.current.ids;
-      const next = state.nodes.map((n) => {
+      const movedSet = new Set(movedIds);
+      const proposed = state.nodes.map((n) => {
         const origin = drag.current?.origins[n.id];
         if (!origin) return n;
         return { ...n, x: origin.x + dx, y: origin.y + dy };
       });
+      // Ctrl/Meta temporarily disables smart guides (Alt already means solo drag).
+      const guidesOff = e.ctrlKey || e.metaKey;
+      let next = proposed;
+      let lines: GuideLine[] = [];
+      if (!guidesOff) {
+        const moving = proposed.filter((n) => movedSet.has(n.id));
+        const others = proposed.filter(
+          (n) => !movedSet.has(n.id) && !isHiddenBatchChild(n, proposed),
+        );
+        const snap = computeGuideSnap({ moving, others });
+        if (snap.dx || snap.dy) {
+          next = proposed.map((n) => {
+            if (!movedSet.has(n.id)) return n;
+            return { ...n, x: n.x + snap.dx, y: n.y + snap.dy };
+          });
+        }
+        lines = snap.lines;
+      }
       useCanvasStore.setState({ nodes: next, dirty: true });
+      setGuideLines((prev) =>
+        prev.length === lines.length &&
+        prev.every(
+          (g, i) =>
+            g.orientation === lines[i]?.orientation &&
+            g.at === lines[i]?.at &&
+            g.from === lines[i]?.from &&
+            g.to === lines[i]?.to,
+        )
+          ? prev
+          : lines,
+      );
       const target = findGroupDropTarget(next, movedIds);
       setDropTargetGid((prev) => (prev === target ? prev : target));
     }
@@ -1279,6 +1313,7 @@ export function CanvasBoard({
     drag.current = null;
     dragPushed.current = false;
     setDropTargetGid(null);
+    setGuideLines([]);
     setIsNodeDragging(false);
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
@@ -2329,6 +2364,7 @@ export function CanvasBoard({
               removeEdge(id);
             }}
           />
+          <CanvasGuides lines={guideLines} zoom={viewport.zoom} />
           {(() => {
             const soleGroupSelected = isCompleteGroupSelection(
               nodes,

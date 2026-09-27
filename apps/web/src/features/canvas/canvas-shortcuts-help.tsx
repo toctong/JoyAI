@@ -10,6 +10,7 @@ import {
   CanvasIconHand,
   CanvasIconLink,
   CanvasIconPlus,
+  CanvasIconSnap,
   CanvasIconTrash,
   CanvasIconUndo,
   CanvasIconZoomIn,
@@ -185,6 +186,11 @@ export function CanvasShortcutsHelp({ open, onClose }: Props) {
       title: "框选与多选",
       desc: "空白处拖出选框；⇧ 点击加减选；多选后可成组、对齐、批量连线。",
       Icon: CanvasIconGroup,
+    },
+    {
+      title: "对齐线",
+      desc: "拖动节点时自动对齐边与中线并显示参考线；按住 ⌃/⌘ 可暂时关闭。",
+      Icon: CanvasIconSnap,
     },
     {
       title: "连线",
