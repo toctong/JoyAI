@@ -51,8 +51,6 @@ import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 import { CANVAS_TEXT_FONT } from "@/shared/theme";
 import type { ImageToolMode } from "./image-tool-dialog";
-import { spawnPanoramaPrompt } from "./lib/spawn-panorama-prompt";
-import { useCanvasRightPanelStore } from "./right-panel-store";
 import {
   DEFAULT_PANORAMA_QUICK_TOOL_IDS,
   DEFAULT_QUICK_TOOL_IDS,
@@ -83,6 +81,8 @@ type Props = {
   onOpenScribble?: () => void;
   onOpenLighting?: () => void;
   onOpenRotate?: () => void;
+  onOpenNodeHistory?: () => void;
+  onOpenPanorama?: () => void;
 };
 
 function ToolBtn({
@@ -184,6 +184,8 @@ export function NodeFloatToolbar({
   onOpenScribble,
   onOpenLighting,
   onOpenRotate,
+  onOpenNodeHistory,
+  onOpenPanorama,
 }: Props) {
   const pushHistory = useCanvasStore((s) => s.pushHistory);
   const removeNodes = useCanvasStore((s) => s.removeNodes);
@@ -579,7 +581,7 @@ export function NodeFloatToolbar({
             key={action}
             title="转720°全景"
             label="转720°全景"
-            onClick={() => spawnPanoramaPrompt(node.id)}
+            onClick={() => onOpenPanorama?.()}
           >
             <CanvasIconPanorama className="joy-canvas-tool-icon" />
           </ToolBtn>
@@ -942,7 +944,7 @@ export function NodeFloatToolbar({
         id: "node-history",
         label: "节点历史生成",
         icon: <CanvasIconHistory className="joy-canvas-tool-icon opacity-70" />,
-        run: () => useCanvasRightPanelStore.getState().setMode("history"),
+        run: () => onOpenNodeHistory?.(),
       });
     }
     if (actions.includes("angle") && hasMedia) {
@@ -1056,7 +1058,7 @@ export function NodeFloatToolbar({
         id: "to-panorama",
         label: "转720°全景",
         icon: <CanvasIconPanorama className="joy-canvas-tool-icon opacity-70" />,
-        run: () => spawnPanoramaPrompt(node.id),
+        run: () => onOpenPanorama?.(),
       });
     }
     if (actions.includes("reverse-prompt") && hasMedia) {
@@ -1208,8 +1210,7 @@ export function NodeFloatToolbar({
               <ToolDrop
                 title="更多功能"
                 icon={<CanvasIconMore className="joy-canvas-tool-icon" />}
-                groups={overflowGroups}
-                cascade
+                items={overflowGroups.flatMap((group) => group.items)}
               />
             ) : null}
           </>
@@ -1289,12 +1290,12 @@ type ToolMenuGroup = {
 const OVERFLOW_GROUP_ORDER: { id: string; label: string; ids: string[] }[] = [
   {
     id: "media",
-    label: "媒体",
-    ids: ["upload", "to-image", "split"],
+    label: "",
+    ids: ["upload", "rotate", "node-history", "to-image", "split"],
   },
   {
     id: "prompt",
-    label: "提示词",
+    label: "",
     ids: ["reverse-prompt"],
   },
 ];

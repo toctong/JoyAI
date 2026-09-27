@@ -8,6 +8,7 @@ import {
   flagPanoramaAspect,
   PANORAMA_NODE_SIZE,
 } from "./panorama-prompt";
+import { archiveNodeMedia } from "./node-gen-history";
 
 function guessKind(file: File) {
   if (file.type.startsWith("video/")) return "video";
@@ -104,6 +105,7 @@ export async function uploadFileIntoNode(
   }
 
   if (opts?.history !== false) store.pushHistory();
+  archiveNodeMedia(nodeId);
   store.updateNodeData(nodeId, {
     status: "running",
     error: "",

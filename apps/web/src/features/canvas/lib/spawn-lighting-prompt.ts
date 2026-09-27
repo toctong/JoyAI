@@ -3,7 +3,11 @@ import { useCanvasStore } from "../store";
 import { mediaRefFromNode } from "./canvas-media-refs";
 
 /** Spawn a generate prompt that relights the source image. */
-export function spawnLightingPrompt(nodeId: string, prompt: string) {
+export function spawnLightingPrompt(
+  nodeId: string,
+  prompt: string,
+  modelId?: string,
+) {
   const store = useCanvasStore.getState();
   const node = store.nodes.find((item) => item.id === nodeId);
   if (!node || (node.type !== "image" && node.type !== "panorama")) {
@@ -28,6 +32,7 @@ export function spawnLightingPrompt(nodeId: string, prompt: string) {
     operation: "generate",
     outputKind: "image",
     title: "打光",
+    ...(modelId ? { genModelId: modelId } : {}),
     ...refs,
   });
   store.addEdge(node.id, promptId);

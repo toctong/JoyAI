@@ -417,15 +417,43 @@ export class CanvasService {
 
     const nodes = snapshot.nodes.map((node) => {
       if (node.id !== nodeId) return node;
+      const prevUrl = String(node.data.url ?? "").trim();
+      const prevAssetId = String(node.data.assetId ?? "").trim();
+      const nextData: Record<string, unknown> = {
+        ...node.data,
+        assetId: asset.assetId,
+        url: asset.url,
+        jobId: asset.jobId,
+        status: "succeeded",
+      };
+      if (
+        prevUrl &&
+        !prevUrl.startsWith("data:") &&
+        prevAssetId &&
+        prevAssetId !== asset.assetId
+      ) {
+        const raw = Array.isArray(node.data.genHistory)
+          ? (node.data.genHistory as unknown[])
+          : [];
+        const archived = {
+          assetId: prevAssetId,
+          url: prevUrl,
+          jobId: String(node.data.jobId ?? "").trim() || undefined,
+          createdAt: new Date().toISOString(),
+          prompt: String(node.data.prompt ?? "").trim() || undefined,
+        };
+        const filtered = raw.filter((item) => {
+          if (!item || typeof item !== "object") return false;
+          return (
+            String((item as Record<string, unknown>).assetId ?? "") !==
+            prevAssetId
+          );
+        });
+        nextData.genHistory = [archived, ...filtered].slice(0, 30);
+      }
       return {
         ...node,
-        data: {
-          ...node.data,
-          assetId: asset.assetId,
-          url: asset.url,
-          jobId: asset.jobId,
-          status: "succeeded",
-        },
+        data: nextData,
       };
     });
 

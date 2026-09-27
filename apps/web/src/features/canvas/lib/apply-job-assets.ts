@@ -3,6 +3,7 @@ import { useCanvasStore } from "../store";
 import { nodeBox } from "./node-box";
 import { titleFromPrompt } from "./node-title";
 import { linkImageBatch } from "./batch-group";
+import { archiveNodeMedia } from "./node-gen-history";
 
 export type JobAsset = { id: string; url: string };
 
@@ -51,6 +52,7 @@ function fillMediaNode(
   asset: JobAsset,
   patch: Record<string, unknown>,
 ) {
+  archiveNodeMedia(nodeId);
   useCanvasStore.getState().updateNodeData(nodeId, {
     url: asset.url,
     assetId: asset.id,

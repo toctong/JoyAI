@@ -44,12 +44,10 @@ export const PRIMARY_BAR_TOOL_IDS: QuickToolId[] = [
 export const EDIT_MENU_TOOL_IDS: QuickToolId[] = [
   "outpaint",
   "scribble",
-  "rotate",
   "lineart",
   "colorize",
   "character-sheet",
   "reverse-prompt",
-  "node-history",
 ];
 
 /** 效果 dropdown */

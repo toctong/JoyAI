@@ -41,17 +41,20 @@ function matchesJobScope(
   job: {
     kind: string;
     canvasProjectId?: string | null;
+    canvasNodeId?: string | null;
     input?: Record<string, unknown> | null;
   },
   scope: string | undefined,
   ids: {
     canvasProjectId?: string;
+    canvasNodeId?: string;
     manjuProjectId?: string;
     toolSlug?: string;
   },
 ) {
   const input = job.input ?? null;
   const canvasId = job.canvasProjectId || inputId(input, "canvasProjectId");
+  const nodeId = job.canvasNodeId || inputId(input, "canvasNodeId");
   const manjuId = inputId(input, "manjuProjectId");
   const slug = inputId(input, "toolSlug");
   const origin = canvasId
@@ -70,6 +73,7 @@ function matchesJobScope(
   if (scope === "canvas") {
     if (origin !== "canvas") return false;
     if (ids.canvasProjectId && canvasId !== ids.canvasProjectId) return false;
+    if (ids.canvasNodeId && nodeId !== ids.canvasNodeId) return false;
     return true;
   }
   if (scope === "manju") {
@@ -95,6 +99,7 @@ function applyJobScopeQuery(
   scope: string | undefined,
   ids: {
     canvasProjectId?: string;
+    canvasNodeId?: string;
     manjuProjectId?: string;
     toolSlug?: string;
   },
@@ -123,6 +128,12 @@ function applyJobScopeQuery(
     } else {
       qb.andWhere(
         "(job.canvasProjectId IS NOT NULL OR (JSON_EXTRACT(job.input, '$.canvasProjectId') IS NOT NULL AND JSON_TYPE(JSON_EXTRACT(job.input, '$.canvasProjectId')) <> 'NULL'))",
+      );
+    }
+    if (ids.canvasNodeId) {
+      qb.andWhere(
+        "(job.canvasNodeId = :canvasNodeId OR JSON_UNQUOTE(JSON_EXTRACT(job.input, '$.canvasNodeId')) = :canvasNodeId)",
+        { canvasNodeId: ids.canvasNodeId },
       );
     }
     return;
@@ -395,6 +406,7 @@ export class JobsService {
       /** studio | canvas | manju | tools — 各查各的，不传则不按产品过滤（仅资产页走 /assets） */
       scope?: string;
       canvasProjectId?: string;
+      canvasNodeId?: string;
       manjuProjectId?: string;
       toolSlug?: string;
     } = {},
@@ -402,9 +414,10 @@ export class JobsService {
     const take = Math.min(Math.max(Number(opts.take) || 30, 1), 100);
     const scope = opts.scope?.trim();
     const canvasProjectId = opts.canvasProjectId?.trim();
+    const canvasNodeId = opts.canvasNodeId?.trim();
     const manjuProjectId = opts.manjuProjectId?.trim();
     const toolSlug = opts.toolSlug?.trim();
-    const ids = { canvasProjectId, manjuProjectId, toolSlug };
+    const ids = { canvasProjectId, canvasNodeId, manjuProjectId, toolSlug };
 
     const beforeRaw = opts.before?.trim();
     const beforeMs = beforeRaw ? Date.parse(beforeRaw) : NaN;

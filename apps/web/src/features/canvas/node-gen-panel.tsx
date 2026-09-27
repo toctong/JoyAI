@@ -652,10 +652,11 @@ export function NodeGenPanel({ node, viewport }: Props) {
 
     try {
       if (output === "image") {
-        const reuseEmpty =
-          (node.type === "image" || node.type === "panorama") && !hasMedia;
-        if (!reuseEmpty) {
-          targetId = addNode(panorama ? "panorama" : "image", {
+        const wantType = panorama ? "panorama" : "image";
+        // Same-type regenerate stays on this node so genHistory can restore prior versions.
+        const reuseSelf = node.type === wantType;
+        if (!reuseSelf) {
+          targetId = addNode(wantType, {
             x: node.x + (node.width ?? 240) + 40,
             y: node.y,
           });
@@ -746,7 +747,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
         });
         updateNodeData(targetId, { status: "running", jobId: job.id });
       } else if (output === "audio") {
-        if (node.type !== "audio" || hasMedia) {
+        if (node.type !== "audio") {
           targetId = addNode("audio", {
             x: node.x + (node.width ?? 240) + 40,
             y: node.y,
@@ -790,7 +791,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
           genAudioSpeed: audioSpeed,
         });
       } else {
-        if (node.type !== "video" || hasMedia) {
+        if (node.type !== "video") {
           targetId = addNode("video", {
             x: node.x + (node.width ?? 240) + 40,
             y: node.y,

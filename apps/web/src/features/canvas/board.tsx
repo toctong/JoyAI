@@ -90,6 +90,7 @@ import { ImageAngleDialog } from "./image-angle-dialog";
 import { ImageReversePromptDialog } from "./image-reverse-prompt-dialog";
 import { ImageFxDialog } from "./image-fx-dialog";
 import { ImageRotateDialog } from "./image-rotate-dialog";
+import { NodeGenHistoryDialog } from "./node-gen-history-dialog";
 import { ImageOutpaintDialog } from "./image-outpaint-dialog";
 import { ImageScribbleDialog } from "./image-scribble-dialog";
 import { ImageLightingDialog } from "./image-lighting-dialog";
@@ -101,6 +102,7 @@ import { trimMediaToFile } from "./lib/trim-audio";
 import { trimVideoToFile } from "./lib/trim-video";
 import { flagPanoramaAspect } from "./lib/panorama-prompt";
 import { spawnPanoramaPrompt } from "./lib/spawn-panorama-prompt";
+import { ImagePanoramaDialog } from "./image-panorama-dialog";
 import { commitImagePieces } from "./lib/commit-image-pieces";
 import { downloadNodeMedia } from "./lib/download-node-media";
 import { canSaveNodeAsset, saveNodeAsset } from "./lib/save-node-asset";
@@ -264,6 +266,7 @@ export function CanvasBoard({
     mode: ImageToolMode;
   } | null>(null);
   const [angleNodeId, setAngleNodeId] = useState<string | null>(null);
+  const [panoramaNodeId, setPanoramaNodeId] = useState<string | null>(null);
   const [reversePromptNodeId, setReversePromptNodeId] = useState<string | null>(
     null,
   );
@@ -275,6 +278,7 @@ export function CanvasBoard({
     nodeId: string;
     url: string;
   } | null>(null);
+  const [nodeHistoryId, setNodeHistoryId] = useState<string | null>(null);
   const [infoNodeId, setInfoNodeId] = useState<string | null>(null);
   const [audioTrim, setAudioTrim] = useState<{
     nodeId: string;
@@ -434,7 +438,7 @@ export function CanvasBoard({
         return;
       }
       if (tool === "to-panorama") {
-        spawnPanoramaPrompt(targetId);
+        setPanoramaNodeId(targetId);
         return;
       }
       if (tool === "trim-video") {
@@ -2080,6 +2084,14 @@ export function CanvasBoard({
               const id = floatToolbarNodes[0]?.id;
               if (id) openStudioImage(id, setRotateEdit, { allowPanorama: true });
             }}
+            onOpenNodeHistory={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) setNodeHistoryId(id);
+            }}
+            onOpenPanorama={() => {
+              const id = floatToolbarNodes[0]?.id;
+              if (id) setPanoramaNodeId(id);
+            }}
           />
         </div>
       ) : null}
@@ -2414,6 +2426,20 @@ export function CanvasBoard({
         }}
       />
 
+      <ImagePanoramaDialog
+        open={Boolean(panoramaNodeId)}
+        url={String(
+          nodes.find((item) => item.id === panoramaNodeId)?.data.url ?? "",
+        )}
+        nodeTitle={studioNodeTitle(panoramaNodeId)}
+        onClose={() => setPanoramaNodeId(null)}
+        onConfirm={({ note, modelId }) => {
+          const id = panoramaNodeId;
+          setPanoramaNodeId(null);
+          if (id) void spawnPanoramaPrompt(id, { note, modelId });
+        }}
+      />
+
       <ImageReversePromptDialog
         open={Boolean(reversePromptNodeId)}
         url={String(
@@ -2460,6 +2486,13 @@ export function CanvasBoard({
           await spawnRotatedImage(id, payload);
           setRotateEdit(null);
         }}
+      />
+
+      <NodeGenHistoryDialog
+        node={nodes.find((item) => item.id === nodeHistoryId) ?? null}
+        projectId={projectId}
+        open={Boolean(nodeHistoryId)}
+        onClose={() => setNodeHistoryId(null)}
       />
 
       <NodeInfoDialog
@@ -2544,10 +2577,10 @@ export function CanvasBoard({
         url={lightingEdit?.url ?? ""}
         nodeTitle={studioNodeTitle(lightingEdit?.nodeId)}
         onClose={() => setLightingEdit(null)}
-        onConfirm={({ prompt }) => {
+        onConfirm={({ prompt, modelId }) => {
           const id = lightingEdit?.nodeId;
           setLightingEdit(null);
-          if (id) spawnLightingPrompt(id, prompt);
+          if (id) spawnLightingPrompt(id, prompt, modelId);
         }}
       />
 

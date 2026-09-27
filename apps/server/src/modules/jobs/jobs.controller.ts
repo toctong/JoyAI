@@ -39,6 +39,7 @@ export class JobsController {
     @Query("beforeId") beforeId?: string,
     @Query("scope") scope?: string,
     @Query("canvasProjectId") canvasProjectId?: string,
+    @Query("canvasNodeId") canvasNodeId?: string,
     @Query("manjuProjectId") manjuProjectId?: string,
     @Query("toolSlug") toolSlug?: string,
   ) {
@@ -48,6 +49,7 @@ export class JobsController {
       beforeId,
       scope,
       canvasProjectId,
+      canvasNodeId,
       manjuProjectId,
       toolSlug,
     });
