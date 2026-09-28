@@ -188,7 +188,7 @@
 
 .joy-composer.is-compact .joy-composer-toolbar-left,
 .joy-composer.is-compact .joy-composer-params-panel,
-.joy-composer.is-compact .joy-composer-clear,
+.joy-composer.is-compact .joy-composer-corner,
 .joy-composer.is-compact .joy-composer-ripple {
   opacity: 0;
   max-height: 0;
@@ -518,14 +518,23 @@
   min-width: 0;
   flex: 1;
   padding-top: 2px;
-  padding-right: 28px;
+  padding-right: 64px;
 }
 
-.joy-composer-clear {
+.joy-composer-corner {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  pointer-events: auto;
+}
+
+.joy-composer-clear,
+.joy-composer-corner .joy-composer-optimize {
+  position: static;
   display: inline-flex;
   height: var(--joy-control-h-sm);
   width: 28px;
@@ -542,9 +551,26 @@
     background 0.15s ease;
 }
 
-.joy-composer-clear:hover {
+.joy-composer-clear:hover,
+.joy-composer-corner .joy-composer-optimize.is-ready:hover {
   color: var(--foreground);
   background: var(--muted);
+  transform: none;
+}
+
+.joy-composer-corner .joy-composer-optimize {
+  width: 28px;
+  height: var(--joy-control-h-sm);
+}
+
+.joy-composer-corner .joy-composer-optimize:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.joy-composer-corner .joy-composer-optimize.is-ready {
+  color: var(--muted-foreground);
+  cursor: pointer;
 }
 
 .joy-composer .joy-ai-prompt .ProseMirror {
@@ -566,13 +592,12 @@
 
 .joy-composer-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   padding-top: 2px;
   z-index: 1;
-  max-height: 120px;
+  max-height: 48px;
   opacity: 1;
   overflow: visible;
   transition:
@@ -582,46 +607,39 @@
     gap 0.34s var(--joy-ease-out);
 }
 
-.joy-composer-toolbar-left,
-.joy-composer-toolbar-right {
+.joy-composer-toolbar-left {
   display: flex;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  /* Long model names / param chips scroll instead of shoving send down. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   transition:
     opacity 0.28s ease,
     max-width 0.34s var(--joy-ease-out),
     max-height 0.34s var(--joy-ease-out);
 }
 
-.joy-composer-optimize {
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  border: 0;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  color: color-mix(in oklab, var(--muted-foreground) 88%, transparent);
-  cursor: not-allowed;
+.joy-composer-toolbar-left::-webkit-scrollbar {
+  display: none;
+}
+
+.joy-composer-toolbar-right {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
   transition:
-    background 0.15s,
-    color 0.15s,
-    transform 0.15s;
-}
-
-.joy-composer-optimize.is-ready {
-  color: var(--foreground);
-  cursor: pointer;
-}
-
-.joy-composer-optimize.is-ready:hover {
-  background: color-mix(in oklab, var(--muted) 80%, transparent);
-  transform: translateY(-1px);
-}
-
-.joy-composer-optimize:disabled {
-  opacity: 0.55;
+    opacity 0.28s ease,
+    max-width 0.34s var(--joy-ease-out),
+    max-height 0.34s var(--joy-ease-out);
 }
 
 .joy-chip {

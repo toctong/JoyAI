@@ -112,11 +112,11 @@ export function CatalogAddDialog({
     setLoading(true);
     void (async () => {
       try {
-        const res = await api<{ items: CatalogItem[] }>(
+        const res = await api<{ items?: CatalogItem[]; models?: CatalogItem[] }>(
           `/admin/models/catalog?platform=${encodeURIComponent(channel.platform!)}`,
         );
         if (cancelled) return;
-        setItems(res.items ?? []);
+        setItems(res.items ?? res.models ?? []);
       } catch (error) {
         if (!cancelled) {
           setItems([]);

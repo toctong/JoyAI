@@ -370,10 +370,13 @@ export default function ModelsPage() {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await api<{ items: CatalogSuggestItem[] }>(
+        const res = await api<{
+          items?: CatalogSuggestItem[];
+          models?: CatalogSuggestItem[];
+        }>(
           `/admin/models/catalog?platform=${encodeURIComponent(platform)}`,
         );
-        if (!cancelled) setCatalogSuggest(res.items ?? []);
+        if (!cancelled) setCatalogSuggest(res.items ?? res.models ?? []);
       } catch {
         if (!cancelled) setCatalogSuggest([]);
       }
@@ -545,11 +548,15 @@ export default function ModelsPage() {
     try {
       let item = catalogSuggest.find((row) => row.remoteId === remoteId);
       if (!item) {
-        const res = await api<{ items: CatalogSuggestItem[] }>(
+        const res = await api<{
+          items?: CatalogSuggestItem[];
+          models?: CatalogSuggestItem[];
+        }>(
           `/admin/models/catalog?platform=${encodeURIComponent(platform)}`,
         );
-        item = (res.items ?? []).find((row) => row.remoteId === remoteId);
-        if (res.items) setCatalogSuggest(res.items);
+        const catalog = res.items ?? res.models ?? [];
+        item = catalog.find((row) => row.remoteId === remoteId);
+        if (catalog.length) setCatalogSuggest(catalog);
       }
       if (!item) {
         toast.error("目录中未找到该 remoteId");
@@ -957,7 +964,13 @@ export default function ModelsPage() {
                         </div>
                         <CapabilityBadges capabilities={m.capabilities} />
                         <div className="joy-admin-card-item-foot">
-                          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <label
+                            className={
+                              m.enabled
+                                ? "joy-admin-switch-label is-on flex items-center gap-2"
+                                : "joy-admin-switch-label flex items-center gap-2"
+                            }
+                          >
                             <Switch
                               checked={m.enabled}
                               onCheckedChange={() => void toggle(m)}

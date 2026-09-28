@@ -1205,20 +1205,42 @@ export function CreationComposer({
       >
         <input {...getInputProps()} />
         <ComposerRipple idle={rippleIdle} />
-        {canClearComposer ? (
+        <div className="joy-composer-corner">
+          {canClearComposer ? (
+            <button
+              type="button"
+              className="joy-composer-clear"
+              aria-label="清除输入与参考素材"
+              title="清除"
+              onClick={(e) => {
+                e.stopPropagation();
+                clearComposer();
+              }}
+            >
+              <Eraser className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+          ) : null}
           <button
             type="button"
-            className="joy-composer-clear"
-            aria-label="清除输入与参考素材"
-            title="清除"
+            className={cn(
+              "joy-composer-optimize",
+              Boolean(prompt.trim()) && !submitting && !optimizing && "is-ready",
+            )}
+            disabled={!prompt.trim() || submitting || optimizing}
+            aria-label="提示词优化"
+            title="提示词优化"
             onClick={(e) => {
               e.stopPropagation();
-              clearComposer();
+              void optimizePrompt();
             }}
           >
-            <Eraser className="h-3.5 w-3.5" strokeWidth={1.75} />
+            {optimizing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <WandSparkles className="h-3.5 w-3.5" />
+            )}
           </button>
-        ) : null}
+        </div>
         <div className="joy-composer-body">
           {canUploadRef ? (
             <div
@@ -1689,23 +1711,6 @@ export function CreationComposer({
           </div>
 
           <div className="joy-composer-toolbar-right">
-            <button
-              type="button"
-              className={cn(
-                "joy-composer-optimize",
-                Boolean(prompt.trim()) && !submitting && !optimizing && "is-ready",
-              )}
-              disabled={!prompt.trim() || submitting || optimizing}
-              aria-label="提示词优化"
-              title="提示词优化"
-              onClick={() => void optimizePrompt()}
-            >
-              {optimizing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <WandSparkles className="h-4 w-4" />
-              )}
-            </button>
             <button
               type="button"
               className={cn("joy-composer-send", canSend && "is-ready")}

@@ -598,7 +598,13 @@ export default function ChannelsPage() {
                   {connectivityHint(ch)}
                 </div>
                 <div className="joy-admin-card-item-foot">
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <label
+                    className={
+                      ch.enabled
+                        ? "joy-admin-switch-label is-on flex items-center gap-2"
+                        : "joy-admin-switch-label flex items-center gap-2"
+                    }
+                  >
                     <Switch
                       checked={ch.enabled}
                       onCheckedChange={() => void toggle(ch)}

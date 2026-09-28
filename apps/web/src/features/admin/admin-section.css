@@ -463,7 +463,12 @@
 
 .joy-admin [role="switch"] {
   border-radius: 999px !important;
-  background-color: var(--ve-border-strong) !important;
+}
+
+/* Off = clearly gray; on = primary blue (must not share one color). */
+.joy-admin [role="switch"][data-state="unchecked"],
+.joy-admin [role="switch"]:not([data-state="checked"]) {
+  background-color: #c9cdd4 !important;
 }
 
 .joy-admin [role="switch"][data-state="checked"] {
@@ -473,6 +478,21 @@
 .joy-admin [role="switch"] span {
   border-radius: 999px !important;
   background-color: #fff !important;
+}
+
+.dark .joy-admin [role="switch"][data-state="unchecked"],
+.dark .joy-admin [role="switch"]:not([data-state="checked"]) {
+  background-color: #484849 !important;
+}
+
+.joy-admin .joy-admin-switch-label {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ve-text-muted);
+}
+
+.joy-admin .joy-admin-switch-label.is-on {
+  color: var(--ve-primary);
 }
 
 .joy-admin .admin-table thead tr {
@@ -688,7 +708,11 @@
 
 .joy-admin-drawer [role="switch"] {
   border-radius: 999px !important;
-  background-color: var(--ve-border-strong) !important;
+}
+
+.joy-admin-drawer [role="switch"][data-state="unchecked"],
+.joy-admin-drawer [role="switch"]:not([data-state="checked"]) {
+  background-color: #c9cdd4 !important;
 }
 
 .joy-admin-drawer [role="switch"][data-state="checked"] {
@@ -698,6 +722,11 @@
 .joy-admin-drawer [role="switch"] span {
   border-radius: 999px !important;
   background-color: #fff !important;
+}
+
+.dark .joy-admin-drawer [role="switch"][data-state="unchecked"],
+.dark .joy-admin-drawer [role="switch"]:not([data-state="checked"]) {
+  background-color: #484849 !important;
 }
 
 /* Portaled select / popover panels while admin is mounted */

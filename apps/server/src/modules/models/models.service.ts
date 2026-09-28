@@ -405,9 +405,11 @@ export class ModelsService {
     if (kindFilter) {
       models = models.filter((item) => item.kind === kindFilter);
     }
+    // `items` matches admin UI / list API shape; keep `models` as alias.
     return {
       platform,
       preset,
+      items: models,
       models,
     };
   }
