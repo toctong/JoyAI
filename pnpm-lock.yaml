@@ -116,6 +116,9 @@ importers:
       https-proxy-agent:
         specifier: '7'
         version: 7.0.6
+      jszip:
+        specifier: ^3.10.2
+        version: 3.10.2
       lodash:
         specifier: ^4.17.21
         version: 4.18.1

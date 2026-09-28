@@ -5,7 +5,12 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, IsNull, Repository } from "typeorm";
-import { normalizeManjuDraft, normalizeScriptProjectChat, type ManjuDraft } from "@joyai/shared";
+import {
+  normalizeCanvasAgentChat,
+  normalizeManjuDraft,
+  normalizeScriptProjectChat,
+  type ManjuDraft,
+} from "@joyai/shared";
 import { ManjuProject } from "../../database/entities/manju-project.entity";
 import { ManjuFolder } from "../../database/entities/manju-folder.entity";
 import { ProjectChat } from "../../database/entities/project-chat.entity";
@@ -209,6 +214,7 @@ export class ManjuService {
     if (!ids.length) throw new BadRequestException("未选择项目");
     const result = await this.projects.delete({ userId, id: In(ids) });
     await deleteProjectChats(this.chats, PROJECT_CHAT_SCOPE.manjuScript, ids);
+    await deleteProjectChats(this.chats, PROJECT_CHAT_SCOPE.manjuAgent, ids);
     return { ok: true, count: result.affected ?? 0 };
   }
 
@@ -301,6 +307,7 @@ export class ManjuService {
     if (!project) throw new NotFoundException("漫剧项目不存在");
     await this.projects.delete({ id, userId });
     await deleteProjectChats(this.chats, PROJECT_CHAT_SCOPE.manjuScript, [id]);
+    await deleteProjectChats(this.chats, PROJECT_CHAT_SCOPE.manjuAgent, [id]);
     return { ok: true };
   }
 
@@ -330,6 +337,154 @@ export class ManjuService {
       chat as unknown as Record<string, unknown>,
     );
     return chat;
+  }
+
+  async getAgentChat(userId: string, projectId: string) {
+    const project = await this.projects.findOne({ where: { id: projectId, userId } });
+    if (!project) throw new NotFoundException("漫剧项目不存在");
+    const row = await readProjectChat(
+      this.chats,
+      userId,
+      PROJECT_CHAT_SCOPE.manjuAgent,
+      projectId,
+    );
+    if (!row) return null;
+    return normalizeCanvasAgentChat(row.payload);
+  }
+
+  async saveAgentChat(userId: string, projectId: string, raw: unknown) {
+    const project = await this.projects.findOne({ where: { id: projectId, userId } });
+    if (!project) throw new NotFoundException("漫剧项目不存在");
+    const chat = normalizeCanvasAgentChat(raw);
+    if (!chat) throw new BadRequestException("会话格式无效");
+    await writeProjectChat(
+      this.chats,
+      userId,
+      PROJECT_CHAT_SCOPE.manjuAgent,
+      projectId,
+      chat as unknown as Record<string, unknown>,
+    );
+    return chat;
+  }
+
+  async getWorkflowSummary(userId: string, projectId: string) {
+    const project = await this.projects.findOne({ where: { id: projectId, userId } });
+    if (!project) throw new NotFoundException("漫剧项目不存在");
+    const draft = normalizeManjuDraft(project.draft);
+
+    const blockers: string[] = [];
+    const hasScript = Boolean(draft.scriptText.trim());
+    const assetsWithImage = draft.assets.filter((a) => Boolean(a.imageUrl));
+    const hasShots = draft.shots.length > 0;
+    const scriptConfirmed =
+      draft.scriptConfirmed || draft.scriptReview.status === "confirmed";
+    const shotsNeedingStoryboard = draft.shots.filter((s) => !s.storyboardImageUrl);
+    const shotsNeedingVideo = draft.shots.filter(
+      (s) => s.storyboardImageUrl && !s.videoUrl,
+    );
+    const videosReady = draft.shots.filter((s) => Boolean(s.videoUrl));
+
+    if (!hasScript) blockers.push("no_script");
+    if (draft.assets.length === 0) blockers.push("no_assets");
+    else if (assetsWithImage.length === 0) blockers.push("no_asset_images");
+    if (hasShots && !scriptConfirmed) blockers.push("script_unconfirmed");
+    if (hasShots && shotsNeedingStoryboard.length > 0) {
+      blockers.push("storyboard_incomplete");
+    }
+    if (scriptConfirmed && shotsNeedingVideo.length > 0) {
+      blockers.push("video_incomplete");
+    }
+
+    let nextAction:
+      | "import_script"
+      | "analyze_assets"
+      | "confirm_script"
+      | "generate_storyboard"
+      | "generate_video"
+      | "preview" = "import_script";
+
+    if (!hasScript) {
+      nextAction = "import_script";
+    } else if (draft.assets.length === 0 || assetsWithImage.length === 0) {
+      nextAction = "analyze_assets";
+    } else if (!hasShots) {
+      nextAction = "confirm_script";
+    } else if (!scriptConfirmed) {
+      nextAction = "confirm_script";
+    } else if (shotsNeedingStoryboard.length > 0) {
+      nextAction = "generate_storyboard";
+    } else if (shotsNeedingVideo.length > 0) {
+      nextAction = "generate_video";
+    } else {
+      nextAction = "preview";
+    }
+
+    const staleShotIds = draft.shots
+      .filter((s) => s.storyboardStale || s.videoStale)
+      .map((s) => s.id);
+
+    return {
+      phase: draft.phase,
+      scriptConfirmed,
+      blockers,
+      nextAction,
+      staleShotIds,
+      counts: {
+        assets: draft.assets.length,
+        assetsWithImage: assetsWithImage.length,
+        shots: draft.shots.length,
+        storyboards: draft.shots.filter((s) => Boolean(s.storyboardImageUrl))
+          .length,
+        videos: videosReady.length,
+      },
+    };
+  }
+
+  async getScriptReview(userId: string, projectId: string) {
+    const project = await this.projects.findOne({ where: { id: projectId, userId } });
+    if (!project) throw new NotFoundException("漫剧项目不存在");
+    const draft = normalizeManjuDraft(project.draft);
+    return draft.scriptReview;
+  }
+
+  async saveScriptReviewContent(
+    userId: string,
+    projectId: string,
+    content: string,
+  ) {
+    const project = await this.projects.findOne({ where: { id: projectId, userId } });
+    if (!project) throw new NotFoundException("漫剧项目不存在");
+    const draft = normalizeManjuDraft(project.draft);
+    draft.scriptReview = {
+      ...draft.scriptReview,
+      content: typeof content === "string" ? content : "",
+      status: "draft",
+    };
+    draft.scriptConfirmed = false;
+    project.draft = draft as unknown as Record<string, unknown>;
+    await this.projects.save(project);
+    return this.toDto(project);
+  }
+
+  async confirmScriptReview(userId: string, projectId: string) {
+    const project = await this.projects.findOne({ where: { id: projectId, userId } });
+    if (!project) throw new NotFoundException("漫剧项目不存在");
+    const draft = normalizeManjuDraft(project.draft);
+    if (!draft.scriptText.trim() && !draft.scriptReview.content.trim()) {
+      throw new BadRequestException("剧本为空，无法确认");
+    }
+    draft.scriptConfirmed = true;
+    draft.scriptReview = {
+      ...draft.scriptReview,
+      status: "confirmed",
+      content:
+        draft.scriptReview.content.trim() ||
+        draft.scriptText ||
+        draft.scriptReview.content,
+    };
+    project.draft = draft as unknown as Record<string, unknown>;
+    await this.projects.save(project);
+    return this.toDto(project);
   }
 
   /** LLM 分析完成后合并进草稿（服务端权威回写） */
@@ -530,6 +685,9 @@ export class ManjuService {
           videoStale: prev?.videoStale ?? false,
           gridGroupId: prev?.gridGroupId ?? null,
           gridCellIndex: prev?.gridCellIndex ?? null,
+          endFrameAssetId: prev?.endFrameAssetId ?? null,
+          endFrameImageUrl: prev?.endFrameImageUrl ?? null,
+          utterances: prev?.utterances ?? [],
         };
       });
 

@@ -1,0 +1,94 @@
+/* Manju library import dialog — keep out of asset-card action button chrome */
+
+.manju-library-dialog {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  width: min(720px, calc(100vw - 2rem)) !important;
+  max-width: 42rem !important;
+  max-height: min(640px, 85vh) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  gap: 12px !important;
+  overflow: hidden;
+  padding: 20px !important;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: none !important;
+}
+
+.manju-library-dialog__body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+  max-height: min(420px, 52vh);
+  overflow: auto;
+  padding: 2px;
+  min-height: 0;
+}
+
+@media (min-width: 640px) {
+  .manju-library-dialog__body {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.manju-library-dialog__cell {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  overflow: hidden;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  background: var(--muted) !important;
+  padding: 0 !important;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: none !important;
+}
+
+.manju-library-dialog__cell.is-selected {
+  border-color: transparent !important;
+  box-shadow: 0 0 0 2px var(--ring) !important;
+}
+
+.manju-library-dialog__thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.manju-library-dialog__name {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 16px 6px 5px;
+  background: linear-gradient(
+    to top,
+    color-mix(in oklab, var(--foreground) 55%, transparent),
+    transparent
+  );
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.manju-library-dialog__footer {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}

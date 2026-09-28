@@ -34,7 +34,7 @@ packages/ai-providers  Provider 适配器（OpenAI-compatible / DashScope / Volc
 
 ## 漫剧
 
-独立项目，当前不和画布互写。阶段、技能与配置见 [MANJU.md](./MANJU.md)。
+独立项目，当前不和画布互写。**Studio 三栏**工作台（左设定/分集 · 中主舞台 · 右 Agent），阶段、技能、剪映导出与配置见 [MANJU.md](./MANJU.md)。
 
 ## AI 工具
 

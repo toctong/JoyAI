@@ -30,17 +30,25 @@ export function draftFromProject(p: ManjuProjectDraft): ManjuDraft {
     scriptText: p.scriptText,
     overview: p.overview ?? "",
     scriptConfirmed: p.scriptConfirmed ?? false,
+    phase: p.phase ?? "preparation",
+    scriptReview: p.scriptReview ?? { status: "draft", content: "" },
     settings: {
       ...DEFAULT_SETTINGS,
       ...(p.settings ?? {}),
       gridLayout: p.settings?.gridLayout ?? "2x2",
     },
     assets: p.assets,
-    shots: p.shots,
+    shots: p.shots.map((s) => ({
+      ...s,
+      utterances: s.utterances ?? [],
+      endFrameAssetId: s.endFrameAssetId ?? null,
+      endFrameImageUrl: s.endFrameImageUrl ?? null,
+    })),
     episodes: p.episodes ?? [],
     series: p.series ?? { world: "", bios: [], hooks: [] },
     completedSteps: p.completedSteps,
     lastAnalyzeJobId: p.lastAnalyzeJobId ?? null,
+    draftSnapshots: (p.draftSnapshots ?? []).slice(0, 12),
   };
 }
 
@@ -53,6 +61,12 @@ export function projectFromDto(dto: ManjuProjectDto): ManjuProjectDraft {
     scriptText: dto.draft.scriptText ?? "",
     overview: dto.draft.overview ?? "",
     scriptConfirmed: dto.draft.scriptConfirmed ?? false,
+    phase: (dto.draft.phase as ManjuProjectDraft["phase"]) ?? "preparation",
+    scriptReview: {
+      status:
+        dto.draft.scriptReview?.status === "confirmed" ? "confirmed" : "draft",
+      content: dto.draft.scriptReview?.content ?? "",
+    },
     settings: {
       ...DEFAULT_SETTINGS,
       ...(dto.draft.settings ?? {}),
@@ -78,7 +92,12 @@ export function projectFromDto(dto: ManjuProjectDto): ManjuProjectDraft {
         status: raw.status ?? "idle",
       };
     }),
-    shots: (dto.draft.shots ?? []) as ManjuProjectDraft["shots"],
+    shots: (dto.draft.shots ?? []).map((s) => ({
+      ...(s as ManjuProjectDraft["shots"][number]),
+      utterances: Array.isArray(s.utterances) ? s.utterances : [],
+      endFrameAssetId: s.endFrameAssetId ?? null,
+      endFrameImageUrl: s.endFrameImageUrl ?? null,
+    })),
     episodes: (dto.draft.episodes ?? []).map((e) => ({
       id: e.id,
       title: e.title,
@@ -100,6 +119,9 @@ export function projectFromDto(dto: ManjuProjectDto): ManjuProjectDraft {
     completedSteps:
       (dto.draft.completedSteps as ManjuProjectDraft["completedSteps"]) ?? [],
     lastAnalyzeJobId: dto.draft.lastAnalyzeJobId ?? null,
+    draftSnapshots: Array.isArray(dto.draft.draftSnapshots)
+      ? (dto.draft.draftSnapshots as ManjuProjectDraft["draftSnapshots"])
+      : [],
     createdAt:
       typeof dto.createdAt === "string"
         ? dto.createdAt

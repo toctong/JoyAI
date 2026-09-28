@@ -3,11 +3,13 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
   Put,
   Query,
+  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
@@ -15,6 +17,7 @@ import { IsArray, IsOptional, IsString, ValidateIf } from "class-validator";
 import { JwtAuthGuard } from "../../common/guards";
 import { CurrentUser, AuthUser } from "../../common/current-user.decorator";
 import { ManjuService } from "./manju.service";
+import { ManjuJianyingService } from "./manju-jianying.service";
 
 class CreateManjuDto {
   @IsOptional()
@@ -70,6 +73,11 @@ class BatchMoveDto extends BatchIdsDto {
   folderId!: string | null;
 }
 
+class ScriptReviewDto {
+  @IsString()
+  content!: string;
+}
+
 @ApiTags("manju")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -123,7 +131,10 @@ export class ManjuFoldersController {
 @UseGuards(JwtAuthGuard)
 @Controller("manju/projects")
 export class ManjuController {
-  constructor(private readonly manju: ManjuService) {}
+  constructor(
+    private readonly manju: ManjuService,
+    private readonly jianying: ManjuJianyingService,
+  ) {}
 
   @Get()
   list(@CurrentUser() user: AuthUser) {
@@ -157,6 +168,63 @@ export class ManjuController {
     @Body() body: unknown,
   ) {
     return this.manju.saveScriptChat(user.id, id, body);
+  }
+
+  @Get(":id/agent-chat")
+  agentChat(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.manju.getAgentChat(user.id, id);
+  }
+
+  @Put(":id/agent-chat")
+  saveAgentChat(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() body: unknown,
+  ) {
+    return this.manju.saveAgentChat(user.id, id, body);
+  }
+
+  @Get(":id/workflow")
+  workflow(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.manju.getWorkflowSummary(user.id, id);
+  }
+
+  @Get(":id/script-review")
+  scriptReview(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.manju.getScriptReview(user.id, id);
+  }
+
+  @Put(":id/script-review")
+  saveScriptReview(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Body() dto: ScriptReviewDto,
+  ) {
+    return this.manju.saveScriptReviewContent(user.id, id, dto.content);
+  }
+
+  @Post(":id/script-review/confirm")
+  confirmScriptReview(@CurrentUser() user: AuthUser, @Param("id") id: string) {
+    return this.manju.confirmScriptReview(user.id, id);
+  }
+
+  @Get(":id/export/jianying")
+  @Header("Content-Type", "application/zip")
+  async exportJianying(
+    @CurrentUser() user: AuthUser,
+    @Param("id") id: string,
+    @Query("episodeId") episodeId?: string,
+  ) {
+    const { buffer, filename } = await this.jianying.buildZip(
+      user.id,
+      id,
+      episodeId || undefined,
+    );
+    const asciiName = filename.replace(/[^\w.-]+/g, "_") || "manju_jianying.zip";
+    return new StreamableFile(buffer, {
+      type: "application/zip",
+      disposition: `attachment; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    });
   }
 
   @Get(":id")

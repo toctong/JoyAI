@@ -26,8 +26,8 @@ export default function AppShellLayout({
   const logout = useAuthStore((s) => s.logout);
   const hydrated = useAuthHydrated();
   const isCanvasEditor = /^\/canvas\/[^/]+$/.test(pathname);
-  /** 漫剧六步工作台自管全高布局（对照制作大片 / namistory） */
-  const isManjuWorkbench = /^\/manju\/[^/]+$/.test(pathname);
+  /** 漫剧工作室自管全高布局（含嵌套 /source /episodes 等） */
+  const isManjuWorkbench = /^\/manju\/[^/]+/.test(pathname);
   /** Specialty tool detail owns full-height left/right split. */
   const isToolDetail = /^\/tools\/[^/]+$/.test(pathname);
   const isAdmin =

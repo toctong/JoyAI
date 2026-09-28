@@ -2,7 +2,9 @@
   "name": "@joyai/server",
   "version": "0.1.0",
   "private": true,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
@@ -43,6 +45,7 @@
     "dayjs": "^1.11.13",
     "fastify": "^5.2.1",
     "https-proxy-agent": "7",
+    "jszip": "^3.10.2",
     "lodash": "^4.17.21",
     "mysql2": "^3.24.4",
     "passport": "^0.7.0",

@@ -1788,7 +1788,7 @@
 }
 
 .manju-asset-card__action,
-.manju-asset-card__actions button {
+.manju-asset-card__actions > button {
   width: 100% !important;
   height: 34px !important;
   justify-content: center !important;
@@ -1806,7 +1806,7 @@
 }
 
 .manju-asset-card__action:hover:not(:disabled),
-.manju-asset-card__actions button:hover:not(:disabled) {
+.manju-asset-card__actions > button:hover:not(:disabled) {
   background: color-mix(in oklab, var(--foreground) 6%, transparent) !important;
 }
 
@@ -2306,7 +2306,8 @@
 .manju-studio__body {
   display: flex;
   min-height: 0;
-  flex: 1;
+  flex: 1 1 0;
+  align-items: stretch;
 }
 
 .manju-studio__resize {
@@ -2396,11 +2397,13 @@
   color: var(--foreground);
 }
 
+/* Legacy studio main — scroll/padding owned by studio-chrome .manju-studio__main-scroll */
 .manju-studio__main {
   min-width: 0;
-  flex: 1;
-  overflow: auto;
-  padding: 20px 24px 40px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
   background: var(--background);
 }
 

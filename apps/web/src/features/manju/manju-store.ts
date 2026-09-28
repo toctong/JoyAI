@@ -54,12 +54,15 @@ type ManjuState = {
         | "scriptText"
         | "overview"
         | "scriptConfirmed"
+        | "phase"
+        | "scriptReview"
         | "settings"
         | "assets"
         | "shots"
         | "episodes"
         | "series"
         | "completedSteps"
+        | "draftSnapshots"
         | "lastAnalyzeJobId"
       >
     >,

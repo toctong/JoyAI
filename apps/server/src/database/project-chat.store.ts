@@ -4,6 +4,7 @@ import { ProjectChat } from "./entities/project-chat.entity";
 export const PROJECT_CHAT_SCOPE = {
   canvasAgent: "canvas-agent",
   manjuScript: "manju-script",
+  manjuAgent: "manju-agent",
 } as const;
 
 export async function readProjectChat(

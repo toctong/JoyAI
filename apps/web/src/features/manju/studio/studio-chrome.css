@@ -1,0 +1,1035 @@
+/* Manju studio three-column shell (ArcReel-style IA) */
+
+.manju-studio {
+  --manju-sidebar-w: 232px;
+  --manju-sidebar-w-collapsed: 64px;
+  --manju-header-h: var(--joy-header-height, 48px);
+  --manju-content-x: 24px;
+  --manju-soft: var(--primary-foreground);
+  --manju-soft-bg: var(--primary);
+  --manju-soft-bg-hover: color-mix(
+    in oklab,
+    var(--primary) 88%,
+    var(--background)
+  );
+  --manju-surface: var(--muted);
+  --manju-chrome-h: 28px;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Reuse workbench typography / control chrome when both classes are present */
+.manju-studio.manju-workbench {
+  flex-direction: column;
+}
+
+.manju-studio--sidebar-collapsed {
+  --manju-sidebar-w: var(--manju-sidebar-w-collapsed);
+}
+
+.manju-studio__header {
+  display: flex;
+  height: var(--manju-header-h);
+  min-height: var(--manju-header-h);
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--joy-space-3, 12px);
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  padding: 0 var(--joy-space-3, 12px);
+}
+
+.manju-studio__body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 0;
+  min-width: 0;
+}
+
+.manju-studio__sidebar {
+  display: flex;
+  width: var(--manju-sidebar-w);
+  flex: 0 0 var(--manju-sidebar-w);
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+  transition:
+    width 0.2s ease,
+    flex-basis 0.2s ease;
+}
+
+.manju-studio__main {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+  /* Override legacy .manju-studio__main in manju-chrome.css */
+  overflow: hidden;
+  padding: 0;
+  background: var(--background);
+}
+
+.manju-studio__main-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--joy-space-4, 16px) var(--manju-content-x) var(--joy-space-6, 24px);
+}
+
+/* Assets / lore panels: don't force full viewport height (leaves a dead white void) */
+.manju-studio .manju-panel {
+  min-height: 0;
+  gap: var(--joy-space-4, 16px);
+}
+
+.manju-studio__agent {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  background: var(--card);
+  position: relative;
+}
+
+.manju-studio__agent-resize {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  z-index: 10;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.manju-studio__agent-resize:hover,
+.manju-studio__agent-resize:active {
+  background: color-mix(in oklab, var(--primary) 28%, transparent);
+}
+
+/* Header pieces */
+.manju-studio-header__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--manju-chrome-h);
+  height: var(--manju-chrome-h);
+  border-radius: var(--joy-radius-sm, 8px);
+  color: var(--muted-foreground);
+  transition:
+    background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    color var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-studio-header__back:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.manju-studio-header__title {
+  min-width: 0;
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 0;
+  border-radius: var(--joy-radius-sm, 8px);
+  background: transparent;
+  padding: 2px 6px;
+  color: var(--foreground);
+  font-size: var(--joy-font-title, 16px);
+  text-align: left;
+  cursor: text;
+}
+
+.manju-studio-header__title:hover {
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.manju-studio-header__title-input {
+  max-width: 168px;
+  height: var(--manju-chrome-h);
+  border-radius: var(--joy-radius-sm, 8px);
+  border: 1px solid var(--border);
+  background: var(--muted);
+  padding: 0 8px;
+  color: var(--foreground);
+  font-size: var(--joy-font-title, 16px);
+}
+
+.manju-studio-header__phases {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: var(--joy-space-1, 4px);
+}
+
+.manju-studio-header__phase {
+  border: 0;
+  border-radius: var(--joy-radius-pill);
+  padding: 3px 8px;
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+  background: transparent;
+  cursor: default;
+}
+
+.manju-studio-header__phase.is-active {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.manju-studio-header__spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.manju-studio-header__status {
+  flex-shrink: 0;
+  border-radius: var(--joy-radius-sm, 8px);
+  padding: 2px 8px;
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+  opacity: 0.55;
+}
+
+.manju-studio-header__status.is-busy,
+.manju-studio-header__status.is-saving {
+  color: var(--foreground);
+  opacity: 1;
+  background: var(--muted);
+}
+
+.manju-studio-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.manju-studio-header__actions .manju-chrome-btn--icon {
+  width: var(--manju-chrome-h);
+  height: var(--manju-chrome-h);
+  border-radius: var(--joy-radius-sm, 8px);
+}
+
+.manju-studio-header__actions .manju-chrome-btn:not(.manju-chrome-btn--icon) {
+  width: auto;
+  height: var(--manju-chrome-h);
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: var(--joy-radius-sm, 8px);
+  font-size: var(--joy-font-micro, 12px);
+}
+
+.manju-studio-header__actions .manju-chrome-btn.is-active {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  color: var(--foreground);
+}
+
+.manju-studio-header__toolbar {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.manju-studio-header__toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Sidebar */
+.manju-asset-sidebar {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 8px;
+}
+
+.manju-studio--sidebar-collapsed .manju-asset-sidebar {
+  padding: 10px 6px;
+  align-items: center;
+}
+
+.manju-asset-sidebar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.manju-asset-sidebar__collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--manju-chrome-h, 28px);
+  height: var(--manju-chrome-h, 28px);
+  border: 0;
+  border-radius: var(--joy-radius-sm, 8px);
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+
+.manju-asset-sidebar__collapse:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.manju-asset-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.manju-asset-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--joy-radius-sm, 8px);
+  padding: 6px 8px;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  font-size: var(--joy-font-label, 14px);
+  transition:
+    background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    color var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-asset-sidebar__link:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+.manju-asset-sidebar__link.is-active {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.manju-studio--sidebar-collapsed .manju-asset-sidebar__link {
+  justify-content: center;
+  width: 40px;
+  padding: 8px 0;
+}
+
+.manju-studio--sidebar-collapsed .manju-asset-sidebar__link-label,
+.manju-studio--sidebar-collapsed .manju-asset-sidebar__section-title,
+.manju-studio--sidebar-collapsed .manju-asset-sidebar__search,
+.manju-studio--sidebar-collapsed .manju-asset-sidebar__ep-meta,
+.manju-studio--sidebar-collapsed .manju-asset-sidebar__ep-title {
+  display: none;
+}
+
+.manju-asset-sidebar__section {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.manju-asset-sidebar__section-title {
+  margin: 0 0 6px;
+  padding: 0 8px;
+  font-size: var(--joy-font-micro, 12px);
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+
+.manju-asset-sidebar__search {
+  margin: 0 2px 8px;
+}
+
+.manju-asset-sidebar__episodes {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+
+.manju-asset-sidebar__episodes > li {
+  flex: 0 0 auto;
+}
+
+.manju-asset-sidebar__ep {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--joy-control-h-sm, 32px);
+  border-radius: var(--joy-radius-sm, 8px);
+  padding: 4px 8px;
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-asset-sidebar__ep:hover {
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
+.manju-asset-sidebar__ep.is-active {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.manju-asset-sidebar__ep-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--joy-font-caption, 13px);
+  line-height: var(--joy-leading-snug, 1.35);
+}
+
+.manju-asset-sidebar__ep-meta {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.manju-asset-sidebar__dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+
+.manju-asset-sidebar__dot.is-on {
+  background: var(--primary);
+}
+
+.manju-asset-sidebar__empty {
+  padding: 10px 8px;
+  font-size: var(--joy-font-caption, 13px);
+  color: var(--muted-foreground);
+}
+
+/* Overview dashboard */
+.manju-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1100px;
+}
+
+.manju-studio .manju-overview__title {
+  margin: 0;
+  font-size: var(--joy-font-heading, 18px);
+  font-weight: var(--joy-weight-regular, 400);
+  line-height: var(--joy-leading-snug, 1.35);
+}
+
+.manju-overview__lede {
+  margin: 0;
+  font-size: var(--joy-font-caption, 13px);
+  line-height: var(--joy-leading-normal, 1.5);
+  color: var(--muted-foreground);
+}
+
+.manju-overview__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.manju-overview__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: var(--joy-radius-lg, 12px);
+  background: var(--card);
+  padding: 14px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-overview__card:hover {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  background: color-mix(in oklab, var(--primary) 4%, var(--card));
+}
+
+.manju-overview__card-label {
+  font-size: var(--joy-font-caption, 13px);
+  color: var(--muted-foreground);
+}
+
+.manju-overview__card-value {
+  font-size: var(--joy-font-heading, 18px);
+  line-height: var(--joy-leading-tight, 1.25);
+}
+
+.manju-overview__card-hint {
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+}
+
+/* Episode stage */
+.manju-episode-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.manju-episode-stage__workflow {
+  /* layout hook only; visual chrome lives on .manju-workflow-panel */
+  display: block;
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.manju-episode-stage__tabs {
+  flex-shrink: 0;
+}
+
+.manju-episode-stage__tabs [data-slot="tabs-list"] {
+  height: var(--joy-control-h-sm, 32px);
+  padding: 2px;
+}
+
+.manju-episode-stage__tabs [data-slot="tabs-trigger"] {
+  height: calc(var(--joy-control-h-sm, 32px) - 4px);
+  padding: 0 10px;
+  font-size: var(--joy-font-caption, 13px);
+}
+
+.manju-episode-stage__body {
+  flex: 1;
+  min-height: 0;
+}
+
+.manju-episode-stage__title {
+  font-size: var(--joy-font-title, 16px);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.manju-episodes-index {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.manju-episodes-index__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.manju-episodes-index__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid
+    color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: var(--joy-radius-lg, 12px);
+  background: var(--card);
+  padding: 14px 16px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-episodes-index__card:hover {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  background: color-mix(in oklab, var(--muted) 40%, var(--card));
+}
+
+.manju-episodes-index__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 240px;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+}
+
+/* Agent FAB (when drawer closed) */
+.manju-agent-fab {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--joy-radius-pill);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 8px 12px;
+  font-size: var(--joy-font-caption, 13px);
+  box-shadow: 0 4px 14px
+    color-mix(in oklab, var(--foreground) 10%, transparent);
+  cursor: pointer;
+  transition:
+    filter var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    transform var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-agent-fab:hover {
+  filter: brightness(1.05);
+}
+
+.manju-agent-fab:active {
+  transform: scale(0.98);
+}
+
+/* Episode / workflow / shot split / export / agent */
+
+.manju-episode-stage__hint {
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+  font-weight: var(--joy-weight-regular, 400);
+}
+
+.manju-episode-stage__tabs-list {
+  height: var(--joy-control-h-sm, 32px);
+}
+
+.manju-workflow-panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--joy-radius-md, 10px);
+  background: var(--muted);
+  font-size: var(--joy-font-caption, 13px);
+}
+
+.manju-workflow-panel__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  min-width: 0;
+}
+
+.manju-workflow-panel__next {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--foreground);
+}
+
+.manju-workflow-panel__next strong {
+  font-weight: var(--joy-weight-medium, 500);
+  color: var(--foreground);
+}
+
+.manju-workflow-panel__muted,
+.manju-workflow-panel__ok,
+.manju-workflow-panel__stale {
+  color: var(--muted-foreground);
+}
+
+.manju-workflow-panel__stale {
+  font-size: var(--joy-font-micro, 12px);
+}
+
+.manju-workflow-panel__blockers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.manju-workflow-panel__blockers li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted-foreground);
+}
+
+.manju-workflow-panel__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.manju-script-gate {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid
+    color-mix(in oklab, var(--amber-600, #d97706) 22%, var(--border));
+  border-radius: var(--joy-radius-md, 10px);
+  background: color-mix(in oklab, var(--amber-500, #f59e0b) 7%, var(--card));
+}
+
+.manju-script-gate.is-confirmed {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  border-color: color-mix(
+    in oklab,
+    var(--emerald-600, #059669) 22%,
+    var(--border)
+  );
+  background: color-mix(in oklab, var(--emerald-500, #10b981) 8%, var(--card));
+  font-size: var(--joy-font-caption, 13px);
+}
+
+.manju-script-gate__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--joy-font-caption, 13px);
+}
+
+.manju-script-gate__head span {
+  color: var(--muted-foreground);
+}
+
+.manju-script-gate__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.manju-shot-split {
+  display: grid;
+  grid-template-columns: minmax(200px, 260px) 1fr;
+  gap: 12px;
+  min-height: 420px;
+}
+
+.manju-shot-split--empty {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  color: var(--muted-foreground);
+  font-size: var(--joy-font-label, 14px);
+}
+
+.manju-shot-split__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 70vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.manju-shot-split__item {
+  display: grid;
+  grid-template-columns: auto 44px 1fr;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: var(--joy-radius-md, 10px);
+  background: transparent;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    border-color var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-shot-split__item:hover {
+  background: var(--muted);
+}
+
+.manju-shot-split__item.is-active {
+  background: var(--muted);
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+}
+
+.manju-shot-split__idx {
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.manju-shot-split__thumb {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--joy-radius-sm, 8px);
+  background: var(--muted);
+}
+
+.manju-shot-split__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.manju-shot-split__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: var(--joy-font-caption, 13px);
+}
+
+.manju-shot-split__flags {
+  display: inline-flex;
+  gap: 4px;
+  color: var(--muted-foreground);
+}
+
+.manju-shot-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--joy-radius-lg, 12px);
+  background: var(--muted);
+}
+
+.manju-shot-detail__grid {
+  display: grid;
+  gap: 12px;
+}
+
+.manju-shot-detail__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--joy-font-caption, 13px);
+}
+
+.manju-shot-detail__endframe {
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: var(--joy-radius-sm, 8px);
+  padding: 0;
+  cursor: pointer;
+  background: var(--card);
+}
+
+.manju-shot-detail__endframe.is-active {
+  border-color: var(--primary);
+}
+
+.manju-shot-detail__endframe img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.manju-shot-detail__media {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.manju-shot-detail__media img,
+.manju-shot-detail__media video {
+  width: 100%;
+  max-height: 280px;
+  border-radius: var(--joy-radius-md, 10px);
+  object-fit: contain;
+  background: #000;
+}
+
+.manju-export-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid
+    color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: var(--joy-radius-lg, 12px);
+  background: var(--card);
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-export-option:hover:not(:disabled) {
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  background: color-mix(in oklab, var(--muted) 35%, var(--card));
+}
+
+.manju-export-option:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.manju-agent-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--joy-radius-sm, 8px);
+  background: var(--muted);
+}
+
+.manju-agent-tabs button {
+  border: 0;
+  border-radius: calc(var(--joy-radius-sm, 8px) - 2px);
+  background: transparent;
+  padding: 4px 10px;
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition:
+    background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    color var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-agent-tabs button.is-active {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px
+    color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.manju-preview-stage__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.manju-overview__snapshots {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.manju-overview__snapshots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manju-overview__snapshot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: var(--joy-radius-md, 10px);
+  background: var(--card);
+  font-size: var(--joy-font-caption, 13px);
+}
+
+.manju-grid-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.manju-grid-preview__cell {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--joy-radius-md, 10px);
+  background: var(--muted);
+}
+
+.manju-grid-preview__cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.manju-create-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.manju-create-wizard__modes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.manju-create-wizard__mode {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  border: 1px solid
+    color-mix(in oklab, var(--border) 85%, transparent);
+  border-radius: var(--joy-radius-lg, 12px);
+  background: var(--card);
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease),
+    background var(--joy-duration-fast, 140ms) var(--joy-ease-out, ease);
+}
+
+.manju-create-wizard__mode.is-active {
+  border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
+  background: color-mix(in oklab, var(--primary) 7%, var(--card));
+}
+
+.manju-create-wizard__mode:hover:not(.is-active) {
+  border-color: color-mix(in oklab, var(--primary) 28%, var(--border));
+}
+
+.manju-create-wizard__mode strong {
+  font-size: var(--joy-font-label, 14px);
+  font-weight: var(--joy-weight-medium, 500);
+}
+
+.manju-create-wizard__mode span {
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+}

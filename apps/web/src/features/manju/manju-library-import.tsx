@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -15,6 +14,7 @@ import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import type { ManjuAssetDraft } from "./manju-types";
+import "./manju-library-import.css";
 
 type LibraryAsset = {
   id: string;
@@ -89,6 +89,9 @@ export function ManjuLibraryImport({ kind, disabled, className, onPick }: Props)
     toast.success("已从素材库导入参考图");
   };
 
+  const kindLabel =
+    kind === "character" ? "角色" : kind === "scene" ? "场景" : "道具";
+
   return (
     <>
       <Button
@@ -102,19 +105,18 @@ export function ManjuLibraryImport({ kind, disabled, className, onPick }: Props)
         <FolderOpen className="h-3.5 w-3.5" />
         素材库
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="manju-dialog max-w-2xl gap-4 border-border bg-card p-5 shadow-none sm:rounded-xl">
-          <DialogHeader>
-            <DialogTitle>
-              从素材库导入
-              {kind === "character"
-                ? "角色"
-                : kind === "scene"
-                  ? "场景"
-                  : "道具"}
-              参考图
-            </DialogTitle>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setSelected(null);
+        }}
+      >
+        <DialogContent className="manju-library-dialog">
+          <DialogHeader className="shrink-0 space-y-0 pr-6 text-left">
+            <DialogTitle>从素材库导入{kindLabel}参考图</DialogTitle>
           </DialogHeader>
+
           {loading ? (
             <div className="flex h-48 items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -125,38 +127,42 @@ export function ManjuLibraryImport({ kind, disabled, className, onPick }: Props)
               素材库还没有图片。可先在「资产」页上传，或在此直接上传参考图。
             </p>
           ) : (
-            <div className="grid max-h-[50vh] grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
-              {items.map((asset) => (
-                <button
-                  key={asset.id}
-                  type="button"
-                  className={cn(
-                    "overflow-hidden rounded-md border border-border bg-muted/30 text-left",
-                    selected === asset.id &&
-                      "ring-2 ring-ring border-transparent",
-                  )}
-                  onClick={() => setSelected(asset.id)}
-                >
-                  <JoyAssetThumb
-                    url={asset.url}
-                    size="sm"
-                    className="aspect-square w-full object-cover"
-                  />
-                  <span className="block truncate px-1.5 py-1 text-[10px] text-muted-foreground">
-                    {displayName(asset)}
-                  </span>
-                </button>
-              ))}
+            <div className="manju-library-dialog__body">
+              {items.map((asset) => {
+                const name = displayName(asset);
+                const on = selected === asset.id;
+                return (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    className={cn(
+                      "manju-library-dialog__cell",
+                      on && "is-selected",
+                    )}
+                    aria-pressed={on}
+                    title={name}
+                    onClick={() => setSelected(asset.id)}
+                  >
+                    <JoyAssetThumb
+                      url={asset.url}
+                      size="md"
+                      className="manju-library-dialog__thumb"
+                    />
+                    <span className="manju-library-dialog__name">{name}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
-          <DialogFooter>
+
+          <div className="manju-library-dialog__footer">
             <Button variant="outline" onClick={() => setOpen(false)}>
               取消
             </Button>
             <Button disabled={!selectedAsset} onClick={confirm}>
               导入选中
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

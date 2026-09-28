@@ -33,6 +33,12 @@ export type ManjuVideoSettings = {
   videoModelId?: string;
 };
 
+export type ManjuUtterance = {
+  kind: "dialogue" | "voiceover";
+  speaker?: string;
+  text: string;
+};
+
 export type ManjuShotDraft = {
   id: string;
   index: number;
@@ -41,6 +47,8 @@ export type ManjuShotDraft = {
   dialogue: string;
   imagePrompt: string;
   videoPrompt: string;
+  /** 结构化对白；空则回退 dialogue */
+  utterances: ManjuUtterance[];
   /** 关联角色/场景/道具资产 id */
   assetRefs: string[];
   /** 所属分集；null 表示未归集 */
@@ -63,6 +71,20 @@ export type ManjuShotDraft = {
   gridGroupId: string | null;
   /** 宫格格号 0-based */
   gridCellIndex: number | null;
+  /** 手动尾帧（连续性，非服务端抽帧） */
+  endFrameAssetId: string | null;
+  endFrameImageUrl: string | null;
+};
+
+export type ManjuPhase =
+  | "preparation"
+  | "script"
+  | "production"
+  | "completed";
+
+export type ManjuScriptReview = {
+  status: "draft" | "confirmed";
+  content: string;
 };
 
 export type ManjuAssetDraft = {
@@ -105,6 +127,8 @@ export type ManjuProjectDraft = {
   scriptText: string;
   overview: string;
   scriptConfirmed: boolean;
+  phase: ManjuPhase;
+  scriptReview: ManjuScriptReview;
   settings: ManjuVideoSettings;
   /** @deprecated 兼容旧本地草稿 */
   settingsSummary?: string;
@@ -113,6 +137,13 @@ export type ManjuProjectDraft = {
   episodes: ManjuEpisodeDraft[];
   series: ManjuSeries;
   completedSteps: ManjuStepId[];
+  /** 本地草稿版本快照（简化 time machine） */
+  draftSnapshots?: Array<{
+    id: string;
+    label: string;
+    createdAt: string;
+    draft: unknown;
+  }>;
   lastAnalyzeJobId?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -210,6 +241,7 @@ export function createEmptyShot(index: number): ManjuShotDraft {
     dialogue: "",
     imagePrompt: "",
     videoPrompt: "",
+    utterances: [],
     assetRefs: [],
     episodeId: null,
     duration: null,
@@ -225,6 +257,8 @@ export function createEmptyShot(index: number): ManjuShotDraft {
     videoStale: false,
     gridGroupId: null,
     gridCellIndex: null,
+    endFrameAssetId: null,
+    endFrameImageUrl: null,
   };
 }
 
@@ -257,12 +291,15 @@ export function createEmptyProject(title = "未命名漫剧"): ManjuProjectDraft
     scriptText: "",
     overview: "",
     scriptConfirmed: false,
+    phase: "preparation",
+    scriptReview: { status: "draft", content: "" },
     settings: { ...DEFAULT_SETTINGS },
     assets: [],
     shots: [],
     episodes: [],
     series: { ...EMPTY_SERIES, bios: [], hooks: [] },
     completedSteps: [],
+    draftSnapshots: [],
     lastAnalyzeJobId: null,
     createdAt: now,
     updatedAt: now,
@@ -357,8 +394,32 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
           typeof s.gridCellIndex === "number" && s.gridCellIndex >= 0
             ? s.gridCellIndex
             : null,
+        utterances: Array.isArray(s.utterances)
+          ? (s.utterances as ManjuUtterance[]).filter(
+              (u) =>
+                u &&
+                (u.kind === "dialogue" || u.kind === "voiceover") &&
+                typeof u.text === "string",
+            )
+          : [],
+        endFrameAssetId:
+          typeof s.endFrameAssetId === "string" ? s.endFrameAssetId : null,
+        endFrameImageUrl:
+          typeof s.endFrameImageUrl === "string" ? s.endFrameImageUrl : null,
       }))
     : [];
+
+  const phaseRaw = p.phase;
+  const phase: ManjuPhase =
+    phaseRaw === "script" ||
+    phaseRaw === "production" ||
+    phaseRaw === "completed"
+      ? phaseRaw
+      : "preparation";
+  const reviewRaw =
+    p.scriptReview && typeof p.scriptReview === "object"
+      ? (p.scriptReview as Record<string, unknown>)
+      : null;
 
   return {
     id,
@@ -366,6 +427,11 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
     scriptText: typeof p.scriptText === "string" ? p.scriptText : "",
     overview: typeof p.overview === "string" ? p.overview : "",
     scriptConfirmed: p.scriptConfirmed === true,
+    phase,
+    scriptReview: {
+      status: reviewRaw?.status === "confirmed" ? "confirmed" : "draft",
+      content: typeof reviewRaw?.content === "string" ? reviewRaw.content : "",
+    },
     settings,
     assets,
     shots,

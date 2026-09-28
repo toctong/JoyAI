@@ -57,6 +57,7 @@ import { useManjuStore } from "./manju-store";
 import { normalizeProject } from "./manju-types";
 import { WorkspaceModeTabs } from "@/features/shell/workspace-mode-tabs";
 import { writeWorkspaceMode } from "@/features/shell/workspace-nav";
+import { ManjuCreateWizard } from "./studio/manju-create-wizard";
 import "@/features/canvas/project-library.css";
 import "./manju-chrome.css";
 
@@ -107,6 +108,7 @@ export function ManjuProjectList() {
   const [allFolders, setAllFolders] = useState<FolderOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [q, setQ] = useState("");
   const [multiSelect, setMultiSelect] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -183,22 +185,6 @@ export function ManjuProjectList() {
       else next.add(id);
       return next;
     });
-  }
-
-  async function createProject() {
-    setCreating(true);
-    try {
-      const dto = await createManjuProject(
-        `漫剧 ${dayjs().format("MM-DD HH:mm")}`,
-        folderId,
-      );
-      upsertProject(projectFromDto(dto));
-      router.push(`/manju/${dto.id}`);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "创建失败");
-    } finally {
-      setCreating(false);
-    }
   }
 
   async function createFolder() {
@@ -514,7 +500,7 @@ export function ManjuProjectList() {
                 type="button"
                 className="joy-projects-media is-create"
                 disabled={creating}
-                onClick={() => void createProject()}
+                onClick={() => setWizardOpen(true)}
               >
                 <span className="joy-projects-create-mark" aria-hidden>
                   <CanvasIconPlus />
@@ -838,6 +824,12 @@ export function ManjuProjectList() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      <ManjuCreateWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        folderId={folderId}
+      />
     </div>
   );
 }

@@ -13,8 +13,13 @@ description: >-
 - System：`apps/server/src/modules/jobs/skills/script-write/system.ts`
 - 题材/示例：`packages/shared/src/manju/script-write-genres.ts`
 
-前端：`apps/web/src/features/manju/script-ai/`。会话按项目存在服务端 `project_chat`（`manju-script`），不写进漫剧草稿，也不放浏览器。
+前端：
 
-面板可切换技能：默认 `script_write`（JSON 帮写可应用）；小洛文本技能（`film_script_analysis` 等）走 advisor 自由文本回复。图像类小洛技能尚未挂 UI。
+- 剧本帮写：`apps/web/src/features/manju/script-ai/`（Studio 右栏 Tab「剧本帮写」）
+- 漫剧 Agent：`apps/web/src/features/manju/agent/`（JSON actions，scope `manju-agent`）
 
-禁止从 ai-video / 外部 short-drama 仓库整段粘贴 SKILL 或 references。
+会话：`project_chat` — `manju-script`（帮写）与 `manju-agent`（Agent）分开；不写进漫剧草稿。
+
+面板可切换技能：默认 `script_write`（JSON 帮写可应用）；小洛文本技能走 advisor 自由文本。图像类小洛技能尚未挂 UI。
+
+禁止从 ai-video / ArcReel / 外部 short-drama 仓库整段粘贴 SKILL 或 references。

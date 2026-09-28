@@ -388,6 +388,19 @@ export const ManjuShotDraftSchema = z.object({
   gridGroupId: z.string().nullable().default(null),
   /** 宫格格号 0-based 行优先 */
   gridCellIndex: z.number().int().min(0).nullable().default(null),
+  /** i2v 末帧（可选） */
+  endFrameAssetId: z.string().nullable().default(null),
+  endFrameImageUrl: z.string().nullable().default(null),
+  /** 结构化对白/旁白；空则回退 dialogue 字符串 */
+  utterances: z
+    .array(
+      z.object({
+        kind: z.enum(["dialogue", "voiceover"]),
+        speaker: z.string().optional(),
+        text: z.string(),
+      }),
+    )
+    .default([]),
 });
 
 export const ManjuEpisodeDraftSchema = z.object({
@@ -401,10 +414,21 @@ export const ManjuEpisodeDraftSchema = z.object({
 
 export const ManjuDraftSchema = z.object({
   version: z.literal(1).default(1),
+  /** Studio 顶栏阶段：筹备 / 剧本 / 制作 / 完成 */
+  phase: z
+    .enum(["preparation", "script", "production", "completed"])
+    .default("preparation"),
   scriptText: z.string().default(""),
   overview: z.string().default(""),
   /** 脚本规划已确认后才允许写画面/视频提示词 */
   scriptConfirmed: z.boolean().default(false),
+  /** 剧本审阅区（可与 scriptConfirmed 同步） */
+  scriptReview: z
+    .object({
+      status: z.enum(["draft", "confirmed"]).default("draft"),
+      content: z.string().default(""),
+    })
+    .default({ status: "draft", content: "" }),
   settings: ManjuVideoSettingsSchema.default({}),
   assets: z.array(ManjuAssetDraftSchema).default([]),
   shots: z.array(ManjuShotDraftSchema).default([]),
@@ -413,6 +437,17 @@ export const ManjuDraftSchema = z.object({
   series: ManjuSeriesSchema.default({}),
   completedSteps: z.array(ManjuStepIdSchema).default([]),
   lastAnalyzeJobId: z.string().nullable().optional(),
+  /** 本地 time-machine 快照（嵌在 draft JSON 内） */
+  draftSnapshots: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        createdAt: z.string(),
+        draft: z.unknown(),
+      }),
+    )
+    .default([]),
 });
 export type ManjuDraft = z.infer<typeof ManjuDraftSchema>;
 
