@@ -808,6 +808,23 @@
   cursor: zoom-in;
 }
 
+.joy-studio-thumb-frame.is-panorama .joy-studio-thumb-preview {
+  cursor: pointer;
+}
+
+/* Overlay chips on panorama cards — kill sticky mouse-click focus ring. */
+.joy-studio-pano-chip {
+  border: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.joy-studio-pano-chip:focus,
+.joy-studio-pano-chip:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .joy-studio-thumb-hover {
   pointer-events: none;
   position: absolute;

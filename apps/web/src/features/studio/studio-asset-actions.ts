@@ -166,9 +166,26 @@ export async function commitStudioImagePieces(
 
 export async function submitOutpaintJob(
   asset: StudioMediaAsset,
-  opts?: { prompt?: string; modelId?: string },
+  opts: {
+    prompt?: string;
+    modelId?: string;
+    /** Padded composite from ImageOutpaintDialog — preferred over raw asset. */
+    marked?: Blob;
+    resolution?: string;
+    ratio?: string;
+  } = {},
 ): Promise<{ id: string }> {
-  const prompt = (opts?.prompt ?? "扩图，保持主体完整，自然延展画面").trim();
+  const prompt = (opts.prompt ?? "扩图，保持主体完整，自然延展画面").trim();
+  let referenceAssetIds = asset.id ? [asset.id] : undefined;
+  let referenceUrls = asset.url ? [asset.url] : undefined;
+  if (opts.marked) {
+    const file = new File([opts.marked], `outpaint-${Date.now()}.png`, {
+      type: "image/png",
+    });
+    const markedAsset = await uploadFile(file);
+    referenceAssetIds = [markedAsset.id];
+    referenceUrls = [markedAsset.url];
+  }
   return api<{ id: string }>("/jobs", {
     method: "POST",
     body: {
@@ -176,10 +193,12 @@ export async function submitOutpaintJob(
       input: {
         prompt,
         n: 1,
-        modelId: opts?.modelId,
-        referenceAssetIds: asset.id ? [asset.id] : undefined,
-        referenceUrls: asset.url ? [asset.url] : undefined,
+        modelId: opts.modelId,
+        referenceAssetIds,
+        referenceUrls,
         operation: "outpaint",
+        ...(opts.resolution ? { resolution: opts.resolution } : {}),
+        ...(opts.ratio ? { ratio: opts.ratio } : {}),
       },
     },
   });
@@ -188,7 +207,12 @@ export async function submitOutpaintJob(
 export async function submitInpaintJob(
   _asset: StudioMediaAsset,
   marked: Blob,
-  opts: { prompt: string; modelId?: string },
+  opts: {
+    prompt: string;
+    modelId?: string;
+    resolution?: string;
+    ratio?: string;
+  },
 ): Promise<{ id: string }> {
   const file = new File([marked], `mask-${Date.now()}.png`, {
     type: "image/png",
@@ -207,6 +231,8 @@ export async function submitInpaintJob(
         referenceAssetIds: [markedAsset.id],
         referenceUrls: [markedAsset.url],
         operation: "inpaint",
+        ...(opts.resolution ? { resolution: opts.resolution } : {}),
+        ...(opts.ratio ? { ratio: opts.ratio } : {}),
       },
     },
   });
@@ -253,6 +279,8 @@ export async function submitPanoramaJob(
         referenceAssetIds: asset.id ? [asset.id] : undefined,
         referenceUrls: asset.url ? [asset.url] : undefined,
         operation: "generate",
+        /** Marks feed cards for 720° sphere preview (not a canvas node). */
+        studioTool: "to-panorama",
       },
     },
   });
@@ -266,6 +294,25 @@ export async function captureStudioFrame(
   return registerLocalJob({
     kind: "image",
     prompt: "视频截帧",
+    assetIds: [uploaded.id],
+  });
+}
+
+/** Drop current 720° sphere view into the studio feed as a still. */
+export async function captureStudioPanoramaView(
+  canvas: HTMLCanvasElement,
+): Promise<{ id: string }> {
+  const { canvasToPngFile } = await import(
+    "@/features/canvas/panorama-viewer"
+  );
+  const file = await canvasToPngFile(
+    canvas,
+    `panorama-view-${Date.now()}.png`,
+  );
+  const uploaded = await uploadFile(file);
+  return registerLocalJob({
+    kind: "image",
+    prompt: "全景截帧",
     assetIds: [uploaded.id],
   });
 }

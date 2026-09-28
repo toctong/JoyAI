@@ -41,6 +41,7 @@ import {
   CanvasIconBrush,
   CanvasIconFrame,
   CanvasIconGrid,
+  CanvasIconMaximize,
   CanvasIconOutpaint,
   CanvasIconPanorama,
   CanvasIconScissors,
@@ -63,11 +64,17 @@ import {
   ImageToolDialog,
   type ImageToolMode,
 } from "@/features/canvas/image-tool-dialog";
-import { MaskEditDialog } from "@/features/canvas/mask-edit-dialog";
+import {
+  MaskEditDialog,
+  type MaskConfirmPayload,
+} from "@/features/canvas/mask-edit-dialog";
 import { ImageAngleDialog } from "@/features/canvas/image-angle-dialog";
+import { ImageOutpaintDialog } from "@/features/canvas/image-outpaint-dialog";
+import { ImagePanoramaDialog } from "@/features/canvas/image-panorama-dialog";
 import { AudioTrimDialog } from "@/features/canvas/audio-trim-dialog";
 import type { ImageAngleParams } from "@/features/canvas/lib/angle-prompt";
 import type { RasterPiece } from "@/features/canvas/lib/image-raster";
+import { StudioPanoramaPreview } from "@/features/studio/studio-panorama-preview";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
 import { copyText } from "@/shared/lib/clipboard";
@@ -126,6 +133,7 @@ type JobInput = {
   referenceUrls?: string[];
   localEdit?: boolean;
   localTool?: string;
+  studioTool?: string;
   layout?: { rows?: number; cols?: number };
 };
 
@@ -160,6 +168,22 @@ type Job = {
   assets?: Asset[];
   error?: string | null;
 };
+
+/** Feed cards that should offer 720° sphere preview (canvas-style). */
+function isStudioPanoramaJob(job: Job): boolean {
+  if (job.kind !== "image") return false;
+  if (job.input?.studioTool === "to-panorama") return true;
+  const prompt = job.input?.prompt ?? "";
+  if (
+    /等距柱状|图生全景|文字生成全景|720\s*度球形|球形全景|可环视/.test(prompt)
+  ) {
+    return true;
+  }
+  return (
+    job.input?.ratio === "2:1" &&
+    /全景|环视|panorama|equirect/i.test(prompt)
+  );
+}
 
 /** Prefer `result.tiles` / `result.assetIds` so 切图 tiles stay row-major. */
 function jobOutputAssets(job: Job): Asset[] {
@@ -870,6 +894,7 @@ function mosaicShellStyle(aspect: string): CSSProperties {
 function StudioThumbHoverTools({
   mediaKind,
   variant = "full",
+  panorama = false,
   onDownload,
   onDelete,
   onCopyPrompt,
@@ -877,12 +902,16 @@ function StudioThumbHoverTools({
   onOpenCanvas,
   onCanvasTool,
   onOutpaint,
+  onOpenPanorama,
+  onOpenFlatPreview,
   canCopy,
   busyAction,
 }: {
   mediaKind: "image" | "video";
   /** Mosaic tiles: download + delete only. */
   variant?: "full" | "simple";
+  /** Equirectangular result — hide seam-breaking tools (match canvas). */
+  panorama?: boolean;
   onDownload: () => void;
   onDelete?: () => void;
   onCopyPrompt?: () => void;
@@ -890,12 +919,18 @@ function StudioThumbHoverTools({
   onOpenCanvas?: () => void;
   onCanvasTool?: (tool: StudioLocalTool) => void;
   onOutpaint?: () => void;
+  onOpenPanorama?: () => void;
+  onOpenFlatPreview?: () => void;
   canCopy?: boolean;
   busyAction?: string | null;
 }) {
   const busy = Boolean(busyAction);
   const simple = variant === "simple";
-  const refLabel = mediaKind === "video" ? "用作参考视频" : "用作参考图";
+  const isImage = mediaKind === "image";
+  const isVideo = mediaKind === "video";
+  const refLabel = isVideo ? "用作参考视频" : "用作参考图";
+  // Canvas panorama toolbar: no outpaint / inpaint / to-panorama.
+  const allowImageEdit = isImage && !panorama;
   const bottomTools = simple
     ? ([] as Array<{
         key: string;
@@ -905,6 +940,24 @@ function StudioThumbHoverTools({
         onClick: () => void;
       }>)
     : ([
+    panorama && onOpenPanorama
+      ? {
+          key: "panorama-view",
+          label: "进入全景预览",
+          icon: <CanvasIconPanorama className="size-3.5" />,
+          disabled: busy,
+          onClick: onOpenPanorama,
+        }
+      : null,
+    panorama && onOpenFlatPreview
+      ? {
+          key: "flat-view",
+          label: "查看平面图",
+          icon: <CanvasIconMaximize className="size-3.5" />,
+          disabled: busy,
+          onClick: onOpenFlatPreview,
+        }
+      : null,
     onUseAsRef
       ? {
           key: "ref",
@@ -923,7 +976,7 @@ function StudioThumbHoverTools({
           onClick: onOpenCanvas,
         }
       : null,
-    mediaKind === "image" && onOutpaint
+    allowImageEdit && onOutpaint
       ? {
           key: "outpaint",
           label: busyAction === "outpaint" ? "提交中…" : "扩图",
@@ -932,7 +985,7 @@ function StudioThumbHoverTools({
           onClick: onOutpaint,
         }
       : null,
-    mediaKind === "image" && onCanvasTool
+    isImage && onCanvasTool
       ? {
           key: "split",
           label: "切图",
@@ -941,7 +994,7 @@ function StudioThumbHoverTools({
           onClick: () => onCanvasTool("split"),
         }
       : null,
-    mediaKind === "image" && onCanvasTool
+    allowImageEdit && onCanvasTool
       ? {
           key: "to-panorama",
           label: "转720°全景",
@@ -950,7 +1003,7 @@ function StudioThumbHoverTools({
           onClick: () => onCanvasTool("to-panorama"),
         }
       : null,
-    mediaKind === "image" && onCanvasTool
+    allowImageEdit && onCanvasTool
       ? {
           key: "inpaint",
           label: "局部重绘",
@@ -959,7 +1012,7 @@ function StudioThumbHoverTools({
           onClick: () => onCanvasTool("inpaint"),
         }
       : null,
-    mediaKind === "image" && onCanvasTool
+    isImage && onCanvasTool
       ? {
           key: "crop",
           label: "裁剪",
@@ -968,7 +1021,7 @@ function StudioThumbHoverTools({
           onClick: () => onCanvasTool("crop"),
         }
       : null,
-    mediaKind === "image" && onCanvasTool
+    isImage && onCanvasTool
       ? {
           key: "angle",
           label: "多角度",
@@ -977,7 +1030,7 @@ function StudioThumbHoverTools({
           onClick: () => onCanvasTool("angle"),
         }
       : null,
-    mediaKind === "video" && onCanvasTool
+    isVideo && onCanvasTool
       ? {
           key: "capture-frame",
           label: "截帧",
@@ -986,7 +1039,7 @@ function StudioThumbHoverTools({
           onClick: () => onCanvasTool("capture-frame"),
         }
       : null,
-    mediaKind === "video" && onCanvasTool
+    isVideo && onCanvasTool
       ? {
           key: "extract-audio",
           label: "分离音频",
@@ -995,7 +1048,7 @@ function StudioThumbHoverTools({
           onClick: () => onCanvasTool("extract-audio"),
         }
       : null,
-    mediaKind === "video" && onCanvasTool
+    isVideo && onCanvasTool
       ? {
           key: "trim-video",
           label: "剪辑",
@@ -1136,12 +1189,14 @@ function StudioImageThumb({
   aspectRatio,
   fluid = false,
   mosaic = false,
+  panorama = false,
   onDownload,
   onCopyPrompt,
   onUseAsRef,
   onOpenCanvas,
   onCanvasTool,
   onOutpaint,
+  onOpenPanorama,
   canCopy,
   busyAction,
 }: {
@@ -1150,15 +1205,19 @@ function StudioImageThumb({
   fluid?: boolean;
   /** Tile inside a split mosaic — download only, fills grid cell. */
   mosaic?: boolean;
+  /** Equirectangular result — offer sphere preview like canvas. */
+  panorama?: boolean;
   onDownload: () => void;
   onCopyPrompt?: () => void;
   onUseAsRef?: () => void;
   onOpenCanvas?: () => void;
   onCanvasTool?: (tool: StudioLocalTool) => void;
   onOutpaint?: () => void;
+  onOpenPanorama?: () => void;
   canCopy?: boolean;
   busyAction?: string | null;
 }) {
+  const flatTriggerRef = useRef<HTMLButtonElement>(null);
   const { url: fullUrl, loading: fullLoading } = useDisplayMediaUrl(src);
   const previewSrc = fullUrl || src;
   const frameStyle = useMemo(
@@ -1168,6 +1227,10 @@ function StudioImageThumb({
         : frameStyleForAspect(aspectRatio, fluid),
     [aspectRatio, fluid, mosaic],
   );
+
+  const openFlatPreview = useCallback(() => {
+    flatTriggerRef.current?.click();
+  }, []);
 
   const image = fullLoading && needsProxyPlaceholder(src) ? (
     <span
@@ -1190,6 +1253,31 @@ function StudioImageThumb({
         />
       </button>
     </PhotoView>
+  ) : panorama && onOpenPanorama ? (
+    <>
+      <button
+        type="button"
+        className="joy-studio-thumb-preview"
+        aria-label="进入全景预览"
+        onClick={onOpenPanorama}
+      >
+        <JoyAssetThumb
+          url={previewSrc}
+          size="md"
+          className="size-full object-cover"
+        />
+      </button>
+      {/* Hidden PhotoView trigger for equirectangular flat lightbox. */}
+      <PhotoView src={previewSrc}>
+        <button
+          ref={flatTriggerRef}
+          type="button"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden
+        />
+      </PhotoView>
+    </>
   ) : (
     <PhotoView src={previewSrc}>
       <button
@@ -1208,19 +1296,62 @@ function StudioImageThumb({
 
   return (
     <div
-      className={cn("joy-studio-thumb-frame", mosaic && "is-mosaic-tile")}
+      className={cn(
+        "joy-studio-thumb-frame",
+        mosaic && "is-mosaic-tile",
+        panorama && "is-panorama",
+      )}
       style={frameStyle}
     >
       {image}
+      {panorama && !mosaic ? (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-[2] flex items-start justify-between gap-2 p-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+            <CanvasIconPanorama className="size-3 opacity-90" />
+            720° 环视
+          </span>
+          <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-1.5">
+            <button
+              type="button"
+              className="joy-studio-pano-chip inline-flex items-center gap-1 rounded-lg bg-black/55 px-2 py-1.5 text-[11px] font-medium text-white backdrop-blur-sm hover:bg-black/70"
+              onClick={(e) => {
+                e.stopPropagation();
+                (e.currentTarget as HTMLButtonElement).blur();
+                openFlatPreview();
+              }}
+            >
+              <CanvasIconMaximize className="size-3.5" />
+              平面图
+            </button>
+            {onOpenPanorama ? (
+              <button
+                type="button"
+                className="joy-studio-pano-chip inline-flex items-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-medium text-primary-foreground shadow-sm hover:bg-primary/90"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  (e.currentTarget as HTMLButtonElement).blur();
+                  onOpenPanorama();
+                }}
+              >
+                <CanvasIconPanorama className="size-3.5" />
+                进入全景预览
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       <StudioThumbHoverTools
         mediaKind="image"
         variant={mosaic ? "simple" : "full"}
+        panorama={panorama}
         onDownload={onDownload}
         onCopyPrompt={mosaic ? undefined : onCopyPrompt}
         onUseAsRef={mosaic ? undefined : onUseAsRef}
         onOpenCanvas={mosaic ? undefined : onOpenCanvas}
         onCanvasTool={mosaic ? undefined : onCanvasTool}
-        onOutpaint={mosaic ? undefined : onOutpaint}
+        onOutpaint={mosaic || panorama ? undefined : onOutpaint}
+        onOpenPanorama={mosaic || !panorama ? undefined : onOpenPanorama}
+        onOpenFlatPreview={mosaic || !panorama ? undefined : openFlatPreview}
         canCopy={mosaic ? false : canCopy}
         busyAction={busyAction}
       />
@@ -1485,6 +1616,15 @@ function StudioInner() {
     asset: StudioMediaAsset;
     modelId?: string;
   } | null>(null);
+  const [outpaintEdit, setOutpaintEdit] = useState<{
+    asset: StudioMediaAsset;
+    modelId?: string;
+  } | null>(null);
+  const [panoramaEdit, setPanoramaEdit] = useState<{
+    asset: StudioMediaAsset;
+    modelId?: string;
+    promptHint?: string;
+  } | null>(null);
   const [angleEdit, setAngleEdit] = useState<{
     asset: StudioMediaAsset;
     modelId?: string;
@@ -1493,6 +1633,9 @@ function StudioInner() {
     asset: StudioMediaAsset;
   } | null>(null);
   const [videoTrimBusy, setVideoTrimBusy] = useState(false);
+  const [panoramaPreviewUrl, setPanoramaPreviewUrl] = useState<string | null>(
+    null,
+  );
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
   const jobsRef = useRef<Job[]>([]);
@@ -1929,6 +2072,20 @@ function StudioInner() {
   ) {
     const modelId = job?.input?.modelId;
     const basePrompt = job?.input?.prompt?.trim();
+    const panoramaJob = job ? isStudioPanoramaJob(job) : false;
+
+    // Match canvas: panorama results skip seam-breaking / redundant tools.
+    if (
+      panoramaJob &&
+      (tool === "to-panorama" || tool === "inpaint")
+    ) {
+      toast.message(
+        tool === "to-panorama"
+          ? "已是全景图，可直接进入全景预览"
+          : "全景图不支持局部重绘，请在画布转图像后再试",
+      );
+      return;
+    }
 
     if (tool === "crop" || tool === "split") {
       setImageTool({ mode: tool, asset });
@@ -1946,23 +2103,18 @@ function StudioInner() {
       setVideoTrim({ asset });
       return;
     }
+    if (tool === "to-panorama") {
+      setPanoramaEdit({
+        asset,
+        modelId,
+        promptHint: basePrompt,
+      });
+      return;
+    }
 
     const key = `${asset.id}:${tool}`;
     setAssetActionBusy(key);
     try {
-      if (tool === "to-panorama") {
-        const created = await submitPanoramaJob(asset, {
-          prompt: basePrompt,
-          modelId,
-        });
-        await afterStudioJob(created.id, {
-          kind: "image",
-          prompt: "转720°全景",
-          modelName: job?.modelName,
-        });
-        toast.success("已提交转720°全景任务");
-        return;
-      }
       if (tool === "capture-frame") {
         const created = await captureStudioFrame(asset);
         await afterStudioJob(created.id, {
@@ -2014,14 +2166,16 @@ function StudioInner() {
     }
   }
 
-  async function commitMaskEdit(payload: { prompt: string; blob: Blob }) {
+  async function commitMaskEdit(payload: MaskConfirmPayload) {
     const session = maskEdit;
     if (!session) return;
     setAssetActionBusy(`${session.asset.id}:inpaint`);
     try {
       const created = await submitInpaintJob(session.asset, payload.blob, {
         prompt: payload.prompt,
-        modelId: session.modelId,
+        modelId: payload.modelId || session.modelId,
+        resolution: payload.resolution,
+        ratio: payload.ratio,
       });
       setMaskEdit(null);
       await afterStudioJob(created.id, {
@@ -2031,6 +2185,62 @@ function StudioInner() {
       toast.success("已提交局部重绘");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "局部重绘失败");
+    } finally {
+      setAssetActionBusy(null);
+    }
+  }
+
+  async function commitOutpaintEdit(payload: {
+    prompt: string;
+    blob: Blob;
+    modelId: string;
+    resolution?: string;
+    ratio?: string;
+  }) {
+    const session = outpaintEdit;
+    if (!session) return;
+    setAssetActionBusy(`${session.asset.id}:outpaint`);
+    try {
+      const created = await submitOutpaintJob(session.asset, {
+        prompt: payload.prompt,
+        modelId: payload.modelId || session.modelId,
+        marked: payload.blob,
+        resolution: payload.resolution,
+        ratio: payload.ratio,
+      });
+      setOutpaintEdit(null);
+      await afterStudioJob(created.id, {
+        kind: "image",
+        prompt: "扩图",
+      });
+      toast.success("已提交扩图任务");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "扩图失败");
+    } finally {
+      setAssetActionBusy(null);
+    }
+  }
+
+  async function commitPanoramaEdit(payload: {
+    note: string;
+    modelId: string;
+  }) {
+    const session = panoramaEdit;
+    if (!session) return;
+    setAssetActionBusy(`${session.asset.id}:to-panorama`);
+    try {
+      const created = await submitPanoramaJob(session.asset, {
+        prompt: payload.note || session.promptHint,
+        modelId: payload.modelId || session.modelId,
+      });
+      setPanoramaEdit(null);
+      await afterStudioJob(created.id, {
+        kind: "image",
+        prompt: "转720°全景",
+      });
+      toast.success("已提交转720°全景任务");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "转全景失败");
     } finally {
       setAssetActionBusy(null);
     }
@@ -2081,25 +2291,15 @@ function StudioInner() {
     }
   }
 
-  async function outpaintAsset(asset: StudioMediaAsset, job: Job) {
-    const key = `${asset.id}:outpaint`;
-    setAssetActionBusy(key);
-    try {
-      const created = await submitOutpaintJob(asset, {
-        prompt: job.input?.prompt?.trim(),
-        modelId: job.input?.modelId,
-      });
-      await afterStudioJob(created.id, {
-        kind: "image",
-        prompt: "扩图",
-        modelName: job.modelName,
-      });
-      toast.success("已提交扩图任务");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "扩图失败");
-    } finally {
-      setAssetActionBusy(null);
+  function openOutpaint(asset: StudioMediaAsset, job: Job) {
+    if (isStudioPanoramaJob(job)) {
+      toast.message("全景图不支持扩图，请在画布转图像后再试");
+      return;
     }
+    setOutpaintEdit({
+      asset,
+      modelId: job.input?.modelId,
+    });
   }
 
   async function copyPrompt(job: Job) {
@@ -2378,6 +2578,7 @@ function StudioInner() {
                             aspectRatio={ar}
                             fluid={fluidGrid}
                             mosaic={Boolean(mosaic)}
+                            panorama={isStudioPanoramaJob(job)}
                             canCopy={Boolean(job.input?.prompt?.trim())}
                             busyAction={busyKey}
                             onCopyPrompt={() => void copyPrompt(job)}
@@ -2386,7 +2587,10 @@ function StudioInner() {
                             onCanvasTool={(tool) =>
                               void runLocalTool(media, tool, job)
                             }
-                            onOutpaint={() => void outpaintAsset(media, job)}
+                            onOutpaint={() => openOutpaint(media, job)}
+                            onOpenPanorama={() =>
+                              setPanoramaPreviewUrl(asset.url)
+                            }
                             onDownload={() => {
                               void downloadAsset(asset.url, asset.kind)
                                 .then(() => toast.success("已开始下载该切片"))
@@ -2501,6 +2705,18 @@ function StudioInner() {
         onClose={() => setMaskEdit(null)}
         onConfirm={commitMaskEdit}
       />
+      <ImageOutpaintDialog
+        open={Boolean(outpaintEdit)}
+        url={outpaintEdit?.asset.url ?? ""}
+        onClose={() => setOutpaintEdit(null)}
+        onConfirm={commitOutpaintEdit}
+      />
+      <ImagePanoramaDialog
+        open={Boolean(panoramaEdit)}
+        url={panoramaEdit?.asset.url ?? ""}
+        onClose={() => setPanoramaEdit(null)}
+        onConfirm={(payload) => void commitPanoramaEdit(payload)}
+      />
       <ImageAngleDialog
         open={Boolean(angleEdit)}
         url={angleEdit?.asset.url ?? ""}
@@ -2516,6 +2732,17 @@ function StudioInner() {
           if (!videoTrimBusy) setVideoTrim(null);
         }}
         onConfirm={(range) => void commitVideoTrim(range)}
+      />
+      <StudioPanoramaPreview
+        open={Boolean(panoramaPreviewUrl)}
+        url={panoramaPreviewUrl ?? ""}
+        onClose={() => setPanoramaPreviewUrl(null)}
+        onCaptured={async (jobId) => {
+          await afterStudioJob(jobId, {
+            kind: "image",
+            prompt: "全景截帧",
+          });
+        }}
       />
     </div>
   );

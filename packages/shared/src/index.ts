@@ -105,6 +105,11 @@ export const ImageJobInputSchema = z.object({
   manjuProjectId: z.string().optional(),
   /** AI 工具 slug：scope=tools 只看该工具，创作台排除 */
   toolSlug: z.string().max(64).optional(),
+  /**
+   * Studio hover-tool marker (e.g. to-panorama) so the creation feed can
+   * offer 720° sphere preview without canvas nodes.
+   */
+  studioTool: z.string().max(64).optional(),
   /** Future provider ops; currently treated as generate + reference. */
   operation: ImageEditOperationSchema.optional().default("generate"),
 });
