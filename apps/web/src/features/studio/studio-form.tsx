@@ -87,6 +87,7 @@ import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
 import { useDisplayMediaUrl } from "@/shared/ui/joy-remote-img";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
+import { tosVideoPosterUrl } from "@/shared/lib/media-url";
 import {
   splitPromptForDisplay,
   type PromptDisplayPart,
@@ -1263,6 +1264,9 @@ function StudioVideoThumb({
   busyAction?: string | null;
 }) {
   const [aspect, setAspect] = useState(fallbackAspect);
+  // ToAPIs CDN often fails in Chrome for multi‑MB mp4 — same proxy path as images.
+  const { url: playUrl, loading: playLoading } = useDisplayMediaUrl(src, "video");
+  const poster = tosVideoPosterUrl(src) || undefined;
 
   useEffect(() => {
     setAspect(fallbackAspect);
@@ -1278,16 +1282,24 @@ function StudioVideoThumb({
       className="joy-studio-thumb joy-studio-thumb-video"
       style={frameStyle}
     >
-      <StudioPlyrPlayer
-        src={src}
-        onNaturalAspect={
-          flexible
-            ? (next) => {
-                setAspect((prev) => (prev === next ? prev : next));
-              }
-            : undefined
-        }
-      />
+      {playLoading || !playUrl ? (
+        <span
+          aria-busy
+          className="block size-full animate-pulse bg-muted/40"
+        />
+      ) : (
+        <StudioPlyrPlayer
+          src={playUrl}
+          poster={poster}
+          onNaturalAspect={
+            flexible
+              ? (next) => {
+                  setAspect((prev) => (prev === next ? prev : next));
+                }
+              : undefined
+          }
+        />
+      )}
       <StudioThumbHoverTools
         mediaKind="video"
         onDownload={onDownload}

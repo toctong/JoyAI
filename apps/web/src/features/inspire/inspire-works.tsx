@@ -37,7 +37,8 @@ type ShowcaseWorksResult = {
 };
 
 const ALL_TAB = { code: "all", name: "全部" } as const;
-const PAGE_SIZE = 20;
+/** Wider PC grids (5–7 cols) need a fuller first paint; server caps at 48. */
+const PAGE_SIZE = 32;
 
 function mergeWorks(prev: ShowcaseWork[], next: ShowcaseWork[]) {
   if (prev.length === 0) return next;

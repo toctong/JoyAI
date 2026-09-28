@@ -27,7 +27,7 @@ const TABS: { id: WorkspaceMode; label: string }[] = [
   { id: "manju", label: "漫剧" },
 ];
 
-const PREVIEW_COUNT = 4;
+const PREVIEW_COUNT = 6;
 
 function formatEditedAt(value: string) {
   return dayjs(value).format("YYYY-MM-DD");

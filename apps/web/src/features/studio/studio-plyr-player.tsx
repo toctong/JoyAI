@@ -31,6 +31,22 @@ type PlyrLike = {
   media?: HTMLMediaElement | null;
 };
 
+function applyMediaAttrs(
+  el: HTMLVideoElement,
+  src: string,
+  poster?: string | null,
+) {
+  if (el.getAttribute("src") !== src) {
+    el.src = src;
+  }
+  if (poster) el.poster = poster;
+  else el.removeAttribute("poster");
+}
+
+function hasPlayableSrc(el: HTMLVideoElement) {
+  return Boolean(el.currentSrc || el.getAttribute("src"));
+}
+
 /** Studio feed video — Plyr controls, no autoplay (multiple cards on page). */
 export function StudioPlyrPlayer({
   src,
@@ -44,8 +60,12 @@ export function StudioPlyrPlayer({
   const playerRef = useRef<PlyrLike | null>(null);
   const pendingSrcRef = useRef<string | null>(null);
   const appliedSrcRef = useRef(src);
+  const srcRef = useRef(src);
+  const posterRef = useRef(poster);
   const onNaturalAspectRef = useRef(onNaturalAspect);
   const onEndedRef = useRef(onEnded);
+  srcRef.current = src;
+  posterRef.current = poster;
   onNaturalAspectRef.current = onNaturalAspect;
   onEndedRef.current = onEnded;
 
@@ -84,8 +104,14 @@ export function StudioPlyrPlayer({
     const handleEnded = () => onEndedRef.current?.();
     el.addEventListener("ended", handleEnded);
 
+    // Strict Mode / Plyr destroy call releaseHtmlMedia which strips `src`.
+    // Re-apply before init so we never mount Plyr on an empty element.
+    applyMediaAttrs(el, srcRef.current, posterRef.current);
+    appliedSrcRef.current = srcRef.current;
+
     void import("plyr").then(({ default: Plyr }) => {
       if (destroyed || !videoRef.current) return;
+      applyMediaAttrs(videoRef.current, srcRef.current, posterRef.current);
       player = new Plyr(videoRef.current, {
         controls: [
           "play-large",
@@ -105,7 +131,7 @@ export function StudioPlyrPlayer({
         keyboard: { focused: true, global: false },
       }) as unknown as PlyrLike;
       playerRef.current = player;
-      appliedSrcRef.current = src;
+      appliedSrcRef.current = srcRef.current;
       player.on("ended", handleEnded);
       player.on("playing", syncAudible);
       player.on("pause", syncAudible);
@@ -139,17 +165,23 @@ export function StudioPlyrPlayer({
   }, []);
 
   useEffect(() => {
-    if (src === appliedSrcRef.current) return;
     const player = playerRef.current;
     const video = videoRef.current;
+    const needsRestore = Boolean(video && src && !hasPlayableSrc(video));
+    if (src === appliedSrcRef.current && !needsRestore) {
+      if (video) applyMediaAttrs(video, src, poster);
+      return;
+    }
     if (!player || !video) {
       pendingSrcRef.current = src;
+      if (video && src) applyMediaAttrs(video, src, poster);
       return;
     }
 
     const apply = (next: string) => {
       appliedSrcRef.current = next;
       pendingSrcRef.current = null;
+      applyMediaAttrs(video, next, poster);
       player.source = {
         type: "video",
         sources: [{ src: next, type: "video/mp4" }],
@@ -176,7 +208,7 @@ export function StudioPlyrPlayer({
       player.off("pause", flush);
       player.off("ended", flush);
     };
-  }, [src]);
+  }, [src, poster]);
 
   return (
     <video

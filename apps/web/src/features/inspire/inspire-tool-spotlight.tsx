@@ -21,8 +21,8 @@ const SPOTLIGHT_SLUGS = [
   "lineart",
 ] as const;
 
-const PREVIEW_COUNT = 4;
-const EXPANDED_COUNT = 8;
+const PREVIEW_COUNT = 6;
+const EXPANDED_COUNT = 12;
 
 export function InspireToolSpotlight() {
   const [expanded, setExpanded] = useState(false);

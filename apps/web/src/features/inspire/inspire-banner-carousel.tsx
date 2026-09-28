@@ -90,7 +90,7 @@ function BannerCard({ item }: { item: InspireBannerItem }) {
                 alt=""
                 className="joy-inspire-carousel__cover"
                 draggable={false}
-                decoding="sync"
+                decoding="async"
               />
             ) : null}
             <video
@@ -110,7 +110,7 @@ function BannerCard({ item }: { item: InspireBannerItem }) {
             alt=""
             className="joy-inspire-carousel__cover"
             draggable={false}
-            decoding="sync"
+            decoding="async"
           />
         )}
         <div className="joy-inspire-carousel__veil" />
@@ -255,7 +255,10 @@ const BannerSwiperPane = memo(function BannerSwiperPane({
         snapToMiddleBand(swiper, countRef.current);
         const n = countRef.current;
         if (n) onActiveRef.current(swiper.activeIndex % n);
-        syncVideos(swiper);
+        // Parent pauses media while scrolled away (`.is-away`).
+        if (!swiper.el?.closest(".joy-inspire-carousel.is-away")) {
+          syncVideos(swiper);
+        }
       }}
       onTransitionEnd={(swiper) => {
         // Catch drag-release snaps that don't fire slideChangeTransitionEnd.
@@ -287,13 +290,46 @@ function stepSlide(
   });
 }
 
+function pauseCarouselMedia(swiper: SwiperInstance | null) {
+  if (!swiper?.el) return;
+  swiper.el.querySelectorAll("video").forEach((node) => {
+    if (node instanceof HTMLVideoElement) {
+      try {
+        node.pause();
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+  try {
+    swiper.autoplay?.stop();
+  } catch {
+    /* ignore */
+  }
+}
+
+function resumeCarouselMedia(swiper: SwiperInstance | null, multi: boolean) {
+  if (!swiper) return;
+  syncVideos(swiper);
+  if (multi) {
+    try {
+      swiper.autoplay?.start();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 /** Stacked 3D promo carousel for inspire home. */
 export function InspireBannerCarousel() {
   const [items, setItems] = useState<InspireBannerItem[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [active, setActive] = useState(0);
+  const [inView, setInView] = useState(true);
+  const rootRef = useRef<HTMLDivElement>(null);
   const swiperRef = useRef<SwiperInstance | null>(null);
   const countRef = useRef(0);
+  const multiRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -322,6 +358,30 @@ export function InspireBannerCarousel() {
 
   const multi = items.length > 1;
   countRef.current = items.length;
+  multiRef.current = multi;
+
+  /** Pause 3D autoplay + videos while scrolled off the inspire pane. */
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver !== "function") return;
+    const scrollRoot = el.closest(".joy-inspire-inner");
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = Boolean(entries[0]?.isIntersecting);
+        setInView(visible);
+        const swiper = swiperRef.current;
+        if (visible) resumeCarouselMedia(swiper, multiRef.current);
+        else pauseCarouselMedia(swiper);
+      },
+      {
+        root: scrollRoot instanceof Element ? scrollRoot : null,
+        rootMargin: "80px 0px",
+        threshold: 0.05,
+      },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loaded]);
 
   const slides = useMemo<SlideItem[]>(() => {
     if (!multi) return items.map((it) => ({ ...it, _key: it.id }));
@@ -343,7 +403,10 @@ export function InspireBannerCarousel() {
   if (!items.length) return null;
 
   return (
-    <div className="joy-inspire-carousel">
+    <div
+      ref={rootRef}
+      className={cn("joy-inspire-carousel", !inView && "is-away")}
+    >
       <div className="joy-inspire-carousel__stage">
         <BannerSwiperPane
           items={items}

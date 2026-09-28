@@ -203,6 +203,9 @@
   border-radius: 12px;
   background: transparent;
   cursor: pointer;
+  /* Skip paint for off-screen cards while scrolling */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
   transition:
     background 0.2s var(--joy-ease-out, ease),
     box-shadow 0.2s var(--joy-ease-out, ease);
@@ -454,6 +457,24 @@
   font-size: var(--joy-font-label, 14px);
   cursor: pointer;
   text-decoration: underline;
+}
+
+@media (min-width: 1440px) {
+  .joy-inspire-works-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1680px) {
+  .joy-inspire-works-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1920px) {
+  .joy-inspire-works-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 1200px) {

@@ -7,6 +7,14 @@
   position: relative;
   width: 100%;
   padding: 8px 0 4px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+/* Off-screen: skip 3D paint work (JS also pauses autoplay / videos). */
+.joy-inspire-carousel.is-away .joy-inspire-carousel__swiper {
+  perspective: none;
+  content-visibility: hidden;
 }
 
 .joy-inspire-carousel.is-loading {

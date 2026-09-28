@@ -12,6 +12,7 @@ import {
   Maximize,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { tosThumbUrl } from "@/shared/lib/media-url";
 import { useReleaseMediaOnUnmount } from "@/shared/lib/use-release-media-on-unmount";
 import {
   claimAudibleMedia,
@@ -86,12 +87,17 @@ export function InspireWorksRoam({ works }: Props) {
   useEffect(() => {
     const root = rootRef.current;
     if (!root || typeof IntersectionObserver !== "function") return;
+    const scrollRoot = root.closest(".joy-inspire-inner");
     const io = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        setInView(Boolean(entry?.isIntersecting));
+        // Pause early while scrolling away — don't keep decoding under the fold.
+        setInView(Boolean(entry?.isIntersecting && (entry.intersectionRatio ?? 0) >= 0.35));
       },
-      { threshold: 0.25 },
+      {
+        root: scrollRoot instanceof Element ? scrollRoot : null,
+        threshold: [0, 0.2, 0.35, 0.5],
+      },
     );
     io.observe(root);
     return () => io.disconnect();
@@ -106,13 +112,19 @@ export function InspireWorksRoam({ works }: Props) {
 
   useEffect(() => {
     const el = videoRef.current;
-    if (!el || !current?.videoUrl) return;
-    el.muted = muted;
-    if (!inView || !pageVisible) {
-      el.pause();
+    if (!inView || !pageVisible || !current?.videoUrl) {
       setPlaying(false);
+      if (el) {
+        try {
+          el.pause();
+        } catch {
+          /* ignore */
+        }
+      }
       return;
     }
+    if (!el) return;
+    el.muted = muted;
     if (userPausedRef.current) return;
     void el.play().then(
       () => setPlaying(true),
@@ -217,31 +229,37 @@ export function InspireWorksRoam({ works }: Props) {
 
   if (!current) return null;
 
+  const posterSrc = current.coverUrl
+    ? tosThumbUrl(current.coverUrl, "lg") || current.coverUrl
+    : "";
+  const showVideo = Boolean(current.videoUrl) && inView && pageVisible;
+
   return (
     <div className="joy-inspire-works-roam" ref={rootRef}>
       <div className="joy-inspire-works-roam-stage">
         <span className="joy-inspire-works-roam-label">作品漫游</span>
 
-        {current.coverUrl ? (
+        {posterSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={`poster-${current.id}`}
-            src={current.coverUrl}
+            src={posterSrc}
             alt=""
             className="joy-inspire-works-roam-poster"
             draggable={false}
+            decoding="async"
           />
         ) : null}
 
-        {current.videoUrl ? (
+        {showVideo ? (
           <video
             ref={videoRef}
             className="joy-inspire-works-roam-video"
             src={current.videoUrl}
-            poster={current.coverUrl || undefined}
+            poster={posterSrc || undefined}
             playsInline
             muted={muted}
-            preload="auto"
+            preload="metadata"
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
             onEnded={() => {
@@ -252,7 +270,7 @@ export function InspireWorksRoam({ works }: Props) {
             }}
             onDoubleClick={() => void toggleFullscreen()}
           />
-        ) : !current.coverUrl ? (
+        ) : !current.coverUrl && !current.videoUrl ? (
           <div className="joy-inspire-works-roam-empty" />
         ) : null}
 

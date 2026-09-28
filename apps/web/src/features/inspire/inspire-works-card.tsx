@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Heart, ArrowUpRight, LayoutGrid } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { tosThumbUrl } from "@/shared/lib/media-url";
 import {
   VIDEO_HOVER_PREVIEW_DELAY_MS,
   claimVideoHoverPreview,
@@ -33,6 +34,9 @@ export function InspireWorksCard({ work, onOpen }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const hasVideo = Boolean(work.videoUrl);
+  const coverSrc = work.coverUrl
+    ? tosThumbUrl(work.coverUrl, "md") || work.coverUrl
+    : "";
 
   const ctlRef = useRef({
     clearTimer() {
@@ -98,12 +102,13 @@ export function InspireWorksCard({ work, onOpen }: Props) {
       onMouseLeave={onLeave}
     >
       <div className="joy-inspire-works-cover">
-        {work.coverUrl ? (
+        {coverSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={work.coverUrl}
+            src={coverSrc}
             alt=""
             loading="lazy"
+            decoding="async"
             className={cn(previewing && hasVideo && "is-under-video")}
           />
         ) : !previewing ? (
@@ -115,12 +120,12 @@ export function InspireWorksCard({ work, onOpen }: Props) {
             ref={videoRef}
             className="joy-inspire-works-preview"
             src={work.videoUrl}
-            poster={work.coverUrl || undefined}
+            poster={coverSrc || undefined}
             muted
             playsInline
             loop
             autoPlay
-            preload="auto"
+            preload="metadata"
           />
         ) : null}
 

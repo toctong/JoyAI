@@ -5,8 +5,13 @@ import { apiFetchBlob } from "@/shared/lib/api";
 import { needsMediaProxy } from "@/shared/lib/needs-media-proxy";
 import { cn } from "@/shared/lib/utils";
 
+type DisplayMediaKind = "image" | "video";
+
 /** Resolve a browser-safe display URL; proxies flaky ToAPIs CDN via `/media/fetch`. */
-export function useDisplayMediaUrl(src: string) {
+export function useDisplayMediaUrl(
+  src: string,
+  kind: DisplayMediaKind = "image",
+) {
   const proxy = needsMediaProxy(src);
   const [url, setUrl] = useState<string | null>(proxy ? null : src);
   const [loading, setLoading] = useState(proxy);
@@ -34,8 +39,8 @@ export function useDisplayMediaUrl(src: string) {
     void (async () => {
       try {
         const blob = await apiFetchBlob("/media/fetch", {
-          params: { url: src, kind: "image" },
-          timeoutMs: 120_000,
+          params: { url: src, kind },
+          timeoutMs: kind === "video" ? 180_000 : 120_000,
         });
         if (cancelled) return;
         const objectUrl = URL.createObjectURL(blob);
@@ -56,7 +61,7 @@ export function useDisplayMediaUrl(src: string) {
         objectUrlRef.current = "";
       }
     };
-  }, [src]);
+  }, [src, kind]);
 
   return { url, loading };
 }

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { tosThumbUrl } from "@/shared/lib/media-url";
 import { ExplorePlyrPlayer } from "@/features/explore/explore-plyr-player";
 import { stopAllVideoHoverPreviews } from "@/shared/lib/video-feed-preview";
 import "./inspire-works-detail.css";
@@ -256,7 +257,12 @@ export function InspireWorksDetail({
                   >
                     {w.coverUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={w.coverUrl} alt="" loading="lazy" />
+                      <img
+                        src={tosThumbUrl(w.coverUrl, "sm") || w.coverUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                      />
                     ) : (
                       <span className="joy-inspire-wd-thumb-empty" />
                     )}
