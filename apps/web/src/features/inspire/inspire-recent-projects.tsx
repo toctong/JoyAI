@@ -30,7 +30,7 @@ const TABS: { id: WorkspaceMode; label: string }[] = [
 const PREVIEW_COUNT = 6;
 
 function formatEditedAt(value: string) {
-  return dayjs(value).format("YYYY-MM-DD");
+  return dayjs(value).format("YYYY/M/D HH:mm:ss");
 }
 
 function projectHref(mode: WorkspaceMode, id: string) {
