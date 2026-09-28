@@ -23,6 +23,10 @@ import {
   type PromptGeneratePayload,
 } from "./serialize";
 import { filterSlashCommands, type SlashCommand } from "./slash-items";
+import {
+  filesFromClipboardData,
+  readClipboardImageFiles,
+} from "@/shared/lib/clipboard";
 import { cn } from "@/shared/lib/utils";
 import "./ai-prompt-editor.css";
 
@@ -61,6 +65,8 @@ type Props = {
   onKindCommand?: (kind: "image" | "video" | "text") => void;
   /** When false, /图片 /视频 /文本 are hidden and cannot change the output kind. */
   allowKindSwitch?: boolean;
+  /** Clipboard media files (e.g. Ctrl+V image) — parent adds them as refs. */
+  onPasteFiles?: (files: File[]) => void;
   editorRef?: MutableRefObject<Editor | null>;
 };
 
@@ -115,6 +121,7 @@ export function AiPromptEditor({
   onPayloadChange,
   onKindCommand,
   allowKindSwitch = true,
+  onPasteFiles,
   editorRef,
 }: Props) {
   const [menu, setMenu] = useState<MenuState>(null);
@@ -128,12 +135,14 @@ export function AiPromptEditor({
   const allowKindSwitchRef = useRef(allowKindSwitch);
   const onPlainChangeRef = useRef(onPlainChange);
   const onPayloadChangeRef = useRef(onPayloadChange);
+  const onPasteFilesRef = useRef(onPasteFiles);
 
   mentionItemsRef.current = mentionItems;
   onKindCommandRef.current = onKindCommand;
   allowKindSwitchRef.current = allowKindSwitch;
   onPlainChangeRef.current = onPlainChange;
   onPayloadChangeRef.current = onPayloadChange;
+  onPasteFilesRef.current = onPasteFiles;
 
   const setMenuSafe = useCallback((next: MenuState) => {
     menuRef.current = next;
@@ -245,6 +254,59 @@ export function AiPromptEditor({
           autocorrect: "off",
           autocapitalize: "off",
         },
+        handlePaste: (_view, event) => {
+          const syncFiles = filesFromClipboardData(event.clipboardData);
+          if (syncFiles.length && onPasteFilesRef.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            onPasteFilesRef.current(syncFiles);
+            return true;
+          }
+
+          const types = Array.from(event.clipboardData?.types ?? []);
+          const hasImageItem = Array.from(
+            event.clipboardData?.items ?? [],
+          ).some((item) => item.type.startsWith("image/"));
+          const html = event.clipboardData?.getData("text/html") || "";
+          const plain = event.clipboardData?.getData("text/plain") || "";
+          const looksLikeImage =
+            hasImageItem ||
+            types.some((t) => t.startsWith("image/")) ||
+            (!plain.trim() &&
+              (types.includes("Files") || /<img[\s>]/i.test(html)));
+
+          if (looksLikeImage && onPasteFilesRef.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            const deliver = onPasteFilesRef.current;
+            void (async () => {
+              const asyncFiles = await readClipboardImageFiles();
+              if (asyncFiles.length) {
+                deliver(asyncFiles);
+                return;
+              }
+              const again = filesFromClipboardData(event.clipboardData);
+              if (again.length) deliver(again);
+            })();
+            return true;
+          }
+
+          const text = event.clipboardData?.getData("text/plain");
+          if (!text || !hasMentionWireToken(text)) return false;
+          event.preventDefault();
+          const doc = plainTextToDoc(text, mentionItemsRef.current);
+          const paragraphs = doc.content || [];
+          if (paragraphs.length === 1 && paragraphs[0]?.content) {
+            editor
+              .chain()
+              .focus()
+              .insertContent(paragraphs[0].content)
+              .run();
+          } else {
+            editor.chain().focus().insertContent(paragraphs).run();
+          }
+          return true;
+        },
         handleKeyDown: (_view, event) => {
           const current = menuRef.current;
           if (!current) return false;
@@ -332,34 +394,6 @@ export function AiPromptEditor({
     if (!hasRawToken) return;
     editor.commands.setContent(plainTextToDoc(wire, mentionItems));
   }, [editor, mentionItems]);
-
-  useEffect(() => {
-    if (!editor) return;
-    const prev = editor.options.editorProps;
-    editor.setOptions({
-      editorProps: {
-        ...prev,
-        handlePaste: (_view, event) => {
-          const text = event.clipboardData?.getData("text/plain");
-          if (!text || !hasMentionWireToken(text)) return false;
-          event.preventDefault();
-          const doc = plainTextToDoc(text, mentionItemsRef.current);
-          const paragraphs = doc.content || [];
-          if (paragraphs.length === 1 && paragraphs[0]?.content) {
-            editor
-              .chain()
-              .focus()
-              .insertContent(paragraphs[0].content)
-              .run();
-          } else {
-            editor.chain().focus().insertContent(paragraphs).run();
-          }
-          return true;
-        },
-      },
-    });
-  }, [editor]);
-
   const slashItems =
     menu?.type === "slash"
       ? filterSlashCommands(menu.query).filter((item) =>

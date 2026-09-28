@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Editor } from "@tiptap/core";
 import { useDropzone } from "react-dropzone";
@@ -23,6 +23,7 @@ import { toast } from "@/shared/lib/toast";
 import { ensureGenerationNotifyPermission } from "@/shared/lib/generation-notify";
 import { watchStudioGeneration } from "@/shared/lib/studio-generation-notify-host";
 import { api, apiUpload } from "@/shared/lib/api";
+import { filesFromClipboardData, readClipboardImageFiles } from "@/shared/lib/clipboard";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { BrandAvatar } from "@/components/admin/brand-avatar";
 import type { ModelCapabilities } from "@joyai/shared";
@@ -944,6 +945,72 @@ export function CreationComposer({
     disabled: !canUploadRef || !dropAccept,
   });
 
+  const pasteRefsFromClipboard = useCallback(
+    (event: ClipboardEvent) => {
+      if (!canUploadRef || !dropAccept) return;
+      const files = filesFromClipboardData(event.clipboardData);
+      if (files.length) {
+        event.preventDefault();
+        event.stopPropagation();
+        void onDrop(files);
+        return;
+      }
+      const types = Array.from(event.clipboardData?.types ?? []);
+      const html = event.clipboardData?.getData("text/html") || "";
+      const plain = event.clipboardData?.getData("text/plain") || "";
+      const looksLikeImage =
+        Array.from(event.clipboardData?.items ?? []).some((item) =>
+          item.type.startsWith("image/"),
+        ) ||
+        types.some((t) => t.startsWith("image/")) ||
+        (!plain.trim() &&
+          (types.includes("Files") || /<img[\s>]/i.test(html)));
+      if (!looksLikeImage) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void readClipboardImageFiles().then((asyncFiles) => {
+        if (asyncFiles.length) void onDrop(asyncFiles);
+      });
+    },
+    [canUploadRef, dropAccept, onDrop],
+  );
+
+  // Ctrl/⌘+V while hovering/focusing the composer chrome (not the text field).
+  // TipTap paste is handled inside AiPromptEditor.
+  useEffect(() => {
+    if (!canUploadRef || !dropAccept) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (event.key.toLowerCase() !== "v") return;
+      if (event.altKey || event.shiftKey) return;
+      if (!editorFocused && !composerHovered) return;
+
+      const target = event.target as HTMLElement | null;
+      if (target) {
+        const tag = target.tagName;
+        const editable =
+          target.isContentEditable ||
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT";
+        if (editable) return;
+      }
+
+      event.preventDefault();
+      void readClipboardImageFiles().then((files) => {
+        if (files.length) void onDrop(files);
+      });
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [
+    canUploadRef,
+    composerHovered,
+    dropAccept,
+    editorFocused,
+    onDrop,
+  ]);
+
   useEffect(() => {
     if (refMode !== "first_last") return;
     setRefs((prev) => {
@@ -1202,6 +1269,7 @@ export function CreationComposer({
         )}
         onMouseEnter={() => setComposerHovered(true)}
         onMouseLeave={() => setComposerHovered(false)}
+        onPaste={pasteRefsFromClipboard}
       >
         <input {...getInputProps()} />
         <ComposerRipple idle={rippleIdle} />
@@ -1388,6 +1456,13 @@ export function CreationComposer({
                 placeholder={placeholder}
                 disabled={submitting || optimizing}
                 onPlainChange={setPrompt}
+                onPasteFiles={
+                  canUploadRef
+                    ? (files) => {
+                        void onDrop(files);
+                      }
+                    : undefined
+                }
                 onKindCommand={(next) => {
                   if (lockedKind) return;
                   if (next === "image" || next === "video") applyKind(next);
