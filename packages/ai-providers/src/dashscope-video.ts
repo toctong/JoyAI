@@ -17,7 +17,7 @@ function authHeaders(apiKey: string, async = false) {
   return h;
 }
 
-/** DashScope video `parameters.ratio` allowlist (HappyHorse / Wan). */
+/** DashScope video `parameters.ratio` allowlist (HappyHorse / Wan 2.x). */
 const DASHSCOPE_VIDEO_RATIOS = new Set([
   "16:9",
   "9:16",
@@ -30,22 +30,48 @@ const DASHSCOPE_VIDEO_RATIOS = new Set([
   "21:9",
 ]);
 
+/** Wan 3.0 also accepts adaptive (recommended for i2v / first-last). */
+const WAN3_VIDEO_RATIOS = new Set([
+  "adaptive",
+  "16:9",
+  "9:16",
+  "4:3",
+  "3:4",
+  "1:1",
+]);
+
 const FLEXIBLE_RATIO = new Set(["auto", "adaptive", "keep"]);
 
 /**
- * Map UI ratio → DashScope enum. Flexible / unknown → 16:9
- * (API rejects adaptive/auto; ratio is required for HappyHorse).
+ * Wan 3.0 All-in-One (`wan3.0-video` / `wan3.0-video-prime`).
+ * @see https://help.aliyun.com/zh/model-studio/wan3-video-generation-guide
  */
-function resolveDashscopeVideoRatio(raw?: string): string {
+function isWan3Video(model: string) {
+  return /^wan3\.0(-video)?(-prime)?$/i.test(model.trim());
+}
+
+/**
+ * Map UI ratio → DashScope enum.
+ * HappyHorse / Wan 2.x reject adaptive → fall back to 16:9.
+ * Wan 3.0 keeps adaptive.
+ */
+function resolveDashscopeVideoRatio(
+  raw: string | undefined,
+  opts?: { allowAdaptive?: boolean },
+): string {
   const ratio = raw?.trim();
-  if (!ratio || FLEXIBLE_RATIO.has(ratio.toLowerCase())) return "16:9";
-  if (DASHSCOPE_VIDEO_RATIOS.has(ratio)) return ratio;
-  // tolerate "16:9 " / lowercase
+  if (!ratio) return opts?.allowAdaptive ? "adaptive" : "16:9";
+  const lower = ratio.toLowerCase();
+  if (FLEXIBLE_RATIO.has(lower)) {
+    return opts?.allowAdaptive ? "adaptive" : "16:9";
+  }
+  const allow = opts?.allowAdaptive ? WAN3_VIDEO_RATIOS : DASHSCOPE_VIDEO_RATIOS;
+  if (allow.has(ratio)) return ratio;
   const norm = ratio.replace(/\s+/g, "");
-  for (const allowed of DASHSCOPE_VIDEO_RATIOS) {
+  for (const allowed of allow) {
     if (allowed.toLowerCase() === norm.toLowerCase()) return allowed;
   }
-  return "16:9";
+  return opts?.allowAdaptive ? "adaptive" : "16:9";
 }
 
 function dedupeUrls(urls: string[]): string[] {
@@ -60,8 +86,18 @@ function dedupeUrls(urls: string[]): string[] {
   return out;
 }
 
+function classifyRefKind(
+  url: string,
+  hint?: string,
+): "image" | "video" | "audio" {
+  if (hint === "video" || hint === "audio" || hint === "image") return hint;
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)) return "video";
+  if (/\.(mp3|wav|m4a|aac|ogg|flac)(\?|$)/i.test(url)) return "audio";
+  return "image";
+}
+
 /**
- * HappyHorse / Wan media rules:
+ * HappyHorse / Wan 2.x media rules:
  * - i2v: at most one `first_frame` (API rejects multiples)
  * - r2v: `reference_image` list
  * - first_last: one first_frame + optional last_frame
@@ -90,6 +126,63 @@ function buildDashscopeMedia(opts: {
   return [{ type: "first_frame", url: refs[0] }];
 }
 
+/**
+ * Wan 3.0 media — multimodal refs via type field.
+ * first_last uses first_frame/last_frame only (cannot mix with reference_*).
+ * omni / default uses reference_image|video|audio by kind.
+ */
+function buildWan3Media(opts: {
+  refs: string[];
+  kinds?: Array<"image" | "video" | "audio" | string>;
+  refMode?: string;
+}): Array<Record<string, unknown>> {
+  const { refs, kinds = [], refMode } = opts;
+  if (!refs.length) return [];
+
+  const partitioned = {
+    images: [] as string[],
+    videos: [] as string[],
+    audios: [] as string[],
+  };
+  refs.forEach((url, i) => {
+    const kind = classifyRefKind(url, kinds[i]);
+    if (kind === "video") partitioned.videos.push(url);
+    else if (kind === "audio") partitioned.audios.push(url);
+    else partitioned.images.push(url);
+  });
+
+  if (refMode === "first_last" && partitioned.images.length > 0) {
+    const media: Array<Record<string, unknown>> = [
+      { type: "first_frame", url: partitioned.images[0] },
+    ];
+    if (partitioned.images[1]) {
+      media.push({ type: "last_frame", url: partitioned.images[1] });
+    }
+    return media;
+  }
+
+  const media: Array<Record<string, unknown>> = [];
+  for (const url of partitioned.images.slice(0, 10)) {
+    media.push({ type: "reference_image", url });
+  }
+  for (const url of partitioned.videos.slice(0, 5)) {
+    media.push({ type: "reference_video", url });
+  }
+  for (const url of partitioned.audios.slice(0, 5)) {
+    media.push({ type: "reference_audio", url });
+  }
+  return media;
+}
+
+function normalizeWan3Resolution(raw?: string): string | undefined {
+  if (!raw?.trim()) return undefined;
+  const r = raw.trim().toLowerCase();
+  if (r.includes("480")) return "480P";
+  if (r.includes("720")) return "720P";
+  if (r.includes("1080")) return "1080P";
+  return raw.trim().toUpperCase();
+}
+
 /** Derive DashScope native API root from compatible-mode baseUrl or metadata. */
 export function resolveDashscopeApiBase(
   baseUrl: string,
@@ -113,7 +206,7 @@ export function resolveDashscopeApiBase(
 }
 
 /**
- * Aliyun Bailian / DashScope HappyHorse (and similar) video synthesis.
+ * Aliyun Bailian / DashScope video synthesis (HappyHorse, Wan 2.x, Wan 3.0).
  * Native async API — not OpenAI chat completions.
  */
 export class DashscopeVideoProvider implements VideoProvider {
@@ -123,12 +216,19 @@ export class DashscopeVideoProvider implements VideoProvider {
   async submit(input: VideoSubmitInput): Promise<{ remoteTaskId: string }> {
     const apiBase = resolveDashscopeApiBase(input.baseUrl, input.metadata);
     const refs = dedupeUrls(input.referenceUrls ?? []);
-    const isR2v = /r2v/i.test(input.model);
-    const isI2v = /i2v/i.test(input.model) || (!isR2v && refs.length > 0);
+    const wan3 = isWan3Video(input.model);
 
     let prompt = rewritePromptMentionsForApi(input.prompt, {
       maxImages: refs.length || undefined,
     });
+
+    if (wan3) {
+      return this.submitWan3({ ...input, prompt }, apiBase, refs);
+    }
+
+    const isR2v = /r2v/i.test(input.model);
+    const isI2v = /i2v/i.test(input.model) || (!isR2v && refs.length > 0);
+
     if (input.refMode === "first_last" && refs.length > 0) {
       prompt =
         refs.length >= 2
@@ -161,12 +261,72 @@ export class DashscopeVideoProvider implements VideoProvider {
       });
     }
 
+    return this.postTask(apiBase, input.apiKey, body);
+  }
+
+  private async submitWan3(
+    input: VideoSubmitInput & { prompt: string },
+    apiBase: string,
+    refs: string[],
+  ): Promise<{ remoteTaskId: string }> {
+    const media = buildWan3Media({
+      refs,
+      kinds: input.referenceMediaKinds,
+      refMode: input.refMode,
+    });
+
+    const bodyInput: Record<string, unknown> = {
+      prompt: input.prompt,
+    };
+    if (media.length) bodyInput.media = media;
+
+    const parameters: Record<string, unknown> = {};
+    const hasVideoRef = media.some((m) => m.type === "reference_video");
+    const isFirstLast = media.some(
+      (m) => m.type === "first_frame" || m.type === "last_frame",
+    );
+
+    // Prefer adaptive for frame-locked / video-ref modes.
+    const ratioDefault =
+      isFirstLast || hasVideoRef ? "adaptive" : input.ratio || "16:9";
+    parameters.ratio = resolveDashscopeVideoRatio(input.ratio ?? ratioDefault, {
+      allowAdaptive: true,
+    });
+
+    if (input.duration != null) {
+      const d = Math.round(input.duration);
+      // API: no video input → [2, 30]; -1 = smart duration (not exposed in UI yet)
+      parameters.duration = Math.min(30, Math.max(2, d));
+    }
+
+    const resolution = normalizeWan3Resolution(input.resolution);
+    if (resolution) parameters.resolution = resolution;
+
+    parameters.audio = input.generateAudio !== false;
+    if (input.watermark != null) parameters.watermark = input.watermark;
+
+    const remoteModel = /^wan3\.0-video-prime$/i.test(input.model)
+      ? "wan3.0-video-prime"
+      : "wan3.0-video";
+
+    return this.postTask(apiBase, input.apiKey, {
+      model: remoteModel,
+      input: bodyInput,
+      parameters,
+    });
+  }
+
+  private async postTask(
+    apiBase: string,
+    apiKey: string,
+    body: Record<string, unknown>,
+  ): Promise<{ remoteTaskId: string }> {
     try {
       const { data } = await axios.post(
         `${apiBase}/services/aigc/video-generation/video-synthesis`,
         body,
         {
-          headers: authHeaders(input.apiKey, true),
+          headers: authHeaders(apiKey, true),
           timeout: 60_000,
         },
       );

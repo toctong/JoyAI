@@ -173,6 +173,14 @@ export class ModelsController {
   @ApiBearerAuth()
   @Roles("admin")
   @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get("admin/channels/:id/model-remote-ids")
+  listChannelRemoteIds(@Param("id") id: string) {
+    return this.models.listChannelRemoteIds(id);
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post("admin/models")
   create(@Body() dto: CreateModelDto) {
     return this.models.create(dto as Parameters<ModelsService["create"]>[0]);

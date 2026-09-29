@@ -413,4 +413,35 @@ export class ModelsService {
       models,
     };
   }
+
+  /**
+   * All remoteIds already on a channel (no pagination).
+   * Also includes current catalog ids for any legacy alias rows,
+   * so the admin checkbox UI can mark「已添加」correctly.
+   */
+  async listChannelRemoteIds(channelId: string) {
+    const channel = await this.channels.findOne({ where: { id: channelId } });
+    if (!channel) throw new NotFoundException("渠道不存在");
+
+    const rows = await this.models.find({
+      where: { channelId },
+      select: ["remoteId"],
+    });
+
+    const legacyToCurrent = new Map<string, string>();
+    for (const [current, aliases] of Object.entries(CATALOG_REMOTE_ID_ALIASES)) {
+      for (const alias of aliases) legacyToCurrent.set(alias, current);
+    }
+
+    const remoteIds = new Set<string>();
+    for (const row of rows) {
+      const id = String(row.remoteId || "").trim();
+      if (!id) continue;
+      remoteIds.add(id);
+      const current = legacyToCurrent.get(id);
+      if (current) remoteIds.add(current);
+    }
+
+    return { remoteIds: [...remoteIds] };
+  }
 }

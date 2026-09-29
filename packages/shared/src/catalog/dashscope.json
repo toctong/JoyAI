@@ -857,6 +857,125 @@
   ],
   "video": [
     {
+      "name": "Wan 3.0 Video",
+      "remoteId": "wan3.0-video",
+      "description": "全能：文生/首尾帧/图+视频+音频参考，最长 30 秒有声视频",
+      "isDefault": true,
+      "capabilities": {
+        "input": [
+          "text",
+          "image",
+          "video",
+          "audio"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 10,
+        "maxRefVideos": 5,
+        "maxRefAudios": 5,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "r2v",
+          "omni-ref",
+          "first-last-frame",
+          "omni",
+          "audio",
+          "ref-video",
+          "extend",
+          "video-edit",
+          "watermark"
+        ],
+        "minDurationSec": 2,
+        "maxDurationSec": 30,
+        "resolutions": [
+          "480P",
+          "720P",
+          "1080P"
+        ],
+        "ratios": [
+          "adaptive",
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "minRefImageSidePx": 240,
+        "maxRefImageSidePx": 8000,
+        "maxRefImageBytes": 20971520,
+        "maxRefVideoDurationSec": 15,
+        "maxRefVideoBytes": 104857600,
+        "maxRefAudioBytes": 15728640,
+        "minRefImageAspect": 0.125,
+        "maxRefImageAspect": 8,
+        "minRefVideoDurationSec": 1,
+        "minRefAudioDurationSec": 1,
+        "maxRefAudioDurationSec": 15
+      }
+    },
+    {
+      "name": "Wan 3.0 Video Prime",
+      "remoteId": "wan3.0-video-prime",
+      "description": "高速版，能力对齐标准版，端到端更快",
+      "capabilities": {
+        "input": [
+          "text",
+          "image",
+          "video",
+          "audio"
+        ],
+        "output": [
+          "video"
+        ],
+        "maxRefImages": 10,
+        "maxRefVideos": 5,
+        "maxRefAudios": 5,
+        "async": true,
+        "features": [
+          "t2v",
+          "i2v",
+          "r2v",
+          "omni-ref",
+          "first-last-frame",
+          "omni",
+          "audio",
+          "ref-video",
+          "extend",
+          "video-edit",
+          "watermark"
+        ],
+        "minDurationSec": 2,
+        "maxDurationSec": 30,
+        "resolutions": [
+          "480P",
+          "720P",
+          "1080P"
+        ],
+        "ratios": [
+          "adaptive",
+          "16:9",
+          "9:16",
+          "1:1",
+          "4:3",
+          "3:4"
+        ],
+        "minRefImageSidePx": 240,
+        "maxRefImageSidePx": 8000,
+        "maxRefImageBytes": 20971520,
+        "maxRefVideoDurationSec": 15,
+        "maxRefVideoBytes": 104857600,
+        "maxRefAudioBytes": 15728640,
+        "minRefImageAspect": 0.125,
+        "maxRefImageAspect": 8,
+        "minRefVideoDurationSec": 1,
+        "minRefAudioDurationSec": 1,
+        "maxRefAudioDurationSec": 15
+      }
+    },
+    {
       "name": "HappyHorse 1.1 文生视频",
       "remoteId": "happyhorse-1.1-t2v",
       "capabilities": {
@@ -889,8 +1008,7 @@
           "21:9"
         ]
       },
-      "description": "百炼原生异步 video-synthesis",
-      "isDefault": true
+      "description": "百炼原生异步 video-synthesis"
     },
     {
       "name": "HappyHorse 1.1 图生视频",
