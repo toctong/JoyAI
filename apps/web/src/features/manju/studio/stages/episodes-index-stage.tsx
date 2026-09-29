@@ -371,21 +371,18 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
 
   return (
     <div className="manju-ep-manage">
-      <div className="manju-ep-manage__head">
-        <h1 className="manju-ep-manage__title">
-          {project.title || "未命名漫剧"} · 共{project.episodes.length}集
-        </h1>
-        <div className="manju-ep-manage__actions">
-          <label className="manju-ep-manage__search">
-            <Search className="size-3.5" aria-hidden />
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索"
-              aria-label="搜索剧集"
-            />
-          </label>
+      <div className="manju-studio__sticky-bar manju-studio__page-head">
+        <label className="manju-studio__page-search">
+          <Search className="manju-studio__page-search-icon" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索剧集"
+            aria-label="搜索剧集"
+          />
+        </label>
+        <div className="manju-studio__page-actions">
           {batchMode ? (
             <>
               <Button

@@ -50,6 +50,7 @@ import {
 } from "../../lib/prompt-builders";
 import { submitImageJob, submitVideoJob } from "../../use-manju-jobs";
 import { ManjuAssetPicker } from "../../manju-asset-picker";
+import { ManjuPromptField } from "../../manju-prompt-field";
 import { submitWorkflowSkill } from "../../lib/workflow-skill";
 import { manjuConfirmGenerateCopy } from "../../lib/manju-job-labels";
 import { EpisodeContinueDialog } from "../episode-continue-dialog";
@@ -866,24 +867,30 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                     ? "视频提示词"
                     : "画面提示词"}
                 </Label>
-                <Textarea
+                <ManjuPromptField
+                  key={`${selected.id}-${
+                    genTab === "i2v" || genTab === "ref_video"
+                      ? "video"
+                      : "image"
+                  }`}
                   value={
                     genTab === "i2v" || genTab === "ref_video"
                       ? selected.videoPrompt
                       : selected.imagePrompt
                   }
-                  rows={4}
-                  placeholder={
-                    genTab === "i2v" || genTab === "ref_video"
-                      ? "镜头运动、情绪与节奏…"
-                      : "构图、光影、风格补充…"
-                  }
-                  onChange={(e) =>
+                  onChange={(v) =>
                     patchSelected(
                       genTab === "i2v" || genTab === "ref_video"
-                        ? { videoPrompt: e.target.value }
-                        : { imagePrompt: e.target.value },
+                        ? { videoPrompt: v }
+                        : { imagePrompt: v },
                     )
+                  }
+                  assets={project.assets}
+                  preferredAssetIds={selected.assetRefs}
+                  placeholder={
+                    genTab === "i2v" || genTab === "ref_video"
+                      ? "镜头运动、情绪与节奏… 键入 @ 引用资产"
+                      : "构图、光影、风格补充… 键入 @ 引用资产"
                   }
                 />
               </div>

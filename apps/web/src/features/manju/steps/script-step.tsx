@@ -253,48 +253,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
 
   const editor = (
     <div className="manju-info">
-      <div className="manju-info__toolbar">
-        <h1 className="manju-info__title">{project.title || "未命名漫剧"}</h1>
-        <div className="manju-info__toolbar-actions">
-          {!aiOpen ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAiOpen(true)}
-            >
-              <Sparkles className="h-4 w-4" />
-              AI 帮写
-            </Button>
-          ) : null}
-          <ScriptFileImport
-            disabled={analyzing}
-            onText={(text) => void applyImportedText(text)}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openParseDialog}
-            disabled={analyzing}
-          >
-            {analyzing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            {analyzing ? "解析中…" : "解析剧本"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={analyzing}
-            onClick={() => void runNovelAnalyze()}
-          >
-            长文拆集
-          </Button>
-          <ManjuReviewButton projectId={project.id} />
-        </div>
-      </div>
-
       <ManjuParseScriptDialog
         open={parseOpen}
         onOpenChange={setParseOpen}
@@ -304,21 +262,61 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
       />
 
       <section className="manju-info-card">
-        <button
-          type="button"
-          className="manju-info-card__head"
-          onClick={() => setPreviewOpen((v) => !v)}
-          aria-expanded={previewOpen}
-        >
-          <h2 className="manju-info-card__title">剧本预览</h2>
-          <ChevronDown
-            className={cn(
-              "manju-info-card__chevron",
-              previewOpen && "is-open",
-            )}
-            aria-hidden
-          />
-        </button>
+        <div className="manju-info-card__head manju-info-card__head--toolbar">
+          <button
+            type="button"
+            className="manju-info-card__toggle"
+            onClick={() => setPreviewOpen((v) => !v)}
+            aria-expanded={previewOpen}
+          >
+            <h2 className="manju-info-card__title">剧本预览</h2>
+            <ChevronDown
+              className={cn(
+                "manju-info-card__chevron",
+                previewOpen && "is-open",
+              )}
+              aria-hidden
+            />
+          </button>
+          <div className="manju-studio__page-actions">
+            {!aiOpen ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAiOpen(true)}
+              >
+                <Sparkles className="h-4 w-4" />
+                AI 帮写
+              </Button>
+            ) : null}
+            <ScriptFileImport
+              disabled={analyzing}
+              onText={(text) => void applyImportedText(text)}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openParseDialog}
+              disabled={analyzing}
+            >
+              {analyzing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {analyzing ? "解析中…" : "解析剧本"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={analyzing}
+              onClick={() => void runNovelAnalyze()}
+            >
+              长文拆集
+            </Button>
+            <ManjuReviewButton projectId={project.id} />
+          </div>
+        </div>
         {previewOpen ? (
           <div className="manju-info-card__body">
             <div className="manju-info-field">

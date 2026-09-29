@@ -461,124 +461,126 @@ export function AssetsStep({
   return (
     <JoyPhotoProvider>
       <div className="manju-lore">
-        <div className="manju-lore__toolbar">
-          <div className="manju-lore__search">
-            <Search className="manju-lore__search-icon" aria-hidden />
-            <input
-              type="search"
-              className="manju-lore__search-input"
-              placeholder={`搜索${kindLabel}`}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        <div className="manju-lore__sticky manju-studio__sticky-bar">
+          <div className="manju-studio__page-head">
+            <label className="manju-studio__page-search">
+              <Search className="manju-studio__page-search-icon" aria-hidden />
+              <input
+                type="search"
+                placeholder={`搜索${kindLabel}`}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label={`搜索${kindLabel}`}
+              />
+            </label>
+            {!lockedKind ? (
+              <div className="manju-tabs">
+                {TABS.map(({ kind, label, icon: Icon }) => {
+                  const count = project.assets.filter(
+                    (a) => a.kind === kind,
+                  ).length;
+                  return (
+                    <button
+                      key={kind}
+                      type="button"
+                      className={cn(
+                        "manju-tab",
+                        tab === kind && "manju-tab--active",
+                      )}
+                      onClick={() => setTab(kind)}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                      <span className="opacity-60">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+            <div className="manju-studio__page-actions">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (batchMode) exitBatch();
+                  else setBatchMode(true);
+                }}
+              >
+                {batchMode ? "退出批量" : "批量操作"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  const id = addAsset(project.id, activeKind);
+                  router.push(manjuAssetHref(project.id, activeKind, id));
+                }}
+              >
+                <Plus className="size-3.5" />
+                新增{kindLabel}
+              </Button>
+            </div>
           </div>
-          {!lockedKind ? (
-            <div className="manju-tabs">
-              {TABS.map(({ kind, label, icon: Icon }) => {
-                const count = project.assets.filter(
-                  (a) => a.kind === kind,
-                ).length;
-                return (
-                  <button
-                    key={kind}
-                    type="button"
-                    className={cn(
-                      "manju-tab",
-                      tab === kind && "manju-tab--active",
-                    )}
-                    onClick={() => setTab(kind)}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                    <span className="opacity-60">{count}</span>
-                  </button>
-                );
-              })}
+
+          {batchMode ? (
+            <div className="manju-lore-batch">
+              <label className="manju-lore-batch__count">
+                <input
+                  type="checkbox"
+                  checked={
+                    roots.length > 0 && selected.size === roots.length
+                  }
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelected(new Set(roots.map((r) => r.id)));
+                    } else {
+                      setSelected(new Set());
+                    }
+                  }}
+                />
+                <span>
+                  已选择 / {selected.size}
+                  <span className="manju-lore-batch__count-unit">项</span>
+                </span>
+              </label>
+              <div className="manju-lore-batch__actions">
+                <button
+                  type="button"
+                  disabled={selected.size === 0 || submitting}
+                  onClick={() => void batchGenerate()}
+                >
+                  <Wand2 className="size-3.5" />
+                  {submitting ? "提交中…" : "批量生图"}
+                </button>
+                <button
+                  type="button"
+                  disabled={selected.size === 0 || submitting}
+                  onClick={batchExport}
+                >
+                  <Download className="size-3.5" />
+                  批量导出
+                </button>
+                <button
+                  type="button"
+                  disabled={selected.size === 0 || submitting}
+                  onClick={() => void batchDelete()}
+                >
+                  <Trash2 className="size-3.5" />
+                  批量删除
+                </button>
+              </div>
+              <button
+                type="button"
+                className="manju-lore-batch__cancel"
+                disabled={submitting}
+                onClick={exitBatch}
+              >
+                取消
+              </button>
             </div>
           ) : null}
-          <div className="manju-lore__toolbar-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (batchMode) exitBatch();
-                else setBatchMode(true);
-              }}
-            >
-              {batchMode ? "退出批量" : "批量操作"}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                const id = addAsset(project.id, activeKind);
-                router.push(manjuAssetHref(project.id, activeKind, id));
-              }}
-            >
-              <Plus className="size-3.5" />
-              新增{kindLabel}
-            </Button>
-          </div>
         </div>
-
-        {batchMode ? (
-          <div className="manju-lore-batch">
-            <label className="manju-lore-batch__count">
-              <input
-                type="checkbox"
-                checked={
-                  roots.length > 0 && selected.size === roots.length
-                }
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelected(new Set(roots.map((r) => r.id)));
-                  } else {
-                    setSelected(new Set());
-                  }
-                }}
-              />
-              <span>
-                已选择 / {selected.size}
-                <span className="manju-lore-batch__count-unit">项</span>
-              </span>
-            </label>
-            <div className="manju-lore-batch__actions">
-              <button
-                type="button"
-                disabled={selected.size === 0 || submitting}
-                onClick={() => void batchGenerate()}
-              >
-                <Wand2 className="size-3.5" />
-                {submitting ? "提交中…" : "批量生图"}
-              </button>
-              <button
-                type="button"
-                disabled={selected.size === 0 || submitting}
-                onClick={batchExport}
-              >
-                <Download className="size-3.5" />
-                批量导出
-              </button>
-              <button
-                type="button"
-                disabled={selected.size === 0 || submitting}
-                onClick={() => void batchDelete()}
-              >
-                <Trash2 className="size-3.5" />
-                批量删除
-              </button>
-            </div>
-            <button
-              type="button"
-              className="manju-lore-batch__cancel"
-              disabled={submitting}
-              onClick={exitBatch}
-            >
-              取消
-            </button>
-          </div>
-        ) : null}
 
         {roots.length === 0 && !search.trim() ? (
           <div className="manju-assets-empty">
