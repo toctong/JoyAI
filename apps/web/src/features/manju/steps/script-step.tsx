@@ -135,14 +135,15 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
       setAnalyzing(project.id, true);
       setParseOpen(false);
       await flushSave(project.id);
-      await submitManjuAnalyzeJob({
+      const job = await submitManjuAnalyzeJob({
         projectId: project.id,
         scriptText: project.scriptText,
         purpose: "analyze_assets",
         modelId: project.settings.llmModelId,
         analyzeMode,
       });
-      toast.success("已提交资产与分集分析（不含分镜）");
+      updateProject(project.id, { lastAnalyzeJobId: job.id });
+      toast.message("AI 正在解析剧本（题材标签、梗概、角色/场景/道具）…");
     } catch (e) {
       setAnalyzing(project.id, false);
       toast.error(e instanceof Error ? e.message : "提交分析失败");

@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ArrowLeft,
+  Copy,
   Download,
+  Eye,
   FileText,
   Film,
   MoreHorizontal,
@@ -13,6 +16,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Trash2,
   Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,8 +27,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
@@ -60,9 +77,19 @@ function episodeThumb(project: ManjuProjectDraft, epId: string) {
   return null;
 }
 
+function episodeStats(project: ManjuProjectDraft, epId: string) {
+  const shots = project.shots.filter((s) => s.episodeId === epId);
+  const videos = shots.filter((s) => Boolean(s.videoUrl)).length;
+  return { shots, videos, pending: shots.length === 0 };
+}
+
 function openProduceTab(projectId: string, epId: string) {
   const href = manjuStudioHref(projectId, "episode", { epId });
-  window.open(href, "_blank", "noopener,noreferrer");
+  // 必须新开标签；禁止在本页跳转替换剧集管理
+  const win = window.open(href, "_blank", "noopener,noreferrer");
+  if (!win) {
+    toast.error("浏览器拦截了新标签，请允许弹窗后再点「制作视频」");
+  }
 }
 
 export function EpisodesIndexStage({ projectId }: { projectId: string }) {
@@ -88,6 +115,11 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
   const [produceMode, setProduceMode] = useState<ProduceMode>("manual");
   const [pendingEpId, setPendingEpId] = useState<string | null>(null);
 
+  const [detailEpId, setDetailEpId] = useState<string | null>(null);
+  const [detailIndex, setDetailIndex] = useState("");
+  const [detailTitle, setDetailTitle] = useState("");
+  const [detailContent, setDetailContent] = useState("");
+
   const episodes = project?.episodes ?? [];
 
   const filtered = useMemo(() => {
@@ -95,7 +127,8 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
     if (!q) return episodes;
     return episodes.filter((ep, i) => {
       const title = (ep.title || `第${i + 1}集`).toLowerCase();
-      const hint = `${ep.summary ?? ""} ${ep.hook ?? ""} ${ep.sourceText ?? ""}`.toLowerCase();
+      const hint =
+        `${ep.summary ?? ""} ${ep.hook ?? ""} ${ep.sourceText ?? ""}`.toLowerCase();
       return title.includes(q) || hint.includes(q);
     });
   }, [episodes, query]);
@@ -136,6 +169,46 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
     toast.success("已创建剧集");
   };
 
+  const openDetail = (epId: string) => {
+    const idx = project.episodes.findIndex((e) => e.id === epId);
+    const ep = project.episodes[idx];
+    if (!ep) return;
+    setDetailEpId(epId);
+    setDetailIndex(String(idx + 1));
+    setDetailTitle(ep.title);
+    setDetailContent(ep.sourceText ?? "");
+  };
+
+  const saveDetail = () => {
+    if (!detailEpId) return;
+    const title = detailTitle.trim();
+    if (!title) {
+      toast.error("请填写剧集标题");
+      return;
+    }
+    const from = project.episodes.findIndex((e) => e.id === detailEpId);
+    if (from < 0) return;
+    const rawIndex = Number.parseInt(detailIndex, 10);
+    const target = Number.isFinite(rawIndex)
+      ? Math.min(Math.max(1, rawIndex), project.episodes.length) - 1
+      : from;
+
+    const next = [...project.episodes];
+    const [ep] = next.splice(from, 1);
+    if (!ep) return;
+    next.splice(target, 0, {
+      ...ep,
+      title,
+      sourceText: detailContent,
+    });
+    updateProject(projectId, { episodes: next });
+  };
+
+  const closeDetail = () => {
+    if (detailEpId) saveDetail();
+    setDetailEpId(null);
+  };
+
   const openProduce = (epId: string) => {
     setPendingEpId(epId);
     setProduceMode("manual");
@@ -155,14 +228,15 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
       try {
         setAnalyzing(projectId, true);
         await flushSave(projectId);
-        await submitManjuAnalyzeJob({
+        const job = await submitManjuAnalyzeJob({
           projectId,
           scriptText: project.scriptText,
           purpose: "analyze_assets",
           modelId: project.settings.llmModelId,
           analyzeMode: "incremental",
         });
-        toast.success("已开始解析");
+        updateProject(projectId, { lastAnalyzeJobId: job.id });
+        toast.message("AI 正在解析剧本…");
       } catch (e) {
         setAnalyzing(projectId, false);
         toast.error(e instanceof Error ? e.message : "解析提交失败");
@@ -170,6 +244,46 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
     }
 
     openProduceTab(projectId, epId);
+  };
+
+  const startParseFromDetail = () => {
+    if (!detailEpId) return;
+    saveDetail();
+    setDetailEpId(null);
+    openProduce(detailEpId);
+  };
+
+  const copyEpisode = (epId: string) => {
+    const ep = project.episodes.find((e) => e.id === epId);
+    if (!ep) return;
+    const clone: ManjuEpisodeDraft = {
+      ...ep,
+      id: crypto.randomUUID(),
+      title: `${ep.title || "剧集"} (副本)`,
+    };
+    updateProject(projectId, {
+      episodes: [...project.episodes, clone],
+    });
+    toast.success("已复制剧集");
+  };
+
+  const deleteEpisode = async (epId: string) => {
+    const ep = project.episodes.find((e) => e.id === epId);
+    if (!ep) return;
+    const ok = await confirmDialog({
+      title: "删除剧集？",
+      description: `将删除「${ep.title}」，以及归属该集的分镜。`,
+      confirmText: "删除",
+      cancelText: "取消",
+      destructive: true,
+    });
+    if (!ok) return;
+    updateProject(projectId, {
+      episodes: project.episodes.filter((e) => e.id !== epId),
+      shots: project.shots.filter((s) => s.episodeId !== epId),
+    });
+    if (detailEpId === epId) setDetailEpId(null);
+    toast.success("已删除剧集");
   };
 
   const toggleSelect = (id: string) => {
@@ -207,6 +321,13 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
   };
 
   const empty = project.episodes.length === 0;
+  const detailEp = detailEpId
+    ? project.episodes.find((e) => e.id === detailEpId)
+    : null;
+  const detailPending = detailEp
+    ? episodeStats(project, detailEp.id).pending
+    : true;
+  const detailCharCount = detailContent.trim().length;
 
   return (
     <div className="manju-ep-manage">
@@ -286,7 +407,7 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
               </div>
               <p className="manju-ep-empty__title">暂无剧集</p>
               <p className="manju-ep-empty__desc">
-                可点击右上方「新增一集」
+                可点击右上方「新增一集」，或先在剧本页解析剧本
               </p>
             </>
           )}
@@ -300,8 +421,7 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
         <div className="manju-ep-manage__grid">
           {filtered.map((ep) => {
             const i = project.episodes.findIndex((item) => item.id === ep.id);
-            const shots = project.shots.filter((s) => s.episodeId === ep.id);
-            const pending = shots.length === 0;
+            const { shots, videos, pending } = episodeStats(project, ep.id);
             const checked = selected.has(ep.id);
             const thumb = episodeThumb(project, ep.id);
             const title = ep.title || `第${i + 1}集`;
@@ -311,6 +431,7 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                 className={cn(
                   "manju-ep-card",
                   batchMode && checked && "is-selected",
+                  pending && "is-pending",
                 )}
               >
                 <div className="manju-ep-card__thumb" aria-hidden>
@@ -322,96 +443,131 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                   )}
                 </div>
                 <div className="manju-ep-card__main">
-                  <div className="manju-ep-card__top">
-                    {batchMode ? (
-                      <label className="manju-ep-card__check">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggleSelect(ep.id)}
-                        />
-                        <h2 className="manju-ep-card__name">{title}</h2>
-                      </label>
-                    ) : (
-                      <h2 className="manju-ep-card__name">{title}</h2>
-                    )}
-                    <span
-                      className={cn(
-                        "manju-ep-card__badge",
-                        !pending && "is-ready",
+                  <div className="manju-ep-card__info">
+                    <div className="manju-ep-card__top">
+                      {batchMode ? (
+                        <label className="manju-ep-card__check">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSelect(ep.id)}
+                          />
+                          <h2 className="manju-ep-card__name">{title}</h2>
+                        </label>
+                      ) : (
+                        <button
+                          type="button"
+                          className="manju-ep-card__name-btn"
+                          onClick={() => openDetail(ep.id)}
+                        >
+                          <h2 className="manju-ep-card__name">{title}</h2>
+                        </button>
                       )}
-                    >
-                      {pending ? "待解析" : "已解析"}
-                    </span>
-                  </div>
-                  <p className="manju-ep-card__meta">
-                    {pending
-                      ? ep.summary?.trim() ||
-                        ep.sourceText?.trim()?.slice(0, 60) ||
-                        "尚未规划分镜"
-                      : `分镜表 · ${shots.length} 个分镜`}
-                  </p>
-                  {!batchMode ? (
-                    <div className="manju-ep-card__actions">
-                      {pending ? (
+                      <span
+                        className={cn(
+                          "manju-ep-card__badge",
+                          !pending && "is-ready",
+                        )}
+                      >
+                        {pending ? "待解析" : "已解析"}
+                      </span>
+                    </div>
+                    {!pending ? (
+                      <p className="manju-ep-card__meta">
+                        分镜表 · {videos > 0 ? videos : shots.length} 个
+                        {videos > 0 ? "视频" : "分镜"}
+                      </p>
+                    ) : null}
+                    {!batchMode && !pending ? (
+                      <div className="manju-ep-card__actions">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={manjuStudioHref(projectId, "preview")}>
+                            <Play className="size-3.5" />
+                            预览
+                          </Link>
+                        </Button>
                         <Button
                           size="sm"
+                          onClick={() => openProduceTab(projectId, ep.id)}
+                        >
+                          <Wand2 className="size-3.5" />
+                          制作视频
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toast.message("BGM 制作即将接入")}
+                        >
+                          <Music2 className="size-3.5" />
+                          制作BGM
+                        </Button>
+                        <ManjuExportDialog
+                          project={project}
+                          episodeId={ep.id}
+                          trigger={
+                            <Button type="button" variant="outline" size="sm">
+                              <Download className="size-3.5" />
+                              导出
+                            </Button>
+                          }
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                  {!batchMode && pending ? (
+                    <div className="manju-ep-card__cta">
+                      <Button
+                        size="sm"
+                        className="manju-ep-card__parse-btn"
+                        disabled={analyzing}
+                        onClick={() => openProduce(ep.id)}
+                      >
+                        <Wand2 className="size-3.5" />
+                        开始解析
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+                {!batchMode ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="manju-ep-card__more"
+                        aria-label="更多"
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuItem onClick={() => openDetail(ep.id)}>
+                        <Eye className="size-3.5" />
+                        查看详情
+                      </DropdownMenuItem>
+                      {pending ? (
+                        <DropdownMenuItem
                           disabled={analyzing}
                           onClick={() => openProduce(ep.id)}
                         >
                           <Wand2 className="size-3.5" />
                           开始解析
-                        </Button>
-                      ) : (
-                        <>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={manjuStudioHref(projectId, "preview")}>
-                              <Play className="size-3.5" />
-                              预览
-                            </Link>
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => openProduceTab(projectId, ep.id)}
-                          >
-                            <Wand2 className="size-3.5" />
-                            制作视频
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toast.message("BGM 制作即将接入")}
-                          >
-                            <Music2 className="size-3.5" />
-                            制作BGM
-                          </Button>
-                          <ManjuExportDialog
-                            project={project}
-                            episodeId={ep.id}
-                            trigger={
-                              <Button type="button" variant="outline" size="sm">
-                                <Download className="size-3.5" />
-                                导出
-                              </Button>
-                            }
-                          />
-                        </>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-                {!batchMode ? (
-                  <button
-                    type="button"
-                    className="manju-ep-card__more"
-                    aria-label="更多"
-                    onClick={() =>
-                      toast.message("可在批量操作中删除或调整剧集")
-                    }
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </button>
+                        </DropdownMenuItem>
+                      ) : null}
+                      <DropdownMenuItem onClick={() => copyEpisode(ep.id)}>
+                        <Copy className="size-3.5" />
+                        复制
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => void deleteEpisode(ep.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                        删除
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 ) : null}
               </article>
             );
@@ -435,6 +591,109 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
         onConfirm={() => void confirmProduce(false)}
         onSkip={() => void confirmProduce(true)}
       />
+
+      <Sheet
+        open={Boolean(detailEpId)}
+        onOpenChange={(open) => {
+          if (!open) closeDetail();
+        }}
+      >
+        <SheetContent
+          side="right"
+          showCloseButton={false}
+          className="manju-ep-detail-sheet w-full sm:max-w-xl"
+        >
+          <SheetHeader className="manju-ep-detail-sheet__head">
+            <div className="manju-ep-detail-sheet__head-left">
+              <button
+                type="button"
+                className="manju-ep-detail-sheet__back"
+                aria-label="返回"
+                onClick={closeDetail}
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+              <SheetTitle className="manju-ep-detail-sheet__title">
+                剧集详情：{detailTitle.trim() || detailIndex || "—"}
+              </SheetTitle>
+            </div>
+            <div className="manju-ep-detail-sheet__head-actions">
+              <Button type="button" variant="outline" size="sm" disabled>
+                导出资产
+              </Button>
+              {detailPending ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={analyzing}
+                  onClick={startParseFromDetail}
+                >
+                  <Wand2 className="size-3.5" />
+                  开始解析
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (!detailEpId) return;
+                    saveDetail();
+                    setDetailEpId(null);
+                    openProduceTab(projectId, detailEpId);
+                  }}
+                >
+                  <Wand2 className="size-3.5" />
+                  制作视频
+                </Button>
+              )}
+            </div>
+          </SheetHeader>
+
+          <div className="manju-ep-detail-sheet__body">
+            <section className="manju-ep-detail-sheet__section">
+              <h3 className="manju-ep-detail-sheet__section-title">基本信息</h3>
+              <div className="manju-ep-detail-sheet__fields">
+                <div className="manju-ep-detail-sheet__field">
+                  <Label htmlFor="ep-detail-index">剧集序号</Label>
+                  <Input
+                    id="ep-detail-index"
+                    type="number"
+                    min={1}
+                    value={detailIndex}
+                    onChange={(e) => setDetailIndex(e.target.value)}
+                  />
+                </div>
+                <div className="manju-ep-detail-sheet__field">
+                  <Label htmlFor="ep-detail-title">剧集标题</Label>
+                  <Input
+                    id="ep-detail-title"
+                    value={detailTitle}
+                    onChange={(e) => setDetailTitle(e.target.value)}
+                    placeholder="为本集起个名字"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="manju-ep-detail-sheet__section">
+              <div className="manju-ep-detail-sheet__section-head">
+                <h3 className="manju-ep-detail-sheet__section-title">
+                  剧本内容
+                </h3>
+                <span className="manju-ep-detail-sheet__char-count">
+                  原始剧本内容（{detailCharCount} 字符）
+                </span>
+              </div>
+              <ManjuTextField
+                value={detailContent}
+                onChange={setDetailContent}
+                placeholder="本集对应的剧本片段…"
+                minHeight={320}
+              />
+            </section>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

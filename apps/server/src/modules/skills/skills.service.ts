@@ -62,7 +62,8 @@ const BUILTIN_SKILLS: BuiltinSeed[] = [
   {
     slug: "analyze-assets",
     name: "资产分析",
-    description: "从剧本抽取角色、场景、道具与分集规划。",
+    description:
+      "AI 解析剧本：题材标签、梗概、角色/场景/道具与分集规划。",
     category: "manju",
     purpose: "analyze_assets",
     systemPrompt: ANALYZE_ASSETS_SYSTEM,
@@ -188,21 +189,22 @@ export class SkillsService implements OnModuleInit {
           existing.enabled = true;
           dirty = true;
         }
-        if (!existing.systemPrompt?.trim()) {
+        // 内置技能：代码侧 prompt / 描述为真源，启动时同步（避免 analyze 缺 tags 等旧提示词）
+        if (existing.builtin) {
+          if (existing.systemPrompt !== seed.systemPrompt) {
+            existing.systemPrompt = seed.systemPrompt;
+            dirty = true;
+          }
+          if (existing.description !== seed.description) {
+            existing.description = seed.description;
+            dirty = true;
+          }
+          if (existing.name !== seed.name) {
+            existing.name = seed.name;
+            dirty = true;
+          }
+        } else if (!existing.systemPrompt?.trim()) {
           existing.systemPrompt = seed.systemPrompt;
-          dirty = true;
-        }
-        // First-time backfill of Xiaoluo prompts for empty/short stubs only.
-        if (
-          existing.builtin &&
-          existing.systemPrompt.length < 80 &&
-          seed.systemPrompt.length > existing.systemPrompt.length
-        ) {
-          existing.systemPrompt = seed.systemPrompt;
-          dirty = true;
-        }
-        if (!existing.description && seed.description) {
-          existing.description = seed.description;
           dirty = true;
         }
         if (dirty) await this.skills.save(existing);
@@ -351,6 +353,11 @@ export class SkillsService implements OnModuleInit {
       opts.canvasProjectId
     ) {
       purpose = "canvas_text";
+    }
+
+    // 漫剧流水线内置技能：优先代码侧 FALLBACK，避免 DB 旧提示词缺字段（如 tags）
+    if (purpose === "analyze_assets" && FALLBACK_BY_PURPOSE.analyze_assets) {
+      return FALLBACK_BY_PURPOSE.analyze_assets;
     }
 
     const row = await this.skills.findOne({

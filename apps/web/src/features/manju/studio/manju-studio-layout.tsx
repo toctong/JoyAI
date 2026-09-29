@@ -16,6 +16,7 @@ import {
   legacyQueryToStudioPath,
   type ManjuStudioSection,
 } from "./manju-studio-routes";
+import { cn } from "@/shared/lib/utils";
 import "../manju-chrome.css";
 import "./studio-chrome.css";
 
@@ -140,35 +141,49 @@ function ManjuStudioShell({
     [pathname, projectId],
   );
 
+  /** 制作视频新开页：隐藏资产侧栏，全宽分镜工作台 */
+  const produceMode = section === "episode" && Boolean(epId);
+
   return (
     <div
-      className={
-        sidebarCollapsed
-          ? "manju-studio manju-workbench manju-studio--sidebar-collapsed"
-          : "manju-studio manju-workbench"
-      }
+      className={cn(
+        "manju-studio manju-workbench",
+        sidebarCollapsed && "manju-studio--sidebar-collapsed",
+        produceMode && "manju-studio--produce",
+      )}
     >
-      <ManjuStudioHeader
-        project={project}
-        saving={saving}
-        analyzing={analyzing}
-        onTitleChange={(title) => updateProject(projectId, { title })}
-      />
+      {!produceMode ? (
+        <ManjuStudioHeader
+          project={project}
+          saving={saving}
+          analyzing={analyzing}
+          onTitleChange={(title) => updateProject(projectId, { title })}
+        />
+      ) : null}
 
       <div className="manju-studio__body">
-        <div className="manju-studio__sidebar">
-          <ManjuAssetSidebar
-            projectId={projectId}
-            project={project}
-            collapsed={sidebarCollapsed}
-            onToggleCollapse={toggleSidebar}
-            section={section}
-            activeEpId={epId}
-          />
-        </div>
+        {!produceMode ? (
+          <div className="manju-studio__sidebar">
+            <ManjuAssetSidebar
+              projectId={projectId}
+              project={project}
+              collapsed={sidebarCollapsed}
+              onToggleCollapse={toggleSidebar}
+              section={section}
+              activeEpId={epId}
+            />
+          </div>
+        ) : null}
 
         <section className="manju-studio__main">
-          <div className="manju-studio__main-scroll">{children}</div>
+          <div
+            className={cn(
+              "manju-studio__main-scroll",
+              produceMode && "manju-studio__main-scroll--produce",
+            )}
+          >
+            {children}
+          </div>
         </section>
       </div>
     </div>

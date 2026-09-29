@@ -207,6 +207,9 @@ export function buildStoryboardImagePrompt(
     styleLine(project.settings),
     referenceDeclaration(refs),
     `画面：${body}`,
+    shot.shotSize || shot.cameraAngle || shot.cameraMove
+      ? `镜头：${[shot.shotSize, shot.cameraAngle, shot.cameraMove].filter(Boolean).join(" / ")}`
+      : null,
     "电影构图，单帧关键画面，叙事清楚，人物动作可读。",
     `Avoid: ${IMAGE_AVOID}`,
   ]);

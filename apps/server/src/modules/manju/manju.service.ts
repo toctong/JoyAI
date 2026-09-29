@@ -523,6 +523,8 @@ export class ManjuService {
     if (analyzeMode === "clear_reparse") {
       const clearedIds = new Set(draft.assets.map((a) => a.id));
       draft.assets = [];
+      draft.tags = [];
+      draft.overview = "";
       for (const shot of draft.shots) {
         shot.assetRefs = (shot.assetRefs ?? []).filter(
           (id) => !clearedIds.has(id),
@@ -586,7 +588,8 @@ export class ManjuService {
       .map((t) => t.trim())
       .filter(Boolean)
       .slice(0, 8);
-    if (nextTags.length > 0) {
+    // clear_reparse 时即使 AI 未返回 tags 也保持已清空；其余模式有值才覆盖
+    if (analyzeMode === "clear_reparse" || nextTags.length > 0) {
       draft.tags = nextTags;
     }
 
@@ -709,10 +712,14 @@ export class ManjuService {
         return {
           id: prev?.id ?? newId(),
           index,
+          title: prev?.title ?? "",
           visual: shot.visual,
           dialogue: shot.dialogue ?? "",
           imagePrompt: prev?.imagePrompt ?? "",
           videoPrompt: prev?.videoPrompt ?? "",
+          shotSize: prev?.shotSize ?? "全景",
+          cameraAngle: prev?.cameraAngle ?? "平视",
+          cameraMove: prev?.cameraMove ?? "固定",
           duration: prev?.duration ?? null,
           episodeId: episodeId ?? null,
           assetRefs: (shot.assetNames ?? [])

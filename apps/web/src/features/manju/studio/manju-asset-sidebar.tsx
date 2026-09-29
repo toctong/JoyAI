@@ -48,12 +48,8 @@ export function ManjuAssetSidebar({
   onToggleCollapse,
   section,
 }: Props) {
-  const episodesHref =
-    project.episodes[0]?.id != null
-      ? manjuStudioHref(projectId, "episode", {
-          epId: project.episodes[0].id,
-        })
-      : manjuStudioHref(projectId, "episode");
+  // 剧集管理永远进列表页；制作视频由列表「制作视频」新开 tab（/episodes/[epId]）
+  const episodesListHref = manjuStudioHref(projectId, "episode");
 
   return (
     <aside className="manju-asset-sidebar">
@@ -90,7 +86,7 @@ export function ManjuAssetSidebar({
           const Icon = item.icon;
           const href =
             item.section === "episode"
-              ? episodesHref
+              ? episodesListHref
               : manjuStudioHref(projectId, item.section);
           const active =
             item.section === "episode"

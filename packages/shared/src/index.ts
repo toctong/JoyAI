@@ -240,7 +240,18 @@ export const ManjuAnalyzeShotSchema = z.object({
 export const ManjuAnalyzeResultSchema = z.object({
   overview: z.string().default(""),
   /** 题材标签，解析剧本时由 AI 填写 */
-  tags: z.array(z.string()).default([]),
+  tags: z.preprocess((v) => {
+    if (Array.isArray(v)) {
+      return v.map((t) => String(t).trim()).filter(Boolean);
+    }
+    if (typeof v === "string" && v.trim()) {
+      return v
+        .split(/[,，、|/]/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, z.array(z.string()).default([])),
   characters: z.array(ManjuAnalyzeAssetItemSchema).default([]),
   scenes: z.array(ManjuAnalyzeAssetItemSchema).default([]),
   props: z.array(ManjuAnalyzeAssetItemSchema).default([]),
@@ -376,10 +387,14 @@ export const ManjuAssetDraftSchema = z.object({
 export const ManjuShotDraftSchema = z.object({
   id: z.string(),
   index: z.number().int().positive(),
+  title: z.string().default(""),
   visual: z.string().default(""),
   dialogue: z.string().default(""),
   imagePrompt: z.string().default(""),
   videoPrompt: z.string().default(""),
+  shotSize: z.string().default("全景"),
+  cameraAngle: z.string().default("平视"),
+  cameraMove: z.string().default("固定"),
   assetRefs: z.array(z.string()).default([]),
   episodeId: z.string().nullable().default(null),
   /** 单镜时长秒；null/缺省则用项目 settings.duration */

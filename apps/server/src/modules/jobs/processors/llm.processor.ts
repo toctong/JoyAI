@@ -151,6 +151,19 @@ export class LlmProcessor extends WorkerHost {
         capabilities: caps,
       });
 
+      /** 解析剧本：强化用户侧约束，确保 AI 返回 tags/overview，禁止规则抽取 */
+      const userText =
+        purpose === "analyze_assets"
+          ? [
+              "请严格按系统约定，只输出一个 JSON 对象（不要解释、不要 markdown 代码围栏）。",
+              "必须填写：overview（一两句梗概）、tags（2～5 个题材标签）、characters、scenes、props、episodes（至少 1 集）。",
+              "只根据下方剧本原文抽取，不要编造原文没有的角色或设定。",
+              "",
+              "【剧本原文】",
+              input.prompt,
+            ].join("\n")
+          : input.prompt;
+
       const result = await provider.chat({
         model: model.remoteId,
         apiKey: model.channel.apiKey,
@@ -163,13 +176,13 @@ export class LlmProcessor extends WorkerHost {
             role: "user",
             content: imageUrls.length
               ? [
-                  { type: "text", text: input.prompt },
+                  { type: "text", text: userText },
                   ...imageUrls.map((url) => ({
                     type: "image_url" as const,
                     image_url: { url },
                   })),
                 ]
-              : input.prompt,
+              : userText,
           },
         ],
       });

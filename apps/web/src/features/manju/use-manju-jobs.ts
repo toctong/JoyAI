@@ -62,6 +62,13 @@ function collectBusyJobIds(projectId: string): string[] {
     .projects.find((p) => p.id === projectId);
   if (!project) return [];
   const jobIds = new Set<string>();
+  // AI 解析剧本：提交后写入 lastAnalyzeJobId，WS 丢包时靠轮询收尾
+  if (
+    useManjuStore.getState().analyzingIds[projectId] &&
+    project.lastAnalyzeJobId?.trim()
+  ) {
+    jobIds.add(project.lastAnalyzeJobId.trim());
+  }
   for (const asset of project.assets) {
     if (isBusyStatus(asset.status) && asset.jobId?.trim()) {
       jobIds.add(asset.jobId.trim());
@@ -145,7 +152,7 @@ export function useManjuJobBridge(activeProjectId?: string) {
                     ? "连载记忆已写入"
                     : purpose === "plan_episodes"
                       ? "分集规划已写入"
-                      : "资产与分集已写入",
+                      : "AI 解析完成：题材标签、梗概与资产已写入",
             );
           })
           .catch(() => {

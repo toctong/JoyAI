@@ -42,11 +42,19 @@ export type ManjuUtterance = {
 export type ManjuShotDraft = {
   id: string;
   index: number;
+  /** 分镜标题（如「豪华全景」） */
+  title: string;
   /** 画面 / 动作描述 */
   visual: string;
   dialogue: string;
   imagePrompt: string;
   videoPrompt: string;
+  /** 景别：全景 / 中景 / 近景… */
+  shotSize: string;
+  /** 角度：平视 / 俯视… */
+  cameraAngle: string;
+  /** 运镜：固定 / 推 / 拉… */
+  cameraMove: string;
   /** 结构化对白；空则回退 dialogue */
   utterances: ManjuUtterance[];
   /** 关联角色/场景/道具资产 id */
@@ -284,10 +292,14 @@ export function createEmptyShot(index: number): ManjuShotDraft {
   return {
     id: crypto.randomUUID(),
     index,
+    title: "",
     visual: "",
     dialogue: "",
     imagePrompt: "",
     videoPrompt: "",
+    shotSize: "全景",
+    cameraAngle: "平视",
+    cameraMove: "固定",
     utterances: [],
     assetRefs: [],
     episodeId: null,
@@ -435,6 +447,16 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
         videoJobId: s.videoJobId ?? null,
         assetRefs: Array.isArray(s.assetRefs) ? s.assetRefs : [],
         episodeId: typeof s.episodeId === "string" ? s.episodeId : null,
+        title: typeof s.title === "string" ? s.title : "",
+        shotSize: typeof s.shotSize === "string" && s.shotSize ? s.shotSize : "全景",
+        cameraAngle:
+          typeof s.cameraAngle === "string" && s.cameraAngle
+            ? s.cameraAngle
+            : "平视",
+        cameraMove:
+          typeof s.cameraMove === "string" && s.cameraMove
+            ? s.cameraMove
+            : "固定",
         duration:
           typeof s.duration === "number" && s.duration > 0 ? s.duration : null,
         imagePrompt: typeof s.imagePrompt === "string" ? s.imagePrompt : "",
