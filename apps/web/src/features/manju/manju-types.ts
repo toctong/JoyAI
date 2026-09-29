@@ -657,12 +657,6 @@ export type ManjuSkill =
   | "series_memory"
   | null;
 
-function needsEpisodeSourceSlice(project: ManjuProjectDraft): boolean {
-  if (project.scriptText.trim().length < 400) return false;
-  if (project.episodes.length === 0) return true;
-  return project.episodes.some((e) => !e.sourceText?.trim());
-}
-
 function settingsLookUntouched(project: ManjuProjectDraft): boolean {
   if (project.completedSteps.includes("video-settings")) return false;
   const s = project.settings;
@@ -677,7 +671,11 @@ function settingsLookUntouched(project: ManjuProjectDraft): boolean {
   return defaultStyle && noModels && s.mode === "i2v" && s.duration === 5;
 }
 
-/** 侧栏「建议下一步」——文案面向用户，不提技能名 */
+/**
+ * 主路径引导（侧栏「建议下一步」）：
+ * 初始设定 → 剧本(+AI帮写) → 解析剧本 → 资产生图 → 剧集「制作视频」→ 分镜/视频
+ * 题材标签、剧本梗概由 AI 帮写/解析写入，不手填。
+ */
 export function getWorkflowNextAction(project: ManjuProjectDraft): {
   stepId: ManjuStepId;
   panel: ManjuPanel;
@@ -685,22 +683,22 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
   label: string;
   detail: string;
 } {
-  if (project.scriptText.trim().length < 10) {
-    return {
-      stepId: "script",
-      panel: "overview",
-      skill: null,
-      label: "完善原文",
-      detail: "粘贴、导入或用 AI 帮写一段可拍的剧本",
-    };
-  }
   if (settingsLookUntouched(project)) {
     return {
       stepId: "video-settings",
       panel: "overview",
       skill: null,
-      label: "确认视频设定",
-      detail: "选好画幅、风格、时长和生成模式",
+      label: "初始设定",
+      detail: "先确认画幅、风格、时长与生成模型",
+    };
+  }
+  if (project.scriptText.trim().length < 10) {
+    return {
+      stepId: "script",
+      panel: "overview",
+      skill: null,
+      label: "填写剧本",
+      detail: "粘贴原文，或用 AI 帮写生成剧本内容",
     };
   }
   if (project.assets.length === 0) {
@@ -708,49 +706,8 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       stepId: "script",
       panel: "overview",
       skill: "analyze_assets",
-      label: "AI 分析剧本",
-      detail: "在剧本页点「AI 分析」，登记角色、场景、道具",
-    };
-  }
-  if (needsEpisodeSourceSlice(project)) {
-    return {
-      stepId: "script",
-      panel: "overview",
-      skill: "plan_episodes",
-      label: "规划分集",
-      detail: "长文建议先切分集，再按集规划分镜",
-    };
-  }
-  if (
-    (project.scriptText.trim().length >= 400 ||
-      project.episodes.length > 0) &&
-    project.assets.some((a) => a.kind === "character") &&
-    !(project.series?.world?.trim() || (project.series?.bios?.length ?? 0) > 0)
-  ) {
-    return {
-      stepId: "script",
-      panel: "overview",
-      skill: "series_memory",
-      label: "整理连载记忆",
-      detail: "补世界观与人设小传，方便多集统一",
-    };
-  }
-  if (project.shots.length === 0) {
-    return {
-      stepId: "storyboard-script",
-      panel: "timeline",
-      skill: "script_plan",
-      label: "规划分镜",
-      detail: "点「规划分镜」，按剧本拆镜头与对白",
-    };
-  }
-  if (!project.scriptConfirmed) {
-    return {
-      stepId: "storyboard-script",
-      panel: "timeline",
-      skill: null,
-      label: "确认脚本",
-      detail: "检查镜头无误后点「确认脚本」",
+      label: "解析剧本",
+      detail: "解析出角色、道具、场景与第一集，并生成题材标签与梗概",
     };
   }
   if (!project.assets.some((a) => a.imageUrl)) {
@@ -758,8 +715,44 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       stepId: "assets",
       panel: "characters",
       skill: null,
-      label: "生成设定图",
-      detail: "先出角色/场景/道具参考图，再写提示词",
+      label: "生成资产图",
+      detail: "进入角色/场景/道具，支持单个或批量生成设定图",
+    };
+  }
+  if (project.assets.some((a) => !a.imageUrl)) {
+    return {
+      stepId: "assets",
+      panel: "characters",
+      skill: null,
+      label: "补全资产图",
+      detail: "还有资产未出图，可单个或批量生成",
+    };
+  }
+  if (project.episodes.length === 0) {
+    return {
+      stepId: "script",
+      panel: "overview",
+      skill: "analyze_assets",
+      label: "解析剧本",
+      detail: "再解析一次以登记剧集（第1集），然后即可制作视频",
+    };
+  }
+  if (project.shots.length === 0) {
+    return {
+      stepId: "storyboard-script",
+      panel: "timeline",
+      skill: null,
+      label: "制作视频",
+      detail: "在剧集页点「制作视频」进入分镜与视频制作",
+    };
+  }
+  if (!project.scriptConfirmed) {
+    return {
+      stepId: "storyboard-script",
+      panel: "timeline",
+      skill: null,
+      label: "确认分镜脚本",
+      detail: "检查镜头无误后确认脚本，再生成画面",
     };
   }
   if (
@@ -772,7 +765,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "prompts",
       skill: "author_prompts",
       label: "编写提示词",
-      detail: "切到「提示词」页，点 AI 编写全部提示词",
+      detail: "为镜头补齐分镜图与视频提示词",
     };
   }
   if (!project.shots.some((s) => s.storyboardImageUrl)) {
@@ -781,7 +774,7 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "timeline",
       skill: null,
       label: "生成分镜图",
-      detail: "在分镜页点「开始生成」出静帧",
+      detail: "在分镜页生成静帧画面",
     };
   }
   if (!project.shots.some((s) => s.videoUrl)) {
@@ -790,15 +783,15 @@ export function getWorkflowNextAction(project: ManjuProjectDraft): {
       panel: "timeline",
       skill: null,
       label: "生成分镜视频",
-      detail: "点「开始生成」，把分镜图做成短视频",
+      detail: "把分镜图做成短视频",
     };
   }
   return {
     stepId: "preview",
     panel: "preview",
     skill: null,
-    label: "预览与导出",
-    detail: "连播检查成片，可打包 ZIP 或导出 MP4",
+    label: "预览成片",
+    detail: "连播检查成片效果",
   };
 }
 

@@ -4,10 +4,11 @@
  */
 
 /** analyze-assets：只登记视觉资产与分集，不写分镜提示词 */
-export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文抽取可复用的视觉资产和分集规划。
+export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文抽取可复用的视觉资产、题材标签、梗概和分集规划。
 只输出 JSON，不要解释、不要代码围栏。
 {
   "overview": "一两句故事梗概",
+  "tags": ["题材标签1", "题材标签2"],
   "characters": [{ "name": "角色名", "description": "外貌服饰一句，不要编造原文没有的设定", "aliases": ["别名"] }],
   "scenes": [{ "name": "场景名", "description": "地点氛围一句" }],
   "props": [{ "name": "道具名", "description": "外观一句" }],
@@ -18,7 +19,9 @@ export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文
 - 小说：只登记有名字、会出场的人
 - 每类不超过 20 个，名称唯一、简短
 - 角色可给 aliases（称呼、外号），没有就空数组
-- 分集 1～8 个；短篇可以只有 1 集
+- tags：2～5 个题材/类型标签（如都市、复仇、重生），不要写进 overview
+- overview：一两句概括剧情与基调
+- 分集至少 1 集；短篇可以只有「第1集」；最多 8 集
 - 不要输出分镜、对白或画面提示词`;
 
 /** normalize-drama-script：锁定镜头内容，不写摄影提示词 */

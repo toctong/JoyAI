@@ -7,16 +7,13 @@ import {
   FileText,
   Loader2,
   Sparkles,
-  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 import { useManjuStore } from "../manju-store";
 import { submitManjuAnalyzeJob } from "../manju-api";
-import { submitEpisodePlan, submitSeriesMemory } from "../lib/workflow-skill";
 import { sanitizeScriptBody } from "../lib/sanitize-script-text";
 import { ManjuTextField } from "../manju-text-field";
 import { ScriptFileImport } from "../script-file-import";
@@ -26,10 +23,8 @@ import {
   type ManjuAnalyzeMode,
 } from "../studio/manju-parse-script-dialog";
 import {
-  EMPTY_SERIES,
   type ManjuEpisodeDraft,
   type ManjuProjectDraft,
-  type ManjuSeries,
 } from "../manju-types";
 
 type ScriptMode = "choose" | "edit";
@@ -44,7 +39,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
   );
   const [aiOpen, setAiOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [parseOpen, setParseOpen] = useState(false);
   const tidiedRef = useRef(false);
 
@@ -163,50 +157,12 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     setParseOpen(true);
   };
 
-  const series = project.series ?? EMPTY_SERIES;
-
-  const patchSeries = (next: ManjuSeries) => {
-    updateProject(project.id, { series: next });
-  };
-
-  const runSeriesMemory = async () => {
-    if (project.scriptText.trim().length < 20) {
-      toast.error("请先粘贴更完整的剧本再整理连载记忆");
-      return;
-    }
-    try {
-      setAnalyzing(project.id, true);
-      await flushSave(project.id);
-      await submitSeriesMemory(project);
-      toast.success("已提交连载记忆（不改对白和镜头）");
-    } catch (e) {
-      setAnalyzing(project.id, false);
-      toast.error(e instanceof Error ? e.message : "提交失败");
-    }
-  };
-
-  const runEpisodePlan = async () => {
-    if (project.scriptText.trim().length < 40) {
-      toast.error("原文太短，先写完整一点再规划分集");
-      return;
-    }
-    try {
-      setAnalyzing(project.id, true);
-      await flushSave(project.id);
-      await submitEpisodePlan(project);
-      toast.success("已提交分集规划（不改镜头和对白）");
-    } catch (e) {
-      setAnalyzing(project.id, false);
-      toast.error(e instanceof Error ? e.message : "提交失败");
-    }
-  };
-
   const applyImportedText = async (text: string) => {
     if (project.scriptText.trim()) {
       const ok = await confirmDialog({
         title: "覆盖当前原文？",
         description: project.shots.length
-          ? "导入会替换剧本编辑区。已有分镜/资产不会自动清空，请随后重新「规划分集 / 规划分镜」。"
+          ? "导入会替换剧本编辑区。已有分镜/资产不会自动清空，如需更新请随后重新解析或规划分镜。"
           : "导入会替换剧本编辑区内容，不会自动清分镜或资产。",
         confirmText: "覆盖导入",
         cancelText: "取消",
@@ -216,10 +172,8 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     }
     updateProject(project.id, { scriptText: text });
     setMode("edit");
-    if (text.length >= 400) {
-      toast.message("长文已导入：建议先「规划分集」，再按集规划分镜");
-    } else if (project.shots.length > 0) {
-      toast.message("原文已换，建议重新规划分集/分镜");
+    if (project.shots.length > 0) {
+      toast.message("原文已换，建议重新规划分镜");
     }
   };
 
@@ -338,22 +292,20 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
                   ))
                 ) : (
                   <span className="manju-info-tags__empty">
-                    AI 帮写并应用剧本后自动生成
+                    AI 帮写或解析剧本后自动生成
                   </span>
                 )}
               </div>
             </div>
             <div className="manju-info-field">
               <span className="manju-info-field__label">剧本梗概</span>
-              <ManjuTextField
-                value={project.overview}
-                onChange={(overview) =>
-                  updateProject(project.id, { overview })
-                }
-                placeholder="一两段概括剧情、人物关系与基调…"
-                minHeight={96}
-                rows={4}
-              />
+              {project.overview.trim() ? (
+                <p className="manju-info-field__readonly">{project.overview}</p>
+              ) : (
+                <span className="manju-info-tags__empty">
+                  解析剧本后由 AI 自动生成
+                </span>
+              )}
             </div>
           </div>
         ) : null}
@@ -377,197 +329,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
             minHeight={480}
           />
         </div>
-      </section>
-
-      <section className="manju-info-card">
-        <button
-          type="button"
-          className="manju-info-card__head"
-          onClick={() => setAdvancedOpen((v) => !v)}
-          aria-expanded={advancedOpen}
-        >
-          <h2 className="manju-info-card__title">分集与连载</h2>
-          <ChevronDown
-            className={cn(
-              "manju-info-card__chevron",
-              advancedOpen && "is-open",
-            )}
-            aria-hidden
-          />
-        </button>
-        {advancedOpen ? (
-          <div className="manju-info-card__body manju-info-advanced">
-            <div className="manju-info-advanced__bar">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={analyzing}
-                onClick={() => void runEpisodePlan()}
-              >
-                {analyzing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : null}
-                规划分集
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={analyzing}
-                onClick={() => void runSeriesMemory()}
-              >
-                {analyzing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                整理连载记忆
-              </Button>
-            </div>
-
-            {project.episodes.length > 0 ? (
-              <div className="manju-episode-grid">
-                {project.episodes.map((ep, i) => (
-                  <article key={ep.id} className="manju-episode-card">
-                    <header className="manju-episode-card__head">
-                      <span className="manju-episode-card__index" aria-hidden>
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <Input
-                        value={ep.title}
-                        onChange={(e) =>
-                          updateProject(project.id, {
-                            episodes: project.episodes.map((item) =>
-                              item.id === ep.id
-                                ? { ...item, title: e.target.value }
-                                : item,
-                            ),
-                          })
-                        }
-                        className="manju-episode-card__title-input"
-                        placeholder="分集标题"
-                      />
-                    </header>
-                    <div className="manju-episode-card__body">
-                      <label className="manju-episode-card__field">
-                        <span className="manju-episode-card__label">钩子</span>
-                        <Input
-                          value={ep.hook ?? ""}
-                          onChange={(e) =>
-                            updateProject(project.id, {
-                              episodes: project.episodes.map((item) =>
-                                item.id === ep.id
-                                  ? { ...item, hook: e.target.value }
-                                  : item,
-                              ),
-                            })
-                          }
-                          className="manju-episode-card__input"
-                          placeholder="本集结尾钩子（可选）"
-                        />
-                      </label>
-                      <label className="manju-episode-card__field">
-                        <span className="manju-episode-card__label">摘要</span>
-                        <ManjuTextField
-                          value={ep.summary ?? ""}
-                          onChange={(summary) =>
-                            updateProject(project.id, {
-                              episodes: project.episodes.map((item) =>
-                                item.id === ep.id
-                                  ? { ...item, summary }
-                                  : item,
-                              ),
-                            })
-                          }
-                          placeholder="本集发生什么…"
-                          minHeight={88}
-                        />
-                      </label>
-                      <label className="manju-episode-card__field">
-                        <span className="manju-episode-card__label">
-                          原文切片
-                        </span>
-                        <ManjuTextField
-                          value={ep.sourceText ?? ""}
-                          onChange={(sourceText) =>
-                            updateProject(project.id, {
-                              episodes: project.episodes.map((item) =>
-                                item.id === ep.id
-                                  ? { ...item, sourceText }
-                                  : item,
-                              ),
-                            })
-                          }
-                          placeholder="本集对应的原文片段"
-                          minHeight={140}
-                        />
-                      </label>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p className="manju-info-advanced__empty">暂无分集</p>
-            )}
-
-            <div className="manju-info-advanced__series">
-              <h3 className="manju-info-field__label">连载记忆 · 世界观</h3>
-              <ManjuTextField
-                value={series.world}
-                onChange={(world) => patchSeries({ ...series, world })}
-                placeholder="时代、规则、世界观…"
-                minHeight={100}
-              />
-              <div className="mt-3 space-y-3">
-                {series.bios.map((bio, index) => (
-                  <div
-                    key={`${bio.name}-${index}`}
-                    className="rounded-lg border border-border p-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={bio.name}
-                        className="h-8 text-sm"
-                        onChange={(e) => {
-                          const bios = series.bios.map((item, i) =>
-                            i === index
-                              ? { ...item, name: e.target.value }
-                              : item,
-                          );
-                          patchSeries({ ...series, bios });
-                        }}
-                      />
-                      <button
-                        type="button"
-                        className="manju-icon-btn"
-                        aria-label="删除小传"
-                        onClick={() =>
-                          patchSeries({
-                            ...series,
-                            bios: series.bios.filter((_, i) => i !== index),
-                          })
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <ManjuTextField
-                      value={bio.bio}
-                      onChange={(text) => {
-                        const bios = series.bios.map((item, i) =>
-                          i === index ? { ...item, bio: text } : item,
-                        );
-                        patchSeries({ ...series, bios });
-                      }}
-                      placeholder="身份、关系、已知经历"
-                      minHeight={80}
-                      className="mt-2"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
       </section>
     </div>
   );

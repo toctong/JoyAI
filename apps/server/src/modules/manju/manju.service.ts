@@ -494,6 +494,7 @@ export class ManjuService {
     jobId: string,
     analyze: {
       overview?: string;
+      tags?: string[];
       characters: Array<{ name: string; description: string; aliases?: string[] }>;
       scenes: Array<{ name: string; description: string; aliases?: string[] }>;
       props: Array<{ name: string; description: string; aliases?: string[] }>;
@@ -581,6 +582,14 @@ export class ManjuService {
       draft.overview = analyze.overview.trim();
     }
 
+    const nextTags = (analyze.tags ?? [])
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    if (nextTags.length > 0) {
+      draft.tags = nextTags;
+    }
+
     if (analyze.episodes.length > 0) {
       const byTitle = new Map(
         draft.episodes.map((ep) => [ep.title.trim(), ep] as const),
@@ -595,6 +604,29 @@ export class ManjuService {
           sourceText: prev?.sourceText ?? "",
         };
       });
+      // 解析未切原文时：单集挂全文；多集也先挂到第 1 集，避免制作视频无内容
+      if (draft.scriptText.trim()) {
+        const allEmpty = draft.episodes.every((e) => !e.sourceText?.trim());
+        if (allEmpty) {
+          draft.episodes[0]!.sourceText = draft.scriptText;
+        } else if (
+          draft.episodes.length === 1 &&
+          !draft.episodes[0]!.sourceText?.trim()
+        ) {
+          draft.episodes[0]!.sourceText = draft.scriptText;
+        }
+      }
+    } else if (draft.episodes.length === 0 && draft.scriptText.trim()) {
+      // 解析未返回分集时，默认落第 1 集，便于「制作视频」
+      draft.episodes = [
+        {
+          id: newId(),
+          title: "第1集",
+          summary: draft.overview?.trim() || "",
+          hook: "",
+          sourceText: draft.scriptText,
+        },
+      ];
     }
 
     if (writeShots && analyze.shots.length > 0) {

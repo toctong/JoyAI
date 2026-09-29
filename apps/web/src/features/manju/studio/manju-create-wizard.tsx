@@ -64,7 +64,7 @@ export function ManjuCreateWizard({ open, onOpenChange, folderId }: Props) {
       onOpenChange(false);
       setTitle("");
       setMode("i2v");
-      router.push(`/manju/${project.id}/source`);
+      router.push(`/manju/${project.id}/settings`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "创建失败");
     } finally {
@@ -135,7 +135,7 @@ export function ManjuCreateWizard({ open, onOpenChange, folderId }: Props) {
           </Button>
           <Button disabled={creating} onClick={() => void submit()}>
             {creating ? <Loader2 className="size-3.5 animate-spin" /> : null}
-            创建并进入剧本
+            创建并进入初始设定
           </Button>
         </DialogFooter>
       </DialogContent>

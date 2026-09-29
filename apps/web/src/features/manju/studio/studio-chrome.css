@@ -1226,6 +1226,14 @@
   color: var(--muted-foreground);
 }
 
+.manju-info-field__readonly {
+  margin: 0;
+  font-size: var(--joy-font-body, 15px);
+  line-height: 1.6;
+  color: var(--foreground);
+  white-space: pre-wrap;
+}
+
 .manju-info-script {
   min-height: 0;
 }
