@@ -49,6 +49,7 @@ export function draftFromProject(p: ManjuProjectDraft): ManjuDraft {
     series: p.series ?? { world: "", bios: [], hooks: [] },
     completedSteps: p.completedSteps,
     lastAnalyzeJobId: p.lastAnalyzeJobId ?? null,
+    lastReview: p.lastReview ?? null,
     draftSnapshots: (p.draftSnapshots ?? []).slice(0, 12),
   };
 }
@@ -123,6 +124,22 @@ export function projectFromDto(dto: ManjuProjectDto): ManjuProjectDraft {
     completedSteps:
       (dto.draft.completedSteps as ManjuProjectDraft["completedSteps"]) ?? [],
     lastAnalyzeJobId: dto.draft.lastAnalyzeJobId ?? null,
+    lastReview: dto.draft.lastReview
+      ? {
+          jobId: dto.draft.lastReview.jobId ?? null,
+          summary: dto.draft.lastReview.summary ?? "",
+          findings: (dto.draft.lastReview.findings ?? []).map((f) => ({
+            severity:
+              f.severity === "error" || f.severity === "info"
+                ? f.severity
+                : "warn",
+            code: f.code,
+            message: f.message,
+            target: f.target ?? "",
+          })),
+          updatedAt: dto.draft.lastReview.updatedAt ?? "",
+        }
+      : null,
     draftSnapshots: Array.isArray(dto.draft.draftSnapshots)
       ? (dto.draft.draftSnapshots as ManjuProjectDraft["draftSnapshots"])
       : [],
@@ -182,7 +199,9 @@ export async function submitManjuAnalyzeJob(input: {
     | "script_plan"
     | "author_prompts"
     | "series_memory"
-    | "plan_episodes";
+    | "plan_episodes"
+    | "novel_analyze"
+    | "manju_review";
   /** analyze_assets 资产合并方式 */
   analyzeMode?: "incremental" | "full_add" | "clear_reparse";
 }) {

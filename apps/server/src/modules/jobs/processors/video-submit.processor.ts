@@ -126,6 +126,7 @@ export class VideoSubmitProcessor extends WorkerHost {
         jobId,
         status: "failed",
         error: message,
+        kind: "video",
       });
       throw error;
     }

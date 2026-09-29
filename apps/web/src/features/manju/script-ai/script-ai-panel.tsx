@@ -21,6 +21,7 @@ import {
   type ScriptAiType,
 } from "./script-ai-templates";
 import { useScriptAiChat } from "./use-script-ai-chat";
+import type { ContinueEpisodeSeed } from "../lib/continue-episode";
 import "./script-ai-panel.css";
 
 type Props = {
@@ -29,9 +30,19 @@ type Props = {
   scriptText: string;
   onApplyScript: (
     script: string,
-    meta?: { hook?: string; tags?: string[] },
+    meta?: { hook?: string; tags?: string[]; summary?: string },
   ) => void;
   onCollapse: () => void;
+  continueSeed?: ContinueEpisodeSeed | null;
+  chatNamespace?: string;
+  persistRemote?: boolean;
+  applySuccessMessage?: string;
+  applyButtonLabel?: string;
+  appliedLabel?: string;
+  brandSubtitle?: string;
+  /** 打开时预填输入框 */
+  initialDraftPrompt?: string;
+  hideScriptRef?: boolean;
 };
 
 function shouldShowPendingDots(content: string) {
@@ -44,6 +55,15 @@ export function ScriptAiPanel({
   scriptText,
   onApplyScript,
   onCollapse,
+  continueSeed = null,
+  chatNamespace,
+  persistRemote,
+  applySuccessMessage,
+  applyButtonLabel = "应用修改",
+  appliedLabel = "已应用到右侧预览",
+  brandSubtitle = "说说想怎么改，我来写",
+  initialDraftPrompt,
+  hideScriptRef = false,
 }: Props) {
   const {
     hydrated,
@@ -71,14 +91,27 @@ export function ScriptAiPanel({
     modelId,
     scriptText,
     onApplyScript,
+    continueSeed,
+    chatNamespace,
+    persistRemote,
+    applySuccessMessage,
   });
+
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated || seededRef.current) return;
+    if (initialDraftPrompt?.trim()) {
+      setDraftPrompt(initialDraftPrompt.trim());
+      seededRef.current = true;
+    }
+  }, [hydrated, initialDraftPrompt, setDraftPrompt]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const typeMenuRef = useRef<HTMLDivElement>(null);
   const [typeOpen, setTypeOpen] = useState(false);
 
   const scriptPlain = scriptText.trim();
-  const hasScript = scriptPlain.length > 0;
+  const hasScript = scriptPlain.length > 0 && !hideScriptRef && !continueSeed;
   const showEmptyState = messages.length === 0;
   const scriptRefPreview =
     scriptPlain.length > 24
@@ -109,9 +142,9 @@ export function ScriptAiPanel({
 
   const handleSend = () => {
     if (!draftPrompt.trim() || sending) return;
-    if (scriptRefEnabled && !scriptPlain) return;
+    if (scriptRefEnabled && hasScript && !scriptPlain) return;
     void sendMessage(draftPrompt, {
-      scriptRef: scriptRefEnabled && Boolean(scriptPlain),
+      scriptRef: scriptRefEnabled && hasScript && Boolean(scriptPlain),
     });
   };
 
@@ -191,7 +224,7 @@ export function ScriptAiPanel({
           </span>
           <div className="manju-ai-panel__brand-text">
             <strong>FrameRally 帮写</strong>
-            <p>说说想怎么改，我来写</p>
+            <p>{brandSubtitle}</p>
           </div>
         </div>
         <div className="manju-ai-panel__top-actions">
@@ -227,6 +260,18 @@ export function ScriptAiPanel({
         </div>
       </header>
 
+      {continueSeed ? (
+        <div className="manju-ai-panel__continue-banner border-b border-border px-4 py-2 text-xs leading-relaxed text-muted-foreground">
+          <p>
+            承接「{continueSeed.fromTitle}」
+            {continueSeed.hook
+              ? ` · 钩子：${continueSeed.hook}`
+              : " · 本集尚无钩子，将按末段情绪续写"}
+            → 第{continueSeed.nextIndex}集
+          </p>
+        </div>
+      ) : null}
+
       <div ref={scrollRef} className="manju-ai-panel__scroll">
         {!hydrated ? (
           <div className="manju-ai-panel__loading">
@@ -236,6 +281,19 @@ export function ScriptAiPanel({
               <span />
             </div>
             <p>正在加载对话…</p>
+          </div>
+        ) : showEmptyState && continueSeed ? (
+          <div className="manju-ai-panel__empty">
+            <div className="manju-ai-panel__hero">
+              <span className="manju-ai-panel__hero-icon" aria-hidden>
+                <span className="manju-ai-panel__hero-bubble" />
+              </span>
+              <h2>AI 写下一集</h2>
+              <p>
+                应用后会新建「第{continueSeed.nextIndex}集」，不覆盖全剧正文。
+                下方已预填需求，可直接发送或改写。
+              </p>
+            </div>
           </div>
         ) : showEmptyState ? (
           <div className="manju-ai-panel__empty">
@@ -322,12 +380,12 @@ export function ScriptAiPanel({
                           className="manju-ai-panel__apply"
                           onClick={() => applyMessageScript(message.id)}
                         >
-                          应用修改
+                          {applyButtonLabel}
                         </button>
                       ) : null}
                       {message.scriptApplied ? (
                         <span className="manju-ai-panel__applied">
-                          已应用到右侧预览
+                          {appliedLabel}
                         </span>
                       ) : null}
                     </div>

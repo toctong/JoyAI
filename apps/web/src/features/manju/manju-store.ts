@@ -65,6 +65,7 @@ type ManjuState = {
         | "completedSteps"
         | "draftSnapshots"
         | "lastAnalyzeJobId"
+        | "lastReview"
       >
     >,
   ) => void;

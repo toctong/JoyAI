@@ -11,6 +11,10 @@ import {
   scriptAiSkillById,
   type ScriptAiSkillId,
 } from "./script-ai-skills";
+import {
+  formatContinueSeedForPrompt,
+  type ContinueEpisodeSeed,
+} from "../lib/continue-episode";
 
 export type ScriptAiMessage = {
   id: string;
@@ -21,6 +25,8 @@ export type ScriptAiMessage = {
   hook?: string;
   /** 题材标签，应用时写入草稿 */
   tags?: string[];
+  /** 本集摘要（续写下一集） */
+  summary?: string;
   scriptApplied?: boolean;
   pending?: boolean;
   error?: boolean;
@@ -35,8 +41,8 @@ export type ScriptAiConversation = {
   aiType: ScriptAiType;
 };
 
-function storageKey(projectId: string) {
-  return `joyai.manju.script-ai.${projectId}`;
+function storageKey(projectId: string, namespace = "script-ai") {
+  return `joyai.manju.${namespace}.${projectId}`;
 }
 
 function uid() {
@@ -53,9 +59,12 @@ function blankConversation(aiType: ScriptAiType = "都市情感"): ScriptAiConve
   };
 }
 
-function readLegacy(projectId: string): ScriptProjectChatState | null {
+function readLegacy(
+  projectId: string,
+  namespace: string,
+): ScriptProjectChatState | null {
   try {
-    const raw = localStorage.getItem(storageKey(projectId));
+    const raw = localStorage.getItem(storageKey(projectId, namespace));
     if (!raw) return null;
     return normalizeScriptProjectChat(JSON.parse(raw) as unknown);
   } catch {
@@ -103,6 +112,7 @@ function buildJobPrompt(input: {
   scriptRef?: string | null;
   /** Advisor skills: free-form; script_write: JSON contract */
   jsonContract: boolean;
+  continueSeed?: ContinueEpisodeSeed | null;
 }) {
   const recent = input.history
     .filter((m) => !m.pending && !m.error)
@@ -119,8 +129,11 @@ function buildJobPrompt(input: {
     `【创作类型】${input.aiType}`,
     `【用户需求】\n${input.userText.trim()}`,
   ];
+  if (input.continueSeed) {
+    parts.push(formatContinueSeedForPrompt(input.continueSeed));
+  }
   if (recent) parts.push(`【近期对话】\n${recent}`);
-  if (input.scriptRef?.trim()) {
+  if (input.scriptRef?.trim() && !input.continueSeed) {
     parts.push(
       input.jsonContract
         ? `【当前剧本（请在此基础上修改，输出完整改定稿）】\n${input.scriptRef.trim().slice(0, 40_000)}`
@@ -139,9 +152,18 @@ export function useScriptAiChat(input: {
   scriptText: string;
   onApplyScript: (
     script: string,
-    meta?: { hook?: string; tags?: string[] },
+    meta?: { hook?: string; tags?: string[]; summary?: string },
   ) => void;
+  /** 续写下一集上下文；开启后不引用全剧正文，会话默认只存本地 */
+  continueSeed?: ContinueEpisodeSeed | null;
+  /** 会话命名空间；续写用 script-ai-continue，避免污染主帮写 */
+  chatNamespace?: string;
+  /** false=不写远端 script-chat（续写弹层） */
+  persistRemote?: boolean;
+  applySuccessMessage?: string;
 }) {
+  const namespace = input.chatNamespace ?? "script-ai";
+  const persistRemote = input.persistRemote !== false;
   const [hydrated, setHydrated] = useState(false);
   const [conversations, setConversations] = useState<ScriptAiConversation[]>(
     [],
@@ -164,27 +186,37 @@ export function useScriptAiChat(input: {
     setHistoryOpen(false);
     setConversations([]);
     setActiveId("");
+    if (input.continueSeed) {
+      setScriptRefEnabled(false);
+    }
 
     void (async () => {
       try {
-        const remote = await api<unknown>(
-          `/manju/projects/${input.projectId}/script-chat`,
-        );
+        let state: ScriptProjectChatState | null = null;
+        if (persistRemote) {
+          const remote = await api<unknown>(
+            `/manju/projects/${input.projectId}/script-chat`,
+          );
+          if (cancelled) return;
+          const remoteState = normalizeScriptProjectChat(remote);
+          const legacy = readLegacy(input.projectId, namespace);
+          const useLegacy = !hasMessages(remoteState) && hasMessages(legacy);
+          state = recoverInterrupted(
+            (useLegacy ? legacy : remoteState) ?? blankState(),
+          );
+          hadRemoteRef.current = Boolean(remoteState);
+        } else {
+          const legacy = readLegacy(input.projectId, namespace);
+          state = recoverInterrupted(legacy ?? blankState());
+        }
         if (cancelled) return;
-        const remoteState = normalizeScriptProjectChat(remote);
-        const legacy = readLegacy(input.projectId);
-        const useLegacy = !hasMessages(remoteState) && hasMessages(legacy);
-        const state = recoverInterrupted(
-          (useLegacy ? legacy : remoteState) ?? blankState(),
-        );
-        hadRemoteRef.current = Boolean(remoteState);
         setConversations(state.conversations as ScriptAiConversation[]);
         setActiveId(state.activeId);
         loadedForRef.current = input.projectId;
         setHydrated(true);
       } catch (error) {
         if (cancelled || isApiCancelError(error)) return;
-        toast.error("会话加载失败");
+        if (persistRemote) toast.error("会话加载失败");
         const blank = blankState();
         setConversations(blank.conversations);
         setActiveId(blank.activeId);
@@ -196,14 +228,26 @@ export function useScriptAiChat(input: {
     return () => {
       cancelled = true;
     };
-  }, [input.projectId]);
+  }, [input.projectId, input.continueSeed, namespace, persistRemote]);
 
   useEffect(() => {
     if (!hydrated || loadedForRef.current !== input.projectId) return;
     const payload: ScriptProjectChatState = { activeId, conversations };
     const hasAny = hasMessages(payload);
+    const legacyKey = storageKey(input.projectId, namespace);
+
+    if (!persistRemote) {
+      if (hasAny) {
+        try {
+          localStorage.setItem(legacyKey, JSON.stringify(payload));
+        } catch {
+          /* ignore quota */
+        }
+      }
+      return;
+    }
+
     if (!hasAny && !hadRemoteRef.current) return;
-    const legacyKey = hasAny ? storageKey(input.projectId) : null;
     const timer = window.setTimeout(() => {
       void api(`/manju/projects/${input.projectId}/script-chat`, {
         method: "PUT",
@@ -211,7 +255,7 @@ export function useScriptAiChat(input: {
       })
         .then(() => {
           if (loadedForRef.current === input.projectId) hadRemoteRef.current = true;
-          if (legacyKey) localStorage.removeItem(legacyKey);
+          localStorage.removeItem(legacyKey);
         })
         .catch((error) => {
           if (isApiCancelError(error)) return;
@@ -219,7 +263,14 @@ export function useScriptAiChat(input: {
         });
     }, 400);
     return () => window.clearTimeout(timer);
-  }, [activeId, conversations, hydrated, input.projectId]);
+  }, [
+    activeId,
+    conversations,
+    hydrated,
+    input.projectId,
+    namespace,
+    persistRemote,
+  ]);
 
   const activeConversation = useMemo(
     () => conversations.find((c) => c.id === activeId) ?? conversations[0],
@@ -283,6 +334,7 @@ export function useScriptAiChat(input: {
             script?: string;
             hook?: string;
             tags?: string[];
+            summary?: string;
             error?: string;
           }
         | null
@@ -304,11 +356,13 @@ export function useScriptAiChat(input: {
               script: undefined,
               hook: undefined,
               tags: undefined,
+              summary: undefined,
             };
           }
           const reply = result?.reply?.trim() || "";
           const script = result?.script?.trim() || "";
           const hook = result?.hook?.trim() || "";
+          const summary = result?.summary?.trim() || "";
           const tags = Array.isArray(result?.tags)
             ? result.tags
                 .filter((t): t is string => typeof t === "string")
@@ -323,6 +377,7 @@ export function useScriptAiChat(input: {
             content: reply || (script ? "已生成剧本，可应用到右侧。" : "已完成"),
             script: script || undefined,
             hook: hook || undefined,
+            summary: summary || undefined,
             tags: tags.length ? tags : undefined,
           };
         }),
@@ -341,7 +396,13 @@ export function useScriptAiChat(input: {
       if (!jobId || pendingJobRef.current !== jobId) return;
       // script_write JSON or advisor free-form — both land in scriptWrite
       const sw = payload.result?.scriptWrite as
-        | { reply?: string; script?: string; hook?: string; tags?: string[] }
+        | {
+            reply?: string;
+            script?: string;
+            hook?: string;
+            tags?: string[];
+            summary?: string;
+          }
         | undefined;
       finishAssistant(jobId, sw ?? { reply: String(payload.result?.text ?? "") });
     },
@@ -360,7 +421,7 @@ export function useScriptAiChat(input: {
       const prompt = text.trim();
       if (!prompt || sending || !activeConversation) return;
 
-      const useRef = Boolean(opts?.scriptRef);
+      const useRef = Boolean(opts?.scriptRef) && !input.continueSeed;
       if (useRef && !input.scriptText.trim()) {
         toast.message("右侧剧本为空，无法引用润色");
         return;
@@ -400,6 +461,7 @@ export function useScriptAiChat(input: {
           history: historyForPrompt,
           scriptRef: useRef ? input.scriptText : null,
           jsonContract: skill.mode === "script_write",
+          continueSeed: input.continueSeed,
         });
         const job = await submitManjuScriptWriteJob({
           projectId: input.projectId,
@@ -431,6 +493,7 @@ export function useScriptAiChat(input: {
     },
     [
       activeConversation,
+      input.continueSeed,
       input.modelId,
       input.projectId,
       input.scriptText,
@@ -464,14 +527,18 @@ export function useScriptAiChat(input: {
     (messageId: string) => {
       const msg = messages.find((m) => m.id === messageId);
       if (!msg?.script?.trim()) return;
-      input.onApplyScript(msg.script, { hook: msg.hook, tags: msg.tags });
+      input.onApplyScript(msg.script, {
+        hook: msg.hook,
+        tags: msg.tags,
+        summary: msg.summary,
+      });
       patchActive((c) => ({
         ...c,
         messages: c.messages.map((m) =>
           m.id === messageId ? { ...m, scriptApplied: true } : m,
         ),
       }));
-      toast.success("已应用到右侧剧本");
+      toast.success(input.applySuccessMessage ?? "已应用到右侧剧本");
     },
     [input, messages, patchActive],
   );

@@ -342,6 +342,7 @@ export class ImageProcessor extends WorkerHost {
         status: "failed",
         error: message,
         requested,
+        kind: "image",
       });
       throw error;
     }

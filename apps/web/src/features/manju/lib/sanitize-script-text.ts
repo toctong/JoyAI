@@ -1,9 +1,9 @@
 /**
- * 整理帮写正文：钩子移出可拍正文，供写入分集 hook。
+ * 整理帮写正文：钩子/预告元标注移出可拍正文，供写入分集 hook。
  */
 
 const HOOK_RE =
-  /(?:\n|^)\s*本集钩子[：:]\s*([\s\S]*?)\s*$/u;
+  /(?:\n|^)\s*(?:本集钩子|下集预告|下集钩子|剧集钩子)[：:]\s*([\s\S]*?)\s*$/u;
 
 export function sanitizeScriptBody(raw: string): {
   script: string;

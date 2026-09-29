@@ -223,6 +223,11 @@ export const ManjuAnalyzeAssetItemSchema = z.object({
   name: z.string().min(1),
   description: z.string().default(""),
   aliases: z.array(z.string()).default([]),
+  /**
+   * 跨镜/跨集应保持不变的短约束（发型、标志物、色调等）。
+   * 可选；回写时并入 description，旧稿无此字段仍兼容。
+   */
+  continuityLock: z.string().default(""),
 });
 export const ManjuAnalyzeEpisodeSchema = z.object({
   title: z.string().min(1),
@@ -236,6 +241,11 @@ export const ManjuAnalyzeShotSchema = z.object({
   assetNames: z.array(z.string()).default([]),
   /** 所属分集标题，须与已登记 episodes.title 一致 */
   episodeTitle: z.string().default(""),
+  /** 镜头简称；可选 */
+  title: z.string().default(""),
+  shotSize: z.string().default(""),
+  cameraAngle: z.string().default(""),
+  cameraMove: z.string().default(""),
 });
 export const ManjuAnalyzeResultSchema = z.object({
   overview: z.string().default(""),
@@ -289,6 +299,42 @@ export const ManjuEpisodePlanResultSchema = z.object({
 });
 export type ManjuEpisodePlanResult = z.infer<typeof ManjuEpisodePlanResultSchema>;
 
+/** 长文拆集：梗概 + 题材 + 分集草案（含原文引文） */
+export const ManjuNovelAnalyzeResultSchema = z.object({
+  overview: z.string().default(""),
+  tags: z.preprocess((v) => {
+    if (Array.isArray(v)) {
+      return v.map((t) => String(t).trim()).filter(Boolean);
+    }
+    if (typeof v === "string" && v.trim()) {
+      return v
+        .split(/[,，、|/]/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+    }
+    return [];
+  }, z.array(z.string()).default([])),
+  episodes: ManjuEpisodePlanResultSchema.shape.episodes,
+});
+export type ManjuNovelAnalyzeResult = z.infer<
+  typeof ManjuNovelAnalyzeResultSchema
+>;
+
+/** 项目只读检查报告（不改稿） */
+export const ManjuReviewFindingSchema = z.object({
+  severity: z.enum(["error", "warn", "info"]).default("warn"),
+  code: z.string().min(1),
+  message: z.string().min(1),
+  /** 如「资产:小美」「#3」「第1集」 */
+  target: z.string().default(""),
+});
+export const ManjuReviewResultSchema = z.object({
+  summary: z.string().default(""),
+  findings: z.array(ManjuReviewFindingSchema).default([]),
+});
+export type ManjuReviewResult = z.infer<typeof ManjuReviewResultSchema>;
+export type ManjuReviewFinding = z.infer<typeof ManjuReviewFindingSchema>;
+
 /** 连载记忆技能的 JSON。不写镜头、对白或提示词 */
 export const ManjuSeriesMemoryResultSchema = z.object({
   world: z.string().default(""),
@@ -315,6 +361,8 @@ export const ManjuScriptWriteResultSchema = z.object({
   hook: z.string().default(""),
   /** 题材标签（应用剧本时写入草稿，不可手改） */
   tags: z.array(z.string()).default([]),
+  /** 可选：本集摘要一句；续写下一集时写入分集 summary */
+  summary: z.string().default(""),
 });
 export type ManjuScriptWriteResult = z.infer<
   typeof ManjuScriptWriteResultSchema
@@ -466,6 +514,16 @@ export const ManjuDraftSchema = z.object({
   series: ManjuSeriesSchema.default({}),
   completedSteps: z.array(ManjuStepIdSchema).default([]),
   lastAnalyzeJobId: z.string().nullable().optional(),
+  /** 最近一次 manju_review 报告（只读，不改资产/镜头） */
+  lastReview: z
+    .object({
+      jobId: z.string().nullable().default(null),
+      summary: z.string().default(""),
+      findings: z.array(ManjuReviewFindingSchema).default([]),
+      updatedAt: z.string().default(""),
+    })
+    .nullable()
+    .optional(),
   /** 本地 time-machine 快照（嵌在 draft JSON 内） */
   draftSnapshots: z
     .array(

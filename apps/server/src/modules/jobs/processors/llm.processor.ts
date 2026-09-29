@@ -8,11 +8,14 @@ import {
   ManjuAnalyzeResultSchema,
   ManjuAuthorPromptSchema,
   ManjuEpisodePlanResultSchema,
+  ManjuNovelAnalyzeResultSchema,
+  ManjuReviewResultSchema,
   ManjuScriptWriteResultSchema,
   ManjuSeriesMemoryResultSchema,
   QUEUE,
   type LlmJobInput,
   type ManjuAnalyzeResult,
+  type ManjuReviewResult,
   type ManjuScriptWriteResult,
 } from "@joyai/shared";
 import { Job } from "../../../database/entities/job.entity";
@@ -53,6 +56,8 @@ const MANJU_PIPELINE_PURPOSES = new Set([
   "author_prompts",
   "series_memory",
   "plan_episodes",
+  "novel_analyze",
+  "manju_review",
   "script_write",
   "reverse_prompt",
   "prompt_optimize",
@@ -157,6 +162,7 @@ export class LlmProcessor extends WorkerHost {
           ? [
               "请严格按系统约定，只输出一个 JSON 对象（不要解释、不要 markdown 代码围栏）。",
               "必须填写：overview（一两句梗概）、tags（2～5 个题材标签）、characters、scenes、props、episodes（至少 1 集）。",
+              "每个资产的 description 必须是识别锚点（可见外形/空间事实），可填 aliases 与 continuityLock（没有则空数组/空字符串）。",
               "只根据下方剧本原文抽取，不要编造原文没有的角色或设定。",
               "",
               "【剧本原文】",
@@ -189,6 +195,7 @@ export class LlmProcessor extends WorkerHost {
 
       let analyze: ManjuAnalyzeResult | null = null;
       let scriptWrite: ManjuScriptWriteResult | null = null;
+      let review: ManjuReviewResult | null = null;
       if (
         purpose === "analyze_assets" ||
         purpose === "split_shots" ||
@@ -266,6 +273,31 @@ export class LlmProcessor extends WorkerHost {
           jobId,
           parsed.data.episodes,
         );
+      } else if (purpose === "novel_analyze" && input.manjuProjectId) {
+        const raw = extractJsonObject(result.text);
+        const parsed = ManjuNovelAnalyzeResultSchema.safeParse(raw);
+        if (!parsed.success) {
+          throw new Error(`长文拆集 JSON 不符合约定: ${parsed.error.message}`);
+        }
+        await this.manju.applyNovelAnalyze(
+          job.userId,
+          input.manjuProjectId,
+          jobId,
+          parsed.data,
+        );
+      } else if (purpose === "manju_review" && input.manjuProjectId) {
+        const raw = extractJsonObject(result.text);
+        const parsed = ManjuReviewResultSchema.safeParse(raw);
+        if (!parsed.success) {
+          throw new Error(`检查报告 JSON 不符合约定: ${parsed.error.message}`);
+        }
+        review = parsed.data;
+        await this.manju.applyManjuReview(
+          job.userId,
+          input.manjuProjectId,
+          jobId,
+          parsed.data,
+        );
       } else if (purpose === "script_write") {
         const raw = extractJsonObject(result.text);
         const parsed = ManjuScriptWriteResultSchema.safeParse(raw);
@@ -289,6 +321,7 @@ export class LlmProcessor extends WorkerHost {
           script: "",
           hook: "",
           tags: [],
+          summary: "",
         };
       }
 
@@ -336,6 +369,7 @@ export class LlmProcessor extends WorkerHost {
         purpose,
         analyze,
         scriptWrite,
+        review,
         manjuProjectId: input.manjuProjectId ?? null,
         canvasProjectId: input.canvasProjectId ?? null,
         canvasNodeId: input.canvasNodeId ?? null,
@@ -366,9 +400,13 @@ export class LlmProcessor extends WorkerHost {
         error: message,
         finishedAt: new Date(),
       });
+      const failedPurpose =
+        (job.input as LlmJobInput | null)?.purpose ?? "chat";
       this.realtime.emitJob(job.userId, "job:failed", {
         jobId,
         error: message,
+        purpose: failedPurpose,
+        kind: "llm",
       });
     }
   }

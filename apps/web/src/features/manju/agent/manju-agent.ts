@@ -9,7 +9,7 @@ export const MANJU_AGENT_SYSTEM = `你是 FrameRally 漫剧工作台助手。每
 
 可用 actions（name + args），每轮最多 4 个：
 - navigate：{"section":"overview"|"source"|"characters"|"scenes"|"props"|"settings"|"episode"|"preview","episodeId"?:string}
-- run_skill：{"skill":"analyze_assets"|"plan_episodes"|"series_memory"|"script_plan"|"author_prompts"}
+- run_skill：{"skill":"analyze_assets"|"plan_episodes"|"series_memory"|"script_plan"|"author_prompts"|"novel_analyze"|"manju_review"}
 - confirm_script：无参数（确认分镜脚本审核门）
 - select_shot：{"shotId":string}（仅提示前端选中，不生成）
 - list_status：无参数（查看项目摘要）
@@ -18,7 +18,8 @@ export const MANJU_AGENT_SYSTEM = `你是 FrameRally 漫剧工作台助手。每
 1. 优先少步。任务完成时 actions 为 []。
 2. 生成类 skill 会提交异步 Job；说明即可，不要假装已完成。
 3. 不要输出 base64；不要删除项目。
-4. 纯聊天时 actions 为 []。`;
+4. 纯聊天时 actions 为 []。
+5. novel_analyze 用于长文拆集；manju_review 只出检查报告不改稿。主漏斗优先 analyze_assets，勿主动推 series_memory。`;
 
 export type ManjuAgentAction =
   | {
@@ -33,7 +34,9 @@ export type ManjuAgentAction =
           | "plan_episodes"
           | "series_memory"
           | "script_plan"
-          | "author_prompts";
+          | "author_prompts"
+          | "novel_analyze"
+          | "manju_review";
       };
     }
   | { name: "confirm_script" }
@@ -61,6 +64,8 @@ const SKILLS = new Set([
   "series_memory",
   "script_plan",
   "author_prompts",
+  "novel_analyze",
+  "manju_review",
 ]);
 
 const SECTIONS = new Set<ManjuStudioSection>([
@@ -121,7 +126,9 @@ export function parseManjuAgentPlan(text: string): ManjuAgentPlan {
                 | "plan_episodes"
                 | "series_memory"
                 | "script_plan"
-                | "author_prompts",
+                | "author_prompts"
+                | "novel_analyze"
+                | "manju_review",
             },
           });
         } else if (name === "confirm_script") {

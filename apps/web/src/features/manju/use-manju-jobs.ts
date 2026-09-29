@@ -12,6 +12,10 @@ import {
   takeGridJob,
 } from "./lib/grid-jobs";
 import { isManjuAssetSubmitPending } from "./lib/pending-asset-submit";
+import {
+  manjuJobKindLabel,
+  manjuPurposeLabel,
+} from "./lib/manju-job-labels";
 
 type JobAsset = {
   id: string;
@@ -138,7 +142,9 @@ export function useManjuJobBridge(activeProjectId?: string) {
           purpose === "script_plan" ||
           purpose === "author_prompts" ||
           purpose === "series_memory" ||
-          purpose === "plan_episodes") &&
+          purpose === "plan_episodes" ||
+          purpose === "novel_analyze" ||
+          purpose === "manju_review") &&
         manjuProjectId
       ) {
         void loadProject(manjuProjectId)
@@ -152,7 +158,11 @@ export function useManjuJobBridge(activeProjectId?: string) {
                     ? "连载记忆已写入"
                     : purpose === "plan_episodes"
                       ? "分集规划已写入"
-                      : "AI 解析完成：题材标签、梗概与资产已写入",
+                      : purpose === "novel_analyze"
+                        ? "长文拆集完成：梗概、标签与分集已写入"
+                        : purpose === "manju_review"
+                          ? "制作检查报告已生成"
+                          : "AI 解析完成：题材标签、梗概与资产已写入",
             );
           })
           .catch(() => {
@@ -194,7 +204,15 @@ export function useManjuJobBridge(activeProjectId?: string) {
       jobId?: string;
       error?: string;
       status?: string;
-      job?: { id?: string; error?: string | null; status?: string };
+      purpose?: string;
+      kind?: string;
+      job?: {
+        id?: string;
+        error?: string | null;
+        status?: string;
+        kind?: string;
+        input?: { purpose?: string } | null;
+      };
     }) => {
       const jobId = resolveJobId(payload);
       if (!jobId) return;
@@ -213,9 +231,17 @@ export function useManjuJobBridge(activeProjectId?: string) {
       const err = payload.error || payload.job?.error || "生成失败";
       if (status === "cancelled" || err === "已中断") {
         toast.message("已停止生成");
-      } else {
-        toast.error(err);
+        return;
       }
+      const purpose =
+        payload.purpose ??
+        payload.job?.input?.purpose ??
+        null;
+      const kind = payload.kind ?? payload.job?.kind ?? null;
+      const label = purpose
+        ? manjuPurposeLabel(purpose)
+        : manjuJobKindLabel(kind);
+      toast.error(`${label}失败：${err}`);
     },
     [activeProjectId, applyJobResult, setAnalyzing],
   );

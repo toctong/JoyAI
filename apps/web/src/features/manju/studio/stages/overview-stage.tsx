@@ -9,6 +9,8 @@ import { useManjuStore } from "../../manju-store";
 import { draftFromProject } from "../../manju-api";
 import { manjuStudioHref } from "../manju-studio-routes";
 import type { ManjuProjectDraft } from "../../manju-types";
+import { ManjuReviewButton } from "../manju-review-button";
+import { submitWorkflowSkill } from "../../lib/workflow-skill";
 
 export function OverviewStage({ projectId }: { projectId: string }) {
   const project = useManjuStore((s) =>
@@ -16,6 +18,8 @@ export function OverviewStage({ projectId }: { projectId: string }) {
   );
   const updateProject = useManjuStore((s) => s.updateProject);
   const flushSave = useManjuStore((s) => s.flushSave);
+  const setAnalyzing = useManjuStore((s) => s.setAnalyzing);
+  const analyzing = useManjuStore((s) => Boolean(s.analyzingIds[projectId]));
 
   const gridShots = useMemo(() => {
     if (!project) return [];
@@ -121,12 +125,55 @@ export function OverviewStage({ projectId }: { projectId: string }) {
     toast.success("已恢复快照");
   };
 
+  const runNovelAnalyze = async () => {
+    if (!project.scriptText.trim()) {
+      toast.error("请先录入长文或剧本");
+      return;
+    }
+    const ok = await confirmDialog({
+      title: "长文拆集？",
+      description:
+        "将根据正文生成梗概、题材标签与分集草案（含原文起止引文）。不改动已有资产与镜头；已有分集标题可被调整。",
+      confirmText: "开始拆集",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    try {
+      setAnalyzing(projectId, true);
+      await flushSave(projectId);
+      const job = await submitWorkflowSkill({
+        project,
+        skill: "novel_analyze",
+      });
+      updateProject(projectId, { lastAnalyzeJobId: job.id });
+      toast.message("AI 正在长文拆集…");
+    } catch (e) {
+      setAnalyzing(projectId, false);
+      toast.error(e instanceof Error ? e.message : "提交失败");
+    }
+  };
+
   return (
     <div className="manju-overview">
-      <h1 className="manju-overview__title">{project.title}</h1>
-      <p className="manju-overview__lede">
-        三栏工作室：左侧导航设定与分集，中间主舞台制作，右侧 Agent 编排技能。
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="manju-overview__title">{project.title}</h1>
+          <p className="manju-overview__lede">
+            三栏工作室：左侧导航设定与分集，中间主舞台制作，右侧 Agent 编排技能。
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <ManjuReviewButton projectId={projectId} />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={analyzing || !project.scriptText.trim()}
+            onClick={() => void runNovelAnalyze()}
+          >
+            {analyzing ? "处理中…" : "长文拆集"}
+          </Button>
+        </div>
+      </div>
       <div className="manju-overview__grid">
         {cards.map((card) => (
           <Link key={card.href} href={card.href} className="manju-overview__card">

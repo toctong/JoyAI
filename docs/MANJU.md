@@ -7,9 +7,11 @@
 | 来源 | 只借鉴 | 不借鉴 |
 |------|--------|--------|
 | [ArcReel](https://github.com/ArcReel/ArcReel) drama | 三栏 Studio IA、阶段顺序、资产一致性、分集、确认后再写提示词、按名称/镜号非破坏合并 | AGPL 源码、Claude Agent SDK / MCP、ComfyUI、旁白 TTS |
+| [drama-skills](https://github.com/zenstory-ai/drama-skills) | 阶段职责、写作/资产连续性/分镜规则（改写进我们的 purpose） | Agent Skill 运行时、五份 Markdown 真源、Python dashboard、整段 SKILL 粘贴 |
 | [Toonflow](https://github.com/HBAI-Ltd/Toonflow-app) | 双向画布对接时可再对照 | 不要把 Vue Flow 工作台搬进漫剧 |
 
-只读流程与数据结构，用本仓栈重写。禁止整页/整模块/提示词原文粘贴。
+只读流程与数据结构，用本仓栈重写。禁止整页/整模块/提示词原文粘贴。  
+drama-skills 落地清单见 [MANJU-SKILLS-ADOPTION.md](./MANJU-SKILLS-ADOPTION.md)。
 
 ## 2. 产品形态
 
@@ -23,7 +25,8 @@
 | `/manju/[id]/source` | 剧本正文 |
 | `/manju/[id]/characters` · `/scenes` · `/props` | 设定库 |
 | `/manju/[id]/settings` | 视频设定 |
-| `/manju/[id]/episodes/[epId]` | 分镜主舞台（镜头详情 / 卡片 / 提示词 / 视频） |
+| `/manju/[id]/episodes` | 剧集管理（列表） |
+| `/manju/[id]/episodes/[epId]` | **制作视频新开 tab**：分镜制作台 |
 | `/manju/[id]/preview` | 预览与导出 |
 
 壳：顶栏阶段条 + 左资产/分集侧栏 + 中主舞台 + 右 Agent（可拖宽度）。旧 `?step=` / `?panel=` 会重定向到上述路径。
@@ -53,7 +56,9 @@
 | purpose | 作用 |
 |---------|------|
 | `script_write` | AI 帮写对话（用户点「应用」） |
-| `analyze_assets` | 梗概、角色/场景/道具、分集标题 |
+| `analyze_assets` | 梗概、题材标签、角色/场景/道具（识别锚点 + aliases）、分集标题；`clear_reparse` 清资产/标签/梗概，**保留**分集与已生成剧集视频 |
+| `novel_analyze` | 长文 → 梗概 / 题材标签 / 分集草案（含原文引文）；不改资产与镜头 |
+| `manju_review` | 只读制作检查报告 → `draft.lastReview` |
 | `plan_episodes` | 分集 + 原文切片 |
 | `series_memory` | 世界观 / 小传 / 伏笔 |
 | `script_plan` | 镜头画面、对白、资产名 |

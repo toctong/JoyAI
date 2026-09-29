@@ -22,6 +22,8 @@ import {
   ManjuParseScriptDialog,
   type ManjuAnalyzeMode,
 } from "../studio/manju-parse-script-dialog";
+import { ManjuReviewButton } from "../studio/manju-review-button";
+import { submitWorkflowSkill } from "../lib/workflow-skill";
 import {
   type ManjuEpisodeDraft,
   type ManjuProjectDraft,
@@ -158,6 +160,34 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     setParseOpen(true);
   };
 
+  const runNovelAnalyze = async () => {
+    if (project.scriptText.trim().length < 80) {
+      toast.error("长文拆集需要更完整的正文（建议数百字以上）");
+      return;
+    }
+    const ok = await confirmDialog({
+      title: "长文拆集？",
+      description:
+        "生成梗概、题材标签与分集草案。不改资产与镜头；适合小说/长剧本先切集再解析资产。",
+      confirmText: "开始拆集",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    try {
+      setAnalyzing(project.id, true);
+      await flushSave(project.id);
+      const job = await submitWorkflowSkill({
+        project,
+        skill: "novel_analyze",
+      });
+      updateProject(project.id, { lastAnalyzeJobId: job.id });
+      toast.message("AI 正在长文拆集…");
+    } catch (e) {
+      setAnalyzing(project.id, false);
+      toast.error(e instanceof Error ? e.message : "提交失败");
+    }
+  };
+
   const applyImportedText = async (text: string) => {
     if (project.scriptText.trim()) {
       const ok = await confirmDialog({
@@ -253,6 +283,15 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
             )}
             {analyzing ? "解析中…" : "解析剧本"}
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={analyzing}
+            onClick={() => void runNovelAnalyze()}
+          >
+            长文拆集
+          </Button>
+          <ManjuReviewButton projectId={project.id} />
         </div>
       </div>
 

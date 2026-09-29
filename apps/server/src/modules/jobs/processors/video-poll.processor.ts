@@ -153,6 +153,7 @@ export class VideoPollProcessor extends WorkerHost {
         jobId: job.id,
         status: "failed",
         error: result.error,
+        kind: "video",
       });
       return;
     }
@@ -169,6 +170,7 @@ export class VideoPollProcessor extends WorkerHost {
         jobId: job.id,
         status: "failed",
         error: timeoutMsg,
+        kind: "video",
       });
       return;
     }

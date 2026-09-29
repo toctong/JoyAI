@@ -49,6 +49,7 @@ import { useManjuStore } from "../../manju-store";
 import { submitManjuAnalyzeJob } from "../../manju-api";
 import { ManjuTextField } from "../../manju-text-field";
 import { ManjuExportDialog } from "../manju-export-dialog";
+import { EpisodeContinueDialog } from "../episode-continue-dialog";
 import { manjuStudioHref } from "../manju-studio-routes";
 import type { ManjuEpisodeDraft, ManjuProjectDraft } from "../../manju-types";
 
@@ -119,6 +120,9 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
   const [detailIndex, setDetailIndex] = useState("");
   const [detailTitle, setDetailTitle] = useState("");
   const [detailContent, setDetailContent] = useState("");
+  const [detailHook, setDetailHook] = useState("");
+  const [detailSummary, setDetailSummary] = useState("");
+  const [continueFromId, setContinueFromId] = useState<string | null>(null);
 
   const episodes = project?.episodes ?? [];
 
@@ -177,6 +181,8 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
     setDetailIndex(String(idx + 1));
     setDetailTitle(ep.title);
     setDetailContent(ep.sourceText ?? "");
+    setDetailHook(ep.hook ?? "");
+    setDetailSummary(ep.summary ?? "");
   };
 
   const saveDetail = () => {
@@ -200,8 +206,19 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
       ...ep,
       title,
       sourceText: detailContent,
+      hook: detailHook.trim(),
+      summary: detailSummary.trim(),
     });
     updateProject(projectId, { episodes: next });
+  };
+
+  const openContinue = (epId: string) => {
+    const ep = project.episodes.find((e) => e.id === epId);
+    if (!ep) return;
+    if (!ep.hook?.trim() && !ep.sourceText?.trim()) {
+      toast.message("建议先补本集钩子或原文，续写效果更好");
+    }
+    setContinueFromId(epId);
   };
 
   const closeDetail = () => {
@@ -497,6 +514,15 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                           type="button"
                           variant="outline"
                           size="sm"
+                          onClick={() => openContinue(ep.id)}
+                        >
+                          <PenLine className="size-3.5" />
+                          AI 写下一集
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
                           onClick={() => toast.message("BGM 制作即将接入")}
                         >
                           <Music2 className="size-3.5" />
@@ -545,6 +571,12 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                         <Eye className="size-3.5" />
                         查看详情
                       </DropdownMenuItem>
+                      {!pending ? (
+                        <DropdownMenuItem onClick={() => openContinue(ep.id)}>
+                          <PenLine className="size-3.5" />
+                          AI 写下一集
+                        </DropdownMenuItem>
+                      ) : null}
                       {pending ? (
                         <DropdownMenuItem
                           disabled={analyzing}
@@ -581,6 +613,15 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
         draft={createDraft}
         onChange={setCreateDraft}
         onConfirm={createEpisode}
+      />
+
+      <EpisodeContinueDialog
+        projectId={projectId}
+        fromEpisodeId={continueFromId}
+        open={Boolean(continueFromId)}
+        onOpenChange={(next) => {
+          if (!next) setContinueFromId(null);
+        }}
       />
 
       <ProduceDialog
@@ -632,19 +673,34 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                   开始解析
                 </Button>
               ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
-                    if (!detailEpId) return;
-                    saveDetail();
-                    setDetailEpId(null);
-                    openProduceTab(projectId, detailEpId);
-                  }}
-                >
-                  <Wand2 className="size-3.5" />
-                  制作视频
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (!detailEpId) return;
+                      saveDetail();
+                      openContinue(detailEpId);
+                    }}
+                  >
+                    <PenLine className="size-3.5" />
+                    AI 写下一集
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      if (!detailEpId) return;
+                      saveDetail();
+                      setDetailEpId(null);
+                      openProduceTab(projectId, detailEpId);
+                    }}
+                  >
+                    <Wand2 className="size-3.5" />
+                    制作视频
+                  </Button>
+                </>
               )}
             </div>
           </SheetHeader>
@@ -670,6 +726,24 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                     value={detailTitle}
                     onChange={(e) => setDetailTitle(e.target.value)}
                     placeholder="为本集起个名字"
+                  />
+                </div>
+                <div className="manju-ep-detail-sheet__field">
+                  <Label htmlFor="ep-detail-summary">本集摘要</Label>
+                  <Input
+                    id="ep-detail-summary"
+                    value={detailSummary}
+                    onChange={(e) => setDetailSummary(e.target.value)}
+                    placeholder="一两句本集发生什么"
+                  />
+                </div>
+                <div className="manju-ep-detail-sheet__field">
+                  <Label htmlFor="ep-detail-hook">本集钩子</Label>
+                  <Input
+                    id="ep-detail-hook"
+                    value={detailHook}
+                    onChange={(e) => setDetailHook(e.target.value)}
+                    placeholder="结尾悬念，供 AI 写下一集承接"
                   />
                 </div>
               </div>

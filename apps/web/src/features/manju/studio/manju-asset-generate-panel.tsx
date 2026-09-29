@@ -27,6 +27,8 @@ import type { ToolPendingRef } from "@/features/ai-tools/use-ai-tool-job";
 import { ManjuLibraryImport } from "../manju-library-import";
 import { RATIO_OPTIONS, type ManjuAssetDraft } from "../manju-types";
 import { preferredAssetRatio } from "../lib/prompt-builders";
+import { manjuConfirmGenerateCopy } from "../lib/manju-job-labels";
+import { confirmDialog } from "@/shared/lib/confirm";
 import "@/features/studio/creation-composer.css";
 import "@/features/ai-tools/ai-tools.css";
 import "./manju-asset-generate-panel.css";
@@ -194,6 +196,25 @@ export function ManjuAssetGeneratePanel({
         : "道具";
 
   const handleGenerate = async () => {
+    if (!prompt.trim()) {
+      toast.error("请先填写提示词");
+      return;
+    }
+    const confirm = manjuConfirmGenerateCopy({
+      kind: "image",
+      scope: "asset",
+      name: asset.name,
+      ratio,
+      refCount: refs.length,
+    });
+    const ok = await confirmDialog({
+      title: confirm.title,
+      description: confirm.description,
+      confirmText: confirm.confirmText,
+      cancelText: "取消",
+    });
+    if (!ok) return;
+
     const uploadedIds: string[] = [];
     for (const ref of refs) {
       const libId = (ref.file as File & { __manjuLibAssetId?: string })

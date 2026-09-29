@@ -9,6 +9,7 @@ import {
   ImageIcon,
   MapPin,
   Package,
+  PenLine,
   Plus,
   Sparkles,
   Star,
@@ -48,6 +49,9 @@ import {
 } from "../../lib/prompt-builders";
 import { submitImageJob, submitVideoJob } from "../../use-manju-jobs";
 import { ManjuAssetPicker } from "../../manju-asset-picker";
+import { submitWorkflowSkill } from "../../lib/workflow-skill";
+import { manjuConfirmGenerateCopy } from "../../lib/manju-job-labels";
+import { EpisodeContinueDialog } from "../episode-continue-dialog";
 
 const SHOT_SIZES = ["远景", "全景", "中景", "近景", "特写", "大特写"] as const;
 const CAMERA_ANGLES = ["平视", "俯视", "仰视", "侧面", "斜角"] as const;
@@ -99,8 +103,12 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
     s.projects.find((p) => p.id === projectId),
   );
   const updateShot = useManjuStore((s) => s.updateShot);
+  const updateProject = useManjuStore((s) => s.updateProject);
   const addShot = useManjuStore((s) => s.addShot);
   const removeShot = useManjuStore((s) => s.removeShot);
+  const flushSave = useManjuStore((s) => s.flushSave);
+  const setAnalyzing = useManjuStore((s) => s.setAnalyzing);
+  const analyzing = useManjuStore((s) => Boolean(s.analyzingIds[projectId]));
   const bindJobToShotStoryboard = useManjuStore(
     (s) => s.bindJobToShotStoryboard,
   );
@@ -111,6 +119,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
   const [libraryTab, setLibraryTab] = useState<LibraryTab>("current");
   const [libraryFilter, setLibraryFilter] = useState<LibraryFilter>("all");
   const [previewKind, setPreviewKind] = useState<"image" | "video">("image");
+  const [continueOpen, setContinueOpen] = useState(false);
 
   const episode = project?.episodes.find((e) => e.id === episodeId);
   const epIndex = Math.max(
@@ -217,6 +226,87 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
     toast.success("已新增分镜");
   };
 
+  const handlePlanShots = async () => {
+    if (!project) return;
+    const source =
+      episode?.sourceText?.trim() || project.scriptText.trim();
+    if (!source) {
+      toast.error("本集还没有原文，请先在剧本页写好或解析分集");
+      return;
+    }
+    const hasMedia = shots.some((s) => s.storyboardImageUrl || s.videoUrl);
+    if (shots.length > 0) {
+      const ok = await confirmDialog({
+        title: "重新规划本集分镜？",
+        description: hasMedia
+          ? "只会合并当前分集的镜头，其他集的图和视频会保留。"
+          : "将按本集原文重新规划分镜表。",
+        confirmText: "继续规划",
+        cancelText: "取消",
+      });
+      if (!ok) return;
+    }
+    try {
+      setAnalyzing(projectId, true);
+      await flushSave(projectId);
+      await submitWorkflowSkill({
+        project,
+        skill: "script_plan",
+        episodeId,
+      });
+      toast.success("已提交本集分镜规划");
+    } catch (e) {
+      setAnalyzing(projectId, false);
+      toast.error(e instanceof Error ? e.message : "提交失败");
+    }
+  };
+
+  const ensureScriptConfirmed = async (): Promise<boolean> => {
+    if (project.scriptConfirmed) return true;
+    const ok = await confirmDialog({
+      title: "确认本集分镜脚本？",
+      description:
+        "编写提示词前需确认脚本。确认后解锁 AI 写词与视频生成；之后改画面/对白会再次要求确认。",
+      confirmText: "确认脚本",
+      cancelText: "取消",
+    });
+    if (!ok) return false;
+    updateProject(projectId, { scriptConfirmed: true });
+    toast.success("脚本已确认");
+    return true;
+  };
+
+  const handleAuthorPrompts = async (mode: "episode" | "shot") => {
+    if (!project) return;
+    if (shots.length === 0) {
+      toast.error("请先规划或新增分镜");
+      return;
+    }
+    if (mode === "shot" && !selected) {
+      toast.error("请先选择一个分镜");
+      return;
+    }
+    if (!(await ensureScriptConfirmed())) return;
+    try {
+      setAnalyzing(projectId, true);
+      await flushSave(projectId);
+      await submitWorkflowSkill({
+        project: { ...project, scriptConfirmed: true },
+        skill: "author_prompts",
+        episodeId,
+        shotIndexes: mode === "shot" && selected ? [selected.index] : undefined,
+      });
+      toast.success(
+        mode === "shot"
+          ? `已提交镜 #${selected!.index} 提示词任务`
+          : "已提交本集提示词任务",
+      );
+    } catch (e) {
+      setAnalyzing(projectId, false);
+      toast.error(e instanceof Error ? e.message : "提交失败");
+    }
+  };
+
   const handleDeleteShot = async (shot: ManjuShotDraft) => {
     const ok = await confirmDialog({
       title: "删除分镜？",
@@ -240,10 +330,30 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       toast.message("多宫格模式请回到分镜卡片页批量生成");
       return;
     }
+    const slots = resolveShotReferenceSlots(selected, project);
+    const { referenceAssetIds, referenceUrls } =
+      referenceMediaFromSlots(slots);
+    const confirm = manjuConfirmGenerateCopy({
+      kind: "image",
+      scope: "shot",
+      name: shotLabel(selected, epIndex).full,
+      ratio: project.settings.ratio,
+      refCount:
+        (genTab === "i2i" || referenceAssetIds.length
+          ? referenceAssetIds.length
+          : 0) +
+        (genTab === "i2i" || referenceUrls.length
+          ? referenceUrls.length
+          : 0),
+    });
+    const ok = await confirmDialog({
+      title: confirm.title,
+      description: confirm.description,
+      confirmText: confirm.confirmText,
+      cancelText: "取消",
+    });
+    if (!ok) return;
     try {
-      const slots = resolveShotReferenceSlots(selected, project);
-      const { referenceAssetIds, referenceUrls } =
-        referenceMediaFromSlots(slots);
       const job = await submitImageJob({
         prompt: buildShotImagePrompt(selected, project),
         ratio: project.settings.ratio,
@@ -277,24 +387,38 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       toast.error("请先完成分镜描述、提示词或分镜图");
       return;
     }
+    const mode = resolveManjuGenMode(project.settings.mode);
+    if (mode === "i2v" && !selected.storyboardImageUrl) {
+      toast.error("图生视频需要先有分镜静帧");
+      return;
+    }
+    const slots = resolveShotReferenceSlots(selected, project);
+    const fromAssets = referenceMediaFromSlots(slots);
+    const referenceAssetIds: string[] = [];
+    const referenceUrls: string[] = [];
+    if (mode === "ref") {
+      referenceAssetIds.push(...fromAssets.referenceAssetIds);
+      referenceUrls.push(...fromAssets.referenceUrls);
+    } else if (selected.storyboardAssetId) {
+      referenceAssetIds.push(selected.storyboardAssetId);
+    } else if (selected.storyboardImageUrl) {
+      referenceUrls.push(selected.storyboardImageUrl);
+    }
+    const confirm = manjuConfirmGenerateCopy({
+      kind: "video",
+      scope: "shot",
+      name: shotLabel(selected, epIndex).full,
+      ratio: project.settings.ratio,
+      refCount: referenceAssetIds.length + referenceUrls.length,
+    });
+    const ok = await confirmDialog({
+      title: confirm.title,
+      description: confirm.description,
+      confirmText: confirm.confirmText,
+      cancelText: "取消",
+    });
+    if (!ok) return;
     try {
-      const mode = resolveManjuGenMode(project.settings.mode);
-      if (mode === "i2v" && !selected.storyboardImageUrl) {
-        toast.error("图生视频需要先有分镜静帧");
-        return;
-      }
-      const slots = resolveShotReferenceSlots(selected, project);
-      const fromAssets = referenceMediaFromSlots(slots);
-      const referenceAssetIds: string[] = [];
-      const referenceUrls: string[] = [];
-      if (mode === "ref") {
-        referenceAssetIds.push(...fromAssets.referenceAssetIds);
-        referenceUrls.push(...fromAssets.referenceUrls);
-      } else if (selected.storyboardAssetId) {
-        referenceAssetIds.push(selected.storyboardAssetId);
-      } else if (selected.storyboardImageUrl) {
-        referenceUrls.push(selected.storyboardImageUrl);
-      }
       const duration =
         selected.duration && selected.duration > 0
           ? selected.duration
@@ -400,8 +524,26 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
           <span className="manju-produce__crumb manju-produce__crumb--muted">
             风格：{project.settings.style || "默认"}
           </span>
+          <div className="ml-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setContinueOpen(true)}
+            >
+              <PenLine className="size-3.5" />
+              续写下集
+            </Button>
+          </div>
         </div>
       </header>
+
+      <EpisodeContinueDialog
+        projectId={projectId}
+        fromEpisodeId={continueOpen ? episodeId : null}
+        open={continueOpen}
+        onOpenChange={setContinueOpen}
+      />
 
       <div className="manju-produce__body">
         {/* 左：分镜表 */}
@@ -414,10 +556,26 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
             {shots.length === 0 ? (
               <div className="manju-produce__shots-empty">
                 <p>本集暂无分镜</p>
-                <Button type="button" size="sm" onClick={handleAddShot}>
-                  <Plus className="size-3.5" />
-                  新增分镜
-                </Button>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={analyzing}
+                    onClick={() => void handlePlanShots()}
+                  >
+                    <Sparkles className="size-3.5" />
+                    {analyzing ? "规划中…" : "AI 规划本集分镜"}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAddShot}
+                  >
+                    <Plus className="size-3.5" />
+                    手动新增
+                  </Button>
+                </div>
               </div>
             ) : (
               shots.map((shot) => {
@@ -453,6 +611,26 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
             )}
           </div>
           <div className="manju-produce__shots-foot">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={analyzing}
+              onClick={() => void handlePlanShots()}
+            >
+              <Sparkles className="size-3.5" />
+              {analyzing ? "规划中…" : "AI 规划"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={analyzing || shots.length === 0}
+              onClick={() => void handleAuthorPrompts("episode")}
+            >
+              <Wand2 className="size-3.5" />
+              写提示词
+            </Button>
             <Button type="button" variant="outline" size="sm" onClick={handleAddShot}>
               <Plus className="size-3.5" />
               新增分镜
@@ -586,6 +764,29 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                 />
               </div>
 
+              <div className="manju-produce__prompt-actions flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={analyzing}
+                  onClick={() => void handleAuthorPrompts("shot")}
+                >
+                  <Sparkles className="size-3.5" />
+                  {analyzing ? "写词中…" : "AI 写本镜提示词"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={analyzing}
+                  onClick={() => void handleAuthorPrompts("episode")}
+                >
+                  <Wand2 className="size-3.5" />
+                  本集全部写词
+                </Button>
+              </div>
+
               <div className="manju-produce__gen-tabs" role="tablist">
                 {(
                   [
@@ -669,10 +870,20 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
           ) : (
             <div className="manju-produce__editor-empty">
               <p>选择或新增一个分镜开始制作</p>
-              <Button type="button" onClick={handleAddShot}>
-                <Plus className="size-3.5" />
-                新增分镜
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  disabled={analyzing}
+                  onClick={() => void handlePlanShots()}
+                >
+                  <Sparkles className="size-3.5" />
+                  {analyzing ? "规划中…" : "AI 规划本集分镜"}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleAddShot}>
+                  <Plus className="size-3.5" />
+                  新增分镜
+                </Button>
+              </div>
             </div>
           )}
         </section>

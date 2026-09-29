@@ -200,6 +200,18 @@ export type ManjuProjectDraft = {
     draft: unknown;
   }>;
   lastAnalyzeJobId?: string | null;
+  /** 最近一次制作检查报告 */
+  lastReview?: {
+    jobId: string | null;
+    summary: string;
+    findings: Array<{
+      severity: "error" | "warn" | "info";
+      code: string;
+      message: string;
+      target: string;
+    }>;
+    updatedAt: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -361,6 +373,7 @@ export function createEmptyProject(title = "未命名漫剧"): ManjuProjectDraft
     completedSteps: [],
     draftSnapshots: [],
     lastAnalyzeJobId: null,
+    lastReview: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -530,10 +543,55 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
       : [],
     lastAnalyzeJobId:
       typeof p.lastAnalyzeJobId === "string" ? p.lastAnalyzeJobId : null,
+    lastReview: readLastReview(p.lastReview),
     createdAt:
       typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString(),
     updatedAt:
       typeof p.updatedAt === "string" ? p.updatedAt : new Date().toISOString(),
+  };
+}
+
+function readLastReview(
+  raw: unknown,
+): ManjuProjectDraft["lastReview"] {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const findings = Array.isArray(r.findings)
+    ? r.findings
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const f = item as Record<string, unknown>;
+          const severity =
+            f.severity === "error" || f.severity === "info"
+              ? f.severity
+              : "warn";
+          const code = typeof f.code === "string" ? f.code.trim() : "";
+          const message =
+            typeof f.message === "string" ? f.message.trim() : "";
+          if (!code || !message) return null;
+          return {
+            severity,
+            code,
+            message,
+            target: typeof f.target === "string" ? f.target : "",
+          };
+        })
+        .filter(
+          (
+            x,
+          ): x is {
+            severity: "error" | "warn" | "info";
+            code: string;
+            message: string;
+            target: string;
+          } => Boolean(x),
+        )
+    : [];
+  return {
+    jobId: typeof r.jobId === "string" ? r.jobId : null,
+    summary: typeof r.summary === "string" ? r.summary : "",
+    findings,
+    updatedAt: typeof r.updatedAt === "string" ? r.updatedAt : "",
   };
 }
 
@@ -677,6 +735,8 @@ export type ManjuSkill =
   | "author_prompts"
   | "plan_episodes"
   | "series_memory"
+  | "novel_analyze"
+  | "manju_review"
   | null;
 
 function settingsLookUntouched(project: ManjuProjectDraft): boolean {

@@ -495,9 +495,24 @@ export class ManjuService {
     analyze: {
       overview?: string;
       tags?: string[];
-      characters: Array<{ name: string; description: string; aliases?: string[] }>;
-      scenes: Array<{ name: string; description: string; aliases?: string[] }>;
-      props: Array<{ name: string; description: string; aliases?: string[] }>;
+      characters: Array<{
+        name: string;
+        description: string;
+        aliases?: string[];
+        continuityLock?: string;
+      }>;
+      scenes: Array<{
+        name: string;
+        description: string;
+        aliases?: string[];
+        continuityLock?: string;
+      }>;
+      props: Array<{
+        name: string;
+        description: string;
+        aliases?: string[];
+        continuityLock?: string;
+      }>;
       episodes: Array<{ title: string; summary: string }>;
       shots: Array<{
         index?: number;
@@ -505,6 +520,10 @@ export class ManjuService {
         dialogue: string;
         assetNames: string[];
         episodeTitle?: string;
+        title?: string;
+        shotSize?: string;
+        cameraAngle?: string;
+        cameraMove?: string;
       }>;
     },
     writeShots = false,
@@ -521,6 +540,7 @@ export class ManjuService {
     const draft = normalizeManjuDraft(project.draft);
 
     if (analyzeMode === "clear_reparse") {
+      // 清资产登记与题材/梗概；保留分集、镜头与已生成剧集视频/分镜图
       const clearedIds = new Set(draft.assets.map((a) => a.id));
       draft.assets = [];
       draft.tags = [];
@@ -537,21 +557,42 @@ export class ManjuService {
     );
     const allowDup = analyzeMode === "full_add";
 
+    const mergeDescription = (description: string, lock?: string) => {
+      const base = description.trim();
+      const continuity = (lock ?? "").trim();
+      if (!continuity) return base;
+      if (base.includes(continuity)) return base;
+      return base ? `${base}；连续性：${continuity}` : `连续性：${continuity}`;
+    };
+
     const pushAsset = (
       kind: "character" | "scene" | "prop",
       name: string,
       description: string,
       aliases: string[] = [],
+      continuityLock?: string,
     ) => {
       const key = `${kind}:${name}`;
       const cleanAliases = aliases
         .map((a) => a.trim())
         .filter((a) => a && a !== name);
+      const mergedDesc = mergeDescription(description, continuityLock);
       if (!allowDup && existingKeys.has(key)) {
         const hit = draft.assets.find((a) => a.kind === kind && a.name === name);
-        if (hit && cleanAliases.length) {
-          const merged = new Set([...(hit.aliases ?? []), ...cleanAliases]);
-          hit.aliases = [...merged];
+        if (hit) {
+          if (cleanAliases.length) {
+            const merged = new Set([...(hit.aliases ?? []), ...cleanAliases]);
+            hit.aliases = [...merged];
+          }
+          if (mergedDesc && !hit.description?.trim()) {
+            hit.description = mergedDesc;
+          } else if (
+            continuityLock?.trim() &&
+            hit.description &&
+            !hit.description.includes(continuityLock.trim())
+          ) {
+            hit.description = mergeDescription(hit.description, continuityLock);
+          }
         }
         return;
       }
@@ -560,7 +601,7 @@ export class ManjuService {
         id: newId(),
         kind,
         name,
-        description,
+        description: mergedDesc,
         aliases: cleanAliases,
         parentId: null,
         imageUrl: null,
@@ -571,13 +612,19 @@ export class ManjuService {
     };
 
     for (const c of analyze.characters) {
-      pushAsset("character", c.name, c.description, c.aliases);
+      pushAsset(
+        "character",
+        c.name,
+        c.description,
+        c.aliases,
+        c.continuityLock,
+      );
     }
     for (const s of analyze.scenes) {
-      pushAsset("scene", s.name, s.description, s.aliases);
+      pushAsset("scene", s.name, s.description, s.aliases, s.continuityLock);
     }
     for (const p of analyze.props) {
-      pushAsset("prop", p.name, p.description, p.aliases);
+      pushAsset("prop", p.name, p.description, p.aliases, p.continuityLock);
     }
 
     if (analyze.overview?.trim()) {
@@ -712,14 +759,17 @@ export class ManjuService {
         return {
           id: prev?.id ?? newId(),
           index,
-          title: prev?.title ?? "",
+          title: (shot.title ?? "").trim() || prev?.title || "",
           visual: shot.visual,
           dialogue: shot.dialogue ?? "",
           imagePrompt: prev?.imagePrompt ?? "",
           videoPrompt: prev?.videoPrompt ?? "",
-          shotSize: prev?.shotSize ?? "全景",
-          cameraAngle: prev?.cameraAngle ?? "平视",
-          cameraMove: prev?.cameraMove ?? "固定",
+          shotSize:
+            (shot.shotSize ?? "").trim() || prev?.shotSize || "全景",
+          cameraAngle:
+            (shot.cameraAngle ?? "").trim() || prev?.cameraAngle || "平视",
+          cameraMove:
+            (shot.cameraMove ?? "").trim() || prev?.cameraMove || "固定",
           duration: prev?.duration ?? null,
           episodeId: episodeId ?? null,
           assetRefs: (shot.assetNames ?? [])
@@ -932,6 +982,84 @@ export class ManjuService {
       if (used) next.push(leftover);
     }
     draft.episodes = next;
+    draft.lastAnalyzeJobId = jobId;
+    project.draft = draft as unknown as Record<string, unknown>;
+    await this.projects.save(project);
+    return this.toDto(project);
+  }
+
+  /** 长文拆集：写入 overview/tags + 分集（含原文切片），不改资产与镜头 */
+  async applyNovelAnalyze(
+    userId: string,
+    projectId: string,
+    jobId: string,
+    result: {
+      overview: string;
+      tags: string[];
+      episodes: Array<{
+        title: string;
+        summary: string;
+        hook: string;
+        startQuote: string;
+        endQuote: string;
+      }>;
+    },
+  ) {
+    const project = await this.projects.findOne({
+      where: { id: projectId, userId },
+    });
+    if (!project) {
+      throw new BadRequestException("漫剧项目不存在，无法回写长文拆集");
+    }
+    const draft = normalizeManjuDraft(project.draft);
+    if (result.overview?.trim()) {
+      draft.overview = result.overview.trim();
+    }
+    const nextTags = (result.tags ?? [])
+      .map((t) => t.trim())
+      .filter(Boolean)
+      .slice(0, 8);
+    if (nextTags.length > 0) {
+      draft.tags = nextTags;
+    }
+    project.draft = draft as unknown as Record<string, unknown>;
+    await this.projects.save(project);
+    return this.applyEpisodePlan(userId, projectId, jobId, result.episodes);
+  }
+
+  /** 只存检查报告，不改资产、镜头、对白 */
+  async applyManjuReview(
+    userId: string,
+    projectId: string,
+    jobId: string,
+    report: {
+      summary: string;
+      findings: Array<{
+        severity: "error" | "warn" | "info";
+        code: string;
+        message: string;
+        target?: string;
+      }>;
+    },
+  ) {
+    const project = await this.projects.findOne({
+      where: { id: projectId, userId },
+    });
+    if (!project) {
+      throw new BadRequestException("漫剧项目不存在，无法写入检查报告");
+    }
+    const draft = normalizeManjuDraft(project.draft);
+    draft.lastReview = {
+      jobId,
+      summary: report.summary?.trim() || "",
+      findings: (report.findings ?? []).slice(0, 40).map((f) => ({
+        severity: f.severity,
+        code: f.code,
+        message: f.message,
+        target: f.target?.trim() || "",
+      })),
+      updatedAt: new Date().toISOString(),
+    };
     draft.lastAnalyzeJobId = jobId;
     project.draft = draft as unknown as Record<string, unknown>;
     await this.projects.save(project);
