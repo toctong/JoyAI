@@ -136,6 +136,10 @@ type Props = {
   onOpenChange?: (open: boolean) => void;
   emptyLabel?: string;
   searchPlaceholder?: string;
+  /** Pinned option at top of the model list (e.g. 自动), not shown as a vendor category. */
+  leadingOption?: ComposerModelOption | null;
+  /** Hide the leftover “其他” vendor bucket on the left. */
+  hideOtherVendor?: boolean;
 };
 
 /**
@@ -153,6 +157,8 @@ export function ComposerModelMenu({
   onOpenChange,
   emptyLabel = "暂无可用模型",
   searchPlaceholder = "搜索模型…",
+  leadingOption = null,
+  hideOtherVendor = false,
 }: Props) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = openProp ?? uncontrolledOpen;
@@ -167,16 +173,31 @@ export function ComposerModelMenu({
     return models.filter((m) => modelMatchesQuery(m, q));
   }, [models, query]);
 
-  const groups = useMemo(() => groupModelsByVendor(filtered), [filtered]);
+  const leadingVisible = useMemo(() => {
+    if (!leadingOption) return false;
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return modelMatchesQuery(leadingOption, q);
+  }, [leadingOption, query]);
+
+  const groups = useMemo(() => {
+    const list = groupModelsByVendor(filtered);
+    return hideOtherVendor ? list.filter((g) => g.key !== "其他") : list;
+  }, [filtered, hideOtherVendor]);
 
   useEffect(() => {
     if (!open) {
       setQuery("");
       return;
     }
+    if (leadingOption && selectedId === leadingOption.id) {
+      setActiveKey(ALL_KEY);
+      return;
+    }
     const selected = models.find((m) => m.id === selectedId);
-    setActiveKey(vendorKeyForModel(selected));
-  }, [open, selectedId, models]);
+    const key = vendorKeyForModel(selected);
+    setActiveKey(hideOtherVendor && key === "其他" ? ALL_KEY : key);
+  }, [open, selectedId, models, leadingOption, hideOtherVendor]);
 
   useEffect(() => {
     if (activeKey === ALL_KEY) return;
@@ -187,8 +208,9 @@ export function ComposerModelMenu({
 
   const rightItems = useMemo(() => {
     if (activeKey === ALL_KEY) return filtered;
+    if (hideOtherVendor && activeKey === "其他") return filtered;
     return groups.find((g) => g.key === activeKey)?.items ?? [];
-  }, [activeKey, filtered, groups]);
+  }, [activeKey, filtered, groups, hideOtherVendor]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -287,8 +309,24 @@ export function ComposerModelMenu({
             </div>
           </div>
 
-          {models.length > 0 && filtered.length > 0 ? (
+          {(models.length > 0 && filtered.length > 0) || leadingVisible ? (
             <div className="joy-composer-model-secondary">
+              {leadingVisible && leadingOption && activeKey === ALL_KEY ? (
+                <DropdownMenuItem
+                  key={leadingOption.id}
+                  className={cn(
+                    "joy-composer-model-item",
+                    selectedId === leadingOption.id && "is-selected",
+                  )}
+                  onClick={() => onSelect(leadingOption.id)}
+                >
+                  <span className="joy-composer-model-item-text">
+                    <span className="joy-composer-model-item-name">
+                      {leadingOption.name}
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              ) : null}
               {rightItems.map((m) => {
                 const selected = m.id === selectedId;
                 const meta = durationMeta(m);

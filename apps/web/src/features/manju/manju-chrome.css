@@ -1114,7 +1114,6 @@
 }
 
 .manju-settings-panel {
-  max-width: 960px;
   gap: 40px;
 }
 
@@ -2887,6 +2886,16 @@
     color-mix(in oklab, var(--foreground) 8%, transparent) 100%
   );
   box-shadow: 0 0 18px color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+.manju-assets-empty__spark {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 48px;
+  height: 48px;
+  color: var(--primary);
+  opacity: 0.85;
 }
 
 .manju-assets-empty__title {

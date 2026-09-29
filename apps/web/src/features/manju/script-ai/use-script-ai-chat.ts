@@ -19,6 +19,8 @@ export type ScriptAiMessage = {
   script?: string;
   /** 本集钩子，应用时写入分集 */
   hook?: string;
+  /** 题材标签，应用时写入草稿 */
+  tags?: string[];
   scriptApplied?: boolean;
   pending?: boolean;
   error?: boolean;
@@ -135,7 +137,10 @@ export function useScriptAiChat(input: {
   projectId: string;
   modelId?: string;
   scriptText: string;
-  onApplyScript: (script: string, meta?: { hook?: string }) => void;
+  onApplyScript: (
+    script: string,
+    meta?: { hook?: string; tags?: string[] },
+  ) => void;
 }) {
   const [hydrated, setHydrated] = useState(false);
   const [conversations, setConversations] = useState<ScriptAiConversation[]>(
@@ -273,7 +278,13 @@ export function useScriptAiChat(input: {
     (
       jobId: string,
       result:
-        | { reply?: string; script?: string; hook?: string; error?: string }
+        | {
+            reply?: string;
+            script?: string;
+            hook?: string;
+            tags?: string[];
+            error?: string;
+          }
         | null
         | undefined,
     ) => {
@@ -292,11 +303,19 @@ export function useScriptAiChat(input: {
               content: result.error,
               script: undefined,
               hook: undefined,
+              tags: undefined,
             };
           }
           const reply = result?.reply?.trim() || "";
           const script = result?.script?.trim() || "";
           const hook = result?.hook?.trim() || "";
+          const tags = Array.isArray(result?.tags)
+            ? result.tags
+                .filter((t): t is string => typeof t === "string")
+                .map((t) => t.trim())
+                .filter(Boolean)
+                .slice(0, 8)
+            : [];
           return {
             ...m,
             pending: false,
@@ -304,6 +323,7 @@ export function useScriptAiChat(input: {
             content: reply || (script ? "已生成剧本，可应用到右侧。" : "已完成"),
             script: script || undefined,
             hook: hook || undefined,
+            tags: tags.length ? tags : undefined,
           };
         }),
       }));
@@ -321,7 +341,7 @@ export function useScriptAiChat(input: {
       if (!jobId || pendingJobRef.current !== jobId) return;
       // script_write JSON or advisor free-form — both land in scriptWrite
       const sw = payload.result?.scriptWrite as
-        | { reply?: string; script?: string; hook?: string }
+        | { reply?: string; script?: string; hook?: string; tags?: string[] }
         | undefined;
       finishAssistant(jobId, sw ?? { reply: String(payload.result?.text ?? "") });
     },
@@ -444,7 +464,7 @@ export function useScriptAiChat(input: {
     (messageId: string) => {
       const msg = messages.find((m) => m.id === messageId);
       if (!msg?.script?.trim()) return;
-      input.onApplyScript(msg.script, { hook: msg.hook });
+      input.onApplyScript(msg.script, { hook: msg.hook, tags: msg.tags });
       patchActive((c) => ({
         ...c,
         messages: c.messages.map((m) =>

@@ -27,7 +27,10 @@ type Props = {
   projectId: string;
   modelId?: string;
   scriptText: string;
-  onApplyScript: (script: string, meta?: { hook?: string }) => void;
+  onApplyScript: (
+    script: string,
+    meta?: { hook?: string; tags?: string[] },
+  ) => void;
   onCollapse: () => void;
 };
 

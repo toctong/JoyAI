@@ -508,6 +508,7 @@ export class ManjuService {
     },
     writeShots = false,
     scopeEpisodeId?: string | null,
+    analyzeMode: "incremental" | "full_add" | "clear_reparse" = "incremental",
   ) {
     const project = await this.projects.findOne({
       where: { id: projectId, userId },
@@ -517,9 +518,21 @@ export class ManjuService {
     }
 
     const draft = normalizeManjuDraft(project.draft);
+
+    if (analyzeMode === "clear_reparse") {
+      const clearedIds = new Set(draft.assets.map((a) => a.id));
+      draft.assets = [];
+      for (const shot of draft.shots) {
+        shot.assetRefs = (shot.assetRefs ?? []).filter(
+          (id) => !clearedIds.has(id),
+        );
+      }
+    }
+
     const existingKeys = new Set(
       draft.assets.map((a) => `${a.kind}:${a.name}`),
     );
+    const allowDup = analyzeMode === "full_add";
 
     const pushAsset = (
       kind: "character" | "scene" | "prop",
@@ -531,7 +544,7 @@ export class ManjuService {
       const cleanAliases = aliases
         .map((a) => a.trim())
         .filter((a) => a && a !== name);
-      if (existingKeys.has(key)) {
+      if (!allowDup && existingKeys.has(key)) {
         const hit = draft.assets.find((a) => a.kind === kind && a.name === name);
         if (hit && cleanAliases.length) {
           const merged = new Set([...(hit.aliases ?? []), ...cleanAliases]);

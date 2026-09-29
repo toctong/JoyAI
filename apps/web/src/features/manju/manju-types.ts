@@ -87,6 +87,49 @@ export type ManjuScriptReview = {
   content: string;
 };
 
+export type ManjuAssetDetail = {
+  age?: string;
+  gender?: string;
+  roleType?: string;
+  story?: string;
+  voiceNote?: string;
+  /** 是否启用文本音色描述 */
+  voiceUseText?: boolean;
+  /** 是否启用音频参考音色 */
+  voiceUseAudio?: boolean;
+  voiceAudioUrl?: string;
+  height?: string;
+  weight?: string;
+  bodyType?: string;
+  hairstyle?: string;
+  face?: string;
+  gaze?: string;
+  skin?: string;
+  clothing?: string;
+  headwear?: string;
+  traits?: string;
+  /** 场景：地点 */
+  location?: string;
+  /** 场景：时间（如 夜晚） */
+  timeOfDay?: string;
+  weather?: string;
+  /** 室外 / 室内 … */
+  sceneType?: string;
+  architecture?: string;
+  lighting?: string;
+  atmosphere?: string;
+  /** 场景关联道具标签 */
+  sceneProps?: string[];
+  /** 道具：质感 */
+  propTexture?: string;
+  propMaterial?: string;
+  propSize?: string;
+  propWear?: string;
+  propSpecial?: string;
+  /** 色泽与表面处理 */
+  propFinish?: string;
+};
+
 export type ManjuAssetDraft = {
   id: string;
   kind: "character" | "scene" | "prop";
@@ -99,6 +142,8 @@ export type ManjuAssetDraft = {
   assetId: string | null;
   jobId: string | null;
   status: ManjuJobStatus;
+  /** 详情页扩展字段（角色信息 / 外观等） */
+  detail?: ManjuAssetDetail;
 };
 
 export type ManjuEpisodeDraft = {
@@ -126,6 +171,8 @@ export type ManjuProjectDraft = {
   title: string;
   scriptText: string;
   overview: string;
+  /** 素材标签 */
+  tags: string[];
   scriptConfirmed: boolean;
   phase: ManjuPhase;
   scriptReview: ManjuScriptReview;
@@ -290,6 +337,7 @@ export function createEmptyProject(title = "未命名漫剧"): ManjuProjectDraft
     title,
     scriptText: "",
     overview: "",
+    tags: [],
     scriptConfirmed: false,
     phase: "preparation",
     scriptReview: { status: "draft", content: "" },
@@ -366,6 +414,10 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
         assetId: a.assetId ?? null,
         jobId: a.jobId ?? null,
         aliases: Array.isArray(a.aliases) ? a.aliases.filter(Boolean) : [],
+        detail:
+          a.detail && typeof a.detail === "object"
+            ? (a.detail as ManjuAssetDetail)
+            : undefined,
       }))
     : [];
 
@@ -426,6 +478,12 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
     title,
     scriptText: typeof p.scriptText === "string" ? p.scriptText : "",
     overview: typeof p.overview === "string" ? p.overview : "",
+    tags: Array.isArray(p.tags)
+      ? (p.tags as unknown[])
+          .filter((t): t is string => typeof t === "string")
+          .map((t) => t.trim())
+          .filter(Boolean)
+      : [],
     scriptConfirmed: p.scriptConfirmed === true,
     phase,
     scriptReview: {

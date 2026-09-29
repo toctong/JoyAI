@@ -5,8 +5,46 @@
 .manju-md-field__skeleton {
   width: 100%;
   min-height: 160px;
+  border-radius: var(--joy-radius-xl, 16px) !important;
+  border: 1px solid transparent !important;
+  background: var(--muted) !important;
 }
 
 .manju-md-field__pane {
   width: 100%;
+}
+
+.manju-md-field .w-md-editor {
+  border: 1px solid transparent !important;
+  border-radius: var(--joy-radius-xl, 16px) !important;
+  background: var(--muted) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.manju-md-field .w-md-editor-toolbar {
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 80%, transparent) !important;
+  background: transparent !important;
+  padding: 6px 8px !important;
+}
+
+.manju-md-field .w-md-editor-content,
+.manju-md-field .w-md-editor-text,
+.manju-md-field .w-md-editor-text-pre,
+.manju-md-field .w-md-editor-text-input,
+.manju-md-field .w-md-editor-preview {
+  background: transparent !important;
+}
+
+.manju-md-field .w-md-editor-text-input {
+  padding: 12px 16px !important;
+  font-size: var(--joy-font-body, 15px) !important;
+  line-height: 1.6 !important;
+  color: var(--foreground) !important;
+}
+
+.manju-md-field:focus-within .w-md-editor {
+  border-color: var(--primary) !important;
+  background: var(--muted) !important;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 25%, transparent) !important;
 }

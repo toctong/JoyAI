@@ -17,13 +17,13 @@ description: >-
 | 前端面板 | `apps/web/src/features/manju/script-ai/` |
 | 会话存储 | 服务端 `project_chat`（scope=`manju-script`），不进漫剧草稿 |
 | 正文整理 | `apps/web/src/features/manju/lib/sanitize-script-text.ts`（钩子迁出正文） |
-| Job purpose | `script_write`（结果不自动回写草稿，用户点「应用修改」；JSON 含可选 `hook`） |
+| Job purpose | `script_write`（结果不自动回写草稿，用户点「应用修改」；JSON 含可选 `hook`、`tags`） |
 
 ## 行为
 
 1. 用户在剧本步左侧对话 → `POST /jobs` `{ kind: llm, purpose: script_write }`
-2. Worker 用 `SCRIPT_WRITE_SYSTEM`，解析 JSON `{ intent, reply, script }`
-3. Socket `job:completed` 带 `result.scriptWrite`；前端展示并可应用到 `scriptText`
+2. Worker 用 `SCRIPT_WRITE_SYSTEM`，解析 JSON `{ intent, reply, script, hook, tags }`
+3. Socket `job:completed` 带 `result.scriptWrite`；前端展示并可应用到 `scriptText`（tags 写入草稿，只读展示）
 
 ## 题材
 
@@ -32,6 +32,6 @@ description: >-
 
 ## 改提示词时
 
-- 改契约或编剧规则 → 只动 `system.ts`，保持 JSON 三字段稳定
+- 改契约或编剧规则 → 只动 `system.ts`；create/revise 须输出 `tags`（2～5 个）
 - 改卡片文案 → 只动 `script-write-genres.ts`，重建 `@joyai/shared`
 - 不要把大段 reference markdown 塞进 system（控制 token）

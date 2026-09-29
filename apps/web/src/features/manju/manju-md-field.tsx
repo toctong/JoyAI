@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { cn } from "@/shared/lib/utils";
 import type { MarkdownPreviewMode } from "@/features/canvas/markdown-editor-pane";
+import "./manju-md-field.css";
 
 const MarkdownEditorPane = dynamic(
   () =>

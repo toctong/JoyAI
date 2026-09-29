@@ -200,6 +200,13 @@ export const LlmJobInputSchema = z.object({
   manjuProjectId: z.string().optional(),
   /** 分集内规划：只合并该集镜头，保留其他集 */
   manjuEpisodeId: z.string().optional(),
+  /**
+   * analyze_assets 资产合并方式：
+   * incremental=按名匹配仅新增；full_add=全部作为新资产；clear_reparse=先清空资产再写入
+   */
+  analyzeMode: z
+    .enum(["incremental", "full_add", "clear_reparse"])
+    .optional(),
   /** 画布回写 */
   canvasProjectId: z.string().optional(),
   canvasNodeId: z.string().optional(),
@@ -210,6 +217,7 @@ export const LlmJobInputSchema = z.object({
   toolSlug: z.string().max(64).optional(),
 });
 export type LlmJobInput = z.infer<typeof LlmJobInputSchema>;
+export type ManjuAnalyzeMode = NonNullable<LlmJobInput["analyzeMode"]>;
 
 export const ManjuAnalyzeAssetItemSchema = z.object({
   name: z.string().min(1),
@@ -292,6 +300,8 @@ export const ManjuScriptWriteResultSchema = z.object({
   script: z.string().default(""),
   /** 本集钩子；只进分集字段，不进正文 */
   hook: z.string().default(""),
+  /** 题材标签（应用剧本时写入草稿，不可手改） */
+  tags: z.array(z.string()).default([]),
 });
 export type ManjuScriptWriteResult = z.infer<
   typeof ManjuScriptWriteResultSchema
@@ -420,6 +430,8 @@ export const ManjuDraftSchema = z.object({
     .default("preparation"),
   scriptText: z.string().default(""),
   overview: z.string().default(""),
+  /** 素材标签（题材/类型等） */
+  tags: z.array(z.string()).default([]),
   /** 脚本规划已确认后才允许写画面/视频提示词 */
   scriptConfirmed: z.boolean().default(false),
   /** 剧本审阅区（可与 scriptConfirmed 同步） */

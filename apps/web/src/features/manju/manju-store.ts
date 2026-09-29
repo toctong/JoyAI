@@ -53,6 +53,7 @@ type ManjuState = {
         | "title"
         | "scriptText"
         | "overview"
+        | "tags"
         | "scriptConfirmed"
         | "phase"
         | "scriptReview"

@@ -13,10 +13,17 @@ type Props = {
   disabled?: boolean;
   onFile: (file: File) => void;
   className?: string;
+  /** 触发按钮文案，默认「上传」 */
+  label?: string;
 };
 
 /** 资产参考图上传（react-dropzone，限制图片类型与大小） */
-export function AssetRefUpload({ disabled, onFile, className }: Props) {
+export function AssetRefUpload({
+  disabled,
+  onFile,
+  className,
+  label = "上传",
+}: Props) {
   const onDrop = useCallback(
     (files: File[]) => {
       const file = files[0];
@@ -70,7 +77,7 @@ export function AssetRefUpload({ disabled, onFile, className }: Props) {
         }}
       >
         <Upload className="h-3.5 w-3.5" />
-        {isDragActive ? "松开" : "上传"}
+        {isDragActive ? "松开" : label}
       </Button>
     </div>
   );

@@ -29,6 +29,7 @@ export function draftFromProject(p: ManjuProjectDraft): ManjuDraft {
     version: 1,
     scriptText: p.scriptText,
     overview: p.overview ?? "",
+    tags: p.tags ?? [],
     scriptConfirmed: p.scriptConfirmed ?? false,
     phase: p.phase ?? "preparation",
     scriptReview: p.scriptReview ?? { status: "draft", content: "" },
@@ -60,6 +61,9 @@ export function projectFromDto(dto: ManjuProjectDto): ManjuProjectDraft {
     title: dto.title,
     scriptText: dto.draft.scriptText ?? "",
     overview: dto.draft.overview ?? "",
+    tags: Array.isArray(dto.draft.tags)
+      ? dto.draft.tags.filter((t): t is string => typeof t === "string")
+      : [],
     scriptConfirmed: dto.draft.scriptConfirmed ?? false,
     phase: (dto.draft.phase as ManjuProjectDraft["phase"]) ?? "preparation",
     scriptReview: {
@@ -179,6 +183,8 @@ export async function submitManjuAnalyzeJob(input: {
     | "author_prompts"
     | "series_memory"
     | "plan_episodes";
+  /** analyze_assets 资产合并方式 */
+  analyzeMode?: "incremental" | "full_add" | "clear_reparse";
 }) {
   return api<{ id: string }>("/jobs", {
     method: "POST",
@@ -190,6 +196,10 @@ export async function submitManjuAnalyzeJob(input: {
         manjuProjectId: input.projectId,
         manjuEpisodeId: input.episodeId?.trim() || undefined,
         modelId: input.modelId?.trim() || undefined,
+        analyzeMode:
+          (input.purpose ?? "analyze_assets") === "analyze_assets"
+            ? (input.analyzeMode ?? "incremental")
+            : undefined,
       },
     },
   });

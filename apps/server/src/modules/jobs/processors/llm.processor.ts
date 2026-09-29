@@ -210,6 +210,9 @@ export class LlmProcessor extends WorkerHost {
             purpose === "script_plan" || purpose === "split_shots"
               ? input.manjuEpisodeId
               : undefined,
+            purpose === "analyze_assets"
+              ? (input.analyzeMode ?? "incremental")
+              : "incremental",
           );
         }
       } else if (purpose === "author_prompts" && input.manjuProjectId) {
@@ -272,6 +275,7 @@ export class LlmProcessor extends WorkerHost {
           reply,
           script: "",
           hook: "",
+          tags: [],
         };
       }
 

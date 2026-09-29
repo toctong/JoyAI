@@ -23,7 +23,8 @@ type ChannelModel = {
   id: string;
   name: string;
   kind: string;
-  channel?: { name?: string };
+  remoteId?: string;
+  channel?: { name?: string; platform?: string };
 };
 
 const AUTO = "__auto__";

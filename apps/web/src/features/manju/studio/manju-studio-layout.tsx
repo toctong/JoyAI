@@ -2,13 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ManjuModelBar } from "../manju-studio";
 import {
   ManjuHeaderSlotsProvider,
-  useManjuHeaderSlotView,
 } from "../manju-header-slots";
 import { useManjuStore } from "../manju-store";
-import { ManjuAgentDrawer } from "../agent/manju-agent-drawer";
 import { ManjuAssetSidebar } from "./manju-asset-sidebar";
 import { ManjuStudioHeader } from "./manju-studio-header";
 import {
@@ -16,7 +13,6 @@ import {
   useManjuStudio,
 } from "./manju-studio-provider";
 import {
-  inferPhase,
   legacyQueryToStudioPath,
   type ManjuStudioSection,
 } from "./manju-studio-routes";
@@ -95,10 +91,8 @@ function ManjuStudioShell({
   const searchParams = useSearchParams();
   const { project, saving, analyzing } = useManjuStudio();
   const updateProject = useManjuStore((s) => s.updateProject);
-  const { toolbar } = useManjuHeaderSlotView();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [agentOpen, setAgentOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.dataset.manjuChrome = "";
@@ -146,18 +140,6 @@ function ManjuStudioShell({
     [pathname, projectId],
   );
 
-  const phase = useMemo(
-    () =>
-      inferPhase({
-        scriptText: project.scriptText,
-        scriptConfirmed: project.scriptConfirmed,
-        assetsWithImage: project.assets.filter((a) => a.imageUrl).length,
-        shotsWithVideo: project.shots.filter((s) => s.videoUrl).length,
-        shotCount: project.shots.length,
-      }),
-    [project],
-  );
-
   return (
     <div
       className={
@@ -168,17 +150,10 @@ function ManjuStudioShell({
     >
       <ManjuStudioHeader
         project={project}
-        projectId={projectId}
-        phase={phase}
         saving={saving}
         analyzing={analyzing}
         onTitleChange={(title) => updateProject(projectId, { title })}
-        agentOpen={agentOpen}
-        onToggleAgent={() => setAgentOpen((v) => !v)}
-      >
-        {toolbar}
-        <ManjuModelBar project={project} />
-      </ManjuStudioHeader>
+      />
 
       <div className="manju-studio__body">
         <div className="manju-studio__sidebar">
@@ -194,22 +169,7 @@ function ManjuStudioShell({
 
         <section className="manju-studio__main">
           <div className="manju-studio__main-scroll">{children}</div>
-          {!agentOpen ? (
-            <ManjuAgentDrawer
-              projectId={projectId}
-              open={false}
-              onOpenChange={setAgentOpen}
-            />
-          ) : null}
         </section>
-
-        {agentOpen ? (
-          <ManjuAgentDrawer
-            projectId={projectId}
-            open
-            onOpenChange={setAgentOpen}
-          />
-        ) : null}
       </div>
     </div>
   );

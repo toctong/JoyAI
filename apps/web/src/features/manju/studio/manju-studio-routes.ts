@@ -22,7 +22,7 @@ export const MANJU_PHASES: { id: ManjuPhase; label: string }[] = [
 export function manjuStudioHref(
   projectId: string,
   section: ManjuStudioSection,
-  opts?: { epId?: string | null },
+  opts?: { epId?: string | null; assetId?: string | null },
 ): string {
   const base = `/manju/${projectId}`;
   switch (section) {
@@ -31,11 +31,15 @@ export function manjuStudioHref(
     case "source":
       return `${base}/source`;
     case "characters":
-      return `${base}/characters`;
+      return opts?.assetId
+        ? `${base}/characters/${opts.assetId}`
+        : `${base}/characters`;
     case "scenes":
-      return `${base}/scenes`;
+      return opts?.assetId
+        ? `${base}/scenes/${opts.assetId}`
+        : `${base}/scenes`;
     case "props":
-      return `${base}/props`;
+      return opts?.assetId ? `${base}/props/${opts.assetId}` : `${base}/props`;
     case "settings":
       return `${base}/settings`;
     case "preview":
@@ -47,6 +51,22 @@ export function manjuStudioHref(
     default:
       return base;
   }
+}
+
+export function manjuAssetListSection(
+  kind: "character" | "scene" | "prop",
+): Extract<ManjuStudioSection, "characters" | "scenes" | "props"> {
+  if (kind === "scene") return "scenes";
+  if (kind === "prop") return "props";
+  return "characters";
+}
+
+export function manjuAssetHref(
+  projectId: string,
+  kind: "character" | "scene" | "prop",
+  assetId: string,
+) {
+  return manjuStudioHref(projectId, manjuAssetListSection(kind), { assetId });
 }
 
 /** Map legacy `?step=` / `?panel=` workbench URLs → studio paths. */

@@ -94,6 +94,8 @@ export const SCRIPT_PROJECT_CHAT_LIMITS = {
   script: 40_000,
   hook: 2_000,
   title: 40,
+  tags: 8,
+  tagLen: 16,
 } as const;
 
 export type ScriptProjectChatMessage = {
@@ -102,6 +104,7 @@ export type ScriptProjectChatMessage = {
   content: string;
   script?: string;
   hook?: string;
+  tags?: string[];
   scriptApplied?: boolean;
   pending?: boolean;
   error?: boolean;
@@ -158,6 +161,14 @@ export function normalizeScriptProjectChat(raw: unknown): ScriptProjectChatState
           const next: ScriptProjectChatMessage = { id: mid, role, content };
           if (script) next.script = script;
           if (hook) next.hook = hook;
+          if (Array.isArray(msg.tags)) {
+            const tags = msg.tags
+              .filter((t): t is string => typeof t === "string")
+              .map((t) => clip(t, SCRIPT_PROJECT_CHAT_LIMITS.tagLen).trim())
+              .filter(Boolean)
+              .slice(0, SCRIPT_PROJECT_CHAT_LIMITS.tags);
+            if (tags.length) next.tags = tags;
+          }
           if (msg.scriptApplied === true) next.scriptApplied = true;
           if (msg.pending === true) next.pending = true;
           if (msg.error === true) next.error = true;

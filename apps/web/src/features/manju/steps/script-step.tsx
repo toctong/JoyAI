@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  ChevronDown,
   ClipboardPaste,
   FileText,
   Loader2,
@@ -10,16 +11,20 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { toast } from "@/shared/lib/toast";
+import { cn } from "@/shared/lib/utils";
 import { useManjuStore } from "../manju-store";
 import { submitManjuAnalyzeJob } from "../manju-api";
 import { submitEpisodePlan, submitSeriesMemory } from "../lib/workflow-skill";
 import { sanitizeScriptBody } from "../lib/sanitize-script-text";
-import { ManjuMdField } from "../manju-md-field";
+import { ManjuTextField } from "../manju-text-field";
 import { ScriptFileImport } from "../script-file-import";
 import { ScriptAiPanel } from "../script-ai/script-ai-panel";
+import {
+  ManjuParseScriptDialog,
+  type ManjuAnalyzeMode,
+} from "../studio/manju-parse-script-dialog";
 import {
   EMPTY_SERIES,
   type ManjuEpisodeDraft,
@@ -28,7 +33,6 @@ import {
 } from "../manju-types";
 
 type ScriptMode = "choose" | "edit";
-type MetaTab = "script" | "overview" | "episodes" | "series";
 
 export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
   const updateProject = useManjuStore((s) => s.updateProject);
@@ -39,19 +43,35 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     project.scriptText.trim() ? "edit" : "choose",
   );
   const [aiOpen, setAiOpen] = useState(false);
-  const [metaTab, setMetaTab] = useState<MetaTab>("script");
+  const [previewOpen, setPreviewOpen] = useState(true);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [parseOpen, setParseOpen] = useState(false);
   const tidiedRef = useRef(false);
+
+  const tags = project.tags ?? [];
+  const charCount = project.scriptText.length;
 
   const applyScriptToProject = (
     raw: string,
-    meta?: { hook?: string },
+    meta?: { hook?: string; tags?: string[] },
   ) => {
     const { script, hook: extracted } = sanitizeScriptBody(raw);
     const hook = (meta?.hook?.trim() || extracted || "").trim();
+    const nextTags = Array.isArray(meta?.tags)
+      ? meta.tags
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 8)
+      : [];
     const patch: {
       scriptText: string;
+      tags?: string[];
       episodes?: ManjuEpisodeDraft[];
     } = { scriptText: script };
+
+    if (nextTags.length > 0) {
+      patch.tags = nextTags;
+    }
 
     if (hook) {
       if (project.episodes.length === 0) {
@@ -74,7 +94,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     updateProject(project.id, patch);
   };
 
-  /** 已应用的旧稿：把「本集钩子」迁到分集，正文只留可拍内容 */
   useEffect(() => {
     if (tidiedRef.current) return;
     if (mode !== "edit") return;
@@ -113,25 +132,35 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
     updateProject,
   ]);
 
-  const runAiAnalyze = async () => {
+  const runAiAnalyze = async (analyzeMode: ManjuAnalyzeMode) => {
     if (project.scriptText.trim().length < 20) {
       toast.error("请先粘贴更完整的剧本再分析");
       return;
     }
     try {
       setAnalyzing(project.id, true);
+      setParseOpen(false);
       await flushSave(project.id);
       await submitManjuAnalyzeJob({
         projectId: project.id,
         scriptText: project.scriptText,
         purpose: "analyze_assets",
         modelId: project.settings.llmModelId,
+        analyzeMode,
       });
       toast.success("已提交资产与分集分析（不含分镜）");
     } catch (e) {
       setAnalyzing(project.id, false);
       toast.error(e instanceof Error ? e.message : "提交分析失败");
     }
+  };
+
+  const openParseDialog = () => {
+    if (project.scriptText.trim().length < 20) {
+      toast.error("请先粘贴更完整的剧本再分析");
+      return;
+    }
+    setParseOpen(true);
   };
 
   const series = project.series ?? EMPTY_SERIES;
@@ -238,124 +267,165 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
   }
 
   const editor = (
-    <div className="manju-panel">
-      <div className="manju-card">
-        <Tabs
-          value={metaTab}
-          onValueChange={(v) => setMetaTab(v as MetaTab)}
-          className="manju-script-meta"
+    <div className="manju-info">
+      <div className="manju-info__toolbar">
+        <h1 className="manju-info__title">{project.title || "未命名漫剧"}</h1>
+        <div className="manju-info__toolbar-actions">
+          {!aiOpen ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAiOpen(true)}
+            >
+              <Sparkles className="h-4 w-4" />
+              AI 帮写
+            </Button>
+          ) : null}
+          <ScriptFileImport
+            disabled={analyzing}
+            onText={(text) => void applyImportedText(text)}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openParseDialog}
+            disabled={analyzing}
+          >
+            {analyzing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {analyzing ? "解析中…" : "解析剧本"}
+          </Button>
+        </div>
+      </div>
+
+      <ManjuParseScriptDialog
+        open={parseOpen}
+        onOpenChange={setParseOpen}
+        projectTitle={project.title}
+        busy={analyzing}
+        onConfirm={(mode) => void runAiAnalyze(mode)}
+      />
+
+      <section className="manju-info-card">
+        <button
+          type="button"
+          className="manju-info-card__head"
+          onClick={() => setPreviewOpen((v) => !v)}
+          aria-expanded={previewOpen}
         >
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <TabsList className="manju-script-meta__tabs">
-              <TabsTrigger value="script">剧本原文</TabsTrigger>
-              <TabsTrigger value="overview">故事梗概</TabsTrigger>
-              <TabsTrigger value="episodes">
-                分集
-                {project.episodes.length > 0
-                  ? ` ${project.episodes.length}`
-                  : ""}
-              </TabsTrigger>
-              <TabsTrigger value="series">连载记忆</TabsTrigger>
-            </TabsList>
-            <div className="flex flex-wrap gap-2">
-              {metaTab === "script" ? (
-                <>
-                  {!aiOpen ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setAiOpen(true)}
-                    >
-                      <Sparkles className="h-4 w-4" />
-                      AI 帮写
-                    </Button>
-                  ) : null}
-                  <ScriptFileImport
-                    disabled={analyzing}
-                    onText={(text) => void applyImportedText(text)}
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => void runAiAnalyze()}
-                    disabled={analyzing}
-                  >
-                    {analyzing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                    {analyzing ? "分析中…" : "AI 分析"}
-                  </Button>
-                </>
-              ) : null}
-              {metaTab === "episodes" ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={analyzing}
-                  onClick={() => void runEpisodePlan()}
-                >
-                  {analyzing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : null}
-                  规划分集
-                </Button>
-              ) : null}
-              {metaTab === "series" ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={analyzing}
-                  onClick={() => void runSeriesMemory()}
-                >
-                  {analyzing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4" />
-                  )}
-                  整理连载记忆
-                </Button>
-              ) : null}
+          <h2 className="manju-info-card__title">剧本预览</h2>
+          <ChevronDown
+            className={cn(
+              "manju-info-card__chevron",
+              previewOpen && "is-open",
+            )}
+            aria-hidden
+          />
+        </button>
+        {previewOpen ? (
+          <div className="manju-info-card__body">
+            <div className="manju-info-field">
+              <span className="manju-info-field__label">题材标签</span>
+              <div className="manju-info-tags">
+                {tags.length > 0 ? (
+                  tags.map((tag) => (
+                    <span key={tag} className="manju-info-tag manju-info-tag--readonly">
+                      {tag}
+                    </span>
+                  ))
+                ) : (
+                  <span className="manju-info-tags__empty">
+                    AI 帮写并应用剧本后自动生成
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="manju-info-field">
+              <span className="manju-info-field__label">剧本梗概</span>
+              <ManjuTextField
+                value={project.overview}
+                onChange={(overview) =>
+                  updateProject(project.id, { overview })
+                }
+                placeholder="一两段概括剧情、人物关系与基调…"
+                minHeight={96}
+                rows={4}
+              />
             </div>
           </div>
+        ) : null}
+      </section>
 
-          <TabsContent value="script" className="manju-script-meta__panel">
-            <ManjuMdField
-              value={project.scriptText}
-              onChange={(scriptText) =>
-                updateProject(project.id, { scriptText })
-              }
-              placeholder={`示例：\n\n场景：青石巷口·雨夜\n\n少年：今晚，城门不会为任何人开。\n\n镜头2\n暗色水墨风，镜头缓慢推进巷深。少年握着信笺。`}
-              height={420}
-            />
-            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span>{project.scriptText.length} 字</span>
-              {project.episodes.length > 0 ? (
-                <span>分集 {project.episodes.length}</span>
-              ) : null}
-              {project.shots.length > 0 ? (
-                <span>分镜 {project.shots.length}</span>
-              ) : null}
-              {project.assets.length > 0 ? (
-                <span>资产 {project.assets.length}</span>
-              ) : null}
+      <section className="manju-info-card manju-info-card--content">
+        <div className="manju-info-card__head manju-info-card__head--static">
+          <h2 className="manju-info-card__title">剧本内容</h2>
+          <span className="manju-info-card__meta">
+            原始剧本内容（{charCount} 字符）
+          </span>
+        </div>
+        <div className="manju-info-card__body manju-info-script">
+          <ManjuTextField
+            variant="script"
+            value={project.scriptText}
+            onChange={(scriptText) =>
+              updateProject(project.id, { scriptText })
+            }
+            placeholder={`示例：\n\n场景：青石巷口·雨夜\n\n少年：今晚，城门不会为任何人开。\n\n镜头2\n暗色水墨风，镜头缓慢推进巷深。少年握着信笺。`}
+            minHeight={480}
+          />
+        </div>
+      </section>
+
+      <section className="manju-info-card">
+        <button
+          type="button"
+          className="manju-info-card__head"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          aria-expanded={advancedOpen}
+        >
+          <h2 className="manju-info-card__title">分集与连载</h2>
+          <ChevronDown
+            className={cn(
+              "manju-info-card__chevron",
+              advancedOpen && "is-open",
+            )}
+            aria-hidden
+          />
+        </button>
+        {advancedOpen ? (
+          <div className="manju-info-card__body manju-info-advanced">
+            <div className="manju-info-advanced__bar">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={analyzing}
+                onClick={() => void runEpisodePlan()}
+              >
+                {analyzing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : null}
+                规划分集
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={analyzing}
+                onClick={() => void runSeriesMemory()}
+              >
+                {analyzing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                整理连载记忆
+              </Button>
             </div>
-          </TabsContent>
 
-          <TabsContent value="overview" className="manju-script-meta__panel">
-            <ManjuMdField
-              value={project.overview}
-              onChange={(overview) =>
-                updateProject(project.id, { overview })
-              }
-              placeholder="一两段概括剧情、人物关系与基调…"
-              height={280}
-            />
-          </TabsContent>
-
-          <TabsContent value="episodes" className="manju-script-meta__panel">
             {project.episodes.length > 0 ? (
-              <div className="manju-episode-grid mt-4">
+              <div className="manju-episode-grid">
                 {project.episodes.map((ep, i) => (
                   <article key={ep.id} className="manju-episode-card">
                     <header className="manju-episode-card__head">
@@ -397,7 +467,7 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
                       </label>
                       <label className="manju-episode-card__field">
                         <span className="manju-episode-card__label">摘要</span>
-                        <ManjuMdField
+                        <ManjuTextField
                           value={ep.summary ?? ""}
                           onChange={(summary) =>
                             updateProject(project.id, {
@@ -409,15 +479,14 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
                             })
                           }
                           placeholder="本集发生什么…"
-                          height={88}
-                          hideToolbar
+                          minHeight={88}
                         />
                       </label>
                       <label className="manju-episode-card__field">
                         <span className="manju-episode-card__label">
                           原文切片
                         </span>
-                        <ManjuMdField
+                        <ManjuTextField
                           value={ep.sourceText ?? ""}
                           onChange={(sourceText) =>
                             updateProject(project.id, {
@@ -428,9 +497,8 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
                               ),
                             })
                           }
-                          placeholder="本集对应的原文片段（规划本集分镜时优先用）"
-                          height={140}
-                          hideToolbar
+                          placeholder="本集对应的原文片段"
+                          minHeight={140}
                         />
                       </label>
                     </div>
@@ -438,133 +506,69 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
                 ))}
               </div>
             ) : (
-              <p className="mt-6 text-center text-sm text-muted-foreground">
-                暂无分集
-              </p>
+              <p className="manju-info-advanced__empty">暂无分集</p>
             )}
-          </TabsContent>
 
-          <TabsContent value="series" className="manju-script-meta__panel">
-            <ManjuMdField
-              value={series.world}
-              onChange={(world) => patchSeries({ ...series, world })}
-              placeholder="时代、规则、世界观…"
-              height={120}
-              hideToolbar
-            />
-            <div className="mt-4 space-y-3">
-              {series.bios.map((bio, index) => (
-                <div
-                  key={`${bio.name}-${index}`}
-                  className="rounded-lg border border-border p-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={bio.name}
-                      className="h-8 text-sm"
-                      onChange={(e) => {
-                        const bios = series.bios.map((item, i) =>
-                          i === index
-                            ? { ...item, name: e.target.value }
-                            : item,
-                        );
-                        patchSeries({ ...series, bios });
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="manju-icon-btn"
-                      aria-label="删除小传"
-                      onClick={() =>
-                        patchSeries({
-                          ...series,
-                          bios: series.bios.filter((_, i) => i !== index),
-                        })
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                  <ManjuMdField
-                    value={bio.bio}
-                    onChange={(text) => {
-                      const bios = series.bios.map((item, i) =>
-                        i === index ? { ...item, bio: text } : item,
-                      );
-                      patchSeries({ ...series, bios });
-                    }}
-                    placeholder="身份、关系、已知经历"
-                    height={80}
-                    hideToolbar
-                    className="mt-2"
-                  />
-                </div>
-              ))}
-            </div>
-            {series.hooks.length > 0 ? (
-              <ul className="mt-4 space-y-2">
-                {series.hooks.map((hook, index) => (
-                  <li
-                    key={`${hook.text}-${index}`}
-                    className="flex items-start justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+            <div className="manju-info-advanced__series">
+              <h3 className="manju-info-field__label">连载记忆 · 世界观</h3>
+              <ManjuTextField
+                value={series.world}
+                onChange={(world) => patchSeries({ ...series, world })}
+                placeholder="时代、规则、世界观…"
+                minHeight={100}
+              />
+              <div className="mt-3 space-y-3">
+                {series.bios.map((bio, index) => (
+                  <div
+                    key={`${bio.name}-${index}`}
+                    className="rounded-lg border border-border p-3"
                   >
-                    <span
-                      className={
-                        hook.status === "paid"
-                          ? "text-muted-foreground line-through"
-                          : ""
-                      }
-                    >
-                      {hook.text}
-                    </span>
-                    <div className="flex shrink-0 gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const hooks = series.hooks.map((item, i) =>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={bio.name}
+                        className="h-8 text-sm"
+                        onChange={(e) => {
+                          const bios = series.bios.map((item, i) =>
                             i === index
-                              ? {
-                                  ...item,
-                                  status:
-                                    item.status === "paid"
-                                      ? ("open" as const)
-                                      : ("paid" as const),
-                                }
+                              ? { ...item, name: e.target.value }
                               : item,
                           );
-                          patchSeries({ ...series, hooks });
+                          patchSeries({ ...series, bios });
                         }}
-                      >
-                        {hook.status === "paid" ? "标为未回收" : "已回收"}
-                      </Button>
-                      <Button
+                      />
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
+                        className="manju-icon-btn"
+                        aria-label="删除小传"
                         onClick={() =>
                           patchSeries({
                             ...series,
-                            hooks: series.hooks.filter((_, i) => i !== index),
+                            bios: series.bios.filter((_, i) => i !== index),
                           })
                         }
                       >
-                        删除
-                      </Button>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                  </li>
+                    <ManjuTextField
+                      value={bio.bio}
+                      onChange={(text) => {
+                        const bios = series.bios.map((item, i) =>
+                          i === index ? { ...item, bio: text } : item,
+                        );
+                        patchSeries({ ...series, bios });
+                      }}
+                      placeholder="身份、关系、已知经历"
+                      minHeight={80}
+                      className="mt-2"
+                    />
+                  </div>
                 ))}
-              </ul>
-            ) : null}
-            {series.bios.length === 0 && series.hooks.length === 0 ? (
-              <p className="mt-4 text-center text-sm text-muted-foreground">
-                暂无小传与伏笔
-              </p>
-            ) : null}
-          </TabsContent>
-        </Tabs>
-      </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 
@@ -579,7 +583,6 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
             onApplyScript={(script, meta) => {
               applyScriptToProject(script, meta);
               setMode("edit");
-              setMetaTab("script");
             }}
             onCollapse={() => setAiOpen(false)}
           />

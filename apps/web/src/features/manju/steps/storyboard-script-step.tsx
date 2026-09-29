@@ -51,7 +51,7 @@ import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { cn } from "@/shared/lib/utils";
-import { ManjuMdField } from "../manju-md-field";
+import { ManjuTextField } from "../manju-text-field";
 import { ManjuAssetPicker } from "../manju-asset-picker";
 import { useManjuStore } from "../manju-store";
 import { submitImageJob } from "../use-manju-jobs";
@@ -368,24 +368,24 @@ function ShotEditDialog({
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label>画面描述</Label>
-            <ManjuMdField
+            <ManjuTextField
               value={shot.visual}
               onChange={(visual) =>
                 updateShot(project.id, shot.id, { visual })
               }
               placeholder="画面描述…"
-              height={220}
+              minHeight={220}
             />
           </div>
           <div className="space-y-1.5">
             <Label>对白（可选）</Label>
-            <ManjuMdField
+            <ManjuTextField
               value={shot.dialogue}
               onChange={(dialogue) =>
                 updateShot(project.id, shot.id, { dialogue })
               }
               placeholder="对白…"
-              height={140}
+              minHeight={140}
             />
           </div>
           {project.episodes.length > 0 ? (

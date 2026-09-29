@@ -36,6 +36,8 @@ type Props = {
   kind: ManjuAssetDraft["kind"];
   disabled?: boolean;
   className?: string;
+  /** 触发按钮文案，默认「素材库」 */
+  label?: string;
   onPick: (picked: {
     assetId: string;
     imageUrl: string;
@@ -44,7 +46,13 @@ type Props = {
 };
 
 /** 从全局素材库引用图片进漫剧资产（不重新上传） */
-export function ManjuLibraryImport({ kind, disabled, className, onPick }: Props) {
+export function ManjuLibraryImport({
+  kind,
+  disabled,
+  className,
+  label = "素材库",
+  onPick,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<LibraryAsset[]>([]);
@@ -103,7 +111,7 @@ export function ManjuLibraryImport({ kind, disabled, className, onPick }: Props)
         onClick={() => setOpen(true)}
       >
         <FolderOpen className="h-3.5 w-3.5" />
-        素材库
+        {label}
       </Button>
       <Dialog
         open={open}
