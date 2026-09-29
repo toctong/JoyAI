@@ -13,19 +13,46 @@ export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文
     "name": "角色名",
     "description": "识别锚点：年龄感、发型发色、五官特征、常服颜色与材质、标志物；只写原文可见事实",
     "aliases": ["称呼或外号"],
-    "continuityLock": "跨镜应保持的短约束，如「黑长直+红围巾」；没有就空字符串"
+    "continuityLock": "跨镜应保持的短约束，如「黑长直+红围巾」；没有就空字符串",
+    "age": "年龄感，没有就空",
+    "gender": "男|女|其他，不确定就空",
+    "roleType": "男主角|女主角|反派|配角等，不确定就空",
+    "height": "身高体感，没有就空",
+    "weight": "体量感，没有就空",
+    "bodyType": "体态，没有就空",
+    "hairstyle": "发型发色",
+    "face": "脸型五官",
+    "gaze": "眼神",
+    "skin": "肤色气色",
+    "clothing": "常服颜色材质",
+    "headwear": "配饰标志物",
+    "traits": "其余可识别特征"
   }],
   "scenes": [{
     "name": "场景名",
     "description": "识别锚点：空间类型、主色、关键道具布局、光感氛围；只写原文可见事实",
     "aliases": [],
-    "continuityLock": "跨镜应保持的空间气质，没有就空字符串"
+    "continuityLock": "跨镜应保持的空间气质，没有就空字符串",
+    "location": "地点名或空间称呼",
+    "timeOfDay": "夜晚|黎明|白昼等",
+    "weather": "天气，没有就空",
+    "sceneType": "室外|室内|半开放，择一",
+    "architecture": "建筑/地貌风格",
+    "lighting": "主光、辅光、整体影调",
+    "atmosphere": "氛围关键词",
+    "sceneProps": ["场中陈设道具名"]
   }],
   "props": [{
     "name": "道具名",
     "description": "识别锚点：外形、材质、颜色、尺寸感；只写原文可见事实",
     "aliases": [],
-    "continuityLock": "外观不可变短句，没有就空字符串"
+    "continuityLock": "外观不可变短句，没有就空字符串",
+    "propTexture": "质感",
+    "propMaterial": "材质",
+    "propSize": "尺寸感",
+    "propWear": "磨损/锈蚀情况",
+    "propSpecial": "特殊效果或超常性质",
+    "propFinish": "色泽与表面处理"
   }],
   "episodes": [{ "title": "分集标题", "summary": "本集发生什么" }]
 }
@@ -34,6 +61,7 @@ export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文
 - 小说：只登记有名字、会出场的人；路人不必登记
 - 身份 vs 变体：同一人不同造型仍用同一 name，把变体要点写进 description（如「西装版/便装版」），不要拆成两个角色除非原文明确是两人
 - description 必须是「识别锚点」——后续生图能靠它认出是同一资产；禁止空泛形容词堆砌（帅气、美丽）
+- 结构化字段（角色外观 / 场景环境与光照 / 道具信息）必须尽量填：原文写到的要落到对应键；原文没写就空字符串或 []，不要编造科学数据
 - continuityLock：2～12 字短短语，锁定发型/标志物/主色等；没有把握就空字符串，不要编造
 - 每类不超过 20 个，名称唯一、简短
 - aliases：称呼、外号、代称；没有就 []；不要把正式名再写一遍

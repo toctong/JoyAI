@@ -6,9 +6,13 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, IsNull, Repository } from "typeorm";
 import {
+  analyzeItemToDetail,
+  mergeManjuAssetDetail,
   normalizeCanvasAgentChat,
   normalizeManjuDraft,
   normalizeScriptProjectChat,
+  type ManjuAnalyzeAssetItem,
+  type ManjuAnalyzeResult,
   type ManjuDraft,
 } from "@joyai/shared";
 import { ManjuProject } from "../../database/entities/manju-project.entity";
@@ -492,40 +496,7 @@ export class ManjuService {
     userId: string,
     projectId: string,
     jobId: string,
-    analyze: {
-      overview?: string;
-      tags?: string[];
-      characters: Array<{
-        name: string;
-        description: string;
-        aliases?: string[];
-        continuityLock?: string;
-      }>;
-      scenes: Array<{
-        name: string;
-        description: string;
-        aliases?: string[];
-        continuityLock?: string;
-      }>;
-      props: Array<{
-        name: string;
-        description: string;
-        aliases?: string[];
-        continuityLock?: string;
-      }>;
-      episodes: Array<{ title: string; summary: string }>;
-      shots: Array<{
-        index?: number;
-        visual: string;
-        dialogue: string;
-        assetNames: string[];
-        episodeTitle?: string;
-        title?: string;
-        shotSize?: string;
-        cameraAngle?: string;
-        cameraMove?: string;
-      }>;
-    },
+    analyze: ManjuAnalyzeResult,
     writeShots = false,
     scopeEpisodeId?: string | null,
     analyzeMode: "incremental" | "full_add" | "clear_reparse" = "incremental",
@@ -567,16 +538,15 @@ export class ManjuService {
 
     const pushAsset = (
       kind: "character" | "scene" | "prop",
-      name: string,
-      description: string,
-      aliases: string[] = [],
-      continuityLock?: string,
+      item: ManjuAnalyzeAssetItem,
     ) => {
+      const name = item.name.trim();
       const key = `${kind}:${name}`;
-      const cleanAliases = aliases
+      const cleanAliases = (item.aliases ?? [])
         .map((a) => a.trim())
         .filter((a) => a && a !== name);
-      const mergedDesc = mergeDescription(description, continuityLock);
+      const mergedDesc = mergeDescription(item.description, item.continuityLock);
+      const nextDetail = analyzeItemToDetail(kind, item);
       if (!allowDup && existingKeys.has(key)) {
         const hit = draft.assets.find((a) => a.kind === kind && a.name === name);
         if (hit) {
@@ -587,12 +557,17 @@ export class ManjuService {
           if (mergedDesc && !hit.description?.trim()) {
             hit.description = mergedDesc;
           } else if (
-            continuityLock?.trim() &&
+            item.continuityLock?.trim() &&
             hit.description &&
-            !hit.description.includes(continuityLock.trim())
+            !hit.description.includes(item.continuityLock.trim())
           ) {
-            hit.description = mergeDescription(hit.description, continuityLock);
+            hit.description = mergeDescription(
+              hit.description,
+              item.continuityLock,
+            );
           }
+          const mergedDetail = mergeManjuAssetDetail(hit.detail, nextDetail);
+          if (mergedDetail) hit.detail = mergedDetail;
         }
         return;
       }
@@ -608,23 +583,18 @@ export class ManjuService {
         assetId: null,
         jobId: null,
         status: "idle",
+        detail: nextDetail,
       });
     };
 
     for (const c of analyze.characters) {
-      pushAsset(
-        "character",
-        c.name,
-        c.description,
-        c.aliases,
-        c.continuityLock,
-      );
+      pushAsset("character", c);
     }
     for (const s of analyze.scenes) {
-      pushAsset("scene", s.name, s.description, s.aliases, s.continuityLock);
+      pushAsset("scene", s);
     }
     for (const p of analyze.props) {
-      pushAsset("prop", p.name, p.description, p.aliases, p.continuityLock);
+      pushAsset("prop", p);
     }
 
     if (analyze.overview?.trim()) {
@@ -641,29 +611,30 @@ export class ManjuService {
     }
 
     if (analyze.episodes.length > 0) {
-      const byTitle = new Map(
-        draft.episodes.map((ep) => [ep.title.trim(), ep] as const),
-      );
-      draft.episodes = analyze.episodes.map((ep) => {
-        const prev = byTitle.get(ep.title.trim());
-        return {
-          id: prev?.id ?? newId(),
+      if (draft.episodes.length === 0) {
+        // 尚无分集：用解析结果落集
+        draft.episodes = analyze.episodes.map((ep) => ({
+          id: newId(),
           title: ep.title,
-          summary: ep.summary?.trim() || prev?.summary || "",
-          hook: prev?.hook ?? "",
-          sourceText: prev?.sourceText ?? "",
-        };
-      });
-      // 解析未切原文时：单集挂全文；多集也先挂到第 1 集，避免制作视频无内容
-      if (draft.scriptText.trim()) {
-        const allEmpty = draft.episodes.every((e) => !e.sourceText?.trim());
-        if (allEmpty) {
+          summary: ep.summary?.trim() || "",
+          hook: "",
+          sourceText: "",
+        }));
+        if (draft.scriptText.trim()) {
           draft.episodes[0]!.sourceText = draft.scriptText;
-        } else if (
-          draft.episodes.length === 1 &&
-          !draft.episodes[0]!.sourceText?.trim()
-        ) {
-          draft.episodes[0]!.sourceText = draft.scriptText;
+        }
+      } else {
+        // 已有分集：只按标题补 summary，绝不整表覆盖（避免续写的第2/3集被删）
+        const byTitle = new Map(
+          draft.episodes.map((ep) => [ep.title.trim(), ep] as const),
+        );
+        for (const ep of analyze.episodes) {
+          const title = ep.title.trim();
+          if (!title) continue;
+          const prev = byTitle.get(title);
+          if (prev && ep.summary?.trim()) {
+            prev.summary = ep.summary.trim();
+          }
         }
       }
     } else if (draft.episodes.length === 0 && draft.scriptText.trim()) {
@@ -828,11 +799,22 @@ export class ManjuService {
       jobId,
       {
         overview: "",
+        tags: [],
         characters: [],
         scenes: [],
         props: [],
         episodes: [],
-        shots,
+        shots: shots.map((s) => ({
+          visual: s.visual,
+          dialogue: s.dialogue ?? "",
+          assetNames: s.assetNames ?? [],
+          episodeTitle: s.episodeTitle ?? "",
+          index: s.index,
+          title: "",
+          shotSize: "",
+          cameraAngle: "",
+          cameraMove: "",
+        })),
       },
       true,
       scopeEpisodeId,

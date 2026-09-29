@@ -219,16 +219,233 @@ export const LlmJobInputSchema = z.object({
 export type LlmJobInput = z.infer<typeof LlmJobInputSchema>;
 export type ManjuAnalyzeMode = NonNullable<LlmJobInput["analyzeMode"]>;
 
-export const ManjuAnalyzeAssetItemSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().default(""),
-  aliases: z.array(z.string()).default([]),
-  /**
-   * 跨镜/跨集应保持不变的短约束（发型、标志物、色调等）。
-   * 可选；回写时并入 description，旧稿无此字段仍兼容。
-   */
-  continuityLock: z.string().default(""),
+/** 资产详情页结构化字段（角色外观 / 场景环境 / 道具信息） */
+export const ManjuAssetDetailSchema = z.object({
+  age: z.string().default(""),
+  gender: z.string().default(""),
+  roleType: z.string().default(""),
+  story: z.string().default(""),
+  voiceNote: z.string().default(""),
+  voiceUseText: z.boolean().optional(),
+  voiceUseAudio: z.boolean().optional(),
+  voiceAudioUrl: z.string().default(""),
+  height: z.string().default(""),
+  weight: z.string().default(""),
+  bodyType: z.string().default(""),
+  hairstyle: z.string().default(""),
+  face: z.string().default(""),
+  gaze: z.string().default(""),
+  skin: z.string().default(""),
+  clothing: z.string().default(""),
+  headwear: z.string().default(""),
+  traits: z.string().default(""),
+  location: z.string().default(""),
+  timeOfDay: z.string().default(""),
+  weather: z.string().default(""),
+  sceneType: z.string().default(""),
+  architecture: z.string().default(""),
+  lighting: z.string().default(""),
+  atmosphere: z.string().default(""),
+  sceneProps: z.array(z.string()).default([]),
+  propTexture: z.string().default(""),
+  propMaterial: z.string().default(""),
+  propSize: z.string().default(""),
+  propWear: z.string().default(""),
+  propSpecial: z.string().default(""),
+  propFinish: z.string().default(""),
 });
+export type ManjuAssetDetail = z.infer<typeof ManjuAssetDetailSchema>;
+
+const optionalDetail = ManjuAssetDetailSchema.partial();
+
+export const ManjuAnalyzeAssetItemSchema = z
+  .object({
+    name: z.string().min(1),
+    description: z.string().default(""),
+    aliases: z.array(z.string()).default([]),
+    /**
+     * 跨镜/跨集应保持不变的短约束（发型、标志物、色调等）。
+     * 可选；回写时并入 description，旧稿无此字段仍兼容。
+     */
+    continuityLock: z.string().default(""),
+    /** 结构化外观/环境/道具信息；也可把同名字段直接写在条目上 */
+    detail: optionalDetail.optional(),
+  })
+  .merge(optionalDetail);
+export type ManjuAnalyzeAssetItem = z.infer<typeof ManjuAnalyzeAssetItemSchema>;
+
+const DETAIL_STRING_KEYS = [
+  "age",
+  "gender",
+  "roleType",
+  "story",
+  "voiceNote",
+  "voiceAudioUrl",
+  "height",
+  "weight",
+  "bodyType",
+  "hairstyle",
+  "face",
+  "gaze",
+  "skin",
+  "clothing",
+  "headwear",
+  "traits",
+  "location",
+  "timeOfDay",
+  "weather",
+  "sceneType",
+  "architecture",
+  "lighting",
+  "atmosphere",
+  "propTexture",
+  "propMaterial",
+  "propSize",
+  "propWear",
+  "propSpecial",
+  "propFinish",
+] as const;
+
+function splitDescParts(description: string): string[] {
+  return description
+    .split(/[，,；;、。]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function pickPart(parts: string[], re: RegExp): string {
+  return parts.find((p) => re.test(p)) ?? "";
+}
+
+/** 从识别锚点兜底拆出详情页字段（AI 漏填时） */
+export function guessManjuAssetDetail(
+  kind: "character" | "scene" | "prop",
+  description: string,
+): ManjuAssetDetail {
+  const parts = splitDescParts(description);
+  const empty = ManjuAssetDetailSchema.parse({});
+  if (kind === "prop") {
+    return {
+      ...empty,
+      propMaterial: parts[0] ?? "",
+      propTexture: pickPart(parts, /锈|斑|粗|滑|温|冷|润|硬|软/) || parts[1] || "",
+      propWear: pickPart(parts, /锈|破|损|斑|旧|裂|缺/),
+      propSpecial: pickPart(parts, /化|光|气|魂|鸣|祭|丹|咒/) || parts[2] || "",
+      propFinish: parts[parts.length - 1] ?? "",
+      propSize: pickPart(parts, /寸|掌|寸许|碗|拳|尺/),
+    };
+  }
+  if (kind === "scene") {
+    const indoor = /内|室|井|殿|堂|阁|窟/.test(description);
+    const outdoor = /外|野|冢|林|原|街|崖/.test(description);
+    return {
+      ...empty,
+      location: parts[0] ?? "",
+      timeOfDay: pickPart(parts, /夜|晨|昼|黄昏|黎明|午|暮/),
+      weather: pickPart(parts, /雨|雪|雾|风|阴|晴/),
+      sceneType: indoor && !outdoor ? "室内" : outdoor ? "室外" : indoor ? "半开放" : "",
+      lighting: pickPart(parts, /光|月|灯|暗|火|锈气/),
+      atmosphere: pickPart(parts, /静|暗|冷|压抑|荒|危|死寂|腥/) || parts.slice(1, 3).join("，"),
+      architecture: pickPart(parts, /殿|塔|楼|阁|坊|城|矿|冢/),
+      sceneProps: parts.slice(1, 4),
+    };
+  }
+  return {
+    ...empty,
+    clothing: pickPart(parts, /袍|衣|裳|衫|甲|裙|靴|布/),
+    hairstyle: pickPart(parts, /发|髻|髯|鬓|眉/),
+    skin: pickPart(parts, /肤|苍|白|青灰|锈|泥/),
+    bodyType:
+      pickPart(parts, /瘦|壮|魁|佝|修长|单薄|魁梧/) ||
+      (/\d+余岁|青年|少年/.test(description) ? "青年体态" : ""),
+    traits: parts.slice(0, 4).join("，"),
+    face: pickPart(parts, /脸|目|睛|瞳|疤|无瞳/),
+    gaze: pickPart(parts, /目|瞳|睛|视|无瞳/),
+    headwear: pickPart(parts, /巾|冠|簪|链|环|饰/),
+    age: pickPart(parts, /岁|青年|少年|中年|老/),
+    gender: /女/.test(description) && !/男/.test(description)
+      ? "女"
+      : /男/.test(description)
+        ? "男"
+        : "",
+  };
+}
+
+function compactDetail(
+  raw: Partial<ManjuAssetDetail> | undefined,
+): Partial<ManjuAssetDetail> {
+  if (!raw) return {};
+  const out: Partial<ManjuAssetDetail> = {};
+  for (const key of DETAIL_STRING_KEYS) {
+    const v = raw[key];
+    if (typeof v === "string" && v.trim()) out[key] = v.trim();
+  }
+  if (Array.isArray(raw.sceneProps)) {
+    const props = raw.sceneProps.map((s) => s.trim()).filter(Boolean);
+    if (props.length) out.sceneProps = props;
+  }
+  if (typeof raw.voiceUseText === "boolean") out.voiceUseText = raw.voiceUseText;
+  if (typeof raw.voiceUseAudio === "boolean") out.voiceUseAudio = raw.voiceUseAudio;
+  return out;
+}
+
+export function mergeManjuAssetDetail(
+  prev: ManjuAssetDetail | undefined,
+  incoming: Partial<ManjuAssetDetail> | undefined,
+): ManjuAssetDetail | undefined {
+  const a = compactDetail(prev);
+  const b = compactDetail(incoming);
+  const merged = { ...a };
+  for (const [k, v] of Object.entries(b)) {
+    const key = k as keyof ManjuAssetDetail;
+    const cur = merged[key];
+    if (Array.isArray(v)) {
+      if (!Array.isArray(cur) || cur.length === 0) merged[key] = v as never;
+    } else if (v !== undefined && v !== "" && (cur === undefined || cur === "")) {
+      merged[key] = v as never;
+    }
+  }
+  return Object.keys(merged).length ? (merged as ManjuAssetDetail) : undefined;
+}
+
+export function analyzeItemToDetail(
+  kind: "character" | "scene" | "prop",
+  item: ManjuAnalyzeAssetItem,
+): ManjuAssetDetail | undefined {
+  const fromModel = mergeManjuAssetDetail(undefined, {
+    ...(item.detail ?? {}),
+    age: item.age,
+    gender: item.gender,
+    roleType: item.roleType,
+    story: item.story,
+    height: item.height,
+    weight: item.weight,
+    bodyType: item.bodyType,
+    hairstyle: item.hairstyle,
+    face: item.face,
+    gaze: item.gaze,
+    skin: item.skin,
+    clothing: item.clothing,
+    headwear: item.headwear,
+    traits: item.traits,
+    location: item.location,
+    timeOfDay: item.timeOfDay,
+    weather: item.weather,
+    sceneType: item.sceneType,
+    architecture: item.architecture,
+    lighting: item.lighting,
+    atmosphere: item.atmosphere,
+    sceneProps: item.sceneProps,
+    propTexture: item.propTexture,
+    propMaterial: item.propMaterial,
+    propSize: item.propSize,
+    propWear: item.propWear,
+    propSpecial: item.propSpecial,
+    propFinish: item.propFinish,
+  });
+  const guessed = guessManjuAssetDetail(kind, item.description ?? "");
+  return mergeManjuAssetDetail(guessed, fromModel);
+}
 export const ManjuAnalyzeEpisodeSchema = z.object({
   title: z.string().min(1),
   summary: z.string().default(""),
@@ -430,6 +647,7 @@ export const ManjuAssetDraftSchema = z.object({
   assetId: z.string().nullable().default(null),
   jobId: z.string().nullable().default(null),
   status: ManjuJobStatusSchema.default("idle"),
+  detail: ManjuAssetDetailSchema.optional(),
 });
 
 export const ManjuShotDraftSchema = z.object({

@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { useManjuStore } from "../manju-store";
 import { ScriptAiPanel } from "../script-ai/script-ai-panel";
@@ -15,7 +14,7 @@ import {
   buildContinueEpisodeSeed,
   defaultContinueUserPrompt,
 } from "../lib/continue-episode";
-import { manjuStudioHref } from "./manju-studio-routes";
+import { openManjuProduceTab } from "./manju-studio-routes";
 
 type Props = {
   projectId: string;
@@ -96,16 +95,13 @@ export function EpisodeContinueDialog({
                 confirmText: "制作视频",
                 cancelText: "稍后",
               });
-              if (go) {
-                const href = manjuStudioHref(projectId, "episode", {
-                  epId: result.newEpisode.id,
-                });
-                const win = window.open(href, "_blank", "noopener,noreferrer");
-                if (!win) {
-                  toast.error("浏览器拦截了新标签，请允许弹窗后再试");
-                }
-              }
               onOpenChange(false);
+              if (go) {
+                // confirmDialog is async — new-tab open is often blocked; same-tab ok
+                openManjuProduceTab(projectId, result.newEpisode.id, {
+                  sameTab: true,
+                });
+              }
             })();
           }}
         />

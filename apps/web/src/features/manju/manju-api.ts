@@ -95,6 +95,8 @@ export function projectFromDto(dto: ManjuProjectDto): ManjuProjectDraft {
         assetId: raw.assetId ?? null,
         jobId: raw.jobId ?? null,
         status: raw.status ?? "idle",
+        detail:
+          raw.detail && typeof raw.detail === "object" ? raw.detail : undefined,
       };
     }),
     shots: (dto.draft.shots ?? []).map((s) => ({

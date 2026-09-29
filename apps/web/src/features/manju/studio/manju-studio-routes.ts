@@ -53,6 +53,33 @@ export function manjuStudioHref(
   }
 }
 
+/**
+ * Open episode produce workspace. Prefer a new tab; if the browser blocks
+ * popups (common after async confirms), fall back to same-tab navigation.
+ * Returns whether a new tab was opened successfully.
+ */
+export function openManjuProduceTab(
+  projectId: string,
+  epId: string,
+  opts?: { sameTab?: boolean; autoPlan?: boolean },
+): boolean {
+  let href = manjuStudioHref(projectId, "episode", { epId });
+  if (opts?.autoPlan) {
+    href += href.includes("?") ? "&plan=1" : "?plan=1";
+  }
+  if (typeof window === "undefined") return false;
+  if (!opts?.sameTab) {
+    try {
+      const win = window.open(href, "_blank", "noopener,noreferrer");
+      if (win) return true;
+    } catch {
+      /* fall through */
+    }
+  }
+  window.location.assign(href);
+  return false;
+}
+
 export function manjuAssetListSection(
   kind: "character" | "scene" | "prop",
 ): Extract<ManjuStudioSection, "characters" | "scenes" | "props"> {

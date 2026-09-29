@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
   Download,
@@ -99,6 +100,9 @@ type Props = {
 };
 
 export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const project = useManjuStore((s) =>
     s.projects.find((p) => p.id === projectId),
   );
@@ -120,6 +124,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
   const [libraryFilter, setLibraryFilter] = useState<LibraryFilter>("all");
   const [previewKind, setPreviewKind] = useState<"image" | "video">("image");
   const [continueOpen, setContinueOpen] = useState(false);
+  const autoPlanStarted = useRef(false);
 
   const episode = project?.episodes.find((e) => e.id === episodeId);
   const epIndex = Math.max(
@@ -144,6 +149,49 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       setSelectedId(shots[0]!.id);
     }
   }, [shots, selectedId]);
+
+  // 从剧集列表「规划分镜并制作」带入 ?plan=1：本集无镜头时自动提交 script_plan
+  useEffect(() => {
+    if (!project || autoPlanStarted.current) return;
+    if (searchParams.get("plan") !== "1") return;
+    autoPlanStarted.current = true;
+    router.replace(pathname);
+    if (shots.length > 0) return;
+    const source =
+      episode?.sourceText?.trim() || project.scriptText.trim();
+    if (!source) {
+      toast.error("本集还没有原文，请先写好剧本再规划分镜");
+      return;
+    }
+    void (async () => {
+      try {
+        setAnalyzing(projectId, true);
+        await flushSave(projectId);
+        const job = await submitWorkflowSkill({
+          project,
+          skill: "script_plan",
+          episodeId,
+        });
+        updateProject(projectId, { lastAnalyzeJobId: job.id });
+        toast.message("AI 正在规划本集分镜…");
+      } catch (e) {
+        setAnalyzing(projectId, false);
+        toast.error(e instanceof Error ? e.message : "分镜规划提交失败");
+      }
+    })();
+  }, [
+    project,
+    episode,
+    episodeId,
+    projectId,
+    shots.length,
+    searchParams,
+    router,
+    pathname,
+    flushSave,
+    setAnalyzing,
+    updateProject,
+  ]);
 
   const selected =
     shots.find((s) => s.id === selectedId) ?? shots[0] ?? null;

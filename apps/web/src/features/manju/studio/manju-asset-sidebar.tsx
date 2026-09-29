@@ -48,7 +48,7 @@ export function ManjuAssetSidebar({
   onToggleCollapse,
   section,
 }: Props) {
-  // 剧集管理永远进列表页；制作视频由列表「制作视频」新开 tab（/episodes/[epId]）
+  // 剧集管理永远进列表页；制作视频优先新标签（/episodes/[epId]），弹窗被拦则同页进入
   const episodesListHref = manjuStudioHref(projectId, "episode");
 
   return (

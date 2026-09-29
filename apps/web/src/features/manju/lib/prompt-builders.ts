@@ -151,8 +151,22 @@ export function buildAssetImagePrompt(
       ? assetRegistryName(asset, allAssets)
       : asset.name.trim() || "未命名";
   const title = `${KIND_LABEL[asset.kind]}设定图：${reg}`;
+  const d = asset.detail;
+  const detailLine = d
+    ? [
+        asset.kind === "character"
+          ? [d.age, d.gender, d.hairstyle, d.face, d.gaze, d.skin, d.clothing, d.headwear, d.traits]
+          : asset.kind === "scene"
+            ? [d.location, d.timeOfDay, d.weather, d.sceneType, d.architecture, d.lighting, d.atmosphere, (d.sceneProps ?? []).join("、")]
+            : [d.propMaterial, d.propTexture, d.propSize, d.propWear, d.propSpecial, d.propFinish],
+      ]
+        .flat()
+        .map((s) => (typeof s === "string" ? s.trim() : ""))
+        .filter(Boolean)
+        .join("；")
+    : "";
   const desc =
-    asset.description.trim() ||
+    [asset.description.trim(), detailLine].filter(Boolean).join("。") ||
     "（请补充外貌 / 服饰 / 材质 / 氛围的叙事描述）";
   const derivativeHint = asset.parentId
     ? "此为同一角色的衍生造型（换装/变身），五官体型须与本体一致，仅服饰造型不同。"

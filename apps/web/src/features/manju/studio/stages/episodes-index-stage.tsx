@@ -47,10 +47,14 @@ import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { useManjuStore } from "../../manju-store";
 import { submitManjuAnalyzeJob } from "../../manju-api";
+import { submitWorkflowSkill } from "../../lib/workflow-skill";
 import { ManjuTextField } from "../../manju-text-field";
 import { ManjuExportDialog } from "../manju-export-dialog";
 import { EpisodeContinueDialog } from "../episode-continue-dialog";
-import { manjuStudioHref } from "../manju-studio-routes";
+import {
+  manjuStudioHref,
+  openManjuProduceTab,
+} from "../manju-studio-routes";
 import type { ManjuEpisodeDraft, ManjuProjectDraft } from "../../manju-types";
 
 type ProduceMode = "manual" | "agent";
@@ -82,15 +86,6 @@ function episodeStats(project: ManjuProjectDraft, epId: string) {
   const shots = project.shots.filter((s) => s.episodeId === epId);
   const videos = shots.filter((s) => Boolean(s.videoUrl)).length;
   return { shots, videos, pending: shots.length === 0 };
-}
-
-function openProduceTab(projectId: string, epId: string) {
-  const href = manjuStudioHref(projectId, "episode", { epId });
-  // 必须新开标签；禁止在本页跳转替换剧集管理
-  const win = window.open(href, "_blank", "noopener,noreferrer");
-  if (!win) {
-    toast.error("浏览器拦截了新标签，请允许弹窗后再点「制作视频」");
-  }
 }
 
 export function EpisodesIndexStage({ projectId }: { projectId: string }) {
@@ -235,32 +230,61 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
   const confirmProduce = async (skipAnalyze: boolean) => {
     const epId = pendingEpId;
     setProduceOpen(false);
+    setPendingEpId(null);
     if (!epId) return;
 
     if (produceMode === "agent") {
-      toast.message("Agent 创作将打开侧栏 Agent");
+      toast.message("Agent 创作即将开放，已按常规创作打开制作台");
     }
 
-    if (!skipAnalyze && project.scriptText.trim().length >= 20) {
-      try {
-        setAnalyzing(projectId, true);
-        await flushSave(projectId);
+    const ep = project.episodes.find((e) => e.id === epId);
+    const analyzeText =
+      (ep?.sourceText || "").trim() || project.scriptText.trim();
+    const epShotCount = project.shots.filter((s) => s.episodeId === epId).length;
+    const needsAssets =
+      !skipAnalyze && analyzeText.length >= 20 && project.assets.length === 0;
+    const needsPlan =
+      !skipAnalyze &&
+      !needsAssets &&
+      epShotCount === 0 &&
+      analyzeText.length >= 20;
+
+    // Open first (same click turn). ?plan=1 lets same-tab fallback auto-run script_plan.
+    const opened = openManjuProduceTab(projectId, epId, {
+      autoPlan: needsPlan,
+    });
+
+    if (skipAnalyze || !opened) return;
+
+    try {
+      setAnalyzing(projectId, true);
+      await flushSave(projectId);
+      if (needsAssets) {
         const job = await submitManjuAnalyzeJob({
           projectId,
-          scriptText: project.scriptText,
+          scriptText: analyzeText,
           purpose: "analyze_assets",
           modelId: project.settings.llmModelId,
+          episodeId: epId,
           analyzeMode: "incremental",
         });
         updateProject(projectId, { lastAnalyzeJobId: job.id });
-        toast.message("AI 正在解析剧本…");
-      } catch (e) {
+        toast.message("AI 正在解析剧本资产…");
+      } else if (needsPlan) {
+        const job = await submitWorkflowSkill({
+          project,
+          skill: "script_plan",
+          episodeId: epId,
+        });
+        updateProject(projectId, { lastAnalyzeJobId: job.id });
+        toast.message("AI 正在规划本集分镜…");
+      } else {
         setAnalyzing(projectId, false);
-        toast.error(e instanceof Error ? e.message : "解析提交失败");
       }
+    } catch (e) {
+      setAnalyzing(projectId, false);
+      toast.error(e instanceof Error ? e.message : "提交失败");
     }
-
-    openProduceTab(projectId, epId);
   };
 
   const startParseFromDetail = () => {
@@ -486,7 +510,7 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                           !pending && "is-ready",
                         )}
                       >
-                        {pending ? "待解析" : "已解析"}
+                        {pending ? "待分镜" : "已分镜"}
                       </span>
                     </div>
                     {!pending ? (
@@ -497,7 +521,12 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                     ) : null}
                     {!batchMode && !pending ? (
                       <div className="manju-ep-card__actions">
-                        <Button variant="outline" size="sm" asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="manju-ep-card__ghost-btn"
+                          asChild
+                        >
                           <Link href={manjuStudioHref(projectId, "preview")}>
                             <Play className="size-3.5" />
                             预览
@@ -505,15 +534,25 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => openProduceTab(projectId, ep.id)}
+                          className="manju-ep-card__primary-btn"
+                          asChild
                         >
-                          <Wand2 className="size-3.5" />
-                          制作视频
+                          <a
+                            href={manjuStudioHref(projectId, "episode", {
+                              epId: ep.id,
+                            })}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Wand2 className="size-3.5" />
+                            制作视频
+                          </a>
                         </Button>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="manju-ep-card__ghost-btn"
                           onClick={() => openContinue(ep.id)}
                         >
                           <PenLine className="size-3.5" />
@@ -523,6 +562,7 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="manju-ep-card__ghost-btn"
                           onClick={() => toast.message("BGM 制作即将接入")}
                         >
                           <Music2 className="size-3.5" />
@@ -532,7 +572,12 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                           project={project}
                           episodeId={ep.id}
                           trigger={
-                            <Button type="button" variant="outline" size="sm">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="manju-ep-card__ghost-btn"
+                            >
                               <Download className="size-3.5" />
                               导出
                             </Button>
@@ -550,7 +595,7 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                         onClick={() => openProduce(ep.id)}
                       >
                         <Wand2 className="size-3.5" />
-                        开始解析
+                        开始制作
                       </Button>
                     </div>
                   ) : null}
@@ -583,7 +628,7 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                           onClick={() => openProduce(ep.id)}
                         >
                           <Wand2 className="size-3.5" />
-                          开始解析
+                          开始制作
                         </DropdownMenuItem>
                       ) : null}
                       <DropdownMenuItem onClick={() => copyEpisode(ep.id)}>
@@ -626,9 +671,13 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
 
       <ProduceDialog
         open={produceOpen}
-        onOpenChange={setProduceOpen}
+        onOpenChange={(open) => {
+          setProduceOpen(open);
+          if (!open) setPendingEpId(null);
+        }}
         mode={produceMode}
         onModeChange={setProduceMode}
+        needsAssetParse={project.assets.length === 0}
         onConfirm={() => void confirmProduce(false)}
         onSkip={() => void confirmProduce(true)}
       />
@@ -670,7 +719,7 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                   onClick={startParseFromDetail}
                 >
                   <Wand2 className="size-3.5" />
-                  开始解析
+                  开始制作
                 </Button>
               ) : (
                 <>
@@ -687,18 +736,26 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                     <PenLine className="size-3.5" />
                     AI 写下一集
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      if (!detailEpId) return;
-                      saveDetail();
-                      setDetailEpId(null);
-                      openProduceTab(projectId, detailEpId);
-                    }}
-                  >
-                    <Wand2 className="size-3.5" />
-                    制作视频
+                  <Button size="sm" asChild>
+                    <a
+                      href={
+                        detailEpId
+                          ? manjuStudioHref(projectId, "episode", {
+                              epId: detailEpId,
+                            })
+                          : undefined
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        if (!detailEpId) return;
+                        saveDetail();
+                        setDetailEpId(null);
+                      }}
+                    >
+                      <Wand2 className="size-3.5" />
+                      制作视频
+                    </a>
                   </Button>
                 </>
               )}
@@ -852,6 +909,7 @@ function ProduceDialog({
   onOpenChange,
   mode,
   onModeChange,
+  needsAssetParse,
   onConfirm,
   onSkip,
 }: {
@@ -859,6 +917,7 @@ function ProduceDialog({
   onOpenChange: (open: boolean) => void;
   mode: ProduceMode;
   onModeChange: (mode: ProduceMode) => void;
+  needsAssetParse: boolean;
   onConfirm: () => void;
   onSkip: () => void;
 }) {
@@ -881,7 +940,11 @@ function ProduceDialog({
             onClick={() => onModeChange("manual")}
           >
             <strong>常规创作</strong>
-            <span>每分镜逐步微调和确认画面、视频等</span>
+            <span>
+              {needsAssetParse
+                ? "先解析资产，再逐步微调分镜与视频"
+                : "规划本集分镜，再逐步微调画面与视频"}
+            </span>
             {mode === "manual" ? (
               <span className="manju-mode-dialog__check" aria-hidden />
             ) : null}
@@ -890,15 +953,14 @@ function ProduceDialog({
             type="button"
             className={cn(
               "manju-mode-dialog__option",
+              "is-disabled",
               mode === "agent" && "is-on",
             )}
-            onClick={() => onModeChange("agent")}
+            disabled
+            title="Agent 创作即将开放"
           >
             <strong>Agent 创作</strong>
-            <span>由 Agent 能力驱动的操作流程，支持离线自动完成创作</span>
-            {mode === "agent" ? (
-              <span className="manju-mode-dialog__check" aria-hidden />
-            ) : null}
+            <span>即将开放：离线自动跑分镜与生成</span>
           </button>
         </div>
         <div className="manju-mode-dialog__footer">
@@ -907,13 +969,15 @@ function ProduceDialog({
             className="manju-mode-dialog__skip"
             onClick={onSkip}
           >
-            跳过解析
+            仅打开制作台
           </button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               取消
             </Button>
-            <Button onClick={onConfirm}>确认</Button>
+            <Button onClick={onConfirm}>
+              {needsAssetParse ? "解析并制作" : "规划分镜并制作"}
+            </Button>
           </div>
         </div>
       </DialogContent>

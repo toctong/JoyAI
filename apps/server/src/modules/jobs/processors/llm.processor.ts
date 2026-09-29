@@ -162,7 +162,7 @@ export class LlmProcessor extends WorkerHost {
           ? [
               "请严格按系统约定，只输出一个 JSON 对象（不要解释、不要 markdown 代码围栏）。",
               "必须填写：overview（一两句梗概）、tags（2～5 个题材标签）、characters、scenes、props、episodes（至少 1 集）。",
-              "每个资产的 description 必须是识别锚点（可见外形/空间事实），可填 aliases 与 continuityLock（没有则空数组/空字符串）。",
+              "每个资产除 description / aliases / continuityLock 外，还要填详情页结构化字段：角色填 age/gender/hairstyle/face/clothing/traits 等；场景填 location/timeOfDay/weather/sceneType/architecture/lighting/atmosphere/sceneProps；道具填 propTexture/propMaterial/propSize/propWear/propSpecial/propFinish。原文没有就空字符串或 []。",
               "只根据下方剧本原文抽取，不要编造原文没有的角色或设定。",
               "",
               "【剧本原文】",

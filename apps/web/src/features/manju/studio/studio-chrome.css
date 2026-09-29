@@ -2513,6 +2513,7 @@
   margin: 0;
   font-size: var(--joy-font-display, 22px);
   font-weight: 600;
+  color: var(--foreground);
 }
 
 .manju-ep-manage__actions {
@@ -2684,6 +2685,7 @@
   margin: 0;
   font-size: var(--joy-font-title, 16px);
   font-weight: 600;
+  color: var(--foreground);
 }
 
 .manju-ep-card__name-btn {
@@ -2700,21 +2702,21 @@
 
 .manju-ep-card__badge {
   border-radius: 999px;
-  background: var(--muted);
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
   padding: 2px 8px;
   font-size: var(--joy-font-micro, 12px);
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, var(--foreground) 62%, transparent);
 }
 
 .manju-ep-card__badge.is-ready {
-  background: color-mix(in oklab, var(--primary) 12%, transparent);
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
   color: var(--primary);
 }
 
 .manju-ep-card__meta {
   margin: 0;
   font-size: var(--joy-font-caption, 13px);
-  color: var(--muted-foreground);
+  color: color-mix(in oklab, var(--foreground) 55%, transparent);
 }
 
 .manju-ep-card__actions {
@@ -2722,6 +2724,30 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* 主操作：浅紫底 + 主色字，对齐侧栏选中 */
+.manju-ep-card__primary-btn,
+.manju-ep-card__parse-btn {
+  border-color: color-mix(in oklab, var(--primary) 28%, var(--border)) !important;
+  background: color-mix(in oklab, var(--primary) 14%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: none !important;
+}
+
+.manju-ep-card__primary-btn:hover,
+.manju-ep-card__parse-btn:hover {
+  border-color: color-mix(in oklab, var(--primary) 40%, var(--border)) !important;
+  background: color-mix(in oklab, var(--primary) 22%, transparent) !important;
+  color: var(--primary) !important;
+}
+
+.manju-ep-card__actions .manju-ep-card__ghost-btn {
+  color: color-mix(in oklab, var(--foreground) 78%, transparent);
+}
+
+.manju-ep-card__actions .manju-ep-card__ghost-btn:hover {
+  color: var(--foreground);
 }
 
 .manju-ep-card__cta {
@@ -2930,8 +2956,20 @@
 }
 
 .manju-mode-dialog__option.is-on {
-  border-color: var(--primary);
-  background: var(--card);
+  border-color: color-mix(in oklab, var(--primary) 35%, var(--border));
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+.manju-mode-dialog__option.is-on strong {
+  color: var(--primary);
+}
+
+.manju-mode-dialog__option.is-disabled,
+.manju-mode-dialog__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: var(--muted);
 }
 
 .manju-mode-dialog__option strong {

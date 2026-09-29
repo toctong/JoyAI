@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -35,6 +35,7 @@ import { PhotoView, JoyPhotoProvider } from "@/shared/ui/joy-photo-preview";
 import { apiUpload } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { guessManjuAssetDetail, mergeManjuAssetDetail } from "@joyai/shared";
 import { ManjuLibraryImport } from "../../manju-library-import";
 import { AssetRefUpload } from "../../asset-ref-upload";
 import { ManjuTextField } from "../../manju-text-field";
@@ -135,6 +136,27 @@ export function AssetDetailStage({
     projectId,
     manjuAssetListSection(lockedKind),
   );
+
+  useEffect(() => {
+    if (asset?.kind !== "character" && tab === "look") setTab("info");
+  }, [asset?.kind, tab]);
+
+  useEffect(() => {
+    if (!asset || asset.kind !== "character") return;
+    const d = asset.detail ?? {};
+    const hasLook = LOOK_FIELDS.some(({ key }) => Boolean(d[key]?.trim()));
+    if (hasLook) return;
+    const source = `${asset.description}\n${d.story ?? ""}`.trim();
+    if (!source) return;
+    const next = mergeManjuAssetDetail(
+      asset.detail,
+      guessManjuAssetDetail("character", source),
+    );
+    if (!next) return;
+    const filled = LOOK_FIELDS.some(({ key }) => Boolean(next[key]?.trim()));
+    if (!filled) return;
+    updateAsset(projectId, asset.id, { detail: next });
+  }, [asset, projectId, updateAsset]);
 
   if (!project) return null;
 
@@ -271,16 +293,35 @@ export function AssetDetailStage({
   };
 
   const tabs: { id: DetailTab; label: string }[] =
-    asset.kind === "prop"
+    asset.kind === "character"
       ? [
           { id: "info", label: `${kindLabel}信息` },
+          { id: "look", label: "外观数据" },
           { id: "images", label: "图片管理" },
         ]
       : [
           { id: "info", label: `${kindLabel}信息` },
-          { id: "look", label: "外观数据" },
           { id: "images", label: "图片管理" },
         ];
+
+  const fillLookFromDescription = () => {
+    const source = `${asset.description}\n${detail.story ?? ""}`.trim();
+    if (!source) {
+      toast.message("请先在角色信息里填写描述或背景");
+      return;
+    }
+    const next = mergeManjuAssetDetail(
+      asset.detail,
+      guessManjuAssetDetail("character", source),
+    );
+    if (!next) {
+      toast.message("描述里还没有可拆的外观信息");
+      return;
+    }
+    updateAsset(projectId, asset.id, { detail: next });
+    setLookEditing(true);
+    toast.success("已从描述填入外观数据，可再微调");
+  };
 
   const sceneProps = detail.sceneProps ?? [];
 
@@ -816,8 +857,7 @@ export function AssetDetailStage({
           </div>
         ) : null}
 
-        {tab === "look" &&
-        (asset.kind === "character" || asset.kind === "scene") ? (
+        {tab === "look" && asset.kind === "character" ? (
           <div className="manju-asset-detail__stack">
             <section className="manju-asset-detail__card manju-asset-detail__card--wide">
               <div className="manju-asset-detail__card-head">
@@ -828,7 +868,17 @@ export function AssetDetailStage({
                   <h2 className="manju-asset-detail__card-title">外观数据</h2>
                 </div>
                 {asset.kind === "character" ? (
-                  lookEditing ? (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={fillLookFromDescription}
+                    >
+                      <Sparkles className="size-3.5" />
+                      从描述填写
+                    </Button>
+                    {lookEditing ? (
                     <Button
                       type="button"
                       size="sm"
@@ -839,7 +889,7 @@ export function AssetDetailStage({
                     >
                       完成
                     </Button>
-                  ) : (
+                    ) : (
                     <Button
                       type="button"
                       size="sm"
@@ -850,19 +900,12 @@ export function AssetDetailStage({
                       <Pencil className="size-3.5" />
                       编辑
                     </Button>
-                  )
+                    )}
+                  </div>
                 ) : null}
               </div>
 
-              {asset.kind === "scene" ? (
-                <div className="manju-asset-detail__empty">
-                  <FileUser className="size-12 opacity-30" />
-                  <p className="manju-asset-detail__empty-title">暂无数据</p>
-                  <p className="manju-asset-detail__hint">
-                    场景环境、氛围与道具请在「场景信息」中填写。
-                  </p>
-                </div>
-              ) : lookEditing ? (
+              {asset.kind === "character" && lookEditing ? (
                 <div className="manju-asset-detail__fields">
                   {LOOK_FIELDS.map(({ key, label, half }) => (
                     <label

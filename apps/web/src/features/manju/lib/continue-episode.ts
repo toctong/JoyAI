@@ -59,6 +59,23 @@ export function defaultContinueUserPrompt(seed: ContinueEpisodeSeed): string {
   return `请续写第${seed.nextIndex}集，承接上一集情绪与人物关系，约 3～5 场，结尾留下新钩子。`;
 }
 
+/** 续写落集标题：第N集：短名，避免把整段摘要塞进标题 */
+export function shortContinueEpisodeTitle(
+  nextIndex: number,
+  summary?: string,
+  hook?: string,
+): string {
+  const base = `第${nextIndex}集`;
+  const raw = (summary || hook || "").trim();
+  if (!raw) return base;
+  const short = raw
+    .replace(/[「」""《》]/g, "")
+    .split(/[，,。！？；;：:\n]/)[0]
+    ?.trim()
+    .slice(0, 8);
+  return short && short.length >= 2 ? `${base}：${short}` : base;
+}
+
 /**
  * 应用续写结果：新建一集写入 sourceText/hook/summary；
  * 不覆盖 project.scriptText；tags 有则合并进草稿标签。
@@ -80,7 +97,8 @@ export function applyContinueEpisodeResult(input: {
   const hook = (input.hook?.trim() || extracted || "").trim();
   const summary = (input.summary || "").trim();
   const title =
-    input.title?.trim() || `第${input.seed.nextIndex}集`;
+    input.title?.trim() ||
+    shortContinueEpisodeTitle(input.seed.nextIndex, summary, hook);
 
   const newEpisode: ManjuEpisodeDraft = {
     id: crypto.randomUUID(),
