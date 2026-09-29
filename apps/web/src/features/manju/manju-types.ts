@@ -1,4 +1,7 @@
+import type { ManjuAssetDetail } from "@joyai/shared";
 import type { ManjuStepId } from "./config/manju-steps";
+
+export type { ManjuAssetDetail };
 import {
   buildAssetImagePrompt,
   buildStoryboardImagePrompt,
@@ -93,49 +96,6 @@ export type ManjuPhase =
 export type ManjuScriptReview = {
   status: "draft" | "confirmed";
   content: string;
-};
-
-export type ManjuAssetDetail = {
-  age?: string;
-  gender?: string;
-  roleType?: string;
-  story?: string;
-  voiceNote?: string;
-  /** 是否启用文本音色描述 */
-  voiceUseText?: boolean;
-  /** 是否启用音频参考音色 */
-  voiceUseAudio?: boolean;
-  voiceAudioUrl?: string;
-  height?: string;
-  weight?: string;
-  bodyType?: string;
-  hairstyle?: string;
-  face?: string;
-  gaze?: string;
-  skin?: string;
-  clothing?: string;
-  headwear?: string;
-  traits?: string;
-  /** 场景：地点 */
-  location?: string;
-  /** 场景：时间（如 夜晚） */
-  timeOfDay?: string;
-  weather?: string;
-  /** 室外 / 室内 … */
-  sceneType?: string;
-  architecture?: string;
-  lighting?: string;
-  atmosphere?: string;
-  /** 场景关联道具标签 */
-  sceneProps?: string[];
-  /** 道具：质感 */
-  propTexture?: string;
-  propMaterial?: string;
-  propSize?: string;
-  propWear?: string;
-  propSpecial?: string;
-  /** 色泽与表面处理 */
-  propFinish?: string;
 };
 
 export type ManjuAssetDraft = {

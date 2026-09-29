@@ -119,18 +119,17 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
   const [detailSummary, setDetailSummary] = useState("");
   const [continueFromId, setContinueFromId] = useState<string | null>(null);
 
-  const episodes = project?.episodes ?? [];
-
   const filtered = useMemo(() => {
+    const list = project?.episodes ?? [];
     const q = query.trim().toLowerCase();
-    if (!q) return episodes;
-    return episodes.filter((ep, i) => {
+    if (!q) return list;
+    return list.filter((ep, i) => {
       const title = (ep.title || `第${i + 1}集`).toLowerCase();
       const hint =
         `${ep.summary ?? ""} ${ep.hook ?? ""} ${ep.sourceText ?? ""}`.toLowerCase();
       return title.includes(q) || hint.includes(q);
     });
-  }, [episodes, query]);
+  }, [project?.episodes, query]);
 
   if (!project) return null;
 
