@@ -232,11 +232,13 @@ export type ToolPublicModel = {
   channel?: { platform?: string; name?: string };
 };
 
-type PendingRef = {
+export type ToolPendingRef = {
   localId: string;
   file: File;
   previewUrl: string;
 };
+
+type PendingRef = ToolPendingRef;
 
 type ToolPrefs = {
   modelId?: string;
@@ -701,6 +703,13 @@ export function useAiToolJob(tool: AiToolDef) {
     });
   }, []);
 
+  const clearRefs = useCallback(() => {
+    setRefs((prev) => {
+      for (const item of prev) URL.revokeObjectURL(item.previewUrl);
+      return [];
+    });
+  }, []);
+
   const videosMax = tool.videosMax ?? 0;
 
   const addVideos = useCallback(
@@ -1082,6 +1091,7 @@ export function useAiToolJob(tool: AiToolDef) {
     chooseN,
     addFiles,
     removeRef,
+    clearRefs,
     addVideos,
     removeVideo,
     clearResults,

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dayjs from "dayjs";
 import {
   ArrowLeft,
@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { BrandAvatar } from "@/components/admin/brand-avatar";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,7 +31,9 @@ import { downloadAsset } from "@/shared/lib/download-asset";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 import { getToolExamples, type AiToolDef } from "./tool-catalog";
+import { ToolComposer } from "./tool-composer";
 import { useAiToolJob } from "./use-ai-tool-job";
+import { useToolSidebarWidth } from "./use-tool-sidebar-width";
 import { modelAcceptsImageInput } from "@/features/studio/model-options";
 import { writeStudioRemixSeed } from "@/features/studio/studio-remix-seed";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
@@ -50,7 +51,6 @@ import type {
   ToolHistoryMeta,
   ToolResultAsset,
 } from "./use-ai-tool-job";
-import "@/features/studio/creation-composer.css";
 import "@/features/studio/studio-workspace.css";
 import "./ai-tools.css";
 
@@ -60,13 +60,12 @@ import "./ai-tools.css";
  */
 export function AiToolDetail({ tool }: { tool: AiToolDef }) {
   const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const historyScrollRef = useRef<HTMLDivElement>(null);
   const historySentinelRef = useRef<HTMLDivElement>(null);
-  const [dragOver, setDragOver] = useState(false);
   const [videoDragOver, setVideoDragOver] = useState(false);
   const [preview, setPreview] = useState<AssetsPreviewItem | null>(null);
+  const { width: sidebarWidth, onResizePointerDown } = useToolSidebarWidth();
   const {
     refs,
     videos,
@@ -101,6 +100,7 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
     chooseN,
     addFiles,
     removeRef,
+    clearRefs,
     addVideos,
     removeVideo,
     submit,
@@ -148,13 +148,6 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
       })
     : null;
 
-  function onDrop(event: DragEvent) {
-    event.preventDefault();
-    setDragOver(false);
-    if (!canAdd) return;
-    if (event.dataTransfer.files?.length) addFiles(event.dataTransfer.files);
-  }
-
   function openInStudio(opts: {
     prompt: string;
     refs?: string[];
@@ -177,7 +170,21 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
   if (tool.status === "coming_soon") {
     return (
       <div className="joy-tool-page">
-        <aside className="joy-tool-page-sidebar">
+        <aside
+          className="joy-tool-page-sidebar"
+          style={{
+            width: sidebarWidth,
+            flexBasis: sidebarWidth,
+          }}
+        >
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="拖动调整宽度"
+            title="拖动调整宽度"
+            className="joy-tool-page-resize"
+            onPointerDown={onResizePointerDown}
+          />
           <div className="joy-tool-page-sidebar-inner">
             <div className="joy-tool-page-body">
               <Link href="/tools" className="joy-ai-tool-back">
@@ -216,7 +223,21 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
 
   return (
     <div className="joy-tool-page">
-      <aside className="joy-tool-page-sidebar">
+      <aside
+        className="joy-tool-page-sidebar"
+        style={{
+          width: sidebarWidth,
+          flexBasis: sidebarWidth,
+        }}
+      >
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="拖动调整宽度"
+          title="拖动调整宽度"
+          className="joy-tool-page-resize"
+          onPointerDown={onResizePointerDown}
+        />
         <div className="joy-tool-page-sidebar-inner">
           <div className="joy-tool-page-scroll">
             <div className="joy-tool-page-body">
@@ -245,7 +266,7 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                     {tool.refsMax > tool.refsRequired
                       ? `–${tool.refsMax}`
                       : ""}{" "}
-                    张参考图，结果为可复制的生图提示词。
+                    张参考图（可粘贴），结果为可复制的生图提示词。
                   </>
                 ) : videosRequired > 0 ? (
                   <>
@@ -258,10 +279,10 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                     {tool.refsMax > tool.refsRequired
                       ? `–${tool.refsMax}`
                       : ""}{" "}
-                    张参考图。
+                    张参考图，可粘贴或拖入。
                   </>
                 ) : showRefs ? (
-                  <>参考图可选（0–{tool.refsMax} 张），用于风格参考。</>
+                  <>参考图可选（0–{tool.refsMax} 张），可粘贴或拖入作风格参考。</>
                 ) : null}
                 {tool.kind === "llm"
                   ? tool.noteRequired
@@ -354,91 +375,6 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-
-              {showRefs ? (
-              <div className="joy-tool-page-field">
-                <span className="joy-tool-page-label">
-                  {tool.refsRequired > 0
-                    ? "参考图"
-                    : "参考图（可选）"}
-                </span>
-                <div
-                  className={cn(
-                    "joy-ai-tool-drop",
-                    !refs.length && "is-empty",
-                    dragOver && "is-dragging",
-                    !canAdd && "is-full",
-                  )}
-                  onDragEnter={(event) => {
-                    event.preventDefault();
-                    if (canAdd) setDragOver(true);
-                  }}
-                  onDragOver={(event) => {
-                    event.preventDefault();
-                    if (canAdd) setDragOver(true);
-                  }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={onDrop}
-                >
-                  {!refs.length ? (
-                    <button
-                      type="button"
-                      className="joy-ai-tool-drop-zone"
-                      disabled={!canAdd}
-                      onClick={() => inputRef.current?.click()}
-                    >
-                      <ImagePlus className="size-5" strokeWidth={1.75} />
-                      <strong>
-                        {tool.refsRequired > 0
-                          ? "选择或拖入图片"
-                          : "可选风格参考图"}
-                      </strong>
-                      <span>支持 JPG / PNG / WebP</span>
-                    </button>
-                  ) : (
-                    <div className="joy-ai-tool-refs">
-                      {refs.map((item) => (
-                        <div key={item.localId} className="joy-ai-tool-ref">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={item.previewUrl} alt="" />
-                          <button
-                            type="button"
-                            className="joy-ai-tool-ref-remove"
-                            aria-label="移除"
-                            disabled={locked}
-                            onClick={() => removeRef(item.localId)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      {canAdd ? (
-                        <button
-                          type="button"
-                          className="joy-ai-tool-ref-add"
-                          onClick={() => inputRef.current?.click()}
-                        >
-                          <ImagePlus className="size-4" />
-                        </button>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple={tool.refsMax > 1}
-                  className="hidden"
-                  onChange={(event) => {
-                    if (event.target.files?.length) {
-                      addFiles(event.target.files);
-                    }
-                    event.target.value = "";
-                  }}
-                />
-              </div>
-              ) : null}
 
               {videosMax > 0 ? (
                 <div className="joy-tool-page-field">
@@ -607,15 +543,17 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
               ) : null}
 
               <div className="joy-tool-page-field">
-                <label className="joy-tool-page-label" htmlFor="tool-note">
+                <span className="joy-tool-page-label">
                   {tool.promptMode === "note-as-prompt"
                     ? "原始提示词（必填）"
                     : tool.noteRequired
                       ? tool.promptMode === "brand-brief"
                         ? "品牌说明（必填）"
                         : "补充说明（必填）"
-                      : "补充说明（可选）"}
-                </label>
+                      : showRefs
+                        ? "说明与参考"
+                        : "补充说明（可选）"}
+                </span>
                 {examples.length ? (
                   <div className="joy-tool-examples" role="group" aria-label="示例文字">
                     {examples.map((example) => (
@@ -634,15 +572,22 @@ export function AiToolDetail({ tool }: { tool: AiToolDef }) {
                     ))}
                   </div>
                 ) : null}
-                <Textarea
-                  id="tool-note"
-                  value={note}
-                  disabled={locked}
+                <ToolComposer
+                  note={note}
+                  onNoteChange={setNote}
                   placeholder={
                     tool.noteHint || "例如想要的色调、文案、场景…"
                   }
-                  className="joy-ai-tool-note"
-                  onChange={(event) => setNote(event.target.value)}
+                  disabled={locked}
+                  showRefs={showRefs}
+                  refs={refs}
+                  canAdd={canAdd}
+                  uploadHint={
+                    tool.refsRequired > 0 ? "参考图" : "风格参考"
+                  }
+                  onAddFiles={addFiles}
+                  onRemoveRef={removeRef}
+                  onClearRefs={clearRefs}
                 />
               </div>
             </div>

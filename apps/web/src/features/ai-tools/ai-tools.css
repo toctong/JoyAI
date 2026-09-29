@@ -314,12 +314,30 @@ img.joy-ai-tool-stack-layer {
 }
 
 .joy-tool-page-sidebar {
+  position: relative;
   flex: 0 0 var(--joy-tool-sidebar-width);
   width: var(--joy-tool-sidebar-width);
   height: 100%;
   min-height: 0;
   border-right: 1px solid var(--border);
   background: var(--card);
+}
+
+.joy-tool-page-resize {
+  position: absolute;
+  inset-block: 0;
+  right: -3px;
+  z-index: 12;
+  width: 6px;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+}
+
+.joy-tool-page-resize:hover,
+.joy-tool-page-resize:active,
+.joy-tool-page-resize.is-dragging {
+  background: color-mix(in oklab, var(--primary) 28%, transparent);
 }
 
 .joy-tool-page-sidebar-inner {
@@ -693,10 +711,14 @@ img.joy-ai-tool-stack-layer {
 
   .joy-tool-page-sidebar {
     flex: none;
-    width: 100%;
+    width: 100% !important;
     height: auto;
     border-right: none;
     border-bottom: 1px solid var(--border);
+  }
+
+  .joy-tool-page-resize {
+    display: none;
   }
 
   .joy-tool-page-sidebar-inner {
@@ -833,14 +855,83 @@ img.joy-ai-tool-stack-layer {
   width: 100%;
 }
 
-.joy-ai-tool-composer .joy-composer.is-dock {
+/* Tools: compact flat shell — denser than Studio dock. */
+.joy-ai-tool-composer .joy-composer.is-dock.is-static {
   width: 100%;
   max-width: none;
+  min-height: 0;
+  gap: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.dark .joy-ai-tool-composer .joy-composer.is-static {
+  box-shadow: none;
+  background: var(--secondary);
+}
+
+.joy-ai-tool-composer .joy-composer-ripple {
+  display: none;
+}
+
+.joy-ai-tool-composer .joy-composer-body {
+  min-height: 0;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.joy-ai-tool-composer .joy-composer-ref-stack {
+  min-height: 0;
+  padding: 0;
+  align-self: flex-start;
+}
+
+.joy-ai-tool-composer .joy-composer-ref-stack.is-empty .joy-composer-ref-fan,
+.joy-ai-tool-composer .joy-composer-ref-stack.is-empty .joy-composer-ref-fan-layer {
+  width: 44px;
+  height: 56px;
+}
+
+.joy-ai-tool-composer .joy-composer-upload.is-empty {
+  width: 44px;
+  height: 56px;
+  border-radius: 10px;
+  font-size: var(--joy-font-micro);
+}
+
+.joy-ai-tool-composer .joy-composer-upload.is-empty .joy-composer-upload-label {
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.joy-ai-tool-composer .joy-composer-main {
+  min-width: 0;
+  padding-top: 0;
+  /* Tools only has a clear button — don't reserve Studio optimize gutter. */
+  padding-right: 28px;
+}
+
+.joy-ai-tool-composer .joy-composer-corner {
+  top: 6px;
+  right: 6px;
+}
+
+.joy-ai-tool-composer .joy-ai-prompt .ProseMirror {
+  min-height: 56px;
+  max-height: 160px;
+  font-size: var(--joy-font-label);
+  line-height: 1.55;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .joy-ai-tool-composer-skeleton {
-  min-height: 168px;
-  border-radius: 20px;
+  min-height: 96px;
+  border-radius: 14px;
   background: var(--secondary);
 }
 
