@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import type { CanvasEdge, CanvasNode } from "@joyai/shared";
 import { cn } from "@/shared/lib/utils";
 import { nodeBox } from "./lib/node-box";
+import { filterEdgesInViewport } from "./lib/viewport-cull";
 import type { CanvasEdgeVisibility } from "./lib/canvas-prefs";
 
 function nodeCenterRight(node: CanvasNode) {
@@ -55,6 +56,8 @@ type Props = {
   hoveredNodeId?: string | null;
   edgeVisibility?: CanvasEdgeVisibility;
   draft?: ConnectDraft | null;
+  viewport?: { x: number; y: number; zoom: number };
+  viewportSize?: { width: number; height: number };
   onSelectEdge: (id: string | null) => void;
   onCutEdge: (id: string) => void;
 };
@@ -67,12 +70,20 @@ export function CanvasEdges({
   hoveredNodeId = null,
   edgeVisibility = "all",
   draft,
+  viewport,
+  viewportSize,
   onSelectEdge,
   onCutEdge,
 }: Props) {
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const selectedFocus = new Set(selectedNodeIds);
+  const byId = useMemo(
+    () => new Map(nodes.map((n) => [n.id, n])),
+    [nodes],
+  );
+  const selectedFocus = useMemo(
+    () => new Set(selectedNodeIds),
+    [selectedNodeIds],
+  );
   const focusMode = edgeVisibility === "focus";
   const pad = 2400;
   let minX = 0;
@@ -92,17 +103,60 @@ export function CanvasEdges({
   const height = Math.max(1, maxY - minY + pad * 2);
 
   // Focus / 隐藏连线：悬停或选中节点时露出相关连线。
-  const visibleEdges = focusMode
-    ? edges.filter(
-        (edge) =>
-          (hoveredNodeId != null &&
-            (edge.source === hoveredNodeId ||
-              edge.target === hoveredNodeId)) ||
-          selectedFocus.has(edge.source) ||
-          selectedFocus.has(edge.target) ||
-          edge.id === selectedEdgeId,
-      )
-    : edges;
+  const focusFiltered = useMemo(() => {
+    if (!focusMode) return edges;
+    return edges.filter(
+      (edge) =>
+        (hoveredNodeId != null &&
+          (edge.source === hoveredNodeId ||
+            edge.target === hoveredNodeId)) ||
+        selectedFocus.has(edge.source) ||
+        selectedFocus.has(edge.target) ||
+        edge.id === selectedEdgeId,
+    );
+  }, [
+    edges,
+    focusMode,
+    hoveredNodeId,
+    selectedFocus,
+    selectedEdgeId,
+  ]);
+
+  const pinnedEdgeIds = useMemo(() => {
+    const pinned = new Set<string>();
+    if (selectedEdgeId) pinned.add(selectedEdgeId);
+    if (hoveredEdgeId) pinned.add(hoveredEdgeId);
+    for (const edge of focusFiltered) {
+      if (
+        selectedFocus.has(edge.source) ||
+        selectedFocus.has(edge.target) ||
+        (hoveredNodeId != null &&
+          (edge.source === hoveredNodeId || edge.target === hoveredNodeId))
+      ) {
+        pinned.add(edge.id);
+      }
+    }
+    return pinned;
+  }, [
+    selectedEdgeId,
+    hoveredEdgeId,
+    focusFiltered,
+    selectedFocus,
+    hoveredNodeId,
+  ]);
+
+  const visibleEdges = useMemo(() => {
+    if (!viewport || !viewportSize || viewportSize.width < 2) {
+      return focusFiltered;
+    }
+    return filterEdgesInViewport(
+      focusFiltered,
+      byId,
+      viewport,
+      viewportSize,
+      pinnedEdgeIds,
+    );
+  }, [focusFiltered, byId, viewport, viewportSize, pinnedEdgeIds]);
 
   return (
     <svg

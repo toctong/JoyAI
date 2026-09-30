@@ -136,6 +136,10 @@ type ManjuState = {
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 /** Bumped when a server reload wins; in-flight PATCH must not overwrite it. */
 const saveEpoch = new Map<string, number>();
+/** Last successfully persisted title+draft JSON — skip no-op PUTs. */
+const lastSavedSig = new Map<string, string>();
+
+const SAVE_DEBOUNCE_MS = 1600;
 
 function cancelScheduledSave(id: string) {
   const prev = saveTimers.get(id);
@@ -148,6 +152,10 @@ function bumpSaveEpoch(id: string) {
   saveEpoch.set(id, next);
   cancelScheduledSave(id);
   return next;
+}
+
+function saveSignature(title: string, draft: unknown) {
+  return JSON.stringify({ title, draft });
 }
 
 function reindex(shots: ManjuShotDraft[]): ManjuShotDraft[] {
@@ -210,6 +218,10 @@ export const useManjuStore = create<ManjuState>((set, get) => {
       if ((saveEpoch.get(id) ?? 0) !== epoch) return get().getProject(id) ?? null;
       const project = projectFromDto(dto);
       get().upsertProject(project);
+      lastSavedSig.set(
+        id,
+        saveSignature(project.title, draftFromProject(project)),
+      );
       return project;
     },
 
@@ -223,6 +235,9 @@ export const useManjuStore = create<ManjuState>((set, get) => {
 
     deleteProject: async (id) => {
       await deleteManjuProject(id);
+      lastSavedSig.delete(id);
+      cancelScheduledSave(id);
+      saveEpoch.delete(id);
       set((s) => ({
         projects: s.projects.filter((p) => p.id !== id),
         listMeta: s.listMeta.filter((p) => p.id !== id),
@@ -255,13 +270,17 @@ export const useManjuStore = create<ManjuState>((set, get) => {
       const project = get().getProject(id);
       if (!project) return;
       if ((saveEpoch.get(id) ?? 0) !== epoch) return;
+      const draft = draftFromProject(project);
+      const sig = saveSignature(project.title, draft);
+      if (lastSavedSig.get(id) === sig) return;
       set((s) => ({ savingIds: { ...s.savingIds, [id]: true } }));
       try {
         const dto = await updateManjuProject(id, {
           title: project.title,
-          draft: draftFromProject(project),
+          draft,
         });
         if ((saveEpoch.get(id) ?? 0) !== epoch) return;
+        lastSavedSig.set(id, sig);
         set((s) => ({
           projects: s.projects.map((p) =>
             p.id === id
@@ -290,7 +309,7 @@ export const useManjuStore = create<ManjuState>((set, get) => {
           saveTimers.delete(id);
           if (get().analyzingIds[id]) return;
           void get().flushSave(id);
-        }, 800),
+        }, SAVE_DEBOUNCE_MS),
       );
     },
 

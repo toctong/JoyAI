@@ -28,6 +28,7 @@ import { isBusyStatus } from "../node-registry";
 import { cancelNodeJob } from "../lib/cancel-node-job";
 import { setPlaybackTime } from "../lib/playback-clock";
 import { cn } from "@/shared/lib/utils";
+import { tosVideoPosterUrl } from "@/shared/lib/media-url";
 import { useReleaseMediaOnUnmount } from "@/shared/lib/use-release-media-on-unmount";
 import { releaseHtmlMedia } from "@/shared/lib/release-media";
 
@@ -64,10 +65,13 @@ export function VideoNode({ node, onPointerDown }: Props) {
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [preview, setPreview] = useState(false);
+  /** Keep decoder off until the user plays (or needs seeking). */
+  const [mediaAttached, setMediaAttached] = useState(false);
   const url = String(node.data.url ?? "");
   const status = String(node.data.status ?? "idle");
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
+  const poster = framed ? tosVideoPosterUrl(url, "md") || undefined : undefined;
   const busy = isBusyStatus(status);
   const canCancel =
     busy && Boolean(String(node.data.jobId ?? "").trim());
@@ -92,12 +96,13 @@ export function VideoNode({ node, onPointerDown }: Props) {
     setTime(0);
     setDuration(0);
     setPreview(false);
+    setMediaAttached(false);
     return () => releaseHtmlMedia(videoRef.current);
   }, [url]);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !url) return;
+    if (!video || !url || !mediaAttached) return;
 
     const syncDuration = () => {
       const next = readDuration(video);
@@ -111,11 +116,22 @@ export function VideoNode({ node, onPointerDown }: Props) {
       video.removeEventListener("loadedmetadata", syncDuration);
       video.removeEventListener("durationchange", syncDuration);
     };
-  }, [url]);
+  }, [url, mediaAttached]);
 
   useEffect(() => {
     if (!selected) videoRef.current?.pause();
   }, [selected, url]);
+
+  // Idle nodes: drop the media source after a short grace so decoders free up.
+  useEffect(() => {
+    if (!mediaAttached || playing || preview) return;
+    if (selected || hovered) return;
+    const timer = window.setTimeout(() => {
+      releaseHtmlMedia(videoRef.current);
+      setMediaAttached(false);
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  }, [mediaAttached, playing, preview, selected, hovered]);
 
   useEffect(() => {
     if (!playing) return;
@@ -162,16 +178,31 @@ export function VideoNode({ node, onPointerDown }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [preview]);
 
-  function togglePlayback() {
+  async function ensureMediaAttached() {
     const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      void video.play().catch(() => {
-        setPlaying(false);
-      });
-    } else {
-      video.pause();
+    if (!video || !url) return null;
+    if (!mediaAttached) {
+      setMediaAttached(true);
+      video.src = url;
+      video.load();
     }
+    return video;
+  }
+
+  function togglePlayback() {
+    void (async () => {
+      const video = await ensureMediaAttached();
+      if (!video) return;
+      if (video.paused) {
+        try {
+          await video.play();
+        } catch {
+          setPlaying(false);
+        }
+      } else {
+        video.pause();
+      }
+    })();
   }
 
   function openPreview() {
@@ -180,6 +211,12 @@ export function VideoNode({ node, onPointerDown }: Props) {
   }
 
   function seekToClientX(clientX: number, track: HTMLElement) {
+    if (!canSeek && !mediaAttached) {
+      void (async () => {
+        await ensureMediaAttached();
+      })();
+      return;
+    }
     if (!canSeek) return;
     const rect = track.getBoundingClientRect();
     if (rect.width <= 0) return;
@@ -235,10 +272,11 @@ export function VideoNode({ node, onPointerDown }: Props) {
         {url ? (
           <video
             ref={videoRef}
-            src={url}
+            src={mediaAttached ? url : undefined}
+            poster={poster}
             draggable={false}
             playsInline
-            preload="metadata"
+            preload={mediaAttached ? "metadata" : "none"}
             className={cn(
               "pointer-events-none h-full w-full select-none",
               node.data.freeResize ? "object-fill" : "object-contain",

@@ -327,6 +327,9 @@ export function CanvasBoard({
   focusQuery?: FocusQuery;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const worldLayerRef = useRef<HTMLDivElement>(null);
+  /** Live pan/zoom for DOM transforms without flooding React during drag-pan. */
+  const panLiveRef = useRef({ x: 0, y: 0, zoom: 1 });
   const uploadRef = useRef<HTMLInputElement>(null);
   const uploadAtRef = useRef<{ x: number; y: number } | null>(null);
   const [spaceDown, setSpaceDown] = useState(false);
@@ -438,6 +441,27 @@ export function CanvasBoard({
   const dirty = useCanvasStore((s) => s.dirty);
   const past = useCanvasStore((s) => s.past);
   const future = useCanvasStore((s) => s.future);
+
+  const applyWorldTransform = useCallback(
+    (x: number, y: number, zoom: number) => {
+      panLiveRef.current = { x, y, zoom };
+      const world = worldLayerRef.current;
+      if (world) {
+        world.style.transform = `translate(${x}px, ${y}px) scale(${zoom})`;
+      }
+      const surface = containerRef.current;
+      if (surface) {
+        surface.style.backgroundPosition = `${x}px ${y}px`;
+        surface.style.backgroundSize = `${(snapToGrid ? 24 : 48) * zoom}px ${(snapToGrid ? 24 : 48) * zoom}px`;
+      }
+    },
+    [snapToGrid],
+  );
+
+  useEffect(() => {
+    if (panning.current) return;
+    applyWorldTransform(viewport.x, viewport.y, viewport.zoom);
+  }, [viewport.x, viewport.y, viewport.zoom, applyWorldTransform]);
   const setProject = useCanvasStore((s) => s.setProject);
   const setViewport = useCanvasStore((s) => s.setViewport);
   const setSnapToGrid = useCanvasStore((s) => s.setSnapToGrid);
@@ -1184,14 +1208,16 @@ export function CanvasBoard({
       wantPan ||
       (e.button === 0 && e.target === e.currentTarget && spaceDown)
     ) {
+      const vp = useCanvasStore.getState().viewport;
       panning.current = true;
       setIsPanning(true);
       panStart.current = {
         x: e.clientX,
         y: e.clientY,
-        vx: useCanvasStore.getState().viewport.x,
-        vy: useCanvasStore.getState().viewport.y,
+        vx: vp.x,
+        vy: vp.y,
       };
+      panLiveRef.current = { x: vp.x, y: vp.y, zoom: vp.zoom };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       return;
     }
@@ -1247,10 +1273,11 @@ export function CanvasBoard({
     if (panning.current) {
       const dx = e.clientX - panStart.current.x;
       const dy = e.clientY - panStart.current.y;
-      setViewport({
-        x: panStart.current.vx + dx,
-        y: panStart.current.vy + dy,
-      });
+      applyWorldTransform(
+        panStart.current.vx + dx,
+        panStart.current.vy + dy,
+        panLiveRef.current.zoom,
+      );
       return;
     }
     if (drag.current) {
@@ -1402,6 +1429,15 @@ export function CanvasBoard({
     }
     panning.current = false;
     setIsPanning(false);
+    // Commit pan into store once (culling / chrome catch up).
+    const live = panLiveRef.current;
+    const storeVp = useCanvasStore.getState().viewport;
+    if (
+      Math.abs(live.x - storeVp.x) > 0.5 ||
+      Math.abs(live.y - storeVp.y) > 0.5
+    ) {
+      setViewport({ x: live.x, y: live.y });
+    }
     drag.current = null;
     dragPushed.current = false;
     setDropTargetGid(null);
@@ -2515,7 +2551,8 @@ export function CanvasBoard({
         }}
       >
         <div
-          className="absolute left-0 top-0 origin-top-left"
+          ref={worldLayerRef}
+          className="absolute left-0 top-0 origin-top-left will-change-transform"
           style={{
             transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
           }}
@@ -2573,6 +2610,8 @@ export function CanvasBoard({
             hoveredNodeId={hoveredNodeId}
             edgeVisibility={edgeVisibility}
             draft={connectDraft}
+            viewport={viewport}
+            viewportSize={viewportSize}
             onSelectEdge={(id) => {
               selectEdge(id);
             }}

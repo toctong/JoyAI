@@ -31,7 +31,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
-import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
@@ -56,6 +55,7 @@ import { ManjuPromptField } from "../../manju-prompt-field";
 import { submitWorkflowSkill } from "../../lib/workflow-skill";
 import { manjuConfirmGenerateCopy } from "../../lib/manju-job-labels";
 import { EpisodeContinueDialog } from "../episode-continue-dialog";
+import { ProduceShotsVirtualList } from "./produce-shots-virtual-list";
 
 const SHOT_SIZES = ["远景", "全景", "中景", "近景", "特写", "大特写"] as const;
 const CAMERA_ANGLES = ["平视", "俯视", "仰视", "侧面", "斜角"] as const;
@@ -803,8 +803,8 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
             <h2>分镜表</h2>
             <span>{shots.length} 个镜头</span>
           </div>
-          <div className="manju-produce__shots-list">
-            {shots.length === 0 ? (
+          {shots.length === 0 ? (
+            <div className="manju-produce__shots-list">
               <div className="manju-produce__shots-empty">
                 <p>本集暂无分镜</p>
                 <div className="flex flex-col gap-2">
@@ -828,42 +828,16 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                   </Button>
                 </div>
               </div>
-            ) : (
-              shots.map((shot, i) => {
-                const label = shotLabel(shot, epIndex, i + 1);
-                const on = selected?.id === shot.id;
-                return (
-                  <button
-                    key={shot.id}
-                    type="button"
-                    className={cn(
-                      "manju-produce__shot-item",
-                      on && "is-active",
-                    )}
-                    onClick={() => setSelectedId(shot.id)}
-                  >
-                    <span className="manju-produce__shot-thumb" aria-hidden>
-                      {shot.storyboardImageUrl ? (
-                        <JoyAssetThumb
-                          url={shot.storyboardImageUrl}
-                          size="sm"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon className="size-4 opacity-40" />
-                      )}
-                    </span>
-                    <span className="manju-produce__shot-meta">
-                      <strong className="truncate">{label.full}</strong>
-                      <span className="truncate">
-                        {shot.visual.trim() || "暂无描述"}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
+            </div>
+          ) : (
+            <ProduceShotsVirtualList
+              shots={shots}
+              selectedId={selected?.id}
+              epIndex={epIndex}
+              shotLabel={shotLabel}
+              onSelect={setSelectedId}
+            />
+          )}
           <div className="manju-produce__shots-foot">
             <Button
               type="button"

@@ -3255,6 +3255,10 @@
   grid-template-columns: 48px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  min-height: 56px;
+  height: 56px;
   width: 100%;
   border: 1px solid transparent;
   border-radius: 10px;

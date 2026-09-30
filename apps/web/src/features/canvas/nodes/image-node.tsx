@@ -24,7 +24,12 @@ import { cancelNodeJob } from "../lib/cancel-node-job";
 import { isBusyStatus } from "../node-registry";
 import { BatchStackChrome } from "../batch-stack-chrome";
 import { JoyRemoteImg } from "@/shared/ui/joy-remote-img";
+import { tosThumbUrl } from "@/shared/lib/media-url";
 import { cn } from "@/shared/lib/utils";
+
+/** Far zoom: decode TOS thumbs instead of full originals. */
+const FAR_ZOOM = 0.42;
+const FARTHER_ZOOM = 0.22;
 
 type Props = {
   node: CanvasNode;
@@ -42,6 +47,7 @@ export function ImageNode({
   const selected = useIsNodeSelected(node.id);
   const highlighted = useIsNodeHighlighted(node.id);
   const pulsing = useIsNodePulsing(node.id);
+  const zoom = useCanvasStore((s) => s.viewport.zoom);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const [applying, setApplying] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -50,6 +56,15 @@ export function ImageNode({
   const error = String(node.data.error ?? "");
   const framed = Boolean(url) && !url.startsWith("data:");
   const busy = applying || isBusyStatus(status);
+  // Editor / selected / near zoom keep originals; far zoom uses process thumb.
+  const displayUrl =
+    !url ||
+    url.startsWith("data:") ||
+    editing ||
+    selected ||
+    zoom >= FAR_ZOOM
+      ? url
+      : tosThumbUrl(url, zoom < FARTHER_ZOOM ? "sm" : "md") || url;
   const canCancel =
     !applying && isBusyStatus(status) && Boolean(String(node.data.jobId ?? "").trim());
   const onCancel = canCancel
@@ -114,7 +129,7 @@ export function ImageNode({
         >
           {url ? (
             <JoyRemoteImg
-              src={url}
+              src={displayUrl}
               alt=""
               draggable={false}
               className={cn(
