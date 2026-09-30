@@ -2,13 +2,19 @@
 
 When generating a Git commit message for this repository:
 
-1. Use Conventional Commits: `type(scope): subject`
+1. Use Conventional Commits header: `type(scope): subject`
 2. `type` and `scope` must be English (kebab-case scope). Types: feat, fix, refactor, perf, style, docs, test, build, ci, chore, revert.
-3. **subject must be Simplified Chinese** — short, imperative purpose; no trailing period; under ~72 characters preferred (max 100).
-4. One line subject only unless the change truly needs a short body.
+3. **subject must be Simplified Chinese** — short purpose; no trailing period; under ~72 characters preferred (max 100).
+4. After a blank line, **always add a body**: Chinese bullet list (`- `) that **lists every change** in this commit (one bullet per concrete change). Even a single-file fix needs at least one bullet.
 5. Do not invent English subjects just because older history is English.
+6. Do not output only a one-line header.
 
-Examples:
-- feat(inspire): 作品详情改为全屏弹层
-- fix(inspire): 修复漫游取消静音失效
-- chore: 接入 commitlint 与 husky 类型检查
+Example:
+
+```
+feat(inspire): 作品详情改为全屏弹层
+
+- AppHeader 增加 hideCluster，画布/漫剧工作台隐藏次要入口
+- 布局传入 hideCluster，统一最小顶栏
+- 调整 CSS，匹配精简顶栏态
+```
