@@ -11,6 +11,7 @@ import {
 import { api, isApiCancelError } from "@/shared/lib/api";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import { waitForJob } from "@/shared/lib/wait-for-job";
 import { Textarea } from "@/components/ui/textarea";
 import { useManjuStore } from "../manju-store";
 import {
@@ -159,24 +160,9 @@ export function ManjuAgentPanel({ projectId, compactHeader }: Props) {
         },
       });
 
-      // Poll lightly
-      let raw = "";
-      for (let i = 0; i < 90; i++) {
-        await new Promise((r) => setTimeout(r, 1200));
-        const row = await api<{
-          status: string;
-          result?: { text?: string };
-          error?: string;
-        }>(`/jobs/${job.id}`);
-        if (row.status === "succeeded") {
-          raw = row.result?.text ?? "";
-          break;
-        }
-        if (row.status === "failed") {
-          throw new Error(row.error || "Agent 任务失败");
-        }
-      }
-      if (!raw) throw new Error("Agent 响应超时");
+      const detail = await waitForJob(job.id, { timeoutMs: 120_000 });
+      const raw = String(detail.result?.text ?? "").trim();
+      if (!raw) throw new Error("Agent 响应为空");
 
       const plan = parseManjuAgentPlan(raw);
       const logs = await executeManjuAgentActions(plan.actions, {

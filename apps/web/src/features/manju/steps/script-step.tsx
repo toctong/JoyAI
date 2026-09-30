@@ -22,6 +22,10 @@ import {
   ManjuParseScriptDialog,
   type ManjuAnalyzeMode,
 } from "../studio/manju-parse-script-dialog";
+import {
+  ManjuAssetFallbackDialog,
+  MANJU_ASSET_FALLBACK_EVENT,
+} from "../studio/manju-asset-fallback-dialog";
 import { ManjuReviewButton } from "../studio/manju-review-button";
 import { submitWorkflowSkill } from "../lib/workflow-skill";
 import {
@@ -42,7 +46,18 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
   const [aiOpen, setAiOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
   const [parseOpen, setParseOpen] = useState(false);
+  const [fallbackOpen, setFallbackOpen] = useState(false);
   const tidiedRef = useRef(false);
+
+  useEffect(() => {
+    const onFallback = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ projectId?: string }>).detail;
+      if (detail?.projectId === project.id) setFallbackOpen(true);
+    };
+    window.addEventListener(MANJU_ASSET_FALLBACK_EVENT, onFallback);
+    return () =>
+      window.removeEventListener(MANJU_ASSET_FALLBACK_EVENT, onFallback);
+  }, [project.id]);
 
   const tags = project.tags ?? [];
   const charCount = project.scriptText.length;
@@ -260,6 +275,11 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
         busy={analyzing}
         onConfirm={(mode) => void runAiAnalyze(mode)}
       />
+      <ManjuAssetFallbackDialog
+        projectId={project.id}
+        open={fallbackOpen}
+        onOpenChange={setFallbackOpen}
+      />
 
       <section className="manju-info-card">
         <div className="manju-info-card__head manju-info-card__head--toolbar">
@@ -305,6 +325,15 @@ export function ScriptStep({ project }: { project: ManjuProjectDraft }) {
                 <Sparkles className="h-4 w-4" />
               )}
               {analyzing ? "解析中…" : "解析剧本"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={analyzing}
+              onClick={() => setFallbackOpen(true)}
+              title="AI 解析失败时，可手动从剧本抽角色或粘贴名单"
+            >
+              手动登记角色
             </Button>
             <Button
               variant="outline"

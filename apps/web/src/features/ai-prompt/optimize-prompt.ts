@@ -1,25 +1,11 @@
 import { api } from "@/shared/lib/api";
+import { waitForJob } from "@/shared/lib/wait-for-job";
 
 type PublicModel = {
   id: string;
   kind: string;
   name?: string;
 };
-
-type JobDetail = {
-  id: string;
-  status: string;
-  error?: string | null;
-  result?: { text?: string | null } | null;
-};
-
-const TERMINAL = new Set(["succeeded", "failed", "cancelled"]);
-const POLL_MS = 900;
-const TIMEOUT_MS = 90_000;
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 async function pickLlmModelId(preferred?: string) {
   const preferredId = preferred?.trim() || "";
@@ -34,7 +20,7 @@ async function pickLlmModelId(preferred?: string) {
 
 /**
  * Submit a prompt_optimize LLM job and wait for the polished text.
- * Does not touch canvas nodes — callers apply the result into the editor.
+ * Completes via Socket.IO push (no interval polling).
  */
 export async function optimizePromptText(
   raw: string,
@@ -66,26 +52,18 @@ export async function optimizePromptText(
     },
   });
 
-  const started = Date.now();
-  while (Date.now() - started < TIMEOUT_MS) {
-    if (opts?.signal?.aborted) {
-      throw new DOMException("Aborted", "AbortError");
-    }
-    await sleep(POLL_MS);
-    if (opts?.signal?.aborted) {
-      throw new DOMException("Aborted", "AbortError");
-    }
-    const detail = await api<JobDetail>(`/jobs/${job.id}`);
-    if (!TERMINAL.has(detail.status)) continue;
-    if (detail.status === "succeeded") {
-      const out = String(detail.result?.text ?? "").trim();
-      if (!out) throw new Error("优化结果为空");
-      return out;
-    }
-    throw new Error(
-      String(detail.error ?? "").trim() ||
-        (detail.status === "cancelled" ? "已取消优化" : "优化失败"),
-    );
+  try {
+    const detail = await waitForJob(job.id, {
+      timeoutMs: 90_000,
+      signal: opts?.signal,
+    });
+    const out = String(detail.result?.text ?? "").trim();
+    if (!out) throw new Error("优化结果为空");
+    return out;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
+    const msg = e instanceof Error ? e.message : "优化失败";
+    if (msg === "已取消") throw new Error("已取消优化");
+    throw e instanceof Error ? e : new Error(msg);
   }
-  throw new Error("优化超时，请稍后重试");
 }

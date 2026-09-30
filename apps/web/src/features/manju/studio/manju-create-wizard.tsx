@@ -17,6 +17,7 @@ import { cn } from "@/shared/lib/utils";
 import { toast } from "@/shared/lib/toast";
 import { createManjuProject, projectFromDto } from "../manju-api";
 import { useManjuStore } from "../manju-store";
+import { pickPreferredModelId, useChannelModels } from "../manju-studio";
 import { MODE_OPTIONS, type ManjuGenMode } from "../manju-types";
 
 type Props = {
@@ -31,6 +32,7 @@ type Props = {
 export function ManjuCreateWizard({ open, onOpenChange, folderId }: Props) {
   const router = useRouter();
   const upsertProject = useManjuStore((s) => s.upsertProject);
+  const groups = useChannelModels();
   const [title, setTitle] = useState("");
   const [mode, setMode] = useState<ManjuGenMode>("i2v");
   const [gridLayout, setGridLayout] = useState<"2x2" | "3x3">("2x2");
@@ -49,10 +51,22 @@ export function ManjuCreateWizard({ open, onOpenChange, folderId }: Props) {
         })}`;
       const dto = await createManjuProject(name, folderId ?? null);
       const project = projectFromDto(dto);
+      const llmModelId =
+        project.settings.llmModelId?.trim() ||
+        pickPreferredModelId(groups.llm);
+      const imageModelId =
+        project.settings.imageModelId?.trim() ||
+        pickPreferredModelId(groups.image);
+      const videoModelId =
+        project.settings.videoModelId?.trim() ||
+        pickPreferredModelId(groups.video);
       project.settings = {
         ...project.settings,
         mode,
         gridLayout: mode === "grid" ? gridLayout : project.settings.gridLayout,
+        ...(llmModelId ? { llmModelId } : {}),
+        ...(imageModelId ? { imageModelId } : {}),
+        ...(videoModelId ? { videoModelId } : {}),
       };
       upsertProject(project);
       // Persist mode choice

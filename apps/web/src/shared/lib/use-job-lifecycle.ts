@@ -47,7 +47,14 @@ export type JobFailedPayload = {
   error?: string;
   status?: string;
   requested?: number;
-  job?: { id?: string; error?: string | null; status?: string };
+  purpose?: string;
+  kind?: string;
+  job?: {
+    id?: string;
+    error?: string | null;
+    status?: string;
+    input?: { purpose?: string } | null;
+  };
 };
 
 export type AssetUpdatedPayload = {
@@ -85,16 +92,22 @@ export type UseJobLifecycleOptions = {
   onCompleted?: (payload: JobCompletedPayload) => void;
   onFailed?: (payload: JobFailedPayload) => void;
   onAssetUpdated?: (payload: AssetUpdatedPayload) => void;
+  /**
+   * Fallback GET reconcile interval while socket is disconnected.
+   * Connected sockets rely on push; interval becomes a rare safety net.
+   */
   pollMs?: number;
 };
 
-const DEFAULT_POLL_MS = 4000;
+/** While disconnected, reconcile often. While connected, rare safety only. */
+const DISCONNECTED_POLL_MS = 4_000;
+const CONNECTED_SAFETY_MS = 60_000;
 const HANDLED_CAP = 400;
 
 /**
- * Shared job lifecycle: Socket.IO for low latency + GET /jobs/:id reconcile
- * for correctness behind proxies that drop WebSocket upgrades.
- * Correctness must not depend on Feiniu/outer WS toggles.
+ * Shared job lifecycle: Socket.IO push first.
+ * HTTP GET /jobs/:id only as reconnect / disconnect fallback — avoids stacked
+ * list polling that freezes heavy pages.
  */
 export function useJobLifecycle(options: UseJobLifecycleOptions) {
   const {
@@ -104,7 +117,7 @@ export function useJobLifecycle(options: UseJobLifecycleOptions) {
     onCompleted,
     onFailed,
     onAssetUpdated,
-    pollMs = DEFAULT_POLL_MS,
+    pollMs = DISCONNECTED_POLL_MS,
   } = options;
 
   const getBusyRef = useRef(getBusyJobIds);
@@ -173,6 +186,7 @@ export function useJobLifecycle(options: UseJobLifecycleOptions) {
     socket.on("asset:updated", handleAssetUpdated);
 
     let cancelled = false;
+    let timer: number | null = null;
 
     async function reconcileOne(jobId: string) {
       if (cancelled || handled.has(jobId)) return;
@@ -211,16 +225,36 @@ export function useJobLifecycle(options: UseJobLifecycleOptions) {
       await Promise.all(ids.map((id) => reconcileOne(id)));
     }
 
+    function scheduleReconcileLoop() {
+      if (timer != null) window.clearInterval(timer);
+      const ms = socket.connected
+        ? Math.max(pollMs, CONNECTED_SAFETY_MS)
+        : Math.min(pollMs, DISCONNECTED_POLL_MS);
+      timer = window.setInterval(() => void reconcileBusy(), ms);
+    }
+
+    const onConnect = () => {
+      void reconcileBusy();
+      scheduleReconcileLoop();
+    };
+    const onDisconnect = () => {
+      scheduleReconcileLoop();
+    };
+
     void reconcileBusy();
-    const timer = window.setInterval(() => void reconcileBusy(), pollMs);
+    scheduleReconcileLoop();
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
 
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      if (timer != null) window.clearInterval(timer);
       socket.off("job:progress", handleProgress);
       socket.off("job:completed", handleCompleted);
       socket.off("job:failed", handleFailed);
       socket.off("asset:updated", handleAssetUpdated);
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
     };
   }, [enabled, pollMs]);
 }

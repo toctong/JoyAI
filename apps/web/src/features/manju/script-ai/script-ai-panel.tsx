@@ -268,6 +268,7 @@ export function ScriptAiPanel({
               ? ` · 钩子：${continueSeed.hook}`
               : " · 本集尚无钩子，将按末段情绪续写"}
             → 第{continueSeed.nextIndex}集
+            {continueSeed.finale ? " · 完结收束" : ""}
           </p>
         </div>
       ) : null}
@@ -478,11 +479,27 @@ export function ScriptAiPanel({
                 aria-expanded={typeOpen}
                 onClick={() => setTypeOpen((v) => !v)}
               >
-                <span>{aiType}</span>
+                <span>{aiType || "选择题材"}</span>
                 <ChevronDown className="manju-ai-panel__type-chevron size-3.5" />
               </button>
               {typeOpen ? (
                 <ul className="manju-ai-panel__type-menu" role="listbox">
+                  <li role="option" aria-selected={!aiType}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "manju-ai-panel__type-item",
+                        !aiType && "manju-ai-panel__type-item--active",
+                      )}
+                      onClick={() => {
+                        setAiType("");
+                        setTypeOpen(false);
+                      }}
+                    >
+                      <span>不限题材</span>
+                      {!aiType ? <Check className="size-3.5" /> : null}
+                    </button>
+                  </li>
                   {SCRIPT_AI_TYPES.map((type) => {
                     const active = aiType === type;
                     return (

@@ -17,6 +17,7 @@ import {
   manjuJobKindLabel,
   manjuPurposeLabel,
 } from "./lib/manju-job-labels";
+import { requestManjuAssetFallback } from "./studio/manju-asset-fallback-dialog";
 
 type JobAsset = {
   id: string;
@@ -274,7 +275,17 @@ export function useManjuJobBridge(activeProjectId?: string) {
       const label = purpose
         ? manjuPurposeLabel(purpose)
         : manjuJobKindLabel(kind);
-      toast.error(`${label}失败：${err}`);
+      const emptyLlm = /空内容|empty|模型不可用|没有可用的/i.test(err);
+      const hint = emptyLlm
+        ? "（请到「初始设定」更换可用的文本模型后再试）"
+        : "";
+      toast.error(`${label}失败：${err}${hint}`);
+      if (
+        activeProjectId &&
+        (purpose === "analyze_assets" || purpose === "novel_analyze")
+      ) {
+        requestManjuAssetFallback(activeProjectId);
+      }
     },
     [activeProjectId, applyJobResult, setAnalyzing],
   );
@@ -357,8 +368,9 @@ export function useManjuJobBridge(activeProjectId?: string) {
       }
     }
 
+    // Local store hygiene only (no HTTP). Rare interval + one mount pass.
     scrubOrphans();
-    const timer = window.setInterval(scrubOrphans, 4000);
+    const timer = window.setInterval(scrubOrphans, 30_000);
     return () => {
       cancelled = true;
       window.clearInterval(timer);

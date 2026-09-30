@@ -6,6 +6,7 @@ import { Eye } from "lucide-react";
 import { toast } from "@/shared/lib/toast";
 import { api } from "@/shared/lib/api";
 import { buildAdminQuery } from "@/shared/lib/admin-query";
+import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,51 +38,70 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type AuditItem = {
+type SystemLogLevel = "error" | "warn" | "info" | "debug";
+
+type SystemLogItem = {
   id: string;
+  level: SystemLogLevel;
+  source: string;
+  message: string;
+  context: Record<string, unknown> | null;
+  stack: string | null;
   userId: string | null;
-  username: string | null;
-  action: string;
-  detail: Record<string, unknown> | null;
   createdAt: string;
 };
 
 type Paginated = {
-  items: AuditItem[];
+  items: SystemLogItem[];
   total: number;
   page: number;
   pageSize: number;
 };
 
-const ACTION_OPTIONS = [
-  { value: "all", label: "全部动作" },
-  { value: "auth.login", label: "登录" },
-  { value: "auth.login_failed", label: "登录失败" },
-  { value: "auth.password_changed", label: "修改密码" },
-  { value: "auth.totp_enabled", label: "开启 TOTP" },
-  { value: "auth.totp_disabled", label: "关闭 TOTP" },
-  { value: "admin.user_create", label: "创建用户" },
-  { value: "admin.user_role", label: "改角色" },
-  { value: "admin.user_password_reset", label: "重置密码" },
-  { value: "admin.user_delete", label: "删除用户" },
-  { value: "admin.setting_set", label: "改系统设置" },
+const LEVEL_OPTIONS = [
+  { value: "all", label: "全部级别" },
+  { value: "error", label: "Error" },
+  { value: "warn", label: "Warn" },
+  { value: "info", label: "Info" },
 ] as const;
 
-function actionLabel(action: string) {
-  return ACTION_OPTIONS.find((o) => o.value === action)?.label ?? action;
+function LevelBadge({ level }: { level: SystemLogLevel }) {
+  const styles: Record<SystemLogLevel, string> = {
+    error:
+      "border-transparent bg-destructive/15 text-destructive hover:bg-destructive/15",
+    warn: "border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15",
+    info: "border-transparent bg-sky-500/15 text-sky-700 dark:text-sky-400 hover:bg-sky-500/15",
+    debug: "border-transparent bg-muted text-muted-foreground",
+  };
+  return (
+    <Badge variant="outline" className={cn("rounded-xl font-mono uppercase", styles[level])}>
+      {level}
+    </Badge>
+  );
 }
 
 export default function AdminLogsPage() {
-  const [items, setItems] = useState<AuditItem[]>([]);
+  const [items, setItems] = useState<SystemLogItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const [searchDraft, setSearchDraft] = useState("");
   const [keyword, setKeyword] = useState("");
-  const [actionFilter, setActionFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [sources, setSources] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [refreshing, setRefreshing] = useState(false);
-  const [detail, setDetail] = useState<AuditItem | null>(null);
+  const [detail, setDetail] = useState<SystemLogItem | null>(null);
+
+  const loadSources = useCallback(async () => {
+    try {
+      const list = await api<string[]>("/admin/system-logs/sources");
+      setSources(Array.isArray(list) ? list : []);
+    } catch {
+      setSources([]);
+    }
+  }, []);
 
   const load = useCallback(
     async (opts?: { page?: number }) => {
@@ -89,11 +109,12 @@ export default function AdminLogsPage() {
       setRefreshing(true);
       try {
         const res = await api<Paginated>(
-          `/admin/audit-logs${buildAdminQuery({
+          `/admin/system-logs${buildAdminQuery({
             page: nextPage,
             pageSize,
             keyword: keyword.trim() || undefined,
-            action: actionFilter === "all" ? undefined : actionFilter,
+            level: levelFilter === "all" ? undefined : levelFilter,
+            source: sourceFilter === "all" ? undefined : sourceFilter,
           })}`,
         );
         setItems(res.items ?? []);
@@ -106,8 +127,12 @@ export default function AdminLogsPage() {
         setLoaded(true);
       }
     },
-    [page, pageSize, keyword, actionFilter],
+    [page, pageSize, keyword, levelFilter, sourceFilter],
   );
+
+  useEffect(() => {
+    void loadSources();
+  }, [loadSources]);
 
   useEffect(() => {
     void load();
@@ -118,7 +143,7 @@ export default function AdminLogsPage() {
       <ListPageHeader>
         <PageHeader
           title="日志"
-          description="登录、安全与管理操作审计，便于追溯谁在何时做了什么。"
+          description="系统运行日志（Error / Warn / Info）。记录异常、任务失败与关键管理变更，不记录普通登录。"
           className="mb-0"
         />
         <ListToolbar
@@ -128,28 +153,52 @@ export default function AdminLogsPage() {
             setKeyword(v);
             setPage(1);
           }}
-          searchPlaceholder="搜索动作 / 用户 / 详情…"
+          searchPlaceholder="搜索消息 / 来源 / 上下文…"
           filters={
-            <Select
-              value={actionFilter}
-              onValueChange={(v) => {
-                setActionFilter(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9 w-[140px] rounded-xl">
-                <SelectValue placeholder="动作" />
-              </SelectTrigger>
-              <SelectContent className="shadow-none">
-                {ACTION_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <>
+              <Select
+                value={levelFilter}
+                onValueChange={(v) => {
+                  setLevelFilter(v ?? "all");
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-9 w-[120px] rounded-xl">
+                  <SelectValue placeholder="级别" />
+                </SelectTrigger>
+                <SelectContent className="shadow-none">
+                  {LEVEL_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={sourceFilter}
+                onValueChange={(v) => {
+                  setSourceFilter(v ?? "all");
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-9 w-[140px] rounded-xl">
+                  <SelectValue placeholder="来源" />
+                </SelectTrigger>
+                <SelectContent className="shadow-none">
+                  <SelectItem value="all">全部来源</SelectItem>
+                  {sources.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
           }
-          onRefresh={() => void load()}
+          onRefresh={() => {
+            void loadSources();
+            void load();
+          }}
           refreshing={refreshing}
         />
       </ListPageHeader>
@@ -160,8 +209,8 @@ export default function AdminLogsPage() {
         ) : items.length === 0 ? (
           <ListPageCard>
             <AdminEmptyState
-              title="暂无审计日志"
-              description="登录、改密、用户管理与系统设置变更会写入此处"
+              title="暂无系统日志"
+              description="出现接口异常、生成任务失败或关键管理操作时会写入此处"
             />
           </ListPageCard>
         ) : (
@@ -170,9 +219,9 @@ export default function AdminLogsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[160px]">时间</TableHead>
-                  <TableHead className="w-[120px]">用户</TableHead>
-                  <TableHead className="w-[160px]">动作</TableHead>
-                  <TableHead>详情</TableHead>
+                  <TableHead className="w-[88px]">级别</TableHead>
+                  <TableHead className="w-[100px]">来源</TableHead>
+                  <TableHead>消息</TableHead>
                   <TableHead className="w-[72px] text-right">查看</TableHead>
                 </TableRow>
               </TableHeader>
@@ -182,21 +231,19 @@ export default function AdminLogsPage() {
                     <TableCell className="font-mono text-[12px] text-muted-foreground">
                       {dayjs(row.createdAt).format("YYYY-MM-DD HH:mm:ss")}
                     </TableCell>
-                    <TableCell className="text-[13px]">
-                      {row.username ?? (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                    <TableCell>
+                      <LevelBadge level={row.level} />
                     </TableCell>
                     <TableCell>
                       <Badge
                         variant="secondary"
-                        className="rounded-xl font-normal"
+                        className="rounded-xl font-mono font-normal"
                       >
-                        {actionLabel(row.action)}
+                        {row.source}
                       </Badge>
                     </TableCell>
-                    <TableCell className="max-w-[360px] truncate font-mono text-[11px] text-muted-foreground">
-                      {row.detail ? JSON.stringify(row.detail) : "—"}
+                    <TableCell className="max-w-[420px] truncate text-[13px]">
+                      {row.message}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -237,8 +284,8 @@ export default function AdminLogsPage() {
           if (!open) setDetail(null);
         }}
         title="日志详情"
-        description={detail ? actionLabel(detail.action) : undefined}
-        widthClassName="sm:max-w-[560px]"
+        description={detail ? `${detail.level.toUpperCase()} · ${detail.source}` : undefined}
+        widthClassName="sm:max-w-[640px]"
         footer={
           <Button
             type="button"
@@ -257,19 +304,39 @@ export default function AdminLogsPage() {
               <span className="font-mono text-[12px]">
                 {dayjs(detail.createdAt).format("YYYY-MM-DD HH:mm:ss")}
               </span>
+              <span className="text-muted-foreground">级别</span>
+              <span>
+                <LevelBadge level={detail.level} />
+              </span>
+              <span className="text-muted-foreground">来源</span>
+              <span className="font-mono">{detail.source}</span>
               <span className="text-muted-foreground">用户</span>
-              <span>{detail.username ?? detail.userId ?? "—"}</span>
-              <span className="text-muted-foreground">动作</span>
-              <span>{detail.action}</span>
+              <span className="font-mono text-[12px]">
+                {detail.userId ?? "—"}
+              </span>
             </div>
             <div className="space-y-1.5">
-              <div className="text-muted-foreground">详情 JSON</div>
-              <pre className="overflow-x-auto rounded-xl border border-border bg-muted/40 p-3 font-mono text-[12px] leading-relaxed">
-                {detail.detail
-                  ? JSON.stringify(detail.detail, null, 2)
-                  : "null"}
-              </pre>
+              <div className="text-muted-foreground">消息</div>
+              <p className="rounded-xl border border-border bg-muted/40 p-3 leading-relaxed">
+                {detail.message}
+              </p>
             </div>
+            {detail.context ? (
+              <div className="space-y-1.5">
+                <div className="text-muted-foreground">上下文</div>
+                <pre className="overflow-x-auto rounded-xl border border-border bg-muted/40 p-3 font-mono text-[12px] leading-relaxed">
+                  {JSON.stringify(detail.context, null, 2)}
+                </pre>
+              </div>
+            ) : null}
+            {detail.stack ? (
+              <div className="space-y-1.5">
+                <div className="text-muted-foreground">堆栈</div>
+                <pre className="max-h-[280px] overflow-auto rounded-xl border border-border bg-muted/40 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+                  {detail.stack}
+                </pre>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </AdminDrawer>

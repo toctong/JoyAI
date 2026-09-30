@@ -38,7 +38,8 @@ export type ScriptAiConversation = {
   title: string;
   updatedAt: number;
   messages: ScriptAiMessage[];
-  aiType: ScriptAiType;
+  /** 空 = 未选题材 */
+  aiType: ScriptAiType | "";
 };
 
 function storageKey(projectId: string, namespace = "script-ai") {
@@ -49,7 +50,7 @@ function uid() {
   return crypto.randomUUID();
 }
 
-function blankConversation(aiType: ScriptAiType = "都市情感"): ScriptAiConversation {
+function blankConversation(aiType: ScriptAiType | "" = ""): ScriptAiConversation {
   return {
     id: uid(),
     title: "新对话",
@@ -91,7 +92,7 @@ function recoverInterrupted(state: ScriptProjectChatState): ScriptProjectChatSta
   };
 }
 
-function blankState(aiType: ScriptAiConversation["aiType"] = "都市情感"): ScriptProjectChatState {
+function blankState(aiType: ScriptAiConversation["aiType"] = ""): ScriptProjectChatState {
   const conv = blankConversation(aiType);
   return { activeId: conv.id, conversations: [conv] };
 }
@@ -125,10 +126,11 @@ function buildJobPrompt(input: {
     })
     .join("\n");
 
-  const parts = [
-    `【创作类型】${input.aiType}`,
-    `【用户需求】\n${input.userText.trim()}`,
-  ];
+  const parts: string[] = [];
+  if (input.aiType.trim()) {
+    parts.push(`【创作类型】${input.aiType}`);
+  }
+  parts.push(`【用户需求】\n${input.userText.trim()}`);
   if (input.continueSeed) {
     parts.push(formatContinueSeedForPrompt(input.continueSeed));
   }
@@ -278,7 +280,7 @@ export function useScriptAiChat(input: {
   );
 
   const messages = activeConversation?.messages ?? [];
-  const aiType = activeConversation?.aiType ?? "都市情感";
+  const aiType = activeConversation?.aiType ?? "";
 
   const patchActive = useCallback(
     (fn: (conv: ScriptAiConversation) => ScriptAiConversation) => {
@@ -290,7 +292,7 @@ export function useScriptAiChat(input: {
   );
 
   const setAiType = useCallback(
-    (next: ScriptAiType) => {
+    (next: ScriptAiType | "") => {
       patchActive((c) => ({ ...c, aiType: next }));
     },
     [patchActive],
@@ -409,12 +411,34 @@ export function useScriptAiChat(input: {
     onFailed: (payload) => {
       const jobId = payload.jobId;
       if (!jobId || pendingJobRef.current !== jobId) return;
+      const raw = payload.error?.trim() || "生成失败，请重试";
+      const emptyHint =
+        /空内容|empty|模型不可用|没有可用的/i.test(raw)
+          ? "（请到项目「初始设定」更换可用的文本模型后再试）"
+          : "";
       finishAssistant(jobId, {
-        error: payload.error?.trim() || "生成失败，请重试",
+        error: `${raw}${emptyHint}`,
       });
-      toast.error(payload.error?.trim() || "AI 帮写失败");
+      toast.error(`${raw}${emptyHint}`);
     },
   });
+
+  // 孤儿任务兜底：WS 丢失时解锁输入（约 3 分钟）
+  useEffect(() => {
+    if (!sending) return;
+    const timer = window.setTimeout(() => {
+      if (!pendingJobRef.current) {
+        setSending(false);
+        return;
+      }
+      const stuckId = pendingJobRef.current;
+      finishAssistant(stuckId, {
+        error: "等待超时，请重试；请到「初始设定」检查文本模型渠道",
+      });
+      toast.error("AI 帮写超时，已解锁输入");
+    }, 180_000);
+    return () => window.clearTimeout(timer);
+  }, [sending, finishAssistant]);
 
   const sendMessage = useCallback(
     async (text: string, opts?: { scriptRef?: boolean }) => {

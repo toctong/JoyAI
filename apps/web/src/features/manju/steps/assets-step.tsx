@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Copy,
@@ -42,6 +42,10 @@ import {
   markManjuAssetSubmitPending,
 } from "../lib/pending-asset-submit";
 import { manjuAssetHref } from "../studio/manju-studio-routes";
+import {
+  ManjuAssetFallbackDialog,
+  MANJU_ASSET_FALLBACK_EVENT,
+} from "../studio/manju-asset-fallback-dialog";
 
 const TABS: {
   kind: ManjuAssetDraft["kind"];
@@ -68,6 +72,7 @@ export function AssetsStep({
   const [batchMode, setBatchMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [fallbackOpen, setFallbackOpen] = useState(false);
   const cancelledIdsRef = useRef(new Set<string>());
   const batchAbortRef = useRef(false);
   const addAsset = useManjuStore((s) => s.addAsset);
@@ -84,6 +89,16 @@ export function AssetsStep({
   });
   const kindLabel = TABS.find((t) => t.kind === activeKind)?.label ?? "资产";
   const analyzing = useManjuStore((s) => Boolean(s.analyzingIds[project.id]));
+
+  useEffect(() => {
+    const onFallback = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ projectId?: string }>).detail;
+      if (detail?.projectId === project.id) setFallbackOpen(true);
+    };
+    window.addEventListener(MANJU_ASSET_FALLBACK_EVENT, onFallback);
+    return () =>
+      window.removeEventListener(MANJU_ASSET_FALLBACK_EVENT, onFallback);
+  }, [project.id]);
 
   const openDetail = (assetId: string) => {
     router.push(manjuAssetHref(project.id, activeKind, assetId));
@@ -245,6 +260,53 @@ export function AssetsStep({
     }
   };
 
+  /** 一键为缺失参考图的角色提交定妆图 */
+  const generateMissingPortraits = async () => {
+    const targets = rootAssets(project.assets, "character").filter(
+      (a) =>
+        a.name.trim() &&
+        !a.imageUrl &&
+        !a.assetId &&
+        !isBusyStatus(a.status),
+    );
+    if (targets.length === 0) {
+      toast.message("没有缺少参考图的角色");
+      return;
+    }
+    const ok = await confirmDialog({
+      title: "一键角色定妆？",
+      description: `将为 ${targets.length} 个无参考图角色提交定妆生图（${targets
+        .map((a) => a.name)
+        .slice(0, 6)
+        .join("、")}${targets.length > 6 ? "…" : ""}）。`,
+      confirmText: "开始定妆",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    batchAbortRef.current = false;
+    setSubmitting(true);
+    const toastId = toast.loading(`正在提交定妆 0/${targets.length}…`);
+    let done = 0;
+    let fail = 0;
+    try {
+      for (const asset of targets) {
+        if (batchAbortRef.current) break;
+        const result = await generateOne(asset);
+        done += 1;
+        if (result !== "ok") fail += 1;
+        toast.loading(`正在提交定妆 ${done}/${targets.length}…`, {
+          id: toastId,
+        });
+      }
+      toast.dismiss(toastId);
+      if (fail === 0) toast.success(`已提交 ${done} 个角色定妆`);
+      else toast.message(`已提交 ${done - fail} 个，失败 ${fail}`);
+    } finally {
+      toast.dismiss(toastId);
+      setSubmitting(false);
+    }
+  };
+
   const batchExport = () => {
     const items = roots.filter((a) => selected.has(a.id));
     if (items.length === 0) {
@@ -379,6 +441,22 @@ export function AssetsStep({
                 className="manju-lore-card__hover"
                 onClick={(e) => e.stopPropagation()}
               >
+                {!asset.imageUrl && asset.name.trim() && !busy ? (
+                  <button
+                    type="button"
+                    className="manju-lore-card__hover-btn"
+                    title={
+                      activeKind === "character" ? "生成定妆图" : "生成参考图"
+                    }
+                    aria-label={
+                      activeKind === "character" ? "生成定妆图" : "生成参考图"
+                    }
+                    disabled={submitting}
+                    onClick={() => void generateOne(asset)}
+                  >
+                    <Wand2 className="size-3.5" />
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className={cn(
@@ -461,6 +539,11 @@ export function AssetsStep({
   return (
     <JoyPhotoProvider>
       <div className="manju-lore">
+        <ManjuAssetFallbackDialog
+          projectId={project.id}
+          open={fallbackOpen}
+          onOpenChange={setFallbackOpen}
+        />
         <div className="manju-lore__sticky manju-studio__sticky-bar">
           <div className="manju-studio__page-head">
             <label className="manju-studio__page-search">
@@ -498,6 +581,28 @@ export function AssetsStep({
               </div>
             ) : null}
             <div className="manju-studio__page-actions">
+              {activeKind === "character" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={submitting}
+                  onClick={() => void generateMissingPortraits()}
+                >
+                  <Wand2 className="size-3.5" />
+                  一键定妆缺失角色
+                </Button>
+              ) : null}
+              {project.assets.length === 0 && project.scriptText.trim() ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFallbackOpen(true)}
+                >
+                  手动登记角色
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
@@ -595,20 +700,34 @@ export function AssetsStep({
                 </p>
               </>
             ) : (
-              <div className="manju-lore-grid">
-                <button
-                  type="button"
-                  className="manju-lore-create"
-                  onClick={() => {
-                    const id = addAsset(project.id, activeKind);
-                    router.push(manjuAssetHref(project.id, activeKind, id));
-                  }}
-                >
-                  <span className="manju-lore-create__plus">
-                    <Plus className="size-6" />
-                  </span>
-                  <span>新建{kindLabel}</span>
-                </button>
+              <div className="space-y-4">
+                {project.scriptText.trim() && activeKind === "character" ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFallbackOpen(true)}
+                    >
+                      从剧本抽取 / 粘贴角色
+                    </Button>
+                  </div>
+                ) : null}
+                <div className="manju-lore-grid">
+                  <button
+                    type="button"
+                    className="manju-lore-create"
+                    onClick={() => {
+                      const id = addAsset(project.id, activeKind);
+                      router.push(manjuAssetHref(project.id, activeKind, id));
+                    }}
+                  >
+                    <span className="manju-lore-create__plus">
+                      <Plus className="size-6" />
+                    </span>
+                    <span>新建{kindLabel}</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

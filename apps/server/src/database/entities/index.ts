@@ -9,6 +9,7 @@ import { ManjuProject } from "./manju-project.entity";
 import { ManjuFolder } from "./manju-folder.entity";
 import { AppSetting } from "./app-setting.entity";
 import { AuditLog } from "./audit-log.entity";
+import { SystemLog } from "./system-log.entity";
 import { ProjectChat } from "./project-chat.entity";
 import { Skill } from "./skill.entity";
 import { InspireBanner } from "./inspire-banner.entity";
@@ -29,6 +30,7 @@ export const ENTITIES = [
   ManjuFolder,
   AppSetting,
   AuditLog,
+  SystemLog,
   ProjectChat,
   Skill,
   InspireBanner,
@@ -50,6 +52,7 @@ export {
   ManjuFolder,
   AppSetting,
   AuditLog,
+  SystemLog,
   ProjectChat,
   Skill,
   InspireBanner,

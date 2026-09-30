@@ -72,10 +72,39 @@ type GenTab = "t2i" | "i2i" | "ref_video" | "i2v";
 type LibraryTab = "current" | "all";
 type LibraryFilter = "all" | "image" | "video";
 
-function shotLabel(shot: ManjuShotDraft, epIndex: number) {
-  const prefix = `${epIndex}-${shot.index}`;
+/** 集内镜号：第 N 集第 k 镜 → N-k（不使用全局 shot.index） */
+function shotLabel(shot: ManjuShotDraft, epIndex: number, localIndex: number) {
+  const prefix = `${epIndex}-${localIndex}`;
   const title = shot.title.trim() || shot.visual.trim().slice(0, 12) || "未命名";
   return { prefix, title, full: `${prefix} ${title}` };
+}
+
+function localShotIndex(shots: ManjuShotDraft[], shotId: string): number {
+  const i = shots.findIndex((s) => s.id === shotId);
+  return i >= 0 ? i + 1 : 1;
+}
+
+function charactersMissingRefImage(project: ManjuProjectDraft) {
+  return project.assets.filter(
+    (a) =>
+      a.kind === "character" &&
+      a.name.trim() &&
+      !a.imageUrl &&
+      !a.assetId,
+  );
+}
+
+async function confirmMissingCharacterImages(
+  project: ManjuProjectDraft,
+): Promise<boolean> {
+  const missing = charactersMissingRefImage(project);
+  if (missing.length === 0) return true;
+  return confirmDialog({
+    title: "角色缺少参考图",
+    description: `${missing.map((a) => a.name).join("、")} 尚无参考图，跨镜长相可能不稳定。可先到角色页「一键定妆」，或仍继续。`,
+    confirmText: "仍要继续",
+    cancelText: "先去补图",
+  });
 }
 
 function countAssetsByKind(
@@ -125,6 +154,8 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
   const [libraryFilter, setLibraryFilter] = useState<LibraryFilter>("all");
   const [previewKind, setPreviewKind] = useState<"image" | "video">("image");
   const [continueOpen, setContinueOpen] = useState(false);
+  const [promptBusy, setPromptBusy] = useState(false);
+  const [batchBusy, setBatchBusy] = useState(false);
   const autoPlanStarted = useRef(false);
 
   const episode = project?.episodes.find((e) => e.id === episodeId);
@@ -165,6 +196,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       return;
     }
     void (async () => {
+      if (!(await confirmMissingCharacterImages(project))) return;
       try {
         setAnalyzing(projectId, true);
         await flushSave(projectId);
@@ -217,7 +249,11 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       selected: boolean;
     }> = [];
     for (const shot of source) {
-      const label = shotLabel(shot, epIndex).full;
+      const label = shotLabel(
+        shot,
+        epIndex,
+        localShotIndex(shots, shot.id),
+      ).full;
       if (
         (libraryFilter === "all" || libraryFilter === "image") &&
         shot.storyboardImageUrl
@@ -283,6 +319,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       toast.error("本集还没有原文，请先在剧本页写好或解析分集");
       return;
     }
+    if (!(await confirmMissingCharacterImages(project))) return;
     const hasMedia = shots.some((s) => s.storyboardImageUrl || s.videoUrl);
     if (shots.length > 0) {
       const ok = await confirmDialog({
@@ -337,6 +374,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
     }
     if (!(await ensureScriptConfirmed())) return;
     try {
+      setPromptBusy(true);
       setAnalyzing(projectId, true);
       await flushSave(projectId);
       await submitWorkflowSkill({
@@ -347,19 +385,21 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       });
       toast.success(
         mode === "shot"
-          ? `已提交镜 #${selected!.index} 提示词任务`
+          ? `已提交镜 ${epIndex}-${localShotIndex(shots, selected!.id)} 提示词任务`
           : "已提交本集提示词任务",
       );
     } catch (e) {
       setAnalyzing(projectId, false);
       toast.error(e instanceof Error ? e.message : "提交失败");
+    } finally {
+      setPromptBusy(false);
     }
   };
 
   const handleDeleteShot = async (shot: ManjuShotDraft) => {
     const ok = await confirmDialog({
       title: "删除分镜？",
-      description: `将删除「${shotLabel(shot, epIndex).full}」。`,
+      description: `将删除「${shotLabel(shot, epIndex, localShotIndex(shots, shot.id)).full}」。`,
       confirmText: "删除",
       cancelText: "取消",
       destructive: true,
@@ -385,7 +425,11 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
     const confirm = manjuConfirmGenerateCopy({
       kind: "image",
       scope: "shot",
-      name: shotLabel(selected, epIndex).full,
+      name: shotLabel(
+        selected,
+        epIndex,
+        localShotIndex(shots, selected.id),
+      ).full,
       ratio: project.settings.ratio,
       refCount:
         (genTab === "i2i" || referenceAssetIds.length
@@ -419,7 +463,9 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       });
       bindJobToShotStoryboard(projectId, selected.id, job.id, "queued");
       setPreviewKind("image");
-      toast.success(`分镜 ${selected.index} 已提交生图`);
+      toast.success(
+        `分镜 ${epIndex}-${localShotIndex(shots, selected.id)} 已提交生图`,
+      );
     } catch (e) {
       updateShot(projectId, selected.id, { storyboardStatus: "failed" });
       toast.error(e instanceof Error ? e.message : "提交失败");
@@ -456,7 +502,11 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
     const confirm = manjuConfirmGenerateCopy({
       kind: "video",
       scope: "shot",
-      name: shotLabel(selected, epIndex).full,
+      name: shotLabel(
+        selected,
+        epIndex,
+        localShotIndex(shots, selected.id),
+      ).full,
       ratio: project.settings.ratio,
       refCount: referenceAssetIds.length + referenceUrls.length,
     });
@@ -487,7 +537,9 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       bindJobToShotVideo(projectId, selected.id, job.id, "queued");
       setPreviewKind("video");
       setGenTab("i2v");
-      toast.success(`分镜 ${selected.index} 已提交生视频`);
+      toast.success(
+        `分镜 ${epIndex}-${localShotIndex(shots, selected.id)} 已提交生视频`,
+      );
     } catch (e) {
       updateShot(projectId, selected.id, { videoStatus: "failed" });
       toast.error(e instanceof Error ? e.message : "提交失败");
@@ -500,6 +552,147 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       return;
     }
     void generateImage();
+  };
+
+  const generateAllImages = async () => {
+    if (!project || shots.length === 0) return;
+    if (project.settings.mode === "grid") {
+      toast.message("多宫格模式请回到分镜卡片页批量生成");
+      return;
+    }
+    if (!(await ensureScriptConfirmed())) return;
+    const targets = shots.filter(
+      (s) =>
+        (s.visual.trim() || s.imagePrompt?.trim()) &&
+        !s.storyboardImageUrl &&
+        !isBusyStatus(s.storyboardStatus),
+    );
+    if (targets.length === 0) {
+      toast.message("没有待生图的分镜（已有图或缺少描述）");
+      return;
+    }
+    const ok = await confirmDialog({
+      title: "本集全部生图？",
+      description: `将为 ${targets.length} 个分镜提交生图任务（跳过已有静帧）。`,
+      confirmText: "开始生图",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    setBatchBusy(true);
+    let okCount = 0;
+    const toastId = toast.loading(`正在提交生图 0/${targets.length}…`);
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        const shot = targets[i]!;
+        try {
+          const slots = resolveShotReferenceSlots(shot, project);
+          const { referenceAssetIds, referenceUrls } =
+            referenceMediaFromSlots(slots);
+          const job = await submitImageJob({
+            prompt: buildShotImagePrompt(shot, project),
+            ratio: project.settings.ratio,
+            modelId: project.settings.imageModelId,
+            manjuProjectId: project.id,
+            referenceAssetIds: referenceAssetIds.length
+              ? referenceAssetIds
+              : undefined,
+            referenceUrls: referenceUrls.length ? referenceUrls : undefined,
+          });
+          bindJobToShotStoryboard(projectId, shot.id, job.id, "queued");
+          okCount += 1;
+        } catch {
+          updateShot(projectId, shot.id, { storyboardStatus: "failed" });
+        }
+        toast.loading(`正在提交生图 ${i + 1}/${targets.length}…`, {
+          id: toastId,
+        });
+      }
+      toast.dismiss(toastId);
+      toast.success(`已提交 ${okCount}/${targets.length} 个生图任务`);
+    } finally {
+      toast.dismiss(toastId);
+      setBatchBusy(false);
+    }
+  };
+
+  const generateAllVideos = async () => {
+    if (!project || shots.length === 0) return;
+    if (!(await ensureScriptConfirmed())) return;
+    const mode = resolveManjuGenMode(project.settings.mode);
+    const targets = shots.filter(
+      (s) =>
+        !s.videoUrl &&
+        !isBusyStatus(s.videoStatus) &&
+        (mode !== "i2v" || Boolean(s.storyboardImageUrl)) &&
+        (s.visual.trim() ||
+          s.storyboardImageUrl ||
+          s.videoPrompt?.trim()),
+    );
+    if (targets.length === 0) {
+      toast.message(
+        mode === "i2v"
+          ? "没有可图生视频的分镜（需先有静帧）"
+          : "没有待生视频的分镜",
+      );
+      return;
+    }
+    const ok = await confirmDialog({
+      title: "本集全部生视频？",
+      description: `将为 ${targets.length} 个分镜提交生视频任务（跳过已有视频）。`,
+      confirmText: "开始生视频",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+    setBatchBusy(true);
+    let okCount = 0;
+    const toastId = toast.loading(`正在提交生视频 0/${targets.length}…`);
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        const shot = targets[i]!;
+        try {
+          const slots = resolveShotReferenceSlots(shot, project);
+          const fromAssets = referenceMediaFromSlots(slots);
+          const referenceAssetIds: string[] = [];
+          const referenceUrls: string[] = [];
+          if (mode === "ref") {
+            referenceAssetIds.push(...fromAssets.referenceAssetIds);
+            referenceUrls.push(...fromAssets.referenceUrls);
+          } else if (shot.storyboardAssetId) {
+            referenceAssetIds.push(shot.storyboardAssetId);
+          } else if (shot.storyboardImageUrl) {
+            referenceUrls.push(shot.storyboardImageUrl);
+          }
+          const duration =
+            shot.duration && shot.duration > 0
+              ? shot.duration
+              : project.settings.duration || 5;
+          const job = await submitVideoJob({
+            prompt: buildShotVideoPrompt(shot, project, { mode }),
+            ratio: project.settings.ratio,
+            duration,
+            modelId: project.settings.videoModelId,
+            manjuProjectId: project.id,
+            referenceAssetIds: referenceAssetIds.length
+              ? referenceAssetIds
+              : undefined,
+            referenceUrls: referenceUrls.length ? referenceUrls : undefined,
+            refMode: mode === "ref" ? "omni" : "first_last",
+          });
+          bindJobToShotVideo(projectId, shot.id, job.id, "queued");
+          okCount += 1;
+        } catch {
+          updateShot(projectId, shot.id, { videoStatus: "failed" });
+        }
+        toast.loading(`正在提交生视频 ${i + 1}/${targets.length}…`, {
+          id: toastId,
+        });
+      }
+      toast.dismiss(toastId);
+      toast.success(`已提交 ${okCount}/${targets.length} 个生视频任务`);
+    } finally {
+      toast.dismiss(toastId);
+      setBatchBusy(false);
+    }
   };
 
   const assetCounts = selected
@@ -518,8 +711,10 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
 
   const titleValue = selected?.title ?? "";
   const titleDisplay = selected
-    ? shotLabel(selected, epIndex).full
+    ? shotLabel(selected, epIndex, localShotIndex(shots, selected.id)).full
     : "选择分镜";
+  const planBusy = analyzing && !promptBusy;
+  const writeBusy = analyzing && promptBusy;
 
   return (
     <div className="manju-produce">
@@ -613,7 +808,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                     onClick={() => void handlePlanShots()}
                   >
                     <Sparkles className="size-3.5" />
-                    {analyzing ? "规划中…" : "AI 规划本集分镜"}
+                    {planBusy ? "规划中…" : "AI 规划本集分镜"}
                   </Button>
                   <Button
                     type="button"
@@ -627,8 +822,8 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                 </div>
               </div>
             ) : (
-              shots.map((shot) => {
-                const label = shotLabel(shot, epIndex);
+              shots.map((shot, i) => {
+                const label = shotLabel(shot, epIndex, i + 1);
                 const on = selected?.id === shot.id;
                 return (
                   <button
@@ -668,7 +863,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
               onClick={() => void handlePlanShots()}
             >
               <Sparkles className="size-3.5" />
-              {analyzing ? "规划中…" : "AI 规划"}
+              {planBusy ? "规划中…" : "AI 规划"}
             </Button>
             <Button
               type="button"
@@ -678,7 +873,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
               onClick={() => void handleAuthorPrompts("episode")}
             >
               <Wand2 className="size-3.5" />
-              写提示词
+              {writeBusy ? "写词中…" : "写提示词"}
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={handleAddShot}>
               <Plus className="size-3.5" />
@@ -818,21 +1013,41 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={analyzing}
+                  disabled={analyzing || batchBusy}
                   onClick={() => void handleAuthorPrompts("shot")}
                 >
                   <Sparkles className="size-3.5" />
-                  {analyzing ? "写词中…" : "AI 写本镜提示词"}
+                  {writeBusy ? "写词中…" : "AI 写本镜提示词"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={analyzing}
+                  disabled={analyzing || batchBusy}
                   onClick={() => void handleAuthorPrompts("episode")}
                 >
                   <Wand2 className="size-3.5" />
                   本集全部写词
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={analyzing || batchBusy || shots.length === 0}
+                  onClick={() => void generateAllImages()}
+                >
+                  <ImageIcon className="size-3.5" />
+                  {batchBusy ? "提交中…" : "本集全部生图"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={analyzing || batchBusy || shots.length === 0}
+                  onClick={() => void generateAllVideos()}
+                >
+                  <Film className="size-3.5" />
+                  {batchBusy ? "提交中…" : "本集全部生视频"}
                 </Button>
               </div>
 

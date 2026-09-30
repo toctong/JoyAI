@@ -343,6 +343,19 @@ export class ChannelsService {
       return model;
     }
 
+    // Prefer admin-marked default, then most recently updated enabled model.
+    const preferred = await this.models.findOne({
+      where: {
+        kind: kind as JobKind,
+        enabled: true,
+        isDefault: true,
+        channel: { enabled: true },
+      },
+      relations: ["channel"],
+      order: { updatedAt: "DESC" },
+    });
+    if (preferred) return preferred;
+
     const fallback = await this.models.findOne({
       where: {
         kind: kind as JobKind,

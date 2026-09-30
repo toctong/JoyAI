@@ -5,19 +5,44 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from "@nestjs/platform-fastify";
-import { ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe, BadRequestException } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import { AppModule } from "./app.module";
+import { AllExceptionsFilter } from "./common/http-exception.filter";
+import { SystemLogService } from "./modules/audit/system-log.service";
 
 async function bootstrap() {
+  const bootLogger = new Logger("Bootstrap");
+
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: true }),
+    // Nest Logger already covers boot/request errors; Fastify/Pino would spam
+    // raw JSON "Server listening at http://…" for every NIC.
+    new FastifyAdapter({ logger: false }),
   );
+
+  const systemLogs = app.get(SystemLogService);
+  process.on("unhandledRejection", (reason) => {
+    const message =
+      reason instanceof Error ? reason.message : String(reason);
+    bootLogger.error(
+      `unhandledRejection: ${message}`,
+      reason instanceof Error ? reason.stack : undefined,
+    );
+    systemLogs.error("bootstrap", `unhandledRejection: ${message}`, {
+      stack: reason instanceof Error ? reason.stack ?? null : null,
+    });
+  });
+  process.on("uncaughtException", (err) => {
+    bootLogger.error(`uncaughtException: ${err.message}`, err.stack);
+    systemLogs.error("bootstrap", `uncaughtException: ${err.message}`, {
+      stack: err.stack ?? null,
+    });
+  });
 
   const config = app.get(ConfigService);
   const isProd = config.get<string>("NODE_ENV") === "production";
@@ -46,11 +71,20 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix("api");
+  app.useGlobalFilters(app.get(AllExceptionsFilter));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      exceptionFactory: (errors) => {
+        const msgs = errors.flatMap((e) =>
+          Object.values(e.constraints ?? {}),
+        );
+        return new BadRequestException(
+          msgs.length > 0 ? msgs.join("；") : "请求参数无效",
+        );
+      },
     }),
   );
 
@@ -64,6 +98,11 @@ async function bootstrap() {
 
   const port = Number(config.get("PORT") ?? 3001);
   await app.listen(port, "0.0.0.0");
+  bootLogger.log(`listening on :${port}`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error("bootstrap failed", err);
+  process.exit(1);
+});

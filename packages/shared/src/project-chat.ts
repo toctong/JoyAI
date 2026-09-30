@@ -117,15 +117,17 @@ export type ScriptProjectChatState = {
     id: string;
     title: string;
     updatedAt: number;
-    aiType: ScriptWriteGenre;
+    /** 空字符串 = 用户未选题材，勿默认注入「都市情感」 */
+    aiType: ScriptWriteGenre | "";
     messages: ScriptProjectChatMessage[];
   }[];
 };
 
 const GENRE_SET = new Set<string>(SCRIPT_WRITE_GENRES);
 
-function genreOf(value: unknown): ScriptWriteGenre {
+function genreOf(value: unknown): ScriptWriteGenre | "" {
   const text = clip(value, 32).trim();
+  if (!text) return "";
   return GENRE_SET.has(text) ? (text as ScriptWriteGenre) : "其他";
 }
 

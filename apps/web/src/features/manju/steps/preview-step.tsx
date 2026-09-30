@@ -33,8 +33,30 @@ export function PreviewStep({
     const pool = episodeId
       ? project.shots.filter((s) => s.episodeId === episodeId)
       : project.shots;
-    return pool.filter((s) => s.videoUrl);
-  }, [project.shots, episodeId]);
+    return pool
+      .filter((s) => s.videoUrl)
+      .slice()
+      .sort((a, b) => {
+        const ea = project.episodes.findIndex((e) => e.id === a.episodeId);
+        const eb = project.episodes.findIndex((e) => e.id === b.episodeId);
+        if (ea !== eb) return ea - eb;
+        return a.index - b.index;
+      });
+  }, [project.shots, project.episodes, episodeId]);
+
+  const clipLabels = useMemo(() => {
+    const epLocal = new Map<string, number>();
+    return clips.map((shot) => {
+      const epIdx = Math.max(
+        1,
+        project.episodes.findIndex((e) => e.id === shot.episodeId) + 1,
+      );
+      const key = shot.episodeId || "_";
+      const local = (epLocal.get(key) ?? 0) + 1;
+      epLocal.set(key, local);
+      return `${epIdx}-${local}`;
+    });
+  }, [clips, project.episodes]);
 
   const canvasShots = useMemo(
     () => shotsForCanvasPush(project, episodeId),
@@ -232,9 +254,11 @@ export function PreviewStep({
               <div className="text-sm">
                 <span>{project.title}</span>
                 <span className="ml-2 text-muted-foreground">
-                  {String(current?.index ?? 0).padStart(2, "0")} /{" "}
-                  {String(clips.length).padStart(2, "0")}
-                  {episodeId ? " · 当前分集" : ""}
+                  {clipLabels[active] ?? String(current?.index ?? 0).padStart(2, "0")}{" "}
+                  / {String(clips.length).padStart(2, "0")}
+                  {episodeId
+                    ? " · 当前分集"
+                    : " · 全部已出片"}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -327,12 +351,12 @@ export function PreviewStep({
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={shot.storyboardImageUrl} alt="" />
                   ) : (
-                    <span>{String(shot.index).padStart(2, "0")}</span>
+                    <span>{clipLabels[i]}</span>
                   )}
                 </span>
                 <span className="min-w-0 text-left">
                   <span className="block text-xs">
-                    {String(shot.index).padStart(2, "0")}
+                    {clipLabels[i]}
                     {shot.videoStale ? " · 需重做" : ""}
                   </span>
                   <span className="line-clamp-2 block text-[11px] text-muted-foreground">

@@ -157,6 +157,7 @@ export class ModelsService {
         capabilities: caps,
         adapterId,
         remoteId: m.remoteId,
+        isDefault: Boolean(m.isDefault),
         channel: {
           id: m.channel.id,
           platform: m.channel.platform,

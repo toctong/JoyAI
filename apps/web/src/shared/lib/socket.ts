@@ -59,6 +59,10 @@ export function getJobsSocket(): Socket {
     transports: ["polling", "websocket"],
     autoConnect: true,
     reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 800,
+    reconnectionDelayMax: 8_000,
+    timeout: 20_000,
   });
 
   return socket;

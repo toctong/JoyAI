@@ -7,6 +7,7 @@ import { toast } from "@/shared/lib/toast";
 import { api } from "@/shared/lib/api";
 import { buildAdminQuery } from "@/shared/lib/admin-query";
 import { formatDurationMs } from "@/shared/lib/format-duration";
+import { getJobsSocket } from "@/shared/lib/socket";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,7 +69,12 @@ export default function JobsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState<Job | null>(null);
-  const silentRef = useRef(false);
+  const softRefreshTimer = useRef<number | null>(null);
+  const loadRef = useRef<(opts?: { silent?: boolean; page?: number }) => Promise<void>>(
+    async () => undefined,
+  );
+  const statusFilterRef = useRef(statusFilter);
+  statusFilterRef.current = statusFilter;
 
   const load = useCallback(
     async (opts?: { silent?: boolean; page?: number }) => {
@@ -106,23 +112,106 @@ export default function JobsPage() {
     [page, pageSize, keyword, statusFilter, kindFilter],
   );
 
+  loadRef.current = load;
+
   useEffect(() => {
     void load();
   }, [load]);
 
-  const hasActive = jobs.some((j) => ACTIVE_STATUSES.has(j.status));
-
+  // Push-driven updates: patch rows in place; debounce one soft reload when
+  // the event job is not on the current page (new task / filter miss).
   useEffect(() => {
-    if (!hasActive) return;
-    const timer = window.setInterval(() => {
-      if (silentRef.current) return;
-      silentRef.current = true;
-      void load({ silent: true }).finally(() => {
-        silentRef.current = false;
+    type AdminJobEvent = {
+      event?: string;
+      jobId?: string;
+      status?: string | null;
+      progress?: number;
+      error?: string | null;
+      finishedAt?: string | null;
+    };
+
+    function scheduleSoftRefresh() {
+      if (softRefreshTimer.current != null) return;
+      softRefreshTimer.current = window.setTimeout(() => {
+        softRefreshTimer.current = null;
+        void loadRef.current({ silent: true });
+      }, 1200);
+    }
+
+    const socket = getJobsSocket();
+    const onAdminJob = (payload: AdminJobEvent) => {
+      const jobId = String(payload.jobId ?? "").trim();
+      if (!jobId) return;
+
+      setJobs((prev) => {
+        const idx = prev.findIndex((j) => j.id === jobId);
+        if (idx < 0) {
+          scheduleSoftRefresh();
+          return prev;
+        }
+        const cur = prev[idx]!;
+        const nextStatus = payload.status?.trim() || cur.status;
+        // Filtered views: drop row and soft-reload totals when status no longer matches.
+        if (
+          statusFilterRef.current !== "all" &&
+          nextStatus !== statusFilterRef.current
+        ) {
+          scheduleSoftRefresh();
+          return prev.filter((j) => j.id !== jobId);
+        }
+        const next: Job = {
+          ...cur,
+          status: nextStatus,
+          progress:
+            typeof payload.progress === "number"
+              ? payload.progress
+              : cur.progress,
+          error:
+            payload.error !== undefined ? payload.error : cur.error,
+          finishedAt:
+            payload.finishedAt != null
+              ? payload.finishedAt
+              : ACTIVE_STATUSES.has(nextStatus)
+                ? null
+                : cur.finishedAt,
+        };
+        const copy = [...prev];
+        copy[idx] = next;
+        return copy;
       });
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [hasActive, load]);
+
+      setDetail((cur) => {
+        if (!cur || cur.id !== jobId) return cur;
+        return {
+          ...cur,
+          status: payload.status?.trim() || cur.status,
+          progress:
+            typeof payload.progress === "number"
+              ? payload.progress
+              : cur.progress,
+          error:
+            payload.error !== undefined ? payload.error : cur.error,
+          finishedAt:
+            payload.finishedAt != null ? payload.finishedAt : cur.finishedAt,
+        };
+      });
+    };
+
+    const onConnect = () => {
+      scheduleSoftRefresh();
+    };
+
+    socket.on("admin:job", onAdminJob);
+    socket.on("connect", onConnect);
+    return () => {
+      socket.off("admin:job", onAdminJob);
+      socket.off("connect", onConnect);
+      if (softRefreshTimer.current != null) {
+        window.clearTimeout(softRefreshTimer.current);
+        softRefreshTimer.current = null;
+      }
+    };
+  }, []);
 
   function resetPageAnd(apply: () => void) {
     apply();
@@ -151,7 +240,7 @@ export default function JobsPage() {
       <ListPageHeader>
         <PageHeader
           title="任务"
-          description="全站生成任务监控 · 进行中任务自动刷新 · 点详情看完整信息"
+          description="全站生成任务监控 · 实时推送更新 · 点详情看完整信息"
           className="mb-0"
         />
         <ListToolbar

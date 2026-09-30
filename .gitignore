@@ -13,6 +13,7 @@ uploads
 tmp
 data/
 release/
+.playwright-cli/
 *.tsbuildinfo
 apps/server/prisma/*.db
 apps/server/prisma/*.db-journal

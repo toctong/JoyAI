@@ -10,6 +10,8 @@ export const SCRIPT_WRITE_GENRES = [
   "重生穿越",
   "战神归来",
   "古装宫廷",
+  "成语故事",
+  "寓言",
   "励志逆袭",
   "家庭伦理",
   "萌宝",
@@ -62,6 +64,20 @@ export const SCRIPT_WRITE_STARTERS: ScriptWriteStarter[] = [
     genre: "古装宫廷",
     prompt:
       "写一集古装漫剧感剧本：冷宫边缘妃子识破贵妃毒计。智商在线、计谋有步骤，突出画面与对白，结尾危机钩。",
+  },
+  {
+    id: "idiom-stump",
+    title: "成语·守株待兔",
+    genre: "成语故事",
+    prompt:
+      "写成语故事短剧开篇「守株待兔」：宋国农夫锄地时野兔撞树而死，他惊喜决定弃耕守桩。文言白话、真人古装感，约 3 场，结尾留执念钩子。",
+  },
+  {
+    id: "fable-fox",
+    title: "寓言·狐狸与葡萄",
+    genre: "寓言",
+    prompt:
+      "写寓言短片第 1 集：狐狸够不到葡萄后自我安慰。画面感强、对白短，点题克制，结尾留人物关系钩。",
   },
   {
     id: "war-god-return",

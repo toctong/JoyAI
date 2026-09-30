@@ -189,7 +189,16 @@ export class JobsService {
   async create(userId: string, body: unknown) {
     const parsed = CreateJobSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.flatten());
+      const flat = parsed.error.flatten();
+      const parts: string[] = [...flat.formErrors];
+      for (const [key, msgs] of Object.entries(flat.fieldErrors)) {
+        if (msgs?.length) parts.push(`${key}: ${msgs.join("、")}`);
+      }
+      throw new BadRequestException(
+        parts.length > 0
+          ? `任务参数无效：${parts.slice(0, 6).join("；")}`
+          : "任务参数无效",
+      );
     }
     const { kind, input } = parsed.data;
 
@@ -259,6 +268,13 @@ export class JobsService {
         "任务队列不可用，请确认 Redis 已启动（docker compose up -d）",
       );
     }
+
+    this.realtime.emitJob(userId, "job:progress", {
+      jobId: job.id,
+      status: JobStatus.queued,
+      progress: 0,
+      kind: job.kind,
+    });
 
     return this.withDuration(job);
   }

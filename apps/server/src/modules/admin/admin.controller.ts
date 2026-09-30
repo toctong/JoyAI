@@ -19,7 +19,7 @@ import { UsersService } from "../users/users.service";
 import { JobsService } from "../jobs/jobs.service";
 import { StorageGcSweeper } from "../storage/storage-gc.sweeper";
 import { StorageService } from "../storage/storage.service";
-import { AuditService } from "../audit/audit.service";
+import { SystemLogService } from "../audit/system-log.service";
 
 class CreateUserDto {
   @IsString()
@@ -57,7 +57,7 @@ export class AdminController {
     private readonly jobs: JobsService,
     private readonly storage: StorageService,
     private readonly storageGc: StorageGcSweeper,
-    private readonly audit: AuditService,
+    private readonly systemLogs: SystemLogService,
   ) {}
 
   @Get("users")
@@ -75,10 +75,9 @@ export class AdminController {
       dto.password,
       dto.role ?? UserRole.creator,
     );
-    void this.audit.record(actor.id, "admin.user_create", {
-      targetId: user.id,
-      username: user.username,
-      role: user.role,
+    this.systemLogs.info("admin", `创建用户 ${user.username}`, {
+      userId: actor.id,
+      context: { targetId: user.id, role: user.role },
     });
     return this.users.toPublic(user);
   }
@@ -97,15 +96,16 @@ export class AdminController {
       .then((u) => this.users.toPublic(u));
     if (dto.role != null) {
       result = await this.users.updateRole(id, dto.role, actor.id);
-      void this.audit.record(actor.id, "admin.user_role", {
-        targetId: id,
-        role: dto.role,
+      this.systemLogs.info("admin", `修改用户角色 → ${dto.role}`, {
+        userId: actor.id,
+        context: { targetId: id, role: dto.role },
       });
     }
     if (dto.password != null) {
       result = await this.users.resetPassword(id, dto.password);
-      void this.audit.record(actor.id, "admin.user_password_reset", {
-        targetId: id,
+      this.systemLogs.warn("admin", "管理员重置用户密码", {
+        userId: actor.id,
+        context: { targetId: id },
       });
     }
     return result;
@@ -115,9 +115,9 @@ export class AdminController {
   async removeUser(@CurrentUser() actor: AuthUser, @Param("id") id: string) {
     const target = await this.users.require(id);
     const res = await this.users.removeUser(id, actor.id);
-    void this.audit.record(actor.id, "admin.user_delete", {
-      targetId: id,
-      username: target.username,
+    this.systemLogs.warn("admin", `删除用户 ${target.username}`, {
+      userId: actor.id,
+      context: { targetId: id, username: target.username },
     });
     return res;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Cpu } from "lucide-react";
 import {
   Popover,
@@ -24,10 +24,18 @@ type ChannelModel = {
   name: string;
   kind: string;
   remoteId?: string;
+  isDefault?: boolean;
   channel?: { name?: string; platform?: string };
 };
 
 const AUTO = "__auto__";
+
+/** Prefer isDefault; else first enabled model in list. */
+export function pickPreferredModelId(models: ChannelModel[]): string {
+  const def = models.find((m) => m.isDefault);
+  if (def) return def.id;
+  return models[0]?.id ?? "";
+}
 
 export function useChannelModels() {
   const [models, setModels] = useState<ChannelModel[]>([]);
@@ -41,6 +49,7 @@ export function useChannelModels() {
       llm: models.filter((m) => m.kind === "llm"),
       image: models.filter((m) => m.kind === "image"),
       video: models.filter((m) => m.kind === "video"),
+      all: models,
     }),
     [models],
   );
@@ -63,6 +72,41 @@ export function ManjuModelBar({
   const patchSettings = useManjuStore((s) => s.patchSettings);
   const groups = useChannelModels();
   const [open, setOpen] = useState(false);
+  const seededRef = useRef(false);
+
+  // 首次拉到模型列表时，为空槽位写入默认模型（不覆盖用户之后改回「自动」）
+  useEffect(() => {
+    if (seededRef.current) return;
+    if (
+      groups.llm.length === 0 &&
+      groups.image.length === 0 &&
+      groups.video.length === 0
+    ) {
+      return;
+    }
+    seededRef.current = true;
+    const patch: Partial<ManjuProjectDraft["settings"]> = {};
+    if (!project.settings.llmModelId?.trim() && groups.llm.length > 0) {
+      patch.llmModelId = pickPreferredModelId(groups.llm);
+    }
+    if (!project.settings.imageModelId?.trim() && groups.image.length > 0) {
+      patch.imageModelId = pickPreferredModelId(groups.image);
+    }
+    if (!project.settings.videoModelId?.trim() && groups.video.length > 0) {
+      patch.videoModelId = pickPreferredModelId(groups.video);
+    }
+    if (Object.keys(patch).length === 0) return;
+    patchSettings(project.id, patch);
+  }, [
+    groups.llm,
+    groups.image,
+    groups.video,
+    project.id,
+    project.settings.llmModelId,
+    project.settings.imageModelId,
+    project.settings.videoModelId,
+    patchSettings,
+  ]);
 
   const rows = [
     { key: "llmModelId" as const, label: "文本", items: groups.llm },

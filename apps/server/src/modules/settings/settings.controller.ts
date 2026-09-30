@@ -4,7 +4,7 @@ import { Allow, IsOptional, IsString } from "class-validator";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
 import { CurrentUser, AuthUser } from "../../common/current-user.decorator";
 import { SettingsService } from "./settings.service";
-import { AuditService } from "../audit/audit.service";
+import { SystemLogService } from "../audit/system-log.service";
 import { probeMarketProxy } from "../explore/explore-market-proxy";
 
 class SetSettingDto {
@@ -31,7 +31,7 @@ class ProbeMarketProxyDto {
 export class SettingsController {
   constructor(
     private readonly settings: SettingsService,
-    private readonly audit: AuditService,
+    private readonly systemLogs: SystemLogService,
   ) {}
 
   @Get()
@@ -42,7 +42,10 @@ export class SettingsController {
   @Put()
   async set(@CurrentUser() actor: AuthUser, @Body() dto: SetSettingDto) {
     const result = await this.settings.set(dto.key, dto.value);
-    void this.audit.record(actor.id, "admin.setting_set", { key: dto.key });
+    this.systemLogs.info("admin", `更新系统设置 ${dto.key}`, {
+      userId: actor.id,
+      context: { key: dto.key },
+    });
     return result;
   }
 

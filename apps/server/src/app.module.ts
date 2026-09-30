@@ -28,6 +28,7 @@ import { StylesModule } from "./modules/styles/styles.module";
 import { CameraMovesModule } from "./modules/camera-moves/camera-moves.module";
 import { VoicesModule } from "./modules/voices/voices.module";
 import { BootstrapService } from "./common/bootstrap.service";
+import { AllExceptionsFilter } from "./common/http-exception.filter";
 
 @Module({
   imports: [
@@ -72,7 +73,7 @@ import { BootstrapService } from "./common/bootstrap.service";
     RealtimeModule,
     AdminModule,
   ],
-  providers: [BootstrapService],
+  providers: [BootstrapService, AllExceptionsFilter],
 })
 export class AppModule implements OnModuleInit {
   constructor(private readonly bootstrap: BootstrapService) {}

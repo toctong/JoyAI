@@ -228,13 +228,35 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
 
   const confirmProduce = async (skipAnalyze: boolean) => {
     const epId = pendingEpId;
-    setProduceOpen(false);
-    setPendingEpId(null);
-    if (!epId) return;
+    if (!epId) {
+      setProduceOpen(false);
+      setPendingEpId(null);
+      return;
+    }
 
     if (produceMode === "agent") {
       toast.message("Agent 创作即将开放，已按常规创作打开制作台");
     }
+
+    const missingRefs = project.assets.filter(
+      (a) =>
+        a.kind === "character" &&
+        a.name.trim() &&
+        !a.imageUrl &&
+        !a.assetId,
+    );
+    if (missingRefs.length > 0) {
+      const ok = await confirmDialog({
+        title: "角色缺少参考图",
+        description: `${missingRefs.map((a) => a.name).join("、")} 尚无参考图，跨镜长相可能不稳定。仍要进入制作台？`,
+        confirmText: "仍要继续",
+        cancelText: "先去补图",
+      });
+      if (!ok) return;
+    }
+
+    setProduceOpen(false);
+    setPendingEpId(null);
 
     const ep = project.episodes.find((e) => e.id === epId);
     const analyzeText =

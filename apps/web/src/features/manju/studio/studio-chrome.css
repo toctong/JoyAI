@@ -1070,8 +1070,17 @@
 
 .manju-preview-stage__toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.manju-preview-stage__filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .manju-overview__snapshots {
