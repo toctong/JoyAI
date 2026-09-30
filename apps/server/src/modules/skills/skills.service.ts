@@ -9,6 +9,7 @@ import {
   makeAdminExport,
   parseAdminImportItems,
 } from "../../common/admin-export";
+import { CATALOG_TTL_MS, TtlCacheMap } from "../../common/ttl-cache";
 import { Skill, type SkillCategory } from "../../database/entities/skill.entity";
 import {
   ANALYZE_ASSETS_SYSTEM,
@@ -68,9 +69,26 @@ const FALLBACK_BY_PURPOSE: Record<string, string> = {
 
 @Injectable()
 export class SkillsService {
+  private readonly publicCache = new TtlCacheMap<
+    Array<{
+      id: string;
+      slug: string;
+      name: string;
+      description: string | null;
+      category: SkillCategory;
+      purpose: string;
+      builtin: boolean;
+      sortOrder: number;
+    }>
+  >(CATALOG_TTL_MS);
+
   constructor(
     @InjectRepository(Skill) private readonly skills: Repository<Skill>,
   ) {}
+
+  private bustPublicCache() {
+    this.publicCache.clear();
+  }
 
   list(query: SkillListQuery = {}) {
     const qb = this.skills
@@ -96,11 +114,14 @@ export class SkillsService {
 
   /** Enabled skills for product UIs — no systemPrompt. */
   async listPublic(query: { category?: SkillCategory } = {}) {
+    const key = query.category ?? "all";
+    const hit = this.publicCache.get(key);
+    if (hit) return hit;
     const rows = await this.list({
       category: query.category,
       enabled: true,
     });
-    return rows.map((row) => ({
+    const items = rows.map((row) => ({
       id: row.id,
       slug: row.slug,
       name: row.name,
@@ -110,6 +131,8 @@ export class SkillsService {
       builtin: row.builtin,
       sortOrder: row.sortOrder,
     }));
+    this.publicCache.set(key, items);
+    return items;
   }
 
   async get(id: string) {
@@ -119,6 +142,7 @@ export class SkillsService {
   }
 
   async create(input: CreateSkillInput) {
+    this.bustPublicCache();
     const slug = normalizeSlug(input.slug);
     const purpose = normalizePurpose(input.purpose);
     if (!slug) throw new BadRequestException("slug 无效");
@@ -146,6 +170,7 @@ export class SkillsService {
   }
 
   async update(id: string, input: UpdateSkillInput) {
+    this.bustPublicCache();
     const row = await this.get(id);
 
     if (input.name !== undefined) row.name = input.name.trim();
@@ -173,6 +198,7 @@ export class SkillsService {
   }
 
   async remove(id: string) {
+    this.bustPublicCache();
     await this.get(id);
     await this.skills.delete(id);
     return { ok: true };
@@ -199,6 +225,7 @@ export class SkillsService {
   }
 
   async importItems(body: unknown) {
+    this.bustPublicCache();
     let raw: Array<Partial<CreateSkillInput> & { slug?: string }>;
     try {
       raw = parseAdminImportItems(body, "skills");

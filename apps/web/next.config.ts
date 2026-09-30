@@ -10,7 +10,19 @@ const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
   transpilePackages: ["@joyai/shared", "react-video-trim"],
-  serverExternalPackages: ["fabric"],
+  serverExternalPackages: ["fabric", "three", "mediabunny"],
+  // Tree-shake icon/util barrels — keeps client chunks smaller.
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "lodash-es",
+      "@dnd-kit/core",
+      "@dnd-kit/sortable",
+      "@dnd-kit/utilities",
+      "framer-motion",
+      "radix-ui",
+    ],
+  },
   images: {
     remotePatterns: [
       { protocol: "http", hostname: "**" },

@@ -9,6 +9,7 @@ import {
   makeAdminExport,
   parseAdminImportItems,
 } from "../../common/admin-export";
+import { CATALOG_TTL_MS, TtlCache } from "../../common/ttl-cache";
 import { InspireBanner } from "../../database/entities/inspire-banner.entity";
 
 export type InspireBannerInput = {
@@ -25,17 +26,27 @@ export type InspireBannerInput = {
 
 @Injectable()
 export class InspireBannersService {
+  private readonly publicCache = new TtlCache<InspireBanner[]>(CATALOG_TTL_MS);
+
   constructor(
     @InjectRepository(InspireBanner)
     private readonly banners: Repository<InspireBanner>,
   ) {}
 
+  private bustPublicCache() {
+    this.publicCache.clear();
+  }
+
   /** Public inspire carousel — enabled only. */
   async listPublic() {
-    return this.banners.find({
+    const hit = this.publicCache.get();
+    if (hit) return hit;
+    const rows = await this.banners.find({
       where: { enabled: true },
       order: { sortOrder: "ASC", createdAt: "ASC" },
     });
+    this.publicCache.set(rows);
+    return rows;
   }
 
   async listAdmin(opts?: { enabled?: boolean; q?: string }) {
@@ -60,6 +71,7 @@ export class InspireBannersService {
   }
 
   async create(input: InspireBannerInput) {
+    this.bustPublicCache();
     const title = input.title?.trim();
     const coverUrl = input.coverUrl?.trim();
     if (!title) throw new BadRequestException("title 必填");
@@ -79,6 +91,7 @@ export class InspireBannersService {
   }
 
   async update(id: string, input: Partial<InspireBannerInput>) {
+    this.bustPublicCache();
     const row = await this.get(id);
     if (input.title !== undefined) {
       const title = input.title.trim();
@@ -111,6 +124,7 @@ export class InspireBannersService {
   }
 
   async remove(id: string) {
+    this.bustPublicCache();
     const row = await this.get(id);
     await this.banners.remove(row);
     return { ok: true };
@@ -138,6 +152,7 @@ export class InspireBannersService {
   }
 
   async importItems(body: unknown) {
+    this.bustPublicCache();
     let raw: Array<Partial<InspireBannerInput>>;
     try {
       raw = parseAdminImportItems(body, "inspire-banners");

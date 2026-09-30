@@ -7,10 +7,12 @@ function makeQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 30_000,
-        gcTime: 5 * 60_000,
+        // Catalog / feed defaults — Explore infinite queries still override per-hook.
+        staleTime: 60_000,
+        gcTime: 10 * 60_000,
         retry: 1,
         refetchOnWindowFocus: false,
+        refetchOnReconnect: true,
       },
       mutations: {
         retry: 0,

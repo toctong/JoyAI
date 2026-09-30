@@ -9,6 +9,7 @@ import {
   makeAdminExport,
   parseAdminImportItems,
 } from "../../common/admin-export";
+import { CATALOG_TTL_MS, TtlCacheMap } from "../../common/ttl-cache";
 import { CameraMove } from "../../database/entities/camera-move.entity";
 
 export type CameraMoveListQuery = {
@@ -39,25 +40,39 @@ function slugify(raw: string) {
 
 @Injectable()
 export class CameraMovesService {
+  private readonly publicCache = new TtlCacheMap<CameraMove[]>(CATALOG_TTL_MS);
+  private readonly categoriesCache = new TtlCacheMap<string[]>(CATALOG_TTL_MS);
+
   constructor(
     @InjectRepository(CameraMove)
     private readonly moves: Repository<CameraMove>,
   ) {}
 
+  private bustPublicCache() {
+    this.publicCache.clear();
+    this.categoriesCache.clear();
+  }
+
   async listPublic(category?: string) {
+    const cat = category?.trim() || "全部";
+    const hit = this.publicCache.get(cat);
+    if (hit) return hit;
     const qb = this.moves
       .createQueryBuilder("m")
       .where("m.enabled = :enabled", { enabled: true })
       .orderBy("m.sortOrder", "ASC")
       .addOrderBy("m.createdAt", "ASC");
-    const cat = category?.trim();
     if (cat && cat !== "全部") {
       qb.andWhere("m.category = :category", { category: cat });
     }
-    return qb.getMany();
+    const rows = await qb.getMany();
+    this.publicCache.set(cat, rows);
+    return rows;
   }
 
   async listCategories() {
+    const hit = this.categoriesCache.get("all");
+    if (hit) return hit;
     const rows = await this.moves
       .createQueryBuilder("m")
       .select("m.category", "category")
@@ -65,7 +80,9 @@ export class CameraMovesService {
       .groupBy("m.category")
       .orderBy("m.category", "ASC")
       .getRawMany<{ category: string }>();
-    return rows.map((r) => r.category).filter(Boolean);
+    const cats = rows.map((r) => r.category).filter(Boolean);
+    this.categoriesCache.set("all", cats);
+    return cats;
   }
 
   async listAdmin(opts?: CameraMoveListQuery) {
@@ -97,6 +114,7 @@ export class CameraMovesService {
   }
 
   async create(input: CameraMoveInput) {
+    this.bustPublicCache();
     const slug = slugify(input.slug);
     const label = input.label?.trim();
     const prompt = input.prompt?.trim();
@@ -119,6 +137,7 @@ export class CameraMovesService {
   }
 
   async update(id: string, input: Partial<CameraMoveInput>) {
+    this.bustPublicCache();
     const row = await this.get(id);
     if (input.slug !== undefined) {
       const slug = slugify(input.slug);
@@ -154,6 +173,7 @@ export class CameraMovesService {
   }
 
   async remove(id: string) {
+    this.bustPublicCache();
     const row = await this.get(id);
     await this.moves.remove(row);
     return { ok: true };
@@ -180,6 +200,7 @@ export class CameraMovesService {
   }
 
   async importItems(body: unknown) {
+    this.bustPublicCache();
     let raw: Array<Partial<CameraMoveInput> & { slug?: string }>;
     try {
       raw = parseAdminImportItems(body, "camera-moves");

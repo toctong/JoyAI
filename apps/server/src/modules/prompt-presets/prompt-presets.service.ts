@@ -9,6 +9,7 @@ import {
   makeAdminExport,
   parseAdminImportItems,
 } from "../../common/admin-export";
+import { CATALOG_TTL_MS, TtlCache } from "../../common/ttl-cache";
 import {
   PromptPreset,
   type PromptPresetScope,
@@ -48,17 +49,29 @@ function normalizeText(text: string) {
 
 @Injectable()
 export class PromptPresetsService {
+  private readonly globalPublicCache = new TtlCache<PromptPreset[]>(
+    CATALOG_TTL_MS,
+  );
+
   constructor(
     @InjectRepository(PromptPreset)
     private readonly presets: Repository<PromptPreset>,
     private readonly canvas: CanvasService,
   ) {}
 
+  private bustGlobalPublicCache() {
+    this.globalPublicCache.clear();
+  }
+
   async listGlobalPublic() {
-    return this.presets.find({
+    const hit = this.globalPublicCache.get();
+    if (hit) return hit;
+    const rows = await this.presets.find({
       where: { scope: "global", enabled: true, canvasProjectId: IsNull() },
       order: { sortOrder: "ASC", updatedAt: "DESC" },
     });
+    this.globalPublicCache.set(rows);
+    return rows;
   }
 
   async listAdmin(opts?: AdminListQuery) {
@@ -86,6 +99,7 @@ export class PromptPresetsService {
   }
 
   async createGlobal(input: GlobalPresetInput) {
+    this.bustGlobalPublicCache();
     const text = normalizeText(input.text);
     const row = this.presets.create({
       title: normalizeTitle(input.title ?? "", text),
@@ -100,6 +114,7 @@ export class PromptPresetsService {
   }
 
   async updateGlobal(id: string, input: Partial<GlobalPresetInput>) {
+    this.bustGlobalPublicCache();
     const row = await this.getGlobal(id);
     if (input.text !== undefined) {
       row.text = normalizeText(input.text);
@@ -113,6 +128,7 @@ export class PromptPresetsService {
   }
 
   async removeGlobal(id: string) {
+    this.bustGlobalPublicCache();
     const row = await this.getGlobal(id);
     await this.presets.remove(row);
     return { ok: true };
@@ -137,6 +153,7 @@ export class PromptPresetsService {
   }
 
   async importGlobal(body: unknown) {
+    this.bustGlobalPublicCache();
     let raw: Array<{
       title?: string;
       text?: string;

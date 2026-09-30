@@ -11,6 +11,7 @@ import {
   makeAdminExport,
   parseAdminImportItems,
 } from "../../common/admin-export";
+import { CATALOG_TTL_MS, TtlCacheMap } from "../../common/ttl-cache";
 import { TtsVoice } from "../../database/entities/tts-voice.entity";
 import { Channel } from "../../database/entities/channel.entity";
 import { Model } from "../../database/entities/model.entity";
@@ -104,6 +105,9 @@ function normalizeGender(raw?: string | null): string | null {
 
 @Injectable()
 export class VoicesService {
+  private readonly publicCache = new TtlCacheMap<TtsVoice[]>(CATALOG_TTL_MS);
+  private readonly categoriesCache = new TtlCacheMap<string[]>(CATALOG_TTL_MS);
+
   constructor(
     @InjectRepository(TtsVoice)
     private readonly voices: Repository<TtsVoice>,
@@ -115,11 +119,23 @@ export class VoicesService {
     private readonly storage: StorageService,
   ) {}
 
+  private bustPublicCache() {
+    this.publicCache.clear();
+    this.categoriesCache.clear();
+  }
+
   async listPublic(opts?: {
     provider?: string;
     channelId?: string;
     category?: string;
   }) {
+    const key = [
+      opts?.provider?.trim() || "",
+      opts?.channelId?.trim() || "",
+      opts?.category?.trim() || "",
+    ].join("|");
+    const hit = this.publicCache.get(key);
+    if (hit) return hit;
     const qb = this.voices
       .createQueryBuilder("v")
       .where("v.enabled = :enabled", { enabled: true })
@@ -137,10 +153,14 @@ export class VoicesService {
     if (cat && cat !== "全部") {
       qb.andWhere("v.category = :category", { category: cat });
     }
-    return qb.getMany();
+    const rows = await qb.getMany();
+    this.publicCache.set(key, rows);
+    return rows;
   }
 
   async listCategories() {
+    const hit = this.categoriesCache.get("all");
+    if (hit) return hit;
     const rows = await this.voices
       .createQueryBuilder("v")
       .select("v.category", "category")
@@ -148,7 +168,9 @@ export class VoicesService {
       .groupBy("v.category")
       .orderBy("v.category", "ASC")
       .getRawMany<{ category: string }>();
-    return rows.map((r) => r.category).filter(Boolean);
+    const cats = rows.map((r) => r.category).filter(Boolean);
+    this.categoriesCache.set("all", cats);
+    return cats;
   }
 
   async listAdmin(opts?: TtsVoiceListQuery) {
@@ -293,6 +315,7 @@ export class VoicesService {
   }
 
   async create(input: TtsVoiceInput) {
+    this.bustPublicCache();
     const slug = slugify(input.slug);
     const label = input.label?.trim();
     const voiceId = input.voiceId?.trim();
@@ -327,6 +350,7 @@ export class VoicesService {
   }
 
   async update(id: string, input: Partial<TtsVoiceInput>) {
+    this.bustPublicCache();
     const row = await this.get(id);
     if (input.slug !== undefined) {
       const slug = slugify(input.slug);
@@ -378,6 +402,7 @@ export class VoicesService {
   }
 
   async remove(id: string) {
+    this.bustPublicCache();
     const row = await this.get(id);
     await this.voices.remove(row);
     return { ok: true };
@@ -446,6 +471,7 @@ export class VoicesService {
   }
 
   async importItems(body: unknown) {
+    this.bustPublicCache();
     let raw: TtsVoiceExportItem[];
     try {
       raw = parseAdminImportItems<TtsVoiceExportItem>(body, "voices");

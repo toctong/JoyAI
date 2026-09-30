@@ -9,6 +9,7 @@ import {
   makeAdminExport,
   parseAdminImportItems,
 } from "../../common/admin-export";
+import { CATALOG_TTL_MS, TtlCacheMap } from "../../common/ttl-cache";
 import {
   StyleTemplate,
   type StyleSurface,
@@ -53,18 +54,32 @@ function slugify(raw: string) {
 
 @Injectable()
 export class StylesService {
+  private readonly publicCache = new TtlCacheMap<StyleTemplate[]>(
+    CATALOG_TTL_MS,
+  );
+
   constructor(
     @InjectRepository(StyleTemplate)
     private readonly styles: Repository<StyleTemplate>,
   ) {}
 
+  private bustPublicCache() {
+    this.publicCache.clear();
+  }
+
   async listPublic(surface?: StyleSurface) {
+    const key = surface ?? "all";
+    const hit = this.publicCache.get(key);
+    if (hit) return hit;
     const rows = await this.styles.find({
       where: { enabled: true },
       order: { sortOrder: "ASC", createdAt: "ASC" },
     });
-    if (!surface) return rows;
-    return rows.filter((r) => (r.surfaces ?? SURFACES).includes(surface));
+    const items = !surface
+      ? rows
+      : rows.filter((r) => (r.surfaces ?? SURFACES).includes(surface));
+    this.publicCache.set(key, items);
+    return items;
   }
 
   async listAdmin(opts?: StyleListQuery) {
@@ -96,6 +111,7 @@ export class StylesService {
   }
 
   async create(input: StyleInput) {
+    this.bustPublicCache();
     const slug = slugify(input.slug);
     const label = input.label?.trim();
     const prompt = input.prompt?.trim();
@@ -122,6 +138,7 @@ export class StylesService {
   }
 
   async update(id: string, input: Partial<StyleInput>) {
+    this.bustPublicCache();
     const row = await this.get(id);
     if (input.slug !== undefined) {
       const slug = slugify(input.slug);
@@ -159,6 +176,7 @@ export class StylesService {
   }
 
   async remove(id: string) {
+    this.bustPublicCache();
     const row = await this.get(id);
     await this.styles.remove(row);
     return { ok: true };
@@ -185,6 +203,7 @@ export class StylesService {
   }
 
   async importItems(body: unknown) {
+    this.bustPublicCache();
     let raw: Array<Partial<StyleInput> & { slug?: string }>;
     try {
       raw = parseAdminImportItems(body, "styles");

@@ -9,6 +9,7 @@ import { Logger, ValidationPipe, BadRequestException } from "@nestjs/common";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { ConfigService } from "@nestjs/config";
 import helmet from "@fastify/helmet";
+import compress from "@fastify/compress";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import { AppModule } from "./app.module";
@@ -61,6 +62,10 @@ async function bootstrap() {
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
+  await app.register(compress, {
+    // JSON catalogs / manju drafts shrink over the wire; skip tiny payloads.
+    threshold: 1024,
+  });
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(rateLimit, {
     max: 300,
