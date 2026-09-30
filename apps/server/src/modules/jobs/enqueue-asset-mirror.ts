@@ -13,3 +13,12 @@ export async function enqueueAssetMirror(
     removeOnFail: 200,
   });
 }
+
+/** Fan-out many mirrors in parallel (image n>1). */
+export async function enqueueAssetMirrors(
+  queue: Queue,
+  payloads: AssetMirrorPayload[],
+) {
+  if (!payloads.length) return;
+  await Promise.all(payloads.map((payload) => enqueueAssetMirror(queue, payload)));
+}

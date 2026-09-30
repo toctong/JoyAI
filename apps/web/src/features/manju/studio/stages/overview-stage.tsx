@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
-import { useManjuStore } from "../../manju-store";
+import { useManjuProject, useManjuStore } from "../../manju-store";
 import { draftFromProject } from "../../manju-api";
 import { manjuStudioHref } from "../manju-studio-routes";
 import type { ManjuProjectDraft } from "../../manju-types";
@@ -14,9 +14,7 @@ import { ManjuReviewButton } from "../manju-review-button";
 import { submitWorkflowSkill } from "../../lib/workflow-skill";
 
 export function OverviewStage({ projectId }: { projectId: string }) {
-  const project = useManjuStore((s) =>
-    s.projects.find((p) => p.id === projectId),
-  );
+  const project = useManjuProject(projectId);
   const updateProject = useManjuStore((s) => s.updateProject);
   const flushSave = useManjuStore((s) => s.flushSave);
   const setAnalyzing = useManjuStore((s) => s.setAnalyzing);

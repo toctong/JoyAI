@@ -48,9 +48,9 @@ export function PreviewStage({
     filterEpId === ALL_EPISODES ? null : filterEpId;
 
   return (
-    <div className="manju-preview-stage">
-      <div className="manju-preview-stage__toolbar">
-        <div className="manju-preview-stage__filters">
+    <div className="manju-preview-page">
+      <div className="manju-preview-page__toolbar">
+        <div className="manju-preview-page__filters">
           <Select
             value={filterEpId}
             onValueChange={(v) => setFilterEpId(v ?? ALL_EPISODES)}

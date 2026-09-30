@@ -476,6 +476,11 @@ export const useManjuStore = create<ManjuState>((set, get) => {
                 storyboardAssetId: assetId ?? shot.storyboardAssetId,
                 storyboardStale:
                   status === "succeeded" && url ? false : shot.storyboardStale,
+                // 新分镜图成功后，旧视频与画面不一致，标过期避免素材库「好视频」盖过坏图
+                videoStale:
+                  status === "succeeded" && url && (shot.videoUrl || shot.videoAssetId)
+                    ? true
+                    : shot.videoStale,
               };
             }
             if (shot.videoJobId === jobId) {
@@ -527,3 +532,22 @@ export const useManjuStore = create<ManjuState>((set, get) => {
     },
   };
 });
+
+/** Whole project — re-renders on any field change of that project only. */
+export function useManjuProject(projectId: string | null | undefined) {
+  return useManjuStore((s) =>
+    projectId ? s.projects.find((p) => p.id === projectId) : undefined,
+  );
+}
+
+/** Nested field — skips re-render when that slice's reference is unchanged. */
+export function useManjuProjectSlice<T>(
+  projectId: string | null | undefined,
+  select: (project: ManjuProjectDraft) => T,
+): T | undefined {
+  return useManjuStore((s) => {
+    if (!projectId) return undefined;
+    const project = s.projects.find((p) => p.id === projectId);
+    return project ? select(project) : undefined;
+  });
+}

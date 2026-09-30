@@ -1068,19 +1068,34 @@
     color-mix(in oklab, var(--foreground) 8%, transparent);
 }
 
-.manju-preview-stage__toolbar {
+/* 预览页外壳（勿与播放器舞台 .manju-preview-stage 同名，否则会吃到黑底居中） */
+.manju-preview-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  height: 100%;
+}
+
+.manju-preview-page__toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
-.manju-preview-stage__filters {
+.manju-preview-page__filters {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+}
+
+.manju-preview-page .manju-panel,
+.manju-preview-page .manju-preview-split {
+  flex: 1;
+  min-height: 0;
 }
 
 .manju-overview__snapshots {
@@ -3556,11 +3571,29 @@
   box-shadow: 0 0 0 2px color-mix(in oklab, var(--primary) 25%, transparent);
 }
 
+.manju-produce__library-card.is-stale {
+  opacity: 0.72;
+}
+
 .manju-produce__library-card img,
 .manju-produce__library-card video {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.manju-produce__library-kind {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  border-radius: 4px;
+  background: color-mix(in oklab, #000 55%, transparent);
+  color: #fff;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  pointer-events: none;
 }
 
 .manju-produce__library-badge {
@@ -3576,6 +3609,11 @@
   padding: 2px 6px;
   font-size: 10px;
   font-weight: 600;
+}
+
+.manju-produce__library-badge.is-stale {
+  background: color-mix(in oklab, var(--destructive) 88%, #000);
+  color: var(--destructive-foreground, #fff);
 }
 
 .manju-produce__library-foot {

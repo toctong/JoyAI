@@ -127,7 +127,7 @@ export class SystemLogService {
     const kw = opts.keyword?.trim();
     if (kw) {
       qb.andWhere(
-        `(l.message LIKE :kw OR l.source LIKE :kw OR CAST(l.context AS CHAR) LIKE :kw OR l.stack LIKE :kw)`,
+        `(l.message LIKE :kw OR l.source LIKE :kw OR IFNULL(l.stack, '') LIKE :kw OR IFNULL(JSON_UNQUOTE(JSON_EXTRACT(l.context, '$.jobId')), '') LIKE :kw OR IFNULL(JSON_UNQUOTE(JSON_EXTRACT(l.context, '$.kind')), '') LIKE :kw)`,
         { kw: `%${kw}%` },
       );
     }

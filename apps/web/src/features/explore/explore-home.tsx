@@ -141,7 +141,7 @@ const CHIPS_BY_SITE: Record<SiteTab, Chip[]> = {
 
 const MONO_ICON_IDS = new Set(["gpt-image", "midjourney", "grok"]);
 
-const KEEP_ALIVE_MAX = 12;
+const KEEP_ALIVE_MAX = 4;
 
 type MainTab =
   | { kind: "site"; id: SiteTab }

@@ -249,10 +249,15 @@ export class ManjuService {
     }
   }
 
-  async list(userId: string) {
+  async list(userId: string, opts?: { take?: number }) {
+    const take =
+      opts?.take != null && Number.isFinite(opts.take)
+        ? Math.min(Math.max(Math.floor(opts.take), 1), 100)
+        : undefined;
     const rows = await this.projects.find({
       where: { userId },
       order: { updatedAt: "DESC" },
+      ...(take ? { take } : {}),
       select: ["id", "title", "coverUrl", "createdAt", "updatedAt"],
     });
     return rows.map((p) => ({

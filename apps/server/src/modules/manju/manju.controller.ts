@@ -137,8 +137,14 @@ export class ManjuController {
   ) {}
 
   @Get()
-  list(@CurrentUser() user: AuthUser) {
-    return this.manju.list(user.id);
+  list(
+    @CurrentUser() user: AuthUser,
+    @Query("take") take?: string,
+  ) {
+    const limit = take != null && take !== "" ? Number(take) : undefined;
+    const opts =
+      limit != null && Number.isFinite(limit) ? { take: limit } : undefined;
+    return this.manju.list(user.id, opts);
   }
 
   @Post("batch-move")

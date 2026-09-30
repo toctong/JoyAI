@@ -35,6 +35,13 @@ export type ChannelLastProbe = {
 
 @Injectable()
 export class ChannelsService {
+  /** Short TTL for default-model lookups (no modelId). */
+  private defaultByKind = new Map<
+    string,
+    { at: number; model: Model }
+  >();
+  private static readonly DEFAULT_TTL_MS = 30_000;
+
   constructor(
     @InjectRepository(Channel)
     private readonly channels: Repository<Channel>,
@@ -343,6 +350,14 @@ export class ChannelsService {
       return model;
     }
 
+    const cached = this.defaultByKind.get(kind);
+    if (
+      cached &&
+      Date.now() - cached.at < ChannelsService.DEFAULT_TTL_MS
+    ) {
+      return cached.model;
+    }
+
     // Prefer admin-marked default, then most recently updated enabled model.
     const preferred = await this.models.findOne({
       where: {
@@ -354,7 +369,10 @@ export class ChannelsService {
       relations: ["channel"],
       order: { updatedAt: "DESC" },
     });
-    if (preferred) return preferred;
+    if (preferred) {
+      this.defaultByKind.set(kind, { at: Date.now(), model: preferred });
+      return preferred;
+    }
 
     const fallback = await this.models.findOne({
       where: {
@@ -366,6 +384,7 @@ export class ChannelsService {
       order: { updatedAt: "DESC" },
     });
     if (!fallback) throw new NotFoundException(`没有可用的 ${kind} 模型`);
+    this.defaultByKind.set(kind, { at: Date.now(), model: fallback });
     return fallback;
   }
 }

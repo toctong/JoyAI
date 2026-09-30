@@ -1,12 +1,10 @@
 "use client";
 
 import { VideoSettingsStep } from "../../steps/video-settings-step";
-import { useManjuStore } from "../../manju-store";
+import { useManjuProject } from "../../manju-store";
 
 export function SettingsStage({ projectId }: { projectId: string }) {
-  const project = useManjuStore((s) =>
-    s.projects.find((p) => p.id === projectId),
-  );
+  const project = useManjuProject(projectId);
   if (!project) return null;
   return <VideoSettingsStep project={project} />;
 }

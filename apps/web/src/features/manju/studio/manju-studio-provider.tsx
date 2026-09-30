@@ -12,12 +12,11 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/shared/lib/toast";
-import { useManjuStore } from "../manju-store";
+import { useManjuProject, useManjuStore } from "../manju-store";
 import { useManjuJobBridge } from "../use-manju-jobs";
 import type { ManjuProjectDraft } from "../manju-types";
 
 type StudioContextValue = {
-  project: ManjuProjectDraft;
   projectId: string;
   loading: boolean;
   saving: boolean;
@@ -26,7 +25,8 @@ type StudioContextValue = {
 
 const ManjuStudioContext = createContext<StudioContextValue | null>(null);
 
-export function useManjuStudio() {
+/** Stable flags only — project data comes from the store so field edits don't fan out via context. */
+export function useManjuStudioFlags() {
   const ctx = useContext(ManjuStudioContext);
   if (!ctx) {
     throw new Error("useManjuStudio must be used within ManjuStudioProvider");
@@ -34,8 +34,21 @@ export function useManjuStudio() {
   return ctx;
 }
 
+export function useManjuStudio() {
+  const ctx = useManjuStudioFlags();
+  const project = useManjuProject(ctx.projectId);
+  if (!project) {
+    throw new Error("漫剧项目未加载");
+  }
+  return { ...ctx, project };
+}
+
 export function useManjuStudioOptional() {
-  return useContext(ManjuStudioContext);
+  const ctx = useContext(ManjuStudioContext);
+  const project = useManjuProject(ctx?.projectId);
+  if (!ctx) return null;
+  if (!project) return { ...ctx, project: null as ManjuProjectDraft | null };
+  return { ...ctx, project };
 }
 
 export function ManjuStudioProvider({
@@ -46,9 +59,7 @@ export function ManjuStudioProvider({
   children: ReactNode;
 }) {
   const router = useRouter();
-  const project = useManjuStore((s) =>
-    s.projects.find((p) => p.id === projectId),
-  );
+  const project = useManjuProject(projectId);
   const loadProject = useManjuStore((s) => s.loadProject);
   const saving = useManjuStore((s) => Boolean(s.savingIds[projectId]));
   const analyzing = useManjuStore((s) => Boolean(s.analyzingIds[projectId]));
@@ -74,16 +85,15 @@ export function ManjuStudioProvider({
     };
   }, [loadProject, projectId]);
 
-  const value = useMemo<StudioContextValue | null>(() => {
-    if (!project) return null;
-    return {
-      project,
+  const value = useMemo<StudioContextValue>(
+    () => ({
       projectId,
       loading,
       saving,
       analyzing,
-    };
-  }, [analyzing, loading, project, projectId, saving]);
+    }),
+    [analyzing, loading, projectId, saving],
+  );
 
   if (loading) {
     return (
@@ -94,7 +104,7 @@ export function ManjuStudioProvider({
     );
   }
 
-  if (!project || !value) {
+  if (!project) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 bg-background text-sm text-muted-foreground">
         <p>项目不存在或已删除</p>

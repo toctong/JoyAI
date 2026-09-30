@@ -120,19 +120,37 @@ export function VideoNode({ node, onPointerDown }: Props) {
   useEffect(() => {
     if (!playing) return;
     let raf = 0;
-    const tick = () => {
+    let lastUi = 0;
+    const INTERVAL_MS = 100;
+    const flush = () => {
+      const video = videoRef.current;
+      if (!video) return;
+      const next = video.currentTime;
+      setPlaybackTime(node.id, next);
+      setTime(next);
+      const dur = readDuration(video);
+      if (dur > 0) setDuration(dur);
+    };
+    const tick = (now: number) => {
       const video = videoRef.current;
       if (video) {
         const next = video.currentTime;
-        setTime(next);
+        // Map 写入很便宜；React setState 降到约 10fps
         setPlaybackTime(node.id, next);
-        const dur = readDuration(video);
-        if (dur > 0) setDuration(dur);
+        if (now - lastUi >= INTERVAL_MS) {
+          lastUi = now;
+          setTime(next);
+          const dur = readDuration(video);
+          if (dur > 0) setDuration(dur);
+        }
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      flush();
+    };
   }, [playing, node.id]);
 
   useEffect(() => {

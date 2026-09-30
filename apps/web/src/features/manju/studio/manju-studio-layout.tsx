@@ -5,13 +5,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ManjuHeaderSlotsProvider,
 } from "../manju-header-slots";
-import { useManjuStore } from "../manju-store";
 import { ManjuAssetSidebar } from "./manju-asset-sidebar";
 import { ManjuStudioHeader } from "./manju-studio-header";
 import {
   ManjuStudioProvider,
-  useManjuStudio,
+  useManjuStudioFlags,
 } from "./manju-studio-provider";
+import { useManjuProject, useManjuStore } from "../manju-store";
 import {
   legacyQueryToStudioPath,
   type ManjuStudioSection,
@@ -90,7 +90,8 @@ function ManjuStudioShell({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { project, saving, analyzing } = useManjuStudio();
+  const { saving, analyzing } = useManjuStudioFlags();
+  const project = useManjuProject(projectId);
   const updateProject = useManjuStore((s) => s.updateProject);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -143,6 +144,8 @@ function ManjuStudioShell({
 
   /** 制作视频新开页：隐藏资产侧栏，全宽分镜工作台 */
   const produceMode = section === "episode" && Boolean(epId);
+
+  if (!project) return null;
 
   return (
     <div

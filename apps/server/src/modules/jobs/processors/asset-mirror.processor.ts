@@ -7,6 +7,13 @@ import { AssetsService } from "../../assets/assets.service";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { CanvasService } from "../../canvas/canvas.service";
 
+/** Parallel TOS mirrors per process (cap 12). Override with JOB_MIRROR_CONCURRENCY. */
+function resolveMirrorConcurrency(): number {
+  const n = Number(process.env.JOB_MIRROR_CONCURRENCY);
+  if (!Number.isFinite(n) || n < 1) return 4;
+  return Math.min(Math.floor(n), 12);
+}
+
 export type AssetMirrorPayload = {
   assetId: string;
   originUrl: string;
@@ -17,7 +24,9 @@ export type AssetMirrorPayload = {
   canvasNodeId?: string;
 };
 
-@Processor(QUEUE.ASSET_MIRROR)
+@Processor(QUEUE.ASSET_MIRROR, {
+  concurrency: resolveMirrorConcurrency(),
+})
 export class AssetMirrorProcessor extends WorkerHost {
   private readonly logger = new Logger(AssetMirrorProcessor.name);
 

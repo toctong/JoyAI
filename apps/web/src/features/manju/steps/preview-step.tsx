@@ -237,13 +237,13 @@ export function PreviewStep({
       >
         <ResizablePanel defaultSize="72" minSize="48">
           <div className="flex h-full min-h-0 flex-col">
-            <div className="manju-preview-stage min-h-0 flex-1 bg-black">
+            <div className="manju-preview-stage min-h-0 flex-1">
               {current?.videoUrl ? (
                 <StudioPlyrPlayer
                   key={`${current.id}-${autoPlay ? "seq" : "manual"}`}
                   src={current.videoUrl}
                   poster={current.storyboardImageUrl}
-                  className="max-h-full max-w-full"
+                  className="h-full w-full"
                   autoPlay={autoPlay}
                   onEnded={() => {
                     if (autoPlay) advance();

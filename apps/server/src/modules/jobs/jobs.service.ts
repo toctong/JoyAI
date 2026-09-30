@@ -441,13 +441,18 @@ export class JobsService {
     const hasCursor = Number.isFinite(beforeMs);
 
     const batchSize = Math.min(Math.max(take * 2, 40), 120);
-    const matched: Array<{ job: JobListRow; ms: number }> = [];
+    const matched: Array<{ job: Job; ms: number }> = [];
     let cursor: Date | undefined;
+    const selective =
+      Boolean(ids.canvasProjectId) ||
+      Boolean(ids.manjuProjectId) ||
+      Boolean(ids.toolSlug);
+    const maxRounds = selective ? 3 : 6;
 
-    for (let round = 0; round < 6 && matched.length <= take; round += 1) {
+    for (let round = 0; round < maxRounds && matched.length <= take; round += 1) {
+      // Skip assets join while scanning — attach assets only for the final page.
       const qb = this.jobs
         .createQueryBuilder("job")
-        .leftJoinAndSelect("job.assets", "assets")
         .where("job.userId = :userId", { userId })
         .orderBy("job.createdAt", "DESC")
         .addOrderBy("job.id", "DESC")
@@ -455,12 +460,19 @@ export class JobsService {
       applyJobScopeQuery(qb, scope, ids);
       if (cursor) {
         qb.andWhere("job.createdAt < :cursor", { cursor });
+      } else if (hasCursor) {
+        qb.andWhere(
+          "(job.createdAt < :beforeAt OR (job.createdAt = :beforeAt AND job.id < :beforeId))",
+          {
+            beforeAt: new Date(beforeMs),
+            beforeId: beforeId || "\uffff",
+          },
+        );
       }
       const rows = await qb.getMany();
       if (!rows.length) break;
 
-      const enriched = await this.enrichMany(rows);
-      for (const job of enriched) {
+      for (const job of rows) {
         if (!matchesJobScope(job, scope, ids)) continue;
         const ms = Date.parse(String(job.createdAt));
         const time = Number.isFinite(ms) ? ms : 0;
@@ -471,6 +483,7 @@ export class JobsService {
           }
         }
         matched.push({ job, ms: time });
+        if (matched.length > take) break;
       }
 
       const last = rows[rows.length - 1];
@@ -485,7 +498,21 @@ export class JobsService {
 
     const hasMore = matched.length > take;
     const pageDesc = hasMore ? matched.slice(0, take) : matched;
-    const items = pageDesc.map((row) => row.job).reverse();
+    const pageJobs = pageDesc.map((row) => row.job);
+    const pageIds = pageJobs.map((j) => j.id);
+    const withAssets =
+      pageIds.length === 0
+        ? []
+        : await this.jobs.find({
+            where: { id: In(pageIds), userId },
+            relations: ["assets"],
+          });
+    const byId = new Map(withAssets.map((j) => [j.id, j]));
+    const ordered = pageIds
+      .map((id) => byId.get(id))
+      .filter((j): j is JobWithAssets => Boolean(j));
+    const enriched = await this.enrichMany(ordered);
+    const items = enriched.reverse();
     return { items, hasMore };
   }
 
@@ -520,6 +547,7 @@ export class JobsService {
       }
       const keyword = query.keyword?.trim();
       if (keyword) {
+        // Prefer indexed/scalar columns + JSON_EXTRACT — avoid CAST(input AS CHAR) full scan.
         qb.andWhere(
           `(
             job.id LIKE :kw
@@ -529,7 +557,9 @@ export class JobsService {
             OR IFNULL(job.modelName, '') LIKE :kw
             OR IFNULL(job.channelName, '') LIKE :kw
             OR IFNULL(job.platform, '') LIKE :kw
-            OR CAST(job.input AS CHAR) LIKE :kw
+            OR IFNULL(JSON_UNQUOTE(JSON_EXTRACT(job.input, '$.prompt')), '') LIKE :kw
+            OR IFNULL(JSON_UNQUOTE(JSON_EXTRACT(job.input, '$.toolSlug')), '') LIKE :kw
+            OR IFNULL(JSON_UNQUOTE(JSON_EXTRACT(job.input, '$.purpose')), '') LIKE :kw
           )`,
           { kw: `%${keyword}%` },
         );

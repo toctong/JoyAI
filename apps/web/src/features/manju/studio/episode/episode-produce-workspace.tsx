@@ -32,11 +32,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
+import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { ManjuExportDialog } from "../manju-export-dialog";
 import { manjuStudioHref } from "../manju-studio-routes";
-import { useManjuStore } from "../../manju-store";
+import { useManjuProject, useManjuStore } from "../../manju-store";
 import {
   buildShotImagePrompt,
   buildShotVideoPrompt,
@@ -134,9 +135,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const project = useManjuStore((s) =>
-    s.projects.find((p) => p.id === projectId),
-  );
+  const project = useManjuProject(projectId);
   const updateShot = useManjuStore((s) => s.updateShot);
   const updateProject = useManjuStore((s) => s.updateProject);
   const addShot = useManjuStore((s) => s.addShot);
@@ -234,6 +233,10 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
     if (!selected) return;
     if (previewKind === "video" && !selected.videoUrl && selected.storyboardImageUrl) {
       setPreviewKind("image");
+      return;
+    }
+    if (previewKind === "image" && !selected.storyboardImageUrl && selected.videoUrl) {
+      setPreviewKind("video");
     }
   }, [selected, previewKind]);
 
@@ -248,6 +251,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       shotId: string;
       label: string;
       selected: boolean;
+      stale: boolean;
     }> = [];
     for (const shot of source) {
       const label = shotLabel(
@@ -269,6 +273,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
             selected?.id === shot.id &&
             previewKind === "image" &&
             Boolean(shot.storyboardImageUrl),
+          stale: Boolean(shot.storyboardStale),
         });
       }
       if (
@@ -285,6 +290,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
             selected?.id === shot.id &&
             previewKind === "video" &&
             Boolean(shot.videoUrl),
+          stale: Boolean(shot.videoStale),
         });
       }
     }
@@ -1219,10 +1225,16 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
             <div className="manju-produce__preview-canvas">
               {previewUrl ? (
                 previewKind === "video" ? (
-                  <video src={previewUrl} controls playsInline />
+                  <video
+                    key={previewUrl}
+                    src={previewUrl}
+                    controls
+                    playsInline
+                    poster={selected?.storyboardImageUrl || undefined}
+                  />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={previewUrl} alt={titleDisplay} />
+                  <img key={previewUrl} src={previewUrl} alt={titleDisplay} />
                 )
               ) : (
                 <div className="manju-produce__preview-empty">
@@ -1281,23 +1293,36 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                     className={cn(
                       "manju-produce__library-card",
                       item.selected && "is-selected",
+                      item.stale && "is-stale",
                     )}
-                    title={item.label}
+                    title={`${item.kind === "video" ? "视频" : "图片"} · ${item.label}${item.stale ? " · 需重做" : ""}`}
                     onClick={() => {
                       setSelectedId(item.shotId);
                       setPreviewKind(item.kind);
                     }}
                   >
                     {item.kind === "video" ? (
-                      <video src={item.url} muted playsInline />
+                      <JoyVideoPoster
+                        url={item.url}
+                        size="sm"
+                        fallback="video"
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={item.url} alt="" />
                     )}
-                    {item.selected ? (
+                    <span className="manju-produce__library-kind">
+                      {item.kind === "video" ? "视频" : "图片"}
+                    </span>
+                    {item.stale ? (
+                      <span className="manju-produce__library-badge is-stale">
+                        需重做
+                      </span>
+                    ) : item.selected ? (
                       <span className="manju-produce__library-badge">
                         <Star className="size-3" />
-                        已选
+                        预览中
                       </span>
                     ) : null}
                   </button>

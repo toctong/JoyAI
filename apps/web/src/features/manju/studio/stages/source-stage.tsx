@@ -1,12 +1,10 @@
 "use client";
 
 import { ScriptStep } from "../../steps/script-step";
-import { useManjuStore } from "../../manju-store";
+import { useManjuProject } from "../../manju-store";
 
 export function SourceStage({ projectId }: { projectId: string }) {
-  const project = useManjuStore((s) =>
-    s.projects.find((p) => p.id === projectId),
-  );
+  const project = useManjuProject(projectId);
   if (!project) return null;
   return <ScriptStep project={project} />;
 }

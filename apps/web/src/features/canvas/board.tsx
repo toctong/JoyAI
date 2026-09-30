@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { debounce } from "lodash-es";
 import type {
   CanvasEdge,
@@ -10,9 +11,6 @@ import type {
 } from "@joyai/shared";
 import { useCanvasStore } from "./store";
 import { CanvasToolbar } from "./toolbar";
-import { CanvasSkillLibraryDialog } from "./canvas-skill-library-dialog";
-import { CanvasPromptLibraryDialog } from "./canvas-prompt-library-dialog";
-import { CanvasExploreDialog } from "./canvas-explore-dialog";
 import { CanvasCreateRail } from "./canvas-create-rail";
 import { CanvasTopBar } from "./canvas-top-bar";
 import { CanvasDock, MINIMAP_BASE } from "./canvas-dock";
@@ -22,7 +20,6 @@ import {
   writeMinimapOpenPreference,
 } from "./canvas-minimap";
 import { useDockOverlayStore } from "./dock-overlay-store";
-import { CanvasShortcutsHelp } from "./canvas-shortcuts-help";
 import { CanvasBootOverlay } from "./canvas-boot-overlay";
 import { NodeFloatToolbar } from "./node-float-toolbar";
 import { MultiSelectToolbar } from "./multi-select-toolbar";
@@ -37,6 +34,7 @@ import {
   type ConnectDraft,
 } from "./canvas-edges";
 import { hitNodeAt, nodeBox } from "./lib/node-box";
+import { visibleCanvasNodeIds } from "./lib/viewport-cull";
 import {
   preferredConnectTargetType,
 } from "./lib/edge-compat";
@@ -50,7 +48,6 @@ import {
 } from "./canvas-context-menu";
 import { CanvasRightPanel } from "./canvas-right-panel";
 import { CanvasAgentDrawer } from "./canvas-agent-drawer";
-import { CanvasAssetDialog } from "./canvas-asset-dialog";
 import { useCanvasRightPanelStore } from "./right-panel-store";
 import { computeMentionHighlightIds } from "./lib/mention-highlight";
 import {
@@ -88,26 +85,11 @@ import {
   originalNameFromAsset,
 } from "./lib/node-title";
 import { toast } from "@/shared/lib/toast";
-import { DirectorDesk } from "./director-desk";
-import { ImageToolDialog, type ImageToolMode } from "./image-tool-dialog";
-import { ImageAngleDialog } from "./image-angle-dialog";
-import { ImageReversePromptDialog } from "./image-reverse-prompt-dialog";
-import { ImageFxDialog } from "./image-fx-dialog";
-import { ImageRotateDialog } from "./image-rotate-dialog";
-import { NodeGenHistoryDialog } from "./node-gen-history-dialog";
-import { ImageOutpaintDialog } from "./image-outpaint-dialog";
-import { ImageScribbleDialog } from "./image-scribble-dialog";
-import { ImageLightingDialog } from "./image-lighting-dialog";
-import { NodeInfoDialog } from "./node-info-dialog";
-import { AudioTrimDialog } from "./audio-trim-dialog";
-import { VideoFramePickDialog } from "./video-frame-dialog";
-import { MaskEditDialog } from "./mask-edit-dialog";
-import { ImageRedrawDialog } from "./image-redraw-dialog";
+import type { ImageToolMode } from "./image-tool-dialog";
 import { trimMediaToFile } from "./lib/trim-audio";
 import { trimVideoToFile } from "./lib/trim-video";
 import { flagPanoramaAspect } from "./lib/panorama-prompt";
 import { spawnPanoramaPrompt } from "./lib/spawn-panorama-prompt";
-import { ImagePanoramaDialog } from "./image-panorama-dialog";
 import { commitImagePieces } from "./lib/commit-image-pieces";
 import { downloadNodeMedia } from "./lib/download-node-media";
 import { canSaveNodeAsset, saveNodeAsset } from "./lib/save-node-asset";
@@ -139,6 +121,108 @@ import { computeGuideSnap, type GuideLine } from "./lib/guides";
 import { CanvasGuides } from "./canvas-guides";
 import { isBusyStatus } from "./node-registry";
 import "./canvas-chrome.css";
+
+const CanvasSkillLibraryDialog = dynamic(
+  () =>
+    import("./canvas-skill-library-dialog").then(
+      (m) => m.CanvasSkillLibraryDialog,
+    ),
+  { ssr: false },
+);
+const CanvasPromptLibraryDialog = dynamic(
+  () =>
+    import("./canvas-prompt-library-dialog").then(
+      (m) => m.CanvasPromptLibraryDialog,
+    ),
+  { ssr: false },
+);
+const CanvasExploreDialog = dynamic(
+  () =>
+    import("./canvas-explore-dialog").then((m) => m.CanvasExploreDialog),
+  { ssr: false },
+);
+const CanvasShortcutsHelp = dynamic(
+  () =>
+    import("./canvas-shortcuts-help").then((m) => m.CanvasShortcutsHelp),
+  { ssr: false },
+);
+const CanvasAssetDialog = dynamic(
+  () => import("./canvas-asset-dialog").then((m) => m.CanvasAssetDialog),
+  { ssr: false },
+);
+const DirectorDesk = dynamic(
+  () => import("./director-desk").then((m) => m.DirectorDesk),
+  { ssr: false },
+);
+const ImageToolDialog = dynamic(
+  () => import("./image-tool-dialog").then((m) => m.ImageToolDialog),
+  { ssr: false },
+);
+const ImageAngleDialog = dynamic(
+  () => import("./image-angle-dialog").then((m) => m.ImageAngleDialog),
+  { ssr: false },
+);
+const ImageReversePromptDialog = dynamic(
+  () =>
+    import("./image-reverse-prompt-dialog").then(
+      (m) => m.ImageReversePromptDialog,
+    ),
+  { ssr: false },
+);
+const ImageFxDialog = dynamic(
+  () => import("./image-fx-dialog").then((m) => m.ImageFxDialog),
+  { ssr: false },
+);
+const ImageRotateDialog = dynamic(
+  () => import("./image-rotate-dialog").then((m) => m.ImageRotateDialog),
+  { ssr: false },
+);
+const NodeGenHistoryDialog = dynamic(
+  () =>
+    import("./node-gen-history-dialog").then((m) => m.NodeGenHistoryDialog),
+  { ssr: false },
+);
+const ImageOutpaintDialog = dynamic(
+  () =>
+    import("./image-outpaint-dialog").then((m) => m.ImageOutpaintDialog),
+  { ssr: false },
+);
+const ImageScribbleDialog = dynamic(
+  () =>
+    import("./image-scribble-dialog").then((m) => m.ImageScribbleDialog),
+  { ssr: false },
+);
+const ImageLightingDialog = dynamic(
+  () =>
+    import("./image-lighting-dialog").then((m) => m.ImageLightingDialog),
+  { ssr: false },
+);
+const NodeInfoDialog = dynamic(
+  () => import("./node-info-dialog").then((m) => m.NodeInfoDialog),
+  { ssr: false },
+);
+const AudioTrimDialog = dynamic(
+  () => import("./audio-trim-dialog").then((m) => m.AudioTrimDialog),
+  { ssr: false },
+);
+const VideoFramePickDialog = dynamic(
+  () =>
+    import("./video-frame-dialog").then((m) => m.VideoFramePickDialog),
+  { ssr: false },
+);
+const MaskEditDialog = dynamic(
+  () => import("./mask-edit-dialog").then((m) => m.MaskEditDialog),
+  { ssr: false },
+);
+const ImageRedrawDialog = dynamic(
+  () => import("./image-redraw-dialog").then((m) => m.ImageRedrawDialog),
+  { ssr: false },
+);
+const ImagePanoramaDialog = dynamic(
+  () =>
+    import("./image-panorama-dialog").then((m) => m.ImagePanoramaDialog),
+  { ssr: false },
+);
 
 function notePanoramaAspect(nodeId: string, url: string) {
   flagPanoramaAspect(url, (aspectHint) => {
@@ -2060,6 +2144,60 @@ export function CanvasBoard({
       }
     : null;
 
+  const pinnedNodeIds = useMemo(() => {
+    const pinned = new Set<string>(selectedIds);
+    if (hoveredNodeId) pinned.add(hoveredNodeId);
+    if (connectDraft?.sourceId) pinned.add(connectDraft.sourceId);
+    for (const id of connectDraft?.sourceIds ?? []) pinned.add(id);
+    if (editingImageId) pinned.add(editingImageId);
+    if (angleNodeId) pinned.add(angleNodeId);
+    if (panoramaNodeId) pinned.add(panoramaNodeId);
+    if (reversePromptNodeId) pinned.add(reversePromptNodeId);
+    if (nodeHistoryId) pinned.add(nodeHistoryId);
+    if (infoNodeId) pinned.add(infoNodeId);
+    if (imageTool) pinned.add(imageTool.nodeId);
+    if (imageFx) pinned.add(imageFx.nodeId);
+    if (rotateEdit) pinned.add(rotateEdit.nodeId);
+    if (audioTrim) pinned.add(audioTrim.nodeId);
+    if (framePick) pinned.add(framePick.nodeId);
+    if (maskEdit) pinned.add(maskEdit.nodeId);
+    if (redrawEdit) pinned.add(redrawEdit.nodeId);
+    if (outpaintEdit) pinned.add(outpaintEdit.nodeId);
+    if (scribbleEdit) pinned.add(scribbleEdit.nodeId);
+    if (lightingEdit) pinned.add(lightingEdit.nodeId);
+    if (isNodeDragging && drag.current) {
+      for (const id of drag.current.ids) pinned.add(id);
+    }
+    return pinned;
+  }, [
+    selectedIds,
+    hoveredNodeId,
+    connectDraft,
+    editingImageId,
+    angleNodeId,
+    panoramaNodeId,
+    reversePromptNodeId,
+    nodeHistoryId,
+    infoNodeId,
+    imageTool,
+    imageFx,
+    rotateEdit,
+    audioTrim,
+    framePick,
+    maskEdit,
+    redrawEdit,
+    outpaintEdit,
+    scribbleEdit,
+    lightingEdit,
+    isNodeDragging,
+  ]);
+
+  const visibleNodeIds = useMemo(
+    () =>
+      visibleCanvasNodeIds(nodes, viewport, viewportSize, pinnedNodeIds),
+    [nodes, viewport, viewportSize, pinnedNodeIds],
+  );
+
   return (
     <div className="joy-canvas-board flex h-full min-h-[480px] overflow-hidden">
       <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden">
@@ -2454,6 +2592,7 @@ export function CanvasBoard({
               : null;
             return nodes.map((node, index) => {
               if (isHiddenBatchChild(node, nodes)) return null;
+              if (!visibleNodeIds.has(node.id)) return null;
               const inSelection = selectedIds.includes(node.id);
               const selected = inSelection && !soleGroupSelected;
               const hovered = hoveredNodeId === node.id;

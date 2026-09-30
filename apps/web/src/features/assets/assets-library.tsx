@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import { Music, Play } from "lucide-react";
@@ -37,6 +37,8 @@ type AssetGroup = {
   label: string;
   items: Asset[];
 };
+
+const PAGE_SIZE = 48;
 
 function tabToKind(tab: Exclude<Tab, "upload">) {
   return tab === "document" ? "text" : tab;
@@ -237,34 +239,82 @@ export function AssetsLibrary() {
   const [time, setTime] = useState<TimeFilter>("all");
   const [sort, setSort] = useState<SortFilter>("newest");
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [preview, setPreview] = useState<Asset | null>(null);
+  const skipRef = useRef(0);
+  const loadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const buildQuery = useCallback(
+    (skip: number) => {
+      const qs = new URLSearchParams({
+        take: String(PAGE_SIZE),
+        skip: String(skip),
+        sort,
+      });
+      if (tab === "upload") {
+        qs.set("source", "upload");
+      } else {
+        qs.set("kind", tabToKind(tab));
+        if (source !== "all") qs.set("source", source);
+      }
+      if (time !== "all") qs.set("from", time);
+      return qs;
+    },
+    [tab, source, time, sort],
+  );
+
+  const loadPage = useCallback(
+    async (mode: "reset" | "more") => {
+      if (mode === "more") {
+        if (loadingMoreRef.current || !hasMoreRef.current) return;
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      } else {
+        skipRef.current = 0;
+        setLoading(true);
+      }
+      try {
+        const skip = mode === "more" ? skipRef.current : 0;
+        const list = await api<Asset[]>(`/assets?${buildQuery(skip)}`);
+        const rows = Array.isArray(list) ? list : [];
+        setAssets((prev) => (mode === "more" ? [...prev, ...rows] : rows));
+        skipRef.current = skip + rows.length;
+        const more = rows.length >= PAGE_SIZE;
+        hasMoreRef.current = more;
+        setHasMore(more);
+      } finally {
+        if (mode === "more") {
+          loadingMoreRef.current = false;
+          setLoadingMore(false);
+        } else {
+          setLoading(false);
+        }
+      }
+    },
+    [buildQuery],
+  );
 
   useEffect(() => {
-    let alive = true;
-    void (async () => {
-      setLoading(true);
-      try {
-        const qs = new URLSearchParams({
-          take: "200",
-          sort,
-        });
-        if (tab === "upload") {
-          qs.set("source", "upload");
-        } else {
-          qs.set("kind", tabToKind(tab));
-          if (source !== "all") qs.set("source", source);
+    void loadPage("reset");
+  }, [loadPage]);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          void loadPage("more");
         }
-        if (time !== "all") qs.set("from", time);
-        const list = await api<Asset[]>(`/assets?${qs}`);
-        if (alive) setAssets(list);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [tab, source, time, sort]);
+      },
+      { rootMargin: "400px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [loadPage, loading, assets.length]);
 
   useJobLifecycle({
     getBusyJobIds: () => [],
@@ -390,9 +440,13 @@ export function AssetsLibrary() {
           ))
         )}
 
-        {!loading && assets.length > 0 ? (
-          <p className="joy-assets-end">没有更多内容了</p>
-        ) : null}
+        <div ref={sentinelRef} className="joy-assets-end" aria-hidden>
+          {loadingMore
+            ? "加载中…"
+            : !loading && assets.length > 0 && !hasMore
+              ? "没有更多内容了"
+              : null}
+        </div>
       </div>
 
       <AssetsDetailDialog

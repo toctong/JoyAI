@@ -137,9 +137,13 @@ export class CanvasController {
   list(
     @CurrentUser() user: AuthUser,
     @Query("folderId") folderId?: string,
+    @Query("take") take?: string,
   ) {
-    if (folderId === undefined) return this.canvas.list(user.id);
-    return this.canvas.list(user.id, folderId || null);
+    const limit = take != null && take !== "" ? Number(take) : undefined;
+    const opts =
+      limit != null && Number.isFinite(limit) ? { take: limit } : undefined;
+    if (folderId === undefined) return this.canvas.list(user.id, undefined, opts);
+    return this.canvas.list(user.id, folderId || null, opts);
   }
 
   @Post()

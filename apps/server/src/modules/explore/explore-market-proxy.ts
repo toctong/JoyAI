@@ -26,12 +26,15 @@ type ProxyResolver = () => Promise<string | null>;
 let resolver: ProxyResolver | null = null;
 let agent: HttpsProxyAgent<string> | null = null;
 let agentUrl: string | null = null;
+let resolvedUrlCache: { at: number; url: string | null } | null = null;
+const RESOLVE_TTL_MS = 30_000;
 
 /** Wire SettingsService (or similar) from ExploreModule bootstrap. */
 export function configureMarketProxyResolver(fn: ProxyResolver) {
   resolver = fn;
   agent = null;
   agentUrl = null;
+  resolvedUrlCache = null;
 }
 
 export function isMarketProxyHost(url: string): boolean {
@@ -43,16 +46,27 @@ export function isMarketProxyHost(url: string): boolean {
 }
 
 async function resolveProxyUrl(): Promise<string | null> {
+  if (
+    resolvedUrlCache &&
+    Date.now() - resolvedUrlCache.at < RESOLVE_TTL_MS
+  ) {
+    return resolvedUrlCache.url;
+  }
+  let url: string | null = null;
   if (resolver) {
     try {
       const fromSettings = String((await resolver()) ?? "").trim();
-      if (fromSettings) return fromSettings;
+      if (fromSettings) url = fromSettings;
     } catch {
       // fall through to env
     }
   }
-  const fromEnv = String(process.env.EXPLORE_MARKET_PROXY ?? "").trim();
-  return fromEnv || null;
+  if (!url) {
+    const fromEnv = String(process.env.EXPLORE_MARKET_PROXY ?? "").trim();
+    url = fromEnv || null;
+  }
+  resolvedUrlCache = { at: Date.now(), url };
+  return url;
 }
 
 async function getAgent(): Promise<HttpsProxyAgent<string> | null> {
@@ -90,6 +104,7 @@ export function invalidateMarketProxy(reason?: string) {
   });
   agent = null;
   agentUrl = null;
+  resolvedUrlCache = null;
 }
 
 export type MarketProxyProbeTarget = {

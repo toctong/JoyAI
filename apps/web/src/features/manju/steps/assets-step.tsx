@@ -700,9 +700,21 @@ export function AssetsStep({
                 </p>
               </>
             ) : (
-              <div className="space-y-4">
-                {project.scriptText.trim() && activeKind === "character" ? (
-                  <div className="flex flex-wrap gap-2">
+              <>
+                <div className="manju-assets-empty__visual" aria-hidden>
+                  <span className="manju-assets-empty__box" />
+                  <span className="manju-assets-empty__beam" />
+                </div>
+                <p className="manju-assets-empty__title">暂无{kindLabel}</p>
+                <p className="manju-assets-empty__desc">
+                  {activeKind === "character"
+                    ? "可从剧本抽取角色，或手动新建后补充参考图"
+                    : activeKind === "scene"
+                      ? "可先解析剧本自动写入，或手动新建场景并补充参考图"
+                      : "可先解析剧本自动写入，或手动新建道具并补充参考图"}
+                </p>
+                <div className="manju-assets-empty__actions">
+                  {project.scriptText.trim() && activeKind === "character" ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -711,25 +723,29 @@ export function AssetsStep({
                     >
                       从剧本抽取 / 粘贴角色
                     </Button>
-                  </div>
-                ) : null}
-                <div className="manju-lore-grid">
-                  <button
+                  ) : null}
+                  <Button
                     type="button"
-                    className="manju-lore-create"
+                    size="sm"
                     onClick={() => {
                       const id = addAsset(project.id, activeKind);
                       router.push(manjuAssetHref(project.id, activeKind, id));
                     }}
                   >
-                    <span className="manju-lore-create__plus">
-                      <Plus className="size-6" />
-                    </span>
-                    <span>新建{kindLabel}</span>
-                  </button>
+                    <Plus className="size-3.5" />
+                    新建{kindLabel}
+                  </Button>
                 </div>
-              </div>
+              </>
             )}
+          </div>
+        ) : roots.length === 0 && search.trim() ? (
+          <div className="manju-assets-empty">
+            <div className="manju-assets-empty__visual" aria-hidden>
+              <Search className="manju-assets-empty__spark opacity-50" />
+            </div>
+            <p className="manju-assets-empty__title">没有匹配的{kindLabel}</p>
+            <p className="manju-assets-empty__desc">试试其他关键词</p>
           </div>
         ) : (
           <div className="manju-lore-grid">
@@ -747,9 +763,6 @@ export function AssetsStep({
               <span>新建{kindLabel}</span>
             </button>
             {roots.map((asset) => renderCard(asset))}
-            {roots.length === 0 && search.trim() ? (
-              <p className="manju-lore-grid__empty">没有匹配的{kindLabel}</p>
-            ) : null}
           </div>
         )}
       </div>

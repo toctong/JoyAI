@@ -68,28 +68,45 @@ export class AssetsService {
     return null;
   }
 
-  /** Keys / MD5s still referenced by Asset rows (for TOS GC). */
+  /** Keys / MD5s still referenced by Asset rows (for TOS GC). Batched to avoid full-table RAM spike. */
   async collectStorageReferences(): Promise<{
     keys: Set<string>;
     md5s: Set<string>;
   }> {
-    const rows = await this.assets.find({
-      select: ["url", "md5", "meta"],
-    });
     const keys = new Set<string>();
     const md5s = new Set<string>();
-    for (const row of rows) {
-      const fromUrl = this.storage.keyFromPublicUrl(row.url);
-      if (fromUrl) keys.add(fromUrl);
-      const storageKey = row.meta?.storageKey;
-      if (typeof storageKey === "string" && storageKey.trim()) {
-        keys.add(storageKey.trim());
+    const batchSize = 500;
+    let afterId: string | undefined;
+
+    for (;;) {
+      const qb = this.assets
+        .createQueryBuilder("a")
+        .select(["a.id", "a.url", "a.md5", "a.meta"])
+        .orderBy("a.id", "ASC")
+        .take(batchSize);
+      if (afterId) {
+        qb.andWhere("a.id > :afterId", { afterId });
       }
-      if (row.md5?.trim()) md5s.add(row.md5.trim().toLowerCase());
-      const metaMd5 =
-        typeof row.meta?.md5 === "string" ? row.meta.md5.trim() : "";
-      if (metaMd5) md5s.add(metaMd5.toLowerCase());
+      const rows = await qb.getMany();
+      if (!rows.length) break;
+
+      for (const row of rows) {
+        const fromUrl = this.storage.keyFromPublicUrl(row.url);
+        if (fromUrl) keys.add(fromUrl);
+        const storageKey = row.meta?.storageKey;
+        if (typeof storageKey === "string" && storageKey.trim()) {
+          keys.add(storageKey.trim());
+        }
+        if (row.md5?.trim()) md5s.add(row.md5.trim().toLowerCase());
+        const metaMd5 =
+          typeof row.meta?.md5 === "string" ? row.meta.md5.trim() : "";
+        if (metaMd5) md5s.add(metaMd5.toLowerCase());
+      }
+
+      afterId = rows[rows.length - 1]!.id;
+      if (rows.length < batchSize) break;
     }
+
     return { keys, md5s };
   }
 

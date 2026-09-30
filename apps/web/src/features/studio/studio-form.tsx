@@ -60,18 +60,8 @@ import {
   type StudioLocalTool,
   type StudioMediaAsset,
 } from "@/features/studio/studio-asset-actions";
-import {
-  ImageToolDialog,
-  type ImageToolMode,
-} from "@/features/canvas/image-tool-dialog";
-import {
-  MaskEditDialog,
-  type MaskConfirmPayload,
-} from "@/features/canvas/mask-edit-dialog";
-import { ImageAngleDialog } from "@/features/canvas/image-angle-dialog";
-import { ImageOutpaintDialog } from "@/features/canvas/image-outpaint-dialog";
-import { ImagePanoramaDialog } from "@/features/canvas/image-panorama-dialog";
-import { AudioTrimDialog } from "@/features/canvas/audio-trim-dialog";
+import type { ImageToolMode } from "@/features/canvas/image-tool-dialog";
+import type { MaskConfirmPayload } from "@/features/canvas/mask-edit-dialog";
 import type { ImageAngleParams } from "@/features/canvas/lib/angle-prompt";
 import type { RasterPiece } from "@/features/canvas/lib/image-raster";
 import { StudioPanoramaPreview } from "@/features/studio/studio-panorama-preview";
@@ -110,6 +100,43 @@ const CreationComposer = dynamic(
       <div className="h-40 animate-pulse rounded-[28px] bg-muted/40" />
     ),
   },
+);
+
+const ImageToolDialog = dynamic(
+  () =>
+    import("@/features/canvas/image-tool-dialog").then((m) => m.ImageToolDialog),
+  { ssr: false },
+);
+const MaskEditDialog = dynamic(
+  () =>
+    import("@/features/canvas/mask-edit-dialog").then((m) => m.MaskEditDialog),
+  { ssr: false },
+);
+const ImageAngleDialog = dynamic(
+  () =>
+    import("@/features/canvas/image-angle-dialog").then(
+      (m) => m.ImageAngleDialog,
+    ),
+  { ssr: false },
+);
+const ImageOutpaintDialog = dynamic(
+  () =>
+    import("@/features/canvas/image-outpaint-dialog").then(
+      (m) => m.ImageOutpaintDialog,
+    ),
+  { ssr: false },
+);
+const ImagePanoramaDialog = dynamic(
+  () =>
+    import("@/features/canvas/image-panorama-dialog").then(
+      (m) => m.ImagePanoramaDialog,
+    ),
+  { ssr: false },
+);
+const AudioTrimDialog = dynamic(
+  () =>
+    import("@/features/canvas/audio-trim-dialog").then((m) => m.AudioTrimDialog),
+  { ssr: false },
 );
 
 type Asset = {
@@ -499,11 +526,26 @@ function jobElapsedLabel(job: Job, now: number) {
   return label === "—" ? null : `用时 ${label}`;
 }
 
+/** Per-card ticker — avoids re-rendering the whole Studio feed every second. */
+function LiveJobElapsed({ job }: { job: Job }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    setNow(Date.now());
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [job.id, job.startedAt, job.createdAt]);
+  return (
+    <span className="joy-studio-meta-part">
+      {jobElapsedLabel(job, now)}
+    </span>
+  );
+}
+
 /**
  * 参考 Jimeng 风格：模型 | 清晰度 | 比例 | … | 时间
  * 可按任务类型扩展更多字段。
  */
-function jobMetaParts(job: Job, assetCount = 0, now = Date.now()): string[] {
+function jobMetaParts(job: Job, assetCount = 0): string[] {
   const input = job.input;
   const model =
     job.modelName?.trim() ||
@@ -531,7 +573,9 @@ function jobMetaParts(job: Job, assetCount = 0, now = Date.now()): string[] {
       ? `${input.duration}s`
       : null;
   const time = formatJobTime(jobDisplayIso(job));
-  const elapsedLabel = jobElapsedLabel(job, now);
+  const finishedElapsed = isBusy(job.status)
+    ? null
+    : jobElapsedLabel(job, Date.now());
 
   return [
     model,
@@ -545,7 +589,7 @@ function jobMetaParts(job: Job, assetCount = 0, now = Date.now()): string[] {
       ? job.channelName.trim()
       : null,
     time,
-    elapsedLabel,
+    finishedElapsed,
   ].filter((p): p is string => Boolean(p));
 }
 
@@ -1594,7 +1638,6 @@ function JobActions({
 function StudioInner() {
   const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [now, setNow] = useState(() => Date.now());
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [bootstrapped, setBootstrapped] = useState(false);
@@ -1943,16 +1986,7 @@ function StudioInner() {
   });
 
   const hasJobs = jobs.length > 0;
-  const hasBusyJobs = jobs.some((j) => isBusy(j.status));
   const dockCompact = hasJobs && !nearBottom;
-
-  // 进行中任务：每秒从 0s 起跳累计用时
-  useEffect(() => {
-    if (!hasBusyJobs) return;
-    setNow(Date.now());
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [hasBusyJobs]);
 
   // 向上滚到顶部 → 加载更早
   useEffect(() => {
@@ -2413,7 +2447,7 @@ function StudioInner() {
               const assets = jobOutputAssets(job);
               const slots = jobDisplaySlots(job, assets);
               const busy = isBusy(job.status);
-              const metaParts = jobMetaParts(job, assets.length, now);
+              const metaParts = jobMetaParts(job, assets.length);
               const skeletonCount = Math.min(
                 Math.max(job.input?.n ?? (job.kind === "image" ? 2 : 1), 1),
                 4,
@@ -2487,7 +2521,7 @@ function StudioInner() {
                           onCopy={() => void copyPrompt(job)}
                           onUse={() => applyPrompt(job)}
                         />
-                        {metaParts.length > 0 ? (
+                        {metaParts.length > 0 || busy ? (
                           <p className="joy-studio-meta joy-studio-meta-sub">
                             {metaParts.map((part, i) => (
                               <span key={`${job.id}-meta-${i}`}>
@@ -2500,6 +2534,17 @@ function StudioInner() {
                                 <span className="joy-studio-meta-part">{part}</span>
                               </span>
                             ))}
+                            {busy ? (
+                              <span key={`${job.id}-meta-live`}>
+                                {metaParts.length > 0 ? (
+                                  <span className="joy-studio-meta-sep" aria-hidden>
+                                    {" "}
+                                    |{" "}
+                                  </span>
+                                ) : null}
+                                <LiveJobElapsed job={job} />
+                              </span>
+                            ) : null}
                           </p>
                         ) : null}
                         {partialFail ? (

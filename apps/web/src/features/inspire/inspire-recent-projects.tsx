@@ -47,7 +47,9 @@ export function InspireRecentProjects() {
     setLoading(true);
     try {
       const path =
-        mode === "manju" ? "/manju/projects" : "/canvas/projects";
+        mode === "manju"
+          ? `/manju/projects?take=${PREVIEW_COUNT}`
+          : `/canvas/projects?take=${PREVIEW_COUNT}`;
       const rows = await api<RecentProject[]>(path);
       setProjects(Array.isArray(rows) ? rows.slice(0, PREVIEW_COUNT) : []);
     } catch {

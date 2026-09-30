@@ -235,7 +235,11 @@ export class CanvasService {
     return { ok: true };
   }
 
-  list(userId: string, folderId?: string | null) {
+  list(userId: string, folderId?: string | null, opts?: { take?: number }) {
+    const take =
+      opts?.take != null && Number.isFinite(opts.take)
+        ? Math.min(Math.max(Math.floor(opts.take), 1), 100)
+        : undefined;
     return this.projects.find({
       where: {
         userId,
@@ -244,6 +248,7 @@ export class CanvasService {
           : {}),
       },
       order: { updatedAt: "DESC" },
+      ...(take ? { take } : {}),
       select: [
         "id",
         "title",

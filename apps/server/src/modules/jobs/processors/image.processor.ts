@@ -14,7 +14,7 @@ import { AssetsService } from "../../assets/assets.service";
 import { sourceFromJob } from "../../assets/asset-source";
 import { RealtimeGateway } from "../../realtime/realtime.gateway";
 import { CanvasService } from "../../canvas/canvas.service";
-import { enqueueAssetMirror } from "../enqueue-asset-mirror";
+import { enqueueAssetMirrors } from "../enqueue-asset-mirror";
 
 /** Parallel image jobs per server process (cap 20). Override with JOB_IMAGE_CONCURRENCY. */
 function resolveImageConcurrency(): number {
@@ -302,8 +302,9 @@ export class ImageProcessor extends WorkerHost {
         requested: count,
       });
 
-      for (const item of pendingMirrors) {
-        await enqueueAssetMirror(this.mirrorQueue, {
+      await enqueueAssetMirrors(
+        this.mirrorQueue,
+        pendingMirrors.map((item) => ({
           assetId: item.assetId,
           originUrl: item.originUrl,
           ext: "png",
@@ -311,8 +312,8 @@ export class ImageProcessor extends WorkerHost {
           jobId,
           canvasProjectId: input.canvasProjectId,
           canvasNodeId: input.canvasNodeId,
-        });
-      }
+        })),
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const latest = await this.jobsRepo.findOne({ where: { id: jobId } });
