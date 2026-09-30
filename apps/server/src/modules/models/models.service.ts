@@ -30,11 +30,18 @@ const CATALOG_REMOTE_ID_ALIASES: Record<string, string[]> = {
 
 @Injectable()
 export class ModelsService {
+  private publicCache: { at: number; items: unknown[] } | null = null;
+  private static readonly PUBLIC_TTL_MS = 45_000;
+
   constructor(
     @InjectRepository(Model) private readonly models: Repository<Model>,
     @InjectRepository(Channel)
     private readonly channels: Repository<Channel>,
   ) {}
+
+  private bustPublicCache() {
+    this.publicCache = null;
+  }
 
   async list(
     query: {
@@ -119,6 +126,21 @@ export class ModelsService {
   }
 
   async listPublic() {
+    const now = Date.now();
+    if (
+      this.publicCache &&
+      now - this.publicCache.at < ModelsService.PUBLIC_TTL_MS
+    ) {
+      return this.publicCache.items as Awaited<
+        ReturnType<ModelsService["listPublicUncached"]>
+      >;
+    }
+    const items = await this.listPublicUncached();
+    this.publicCache = { at: now, items };
+    return items;
+  }
+
+  private async listPublicUncached() {
     const rows = await this.models.find({
       where: {
         enabled: true,
@@ -178,6 +200,7 @@ export class ModelsService {
     enabled?: boolean;
     isDefault?: boolean;
   }) {
+    this.bustPublicCache();
     return this.models.save(
       this.models.create({
         channelId: data.channelId,
@@ -222,6 +245,7 @@ export class ModelsService {
         (data.capabilities as Record<string, unknown> | null) ?? null;
     }
 
+    this.bustPublicCache();
     return this.models.save(model);
   }
 
@@ -229,6 +253,7 @@ export class ModelsService {
     const model = await this.models.findOne({ where: { id } });
     if (!model) throw new NotFoundException("模型不存在");
     await this.models.delete(id);
+    this.bustPublicCache();
     return model;
   }
 
@@ -237,6 +262,7 @@ export class ModelsService {
     if (!unique.length) return { deleted: 0 };
 
     const result = await this.models.delete({ id: In(unique) });
+    this.bustPublicCache();
     return { deleted: result.affected ?? 0 };
   }
 
@@ -285,6 +311,7 @@ export class ModelsService {
       disabled += 1;
     }
 
+    this.bustPublicCache();
     return { created, updated, disabled, skipped };
   }
 
@@ -341,6 +368,7 @@ export class ModelsService {
       else updated += 1;
     }
 
+    this.bustPublicCache();
     return { created, updated, skipped };
   }
 

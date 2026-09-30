@@ -1084,10 +1084,10 @@ export function CanvasBoard({
     }
   }
 
-  function closeMenus() {
+  const closeMenus = useCallback(() => {
     setCreateMenu(null);
     setNodeMenu(null);
-  }
+  }, []);
 
   function onPointerDownBoard(e: React.PointerEvent) {
     closeMenus();
@@ -1203,7 +1203,7 @@ export function CanvasBoard({
         }
         lines = snap.lines;
       }
-      useCanvasStore.setState({ nodes: next, dirty: true });
+      useCanvasStore.setState({ nodes: next });
       setGuideLines((prev) =>
         prev.length === lines.length &&
         prev.every(
@@ -1309,6 +1309,8 @@ export function CanvasBoard({
         const next = applyGroupDrop(live, moved);
         if (next !== live) {
           useCanvasStore.setState({ nodes: next, dirty: true });
+        } else {
+          useCanvasStore.setState({ dirty: true });
         }
       } else if (drag.current.clickToNodeId) {
         setSelection([drag.current.clickToNodeId]);
@@ -1328,57 +1330,68 @@ export function CanvasBoard({
     }
   }
 
-  function onNodePointerDown(e: React.PointerEvent, node: CanvasNode) {
-    if (isPanningTool || e.button === 1) return;
-    // Prevent browser native media drag (ghost / drop-as-copy).
-    e.preventDefault();
-    e.stopPropagation();
-    closeMenus();
-    const additive = e.shiftKey;
-    const state = useCanvasStore.getState();
-    const already = state.selectedIds.includes(node.id);
-    const gid = groupIdOf(node);
-    const groupSelected =
-      Boolean(gid) &&
-      isCompleteGroupSelection(state.nodes, state.selectedIds, gid);
+  const onNodePointerDown = useCallback(
+    (e: React.PointerEvent, node: CanvasNode) => {
+      if (isPanningTool || e.button === 1) return;
+      // Prevent browser native media drag (ghost / drop-as-copy).
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenus();
+      const additive = e.shiftKey;
+      const state = useCanvasStore.getState();
+      const already = state.selectedIds.includes(node.id);
+      const gid = groupIdOf(node);
+      const groupSelected =
+        Boolean(gid) &&
+        isCompleteGroupSelection(state.nodes, state.selectedIds, gid);
 
-    let dragIds: string[];
-    let clickToNodeId: string | null = null;
-    // Alt: drag this node alone (leave group on drop) — not a duplicate.
-    if (e.altKey) {
-      setSelection([node.id]);
-      dragIds = [node.id];
-    } else if (additive) {
-      select(node.id, { additive: true });
-      const ids = useCanvasStore.getState().selectedIds;
-      if (!ids.includes(node.id)) return;
-      dragIds = ids;
-    } else if (groupSelected && already) {
-      // Keep the group selected for a potential drag; plain click shrinks to this node.
-      dragIds = state.selectedIds;
-      clickToNodeId = node.id;
-    } else {
-      setSelection([node.id]);
-      dragIds = [node.id];
-    }
+      let dragIds: string[];
+      let clickToNodeId: string | null = null;
+      // Alt: drag this node alone (leave group on drop) — not a duplicate.
+      if (e.altKey) {
+        setSelection([node.id]);
+        dragIds = [node.id];
+      } else if (additive) {
+        select(node.id, { additive: true });
+        const ids = useCanvasStore.getState().selectedIds;
+        if (!ids.includes(node.id)) return;
+        dragIds = ids;
+      } else if (groupSelected && already) {
+        // Keep the group selected for a potential drag; plain click shrinks to this node.
+        dragIds = state.selectedIds;
+        clickToNodeId = node.id;
+      } else {
+        setSelection([node.id]);
+        dragIds = [node.id];
+      }
 
-    dragIds = expandIdsWithBatch(useCanvasStore.getState().nodes, dragIds);
+      dragIds = expandIdsWithBatch(useCanvasStore.getState().nodes, dragIds);
 
-    const origins: Record<string, { x: number; y: number }> = {};
-    for (const id of dragIds) {
-      const n = useCanvasStore.getState().nodes.find((x) => x.id === id);
-      if (n) origins[id] = { x: n.x, y: n.y };
-    }
-    drag.current = {
-      ids: dragIds,
-      ox: e.clientX,
-      oy: e.clientY,
-      origins,
-      clickToNodeId,
-    };
-    setIsNodeDragging(true);
-    containerRef.current?.setPointerCapture(e.pointerId);
-  }
+      const origins: Record<string, { x: number; y: number }> = {};
+      for (const id of dragIds) {
+        const n = useCanvasStore.getState().nodes.find((x) => x.id === id);
+        if (n) origins[id] = { x: n.x, y: n.y };
+      }
+      drag.current = {
+        ids: dragIds,
+        ox: e.clientX,
+        oy: e.clientY,
+        origins,
+        clickToNodeId,
+      };
+      setIsNodeDragging(true);
+      containerRef.current?.setPointerCapture(e.pointerId);
+    },
+    [isPanningTool, closeMenus, setSelection, select],
+  );
+
+  const onOpenDirector = useCallback((id: string) => {
+    setDirectorId(id);
+  }, []);
+
+  const onEditingImageChange = useCallback((nodeId: string, open: boolean) => {
+    setEditingImageId(open ? nodeId : null);
+  }, []);
 
   function onConnectStart(nodeId: string, e: React.PointerEvent) {
     connectSourcesRef.current = [nodeId];
@@ -2255,7 +2268,7 @@ export function CanvasBoard({
           <NodeFloatToolbar
             nodes={floatToolbarNodes}
             viewport={viewport}
-            onOpenDirector={(id) => setDirectorId(id)}
+            onOpenDirector={onOpenDirector}
             onOpenImageTool={(mode) => {
               const id = floatToolbarNodes[0]?.id;
               if (id) openImageTool(id, mode);
@@ -2481,10 +2494,8 @@ export function CanvasBoard({
                     node={node}
                     onPointerDown={onNodePointerDown}
                     editingImage={editingImageId === node.id}
-                    onEditingImageChange={(open) =>
-                      setEditingImageId(open ? node.id : null)
-                    }
-                    onOpenDirector={(id) => setDirectorId(id)}
+                    onEditingImageChange={onEditingImageChange}
+                    onOpenDirector={onOpenDirector}
                   />
                   <NodeHandles
                     node={node}

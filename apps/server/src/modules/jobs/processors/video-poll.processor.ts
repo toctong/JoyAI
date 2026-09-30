@@ -192,11 +192,20 @@ export class VideoPollProcessor extends WorkerHost {
       status: phaseStatus,
       progress,
     });
-    this.realtime.emitJob(job.userId, "job:progress", {
-      jobId: job.id,
-      status: phaseStatus,
-      progress,
-    });
+
+    // Throttle WS fan-out: emit when progress jumps ≥3 or every 5th attempt.
+    const prevProgress = Number(job.progress ?? 0);
+    const shouldEmit =
+      payload.attempt === 0 ||
+      progress - prevProgress >= 3 ||
+      payload.attempt % 5 === 0;
+    if (shouldEmit) {
+      this.realtime.emitJob(job.userId, "job:progress", {
+        jobId: job.id,
+        status: phaseStatus,
+        progress,
+      });
+    }
 
     const delay = Math.min(20_000, 4000 + payload.attempt * 400);
     await this.pollQueue.add(

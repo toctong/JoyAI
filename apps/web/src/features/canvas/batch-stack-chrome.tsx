@@ -20,10 +20,20 @@ type Props = {
 
 /** Decorative stack layers + count badge for batch roots; “设为主图” on children. */
 export function BatchStackChrome({ node, visible = true }: Props) {
-  const nodes = useCanvasStore((s) => s.nodes);
+  const childIds = batchChildIdsOf(node);
+  const thumbSig = useCanvasStore((s) =>
+    childIds
+      .slice(0, 3)
+      .map((id) => {
+        const n = s.nodes.find((item) => item.id === id);
+        const url = String(n?.data.url ?? "");
+        return url && !url.startsWith("data:") ? url : "";
+      })
+      .join("|"),
+  );
+  const thumbs = thumbSig ? thumbSig.split("|") : [];
   const root = isBatchRoot(node);
   const rootId = batchRootIdOf(node);
-  const childIds = batchChildIdsOf(node);
   const expanded = isBatchExpanded(node);
   const count = Number(node.data.batchCount) || childIds.length + (root ? 1 : 0);
   const primaryId = String(node.data.primaryImageId ?? node.id);
@@ -34,12 +44,6 @@ export function BatchStackChrome({ node, visible = true }: Props) {
 
   if (root && childIds.length > 0 && !expanded) {
     const layers = Math.min(childIds.length, 3);
-    const thumbs = childIds
-      .slice(0, layers)
-      .map((id) => nodes.find((n) => n.id === id))
-      .filter((n): n is CanvasNode => Boolean(n))
-      .map((n) => String(n.data.url ?? ""))
-      .filter((url) => url && !url.startsWith("data:"));
 
     return (
       <>

@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { useManjuStore } from "../../manju-store";
 import { draftFromProject } from "../../manju-api";
 import { manjuStudioHref } from "../manju-studio-routes";
@@ -190,8 +191,12 @@ export function OverviewStage({ projectId }: { projectId: string }) {
           <div className="manju-grid-preview">
             {gridShots.map((s) => (
               <div key={s.id} className="manju-grid-preview__cell">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={s.storyboardImageUrl!} alt={`格 ${s.index}`} />
+                <JoyAssetThumb
+                  url={s.storyboardImageUrl!}
+                  alt={`格 ${s.index}`}
+                  size="md"
+                  className="h-full w-full object-cover"
+                />
               </div>
             ))}
           </div>

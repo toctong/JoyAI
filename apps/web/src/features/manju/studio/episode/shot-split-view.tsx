@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Film, ImageIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import type { ManjuProjectDraft, ManjuShotDraft } from "../../manju-types";
 import { ManjuPromptField } from "../../manju-prompt-field";
 import { ManjuAssetPicker } from "../../manju-asset-picker";
@@ -57,8 +58,11 @@ export function ShotSplitView({ project, episodeId, locked }: Props) {
             <span className="manju-shot-split__idx">#{shot.index}</span>
             <span className="manju-shot-split__thumb">
               {shot.storyboardImageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={shot.storyboardImageUrl} alt="" />
+                <JoyAssetThumb
+                  url={shot.storyboardImageUrl}
+                  size="sm"
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <ImageIcon className="size-4 opacity-40" />
               )}

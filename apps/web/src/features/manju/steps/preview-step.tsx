@@ -13,6 +13,7 @@ import { StudioPlyrPlayer } from "@/features/studio/studio-plyr-player";
 import { fetchRemoteVideoBlob } from "@/features/canvas/lib/load-canvas-video";
 import { api } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { toast } from "@/shared/lib/toast";
 import type { ManjuProjectDraft } from "../manju-types";
 import { stitchManjuClips } from "../lib/stitch-clips";
@@ -348,8 +349,11 @@ export function PreviewStep({
               >
                 <span className="manju-preview-row__thumb">
                   {shot.storyboardImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={shot.storyboardImageUrl} alt="" />
+                    <JoyAssetThumb
+                      url={shot.storyboardImageUrl}
+                      size="sm"
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
                     <span>{clipLabels[i]}</span>
                   )}

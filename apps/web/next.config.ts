@@ -9,7 +9,7 @@ const apiProxyTarget =
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(process.cwd(), "../.."),
-  transpilePackages: ["@joyai/shared", "react-video-trim", "antd-mobile"],
+  transpilePackages: ["@joyai/shared", "react-video-trim"],
   serverExternalPackages: ["fabric"],
   images: {
     remotePatterns: [

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { CanvasNode } from "@joyai/shared";
 import { TextNode } from "./nodes/text-node";
 import { ImageNode } from "./nodes/image-node";
@@ -13,11 +14,11 @@ type Props = {
   node: CanvasNode;
   onPointerDown: (e: React.PointerEvent, node: CanvasNode) => void;
   editingImage: boolean;
-  onEditingImageChange: (open: boolean) => void;
+  onEditingImageChange: (nodeId: string, open: boolean) => void;
   onOpenDirector?: (nodeId: string) => void;
 };
 
-export function NodeView({
+function NodeViewInner({
   node,
   onPointerDown,
   editingImage,
@@ -34,7 +35,7 @@ export function NodeView({
           node={node}
           onPointerDown={handler}
           editing={editingImage}
-          onEditingChange={onEditingImageChange}
+          onEditingChange={(open) => onEditingImageChange(node.id, open)}
         />
       );
     case "video":
@@ -57,3 +58,16 @@ export function NodeView({
       return null;
   }
 }
+
+/** Skip re-render when this node's object identity and UI flags are unchanged. */
+export const NodeView = memo(function NodeView(props: Props) {
+  return <NodeViewInner {...props} />;
+}, (prev, next) => {
+  return (
+    prev.node === next.node &&
+    prev.editingImage === next.editingImage &&
+    prev.onPointerDown === next.onPointerDown &&
+    prev.onEditingImageChange === next.onEditingImageChange &&
+    prev.onOpenDirector === next.onOpenDirector
+  );
+});

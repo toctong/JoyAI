@@ -17,10 +17,6 @@ import {
 import { toast } from "@/shared/lib/toast";
 import { api, ApiError } from "@/shared/lib/api";
 import { useAuthStore, type AuthUser } from "@/shared/lib/auth-store";
-import {
-  getViewPreferenceFromCookieHeader,
-  homePathForDevice,
-} from "@/shared/lib/device";
 import { JOYAI_BRAND } from "@/shared/brand/joyai-brand";
 import {
   Dialog,
@@ -364,21 +360,12 @@ export function CreatorLoginView() {
     defaultValues: { username: "", password: "" },
   });
 
-  function postLoginHome() {
-    return homePathForDevice({
-      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
-      viewPref: getViewPreferenceFromCookieHeader(
-        typeof document !== "undefined" ? document.cookie : "",
-      ),
-    });
-  }
-
   useEffect(() => {
     setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (hydrated && token) router.replace(postLoginHome());
+    if (hydrated && token) router.replace("/inspire");
   }, [hydrated, token, router]);
 
   useEffect(() => {
@@ -472,7 +459,7 @@ export function CreatorLoginView() {
       }
       setAuth(res.accessToken, res.user);
       toast.success("登录成功");
-      router.replace(postLoginHome());
+      router.replace("/inspire");
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : "操作失败");
     }
@@ -497,7 +484,7 @@ export function CreatorLoginView() {
       setAuth(res.accessToken, res.user);
       setTotpChallenge(null);
       toast.success("登录成功");
-      router.replace(postLoginHome());
+      router.replace("/inspire");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "验证失败");
     }

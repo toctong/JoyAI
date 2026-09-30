@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
+import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { ManjuExportDialog } from "../manju-export-dialog";
@@ -837,8 +838,11 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                   >
                     <span className="manju-produce__shot-thumb" aria-hidden>
                       {shot.storyboardImageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={shot.storyboardImageUrl} alt="" />
+                        <JoyAssetThumb
+                          url={shot.storyboardImageUrl}
+                          size="sm"
+                          className="h-full w-full object-cover"
+                        />
                       ) : (
                         <ImageIcon className="size-4 opacity-40" />
                       )}

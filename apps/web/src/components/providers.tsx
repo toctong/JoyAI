@@ -9,7 +9,6 @@ import { StudioGenerationNotifyHost } from "@/shared/lib/studio-generation-notif
 import { AppNotifyHost } from "@/shared/ui/app-notify-host";
 import { QueryProvider } from "@/shared/providers/query-provider";
 import { RouteAbortEffects } from "@/shared/providers/route-abort-effects";
-import { ViewShellGate } from "@/shared/providers/view-shell-gate";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -22,7 +21,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryProvider>
         <TooltipProvider delayDuration={200}>
           <RouteAbortEffects />
-          <ViewShellGate />
           <StudioGenerationNotifyHost />
           {children}
           <ConfirmDialogHost />

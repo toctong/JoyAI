@@ -12,6 +12,7 @@ import { useMemo, useRef, useState } from "react";
 import type { CanvasNode } from "@joyai/shared";
 import {
   useCanvasStore,
+  useIncomingCanvasRefs,
   useIsNodeHighlighted,
   useIsNodePulsing,
   useIsNodeSelected,
@@ -67,8 +68,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
   const selected = useIsNodeSelected(node.id);
   const highlighted = useIsNodeHighlighted(node.id);
   const pulsing = useIsNodePulsing(node.id);
-  const nodes = useCanvasStore((s) => s.nodes);
-  const edges = useCanvasStore((s) => s.edges);
+  const incomingRefs = useIncomingCanvasRefs(node.id);
   const updateNodeData = useCanvasStore((s) => s.updateNodeData);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
   const [busy, setBusy] = useState(false);
@@ -79,9 +79,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
   const outputKind = parseOutputKind(node.data.outputKind);
   const operation = String(node.data.operation ?? "generate");
   const bodyRef = useRef<HTMLDivElement>(null);
-  const incomingCount = useCanvasStore(
-    (s) => s.edges.filter((edge) => edge.target === node.id).length,
-  );
+  const incomingCount = incomingRefs.length;
   useSyncNodeHeight(node.id, bodyRef, [
     prompt,
     status,
@@ -94,9 +92,16 @@ export function PromptNode({ node, onPointerDown }: Props) {
   ]);
 
   const mentionItems = useMemo(() => {
-    const { incoming } = collectIncomingMediaFromEdges(nodes, edges, node.id);
+    const live = useCanvasStore.getState();
+    const { incoming } = collectIncomingMediaFromEdges(
+      live.nodes,
+      live.edges,
+      node.id,
+    );
     return buildCanvasMentionItems(incoming);
-  }, [nodes, edges, node.id]);
+    // incomingRefs identity changes only when this node's refs change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingRefs, node.id]);
 
   function setOutputKind(kind: OutputKind) {
     updateNodeData(node.id, {
@@ -106,13 +111,13 @@ export function PromptNode({ node, onPointerDown }: Props) {
   }
 
   function syncRefs(payload: PromptGeneratePayload, plain?: string) {
-    const edges = useCanvasStore.getState().edges;
+    const live = useCanvasStore.getState();
     const { edgeAssetIds, edgeUrls } = collectIncomingMediaFromEdges(
-      nodes,
-      edges,
+      live.nodes,
+      live.edges,
       node.id,
     );
-    const nodeIds = resolveMentionedNodeIds(nodes, payload);
+    const nodeIds = resolveMentionedNodeIds(live.nodes, payload);
     const includeAv = outputKind === "video";
     const { referenceAssetIds, referenceUrls } = mergeJobReferences(
       payload,
@@ -139,10 +144,10 @@ export function PromptNode({ node, onPointerDown }: Props) {
 
   async function submit() {
     const payload = payloadFromText(prompt);
-    const edges = useCanvasStore.getState().edges;
+    const live = useCanvasStore.getState();
     const { edgeAssetIds, edgeUrls, texts } = collectIncomingMediaFromEdges(
-      nodes,
-      edges,
+      live.nodes,
+      live.edges,
       node.id,
     );
     const includeAv = outputKind === "video";
@@ -152,7 +157,7 @@ export function PromptNode({ node, onPointerDown }: Props) {
       edgeUrls,
       includeAv,
     );
-    const nodeIds = resolveMentionedNodeIds(nodes, payload);
+    const nodeIds = resolveMentionedNodeIds(live.nodes, payload);
     const promptText = appendTextRefs(
       payload.prompt.trim() || prompt.trim(),
       texts,
@@ -187,7 +192,13 @@ export function PromptNode({ node, onPointerDown }: Props) {
         });
         updateNodeData(node.id, { status: "running", jobId: job.id });
       } else if (outputKind === "video") {
-        const candidates = collectVideoFrameCandidates(nodes, edges, node);
+        const liveNodes = live.nodes;
+        const liveEdges = live.edges;
+        const candidates = collectVideoFrameCandidates(
+          liveNodes,
+          liveEdges,
+          node,
+        );
         const slots = resolveVideoFrameSlots({
           candidates,
           firstFrameNodeId: String(node.data.firstFrameNodeId ?? ""),

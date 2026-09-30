@@ -1,8 +1,7 @@
 "use client";
 
 import { CanvasIconClose } from "./icons/canvas-icons";
-import type { CanvasNode } from "@joyai/shared";
-import { useCanvasStore } from "./store";
+import { useCanvasStore, useIncomingCanvasRefs } from "./store";
 import { nodeTitleLabel } from "./lib/node-chrome";
 import {
   canvasRefKindOf,
@@ -19,26 +18,16 @@ type Props = {
 
 /** Incoming media chips on a prompt node. Disconnect removes the edge only. */
 export function NodeRefBar({ nodeId, allowedKinds }: Props) {
-  const nodes = useCanvasStore((s) => s.nodes);
-  const edges = useCanvasStore((s) => s.edges);
+  const incomingRefs = useIncomingCanvasRefs(nodeId);
   const removeEdge = useCanvasStore((s) => s.removeEdge);
   const pushHistory = useCanvasStore((s) => s.pushHistory);
 
-  const incoming = edges
-    .filter((edge) => edge.target === nodeId)
-    .map((edge) => ({
-      edge,
-      node: nodes.find((item) => item.id === edge.source),
-    }))
-    .filter(
-      (item): item is { edge: (typeof edges)[number]; node: CanvasNode } => {
-        if (item.node == null) return false;
-        const kind = canvasRefKindOf(item.node);
-        if (!kind) return false;
-        if (!allowedKinds?.length) return true;
-        return allowedKinds.includes(kind);
-      },
-    );
+  const incoming = incomingRefs.filter((item) => {
+    const kind = canvasRefKindOf(item.source);
+    if (!kind) return false;
+    if (!allowedKinds?.length) return true;
+    return allowedKinds.includes(kind);
+  });
 
   if (!incoming.length) return null;
 
@@ -48,7 +37,7 @@ export function NodeRefBar({ nodeId, allowedKinds }: Props) {
       data-canvas-no-zoom
       onPointerDown={(event) => event.stopPropagation()}
     >
-      {incoming.map(({ edge, node }) => {
+      {incoming.map(({ edgeId, source: node }) => {
         const url = String(node.data.url ?? "");
         const canPreview =
           node.type === "image" ||
@@ -56,7 +45,7 @@ export function NodeRefBar({ nodeId, allowedKinds }: Props) {
           node.type === "video";
         return (
           <CanvasRefHoverPreview
-            key={edge.id}
+            key={edgeId}
             kind={node.type}
             url={url}
             className="group relative size-10 shrink-0"
@@ -75,7 +64,7 @@ export function NodeRefBar({ nodeId, allowedKinds }: Props) {
                 className="absolute right-0 top-0 z-[1] grid size-4 place-items-center rounded-bl bg-background/90 opacity-0 transition group-hover:opacity-100"
                 onClick={() => {
                   pushHistory();
-                  removeEdge(edge.id);
+                  removeEdge(edgeId);
                 }}
               >
                 <CanvasIconClose className="size-3" />

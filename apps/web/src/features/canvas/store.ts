@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { create } from "zustand";
 import type {
   CanvasEdge,
@@ -715,3 +716,38 @@ export function useIsNodeHighlighted(id: string) {
 export function useIsNodePulsing(id: string) {
   return useCanvasStore((s) => s.pulseId === id);
 }
+
+export function useCanvasNode(id: string) {
+  return useCanvasStore((s) => s.nodes.find((n) => n.id === id));
+}
+
+type IncomingCanvasRef = { edgeId: string; source: CanvasNode };
+
+/** Incoming edge→source pairs; ignores moves of unrelated nodes. */
+export function useIncomingCanvasRefs(nodeId: string): IncomingCanvasRef[] {
+  const signature = useCanvasStore((s) => {
+    const parts: string[] = [];
+    for (const edge of s.edges) {
+      if (edge.target !== nodeId) continue;
+      const source = s.nodes.find((n) => n.id === edge.source);
+      if (!source) continue;
+      // Include url/data identity so ref chips refresh when source media changes.
+      parts.push(
+        `${edge.id}:${source.id}:${String(source.data.url ?? "")}:${String(source.data.assetId ?? "")}`,
+      );
+    }
+    return parts.join("|");
+  });
+
+  return useMemo(() => {
+    const s = useCanvasStore.getState();
+    const out: IncomingCanvasRef[] = [];
+    for (const edge of s.edges) {
+      if (edge.target !== nodeId) continue;
+      const source = s.nodes.find((n) => n.id === edge.source);
+      if (source) out.push({ edgeId: edge.id, source });
+    }
+    return out;
+  }, [signature, nodeId]);
+}
+

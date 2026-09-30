@@ -23,7 +23,6 @@
 - Redis 与 MySQL 本地都由 `docker compose up -d` 提供（库 `joyai`，连接串 `DATABASE_URL`）
 - 前端完成态：**Socket 推送 + `GET /jobs/:id` 对账**（`useJobLifecycle`）；正确性不依赖外层反代开 WS
 - 生产镜像入口为 nginx `:3000`（Next + Nest）；飞牛外层只需 HTTPS → 18080（见 `deploy/fnos/app/README.md`）
-- 手机进 `/m/`：由前端 `ViewShellGate` 按 UA / `joyai-view` Cookie 做 `router.replace`（不再用 Next middleware 跳转，避免反代下 500 / localhost）
 - 容器 nginx 保留外层 `X-Forwarded-Host` / `X-Forwarded-Proto`，并把 Next 的 `127.0.0.1:3002` Location 改写回 `/`
 
 ## 时区
