@@ -1,12 +1,14 @@
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
-  OnModuleInit,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
+import {
+  makeAdminExport,
+  parseAdminImportItems,
+} from "../../common/admin-export";
 import { Skill, type SkillCategory } from "../../database/entities/skill.entity";
 import {
   ANALYZE_ASSETS_SYSTEM,
@@ -21,7 +23,6 @@ import {
   SCRIPT_WRITE_SYSTEM,
   SERIES_MEMORY_SYSTEM,
 } from "../jobs/llm-prompts";
-import { loadXiaoluoBuiltinSeeds } from "./xiaoluo-catalog";
 
 export type SkillListQuery = {
   category?: SkillCategory;
@@ -50,119 +51,6 @@ export type UpdateSkillInput = {
   sortOrder?: number;
 };
 
-type BuiltinSeed = {
-  slug: string;
-  name: string;
-  description: string;
-  category: SkillCategory;
-  purpose: string;
-  systemPrompt: string;
-  sortOrder: number;
-};
-
-const BUILTIN_SKILLS: BuiltinSeed[] = [
-  {
-    slug: "analyze-assets",
-    name: "资产分析",
-    description:
-      "AI 解析剧本：题材标签、梗概、角色/场景/道具与分集规划。",
-    category: "manju",
-    purpose: "analyze_assets",
-    systemPrompt: ANALYZE_ASSETS_SYSTEM,
-    sortOrder: 10,
-  },
-  {
-    slug: "plan-episodes",
-    name: "分集规划",
-    description: "把原文切成可拍摄的分集，并标注原文起止引文。",
-    category: "manju",
-    purpose: "plan_episodes",
-    systemPrompt: PLAN_EPISODES_SYSTEM,
-    sortOrder: 20,
-  },
-  {
-    slug: "novel-analyze",
-    name: "长文拆集",
-    description: "长篇小说/长剧本 → 梗概、题材标签与分集草案（含原文引文）。",
-    category: "manju",
-    purpose: "novel_analyze",
-    systemPrompt: NOVEL_ANALYZE_SYSTEM,
-    sortOrder: 25,
-  },
-  {
-    slug: "series-memory",
-    name: "连载记忆",
-    description: "整理世界观、角色小传与未回收伏笔。",
-    category: "manju",
-    purpose: "series_memory",
-    systemPrompt: SERIES_MEMORY_SYSTEM,
-    sortOrder: 30,
-  },
-  {
-    slug: "manju-review",
-    name: "制作检查",
-    description: "只读检查：资产出图、镜头资产、对白长度等，输出报告不改稿。",
-    category: "manju",
-    purpose: "manju_review",
-    systemPrompt: MANJU_REVIEW_SYSTEM,
-    sortOrder: 55,
-  },
-  {
-    slug: "script-plan",
-    name: "分镜脚本",
-    description: "把原文拆成有序镜头，锁定画面、对白与资产。",
-    category: "manju",
-    purpose: "script_plan",
-    systemPrompt: SCRIPT_PLAN_SYSTEM,
-    sortOrder: 40,
-  },
-  {
-    slug: "author-prompts",
-    name: "提示词撰写",
-    description: "按镜号补画面 / 视频提示词，不改对白与镜序。",
-    category: "manju",
-    purpose: "author_prompts",
-    systemPrompt: AUTHOR_PROMPTS_SYSTEM,
-    sortOrder: 50,
-  },
-  {
-    slug: "script-write",
-    name: "AI 帮写",
-    description: "对话生成或润色剧本，不自动回写项目。",
-    category: "manju",
-    purpose: "script_write",
-    systemPrompt: SCRIPT_WRITE_SYSTEM,
-    sortOrder: 60,
-  },
-  {
-    slug: "canvas-text",
-    name: "画布文本",
-    description: "画布文本节点创作助手。",
-    category: "canvas",
-    purpose: "canvas_text",
-    systemPrompt: CANVAS_TEXT_SYSTEM,
-    sortOrder: 70,
-  },
-  {
-    slug: "reverse-prompt",
-    name: "反推提示词",
-    description: "根据参考图反推适合生图的提示词。",
-    category: "tools",
-    purpose: "reverse_prompt",
-    systemPrompt: REVERSE_PROMPT_SYSTEM,
-    sortOrder: 80,
-  },
-  {
-    slug: "prompt-optimize",
-    name: "提示词优化",
-    description: "把用户提示词改写成更高质量的生成提示词。",
-    category: "tools",
-    purpose: "prompt_optimize",
-    systemPrompt: PROMPT_OPTIMIZE_SYSTEM,
-    sortOrder: 90,
-  },
-];
-
 const FALLBACK_BY_PURPOSE: Record<string, string> = {
   analyze_assets: ANALYZE_ASSETS_SYSTEM,
   script_plan: SCRIPT_PLAN_SYSTEM,
@@ -179,69 +67,10 @@ const FALLBACK_BY_PURPOSE: Record<string, string> = {
 };
 
 @Injectable()
-export class SkillsService implements OnModuleInit {
-  private readonly logger = new Logger(SkillsService.name);
-
+export class SkillsService {
   constructor(
     @InjectRepository(Skill) private readonly skills: Repository<Skill>,
   ) {}
-
-  async onModuleInit() {
-    await this.ensureBuiltinSkills();
-  }
-
-  async ensureBuiltinSkills() {
-    const seeds: BuiltinSeed[] = [
-      ...BUILTIN_SKILLS,
-      ...loadXiaoluoBuiltinSeeds(),
-    ];
-
-    for (const seed of seeds) {
-      const existing = await this.skills.findOne({
-        where: { slug: seed.slug },
-      });
-      if (existing) {
-        let dirty = false;
-        if (!existing.builtin) {
-          existing.builtin = true;
-          dirty = true;
-        }
-        // Builtin always stays enabled.
-        if (!existing.enabled) {
-          existing.enabled = true;
-          dirty = true;
-        }
-        // 内置技能：代码侧 prompt / 描述为真源，启动时同步（避免 analyze 缺 tags 等旧提示词）
-        if (existing.builtin) {
-          if (existing.systemPrompt !== seed.systemPrompt) {
-            existing.systemPrompt = seed.systemPrompt;
-            dirty = true;
-          }
-          if (existing.description !== seed.description) {
-            existing.description = seed.description;
-            dirty = true;
-          }
-          if (existing.name !== seed.name) {
-            existing.name = seed.name;
-            dirty = true;
-          }
-        } else if (!existing.systemPrompt?.trim()) {
-          existing.systemPrompt = seed.systemPrompt;
-          dirty = true;
-        }
-        if (dirty) await this.skills.save(existing);
-        continue;
-      }
-      await this.skills.save(
-        this.skills.create({
-          ...seed,
-          builtin: true,
-          enabled: true,
-        }),
-      );
-    }
-    this.logger.log(`Builtin skills ensured (${seeds.length})`);
-  }
 
   list(query: SkillListQuery = {}) {
     const qb = this.skills
@@ -331,32 +160,83 @@ export class SkillsService implements OnModuleInit {
     }
     if (input.sortOrder !== undefined) row.sortOrder = input.sortOrder;
 
-    if (input.enabled !== undefined) {
-      if (row.builtin && input.enabled === false) {
-        throw new BadRequestException("内置技能不可停用");
-      }
-      row.enabled = input.enabled;
-    }
+    if (input.enabled !== undefined) row.enabled = input.enabled;
 
     if (input.purpose !== undefined) {
-      if (row.builtin) {
-        throw new BadRequestException("内置技能不可修改 purpose");
-      }
       const purpose = normalizePurpose(input.purpose);
       if (!purpose) throw new BadRequestException("purpose 无效");
       row.purpose = purpose;
     }
 
+    row.builtin = false;
     return this.skills.save(row);
   }
 
   async remove(id: string) {
-    const row = await this.get(id);
-    if (row.builtin) {
-      throw new BadRequestException("内置技能不可删除，可改为停用");
-    }
+    await this.get(id);
     await this.skills.delete(id);
     return { ok: true };
+  }
+
+  async exportAll(ids?: string[]) {
+    const rows = await this.skills.find({
+      where: ids?.length ? { id: In(ids) } : undefined,
+      order: { sortOrder: "ASC", createdAt: "ASC" },
+    });
+    return makeAdminExport(
+      "skills",
+      rows.map((r) => ({
+        slug: r.slug,
+        name: r.name,
+        description: r.description,
+        category: r.category,
+        purpose: r.purpose,
+        systemPrompt: r.systemPrompt,
+        enabled: r.enabled,
+        sortOrder: r.sortOrder,
+      })),
+    );
+  }
+
+  async importItems(body: unknown) {
+    let raw: Array<Partial<CreateSkillInput> & { slug?: string }>;
+    try {
+      raw = parseAdminImportItems(body, "skills");
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : "导入失败",
+      );
+    }
+    let created = 0;
+    let updated = 0;
+    for (const item of raw) {
+      const slug = normalizeSlug(String(item.slug ?? ""));
+      const name = String(item.name ?? "").trim();
+      const purpose = normalizePurpose(String(item.purpose ?? ""));
+      const systemPrompt = String(item.systemPrompt ?? "").trim();
+      const category = item.category as SkillCategory | undefined;
+      if (!slug || !name || !purpose || !systemPrompt || !category) continue;
+      const existing = await this.skills.findOne({ where: { slug } });
+      const payload = {
+        name,
+        description: item.description?.trim() || null,
+        category,
+        purpose,
+        systemPrompt,
+        enabled: item.enabled !== false,
+        sortOrder: Number(item.sortOrder) || 100,
+        builtin: false,
+      };
+      if (existing) {
+        Object.assign(existing, payload);
+        await this.skills.save(existing);
+        updated += 1;
+      } else {
+        await this.skills.save(this.skills.create({ slug, ...payload }));
+        created += 1;
+      }
+    }
+    return { created, updated, total: raw.length };
   }
 
   /** Runtime: DB enabled skill first, then code fallback. */

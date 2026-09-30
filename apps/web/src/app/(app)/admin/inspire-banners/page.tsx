@@ -24,6 +24,9 @@ import { ListPagination } from "@/components/admin/list-pagination";
 import { AdminEmptyState } from "@/components/admin/empty-state";
 import { AdminListSkeleton } from "@/components/admin/list-skeleton";
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { AdminImportExportButtons } from "@/components/admin/admin-import-export";
+import { AdminSelectAllCheckbox } from "@/components/admin/admin-select-all-checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -39,6 +42,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAdminImportExport } from "@/features/admin/use-admin-import-export";
+import { useAdminSelection } from "@/features/admin/use-admin-selection";
+
 
 type BannerRow = {
   id: string;
@@ -122,6 +128,20 @@ export default function AdminInspireBannersPage() {
     const start = (page - 1) * pageSize;
     return rows.slice(start, start + pageSize);
   }, [page, pageSize, rows]);
+
+  const pageIds = useMemo(() => pageRows.map((r) => r.id), [pageRows]);
+  const selection = useAdminSelection(pageIds);
+
+  const io = useAdminImportExport({
+    kind: "inspire-banners",
+    exportPath: "/admin/inspire-banners/export",
+    importPath: "/admin/inspire-banners/import",
+    selectedIds: selection.selectedIds,
+    onDone: async () => {
+      selection.clear();
+      await load();
+    },
+  });
 
   useEffect(() => {
     const maxPage = Math.max(1, Math.ceil(total / pageSize) || 1);
@@ -236,6 +256,7 @@ export default function AdminInspireBannersPage() {
         <PageHeader
           title="灵感横幅"
           description="灵感页顶部 3D 轮播：可配置文案、封面上传；视频需配首帧图。"
+          className="mb-0"
         />
         <ListToolbar
           search={searchDraft}
@@ -254,7 +275,7 @@ export default function AdminInspireBannersPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="h-8 w-[110px]">
+              <SelectTrigger className="h-10 w-[132px] shrink-0 px-3">
                 <SelectValue placeholder="状态" />
               </SelectTrigger>
               <SelectContent>
@@ -265,10 +286,19 @@ export default function AdminInspireBannersPage() {
             </Select>
           }
           actions={
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="size-4" />
-              新建横幅
-            </Button>
+            <div className="flex items-center gap-2">
+              <AdminImportExportButtons
+                exporting={io.exporting}
+                importing={io.importing}
+                selectedCount={selection.selectedCount}
+                onExport={() => void io.handleExport()}
+                onImport={() => void io.handleImport()}
+              />
+              <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
+                <Plus className="size-4" />
+                新建横幅
+              </Button>
+            </div>
           }
         />
       </ListPageHeader>
@@ -280,16 +310,24 @@ export default function AdminInspireBannersPage() {
           ) : pageRows.length === 0 ? (
             <AdminEmptyState title="暂无横幅" description="新建一张放到灵感页顶部。" />
           ) : (
-            <Table>
+            <Table container={false}>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[72px]">排序</TableHead>
-                  <TableHead className="w-[72px]">预览</TableHead>
-                  <TableHead>标题 / 文案</TableHead>
-                  <TableHead>类型</TableHead>
-                  <TableHead>跳转</TableHead>
-                  <TableHead className="w-[88px]">状态</TableHead>
-                  <TableHead className="w-[120px] text-right">操作</TableHead>
+                  <TableHead className="w-10">
+                    <AdminSelectAllCheckbox
+                      allSelected={selection.allPageSelected}
+                      someSelected={selection.somePageSelected}
+                      onToggle={selection.togglePage}
+                    />
+                  </TableHead>
+                  <TableHead className="w-[56px]">排序</TableHead>
+                  <TableHead className="w-[56px]">预览</TableHead>
+                  <TableHead className="min-w-[120px]">标题</TableHead>
+                  <TableHead className="min-w-[160px]">文案</TableHead>
+                  <TableHead className="w-[72px]">类型</TableHead>
+                  <TableHead className="min-w-[140px]">跳转</TableHead>
+                  <TableHead className="w-[72px]">状态</TableHead>
+                  <TableHead className="w-[100px] text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -300,12 +338,28 @@ export default function AdminInspireBannersPage() {
                       : row.coverUrl,
                   );
                   return (
-                    <TableRow key={row.id}>
-                      <TableCell className="tabular-nums text-muted-foreground">
+                    <TableRow
+                      key={row.id}
+                      data-state={
+                        selection.selectedIds.includes(row.id)
+                          ? "selected"
+                          : undefined
+                      }
+                    >
+                      <TableCell className="py-2">
+                        <Checkbox
+                          checked={selection.selectedIds.includes(row.id)}
+                          onCheckedChange={(v) =>
+                            selection.toggle(row.id, v === true)
+                          }
+                          aria-label={`选择 ${row.title}`}
+                        />
+                      </TableCell>
+                      <TableCell className="py-2 tabular-nums text-muted-foreground">
                         {row.sortOrder}
                       </TableCell>
-                      <TableCell>
-                        <div className="size-12 overflow-hidden rounded-md border bg-muted">
+                      <TableCell className="w-[56px] py-2">
+                        <div className="size-9 overflow-hidden rounded-lg border border-transparent bg-muted">
                           {thumb ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -316,33 +370,33 @@ export default function AdminInspireBannersPage() {
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{row.title}</div>
-                        {row.subtitle ? (
-                          <div className="mt-0.5 text-[13px] text-muted-foreground line-clamp-1">
-                            {row.subtitle}
-                          </div>
-                        ) : null}
+                      <TableCell className="py-2">
+                        <div className="font-medium leading-tight">{row.title}</div>
                         {row.ctaLabel ? (
-                          <div className="mt-0.5 text-[12px] text-muted-foreground">
-                            按钮：{row.ctaLabel}
+                          <div className="mt-0.5 text-[12px] leading-tight text-muted-foreground">
+                            CTA：{row.ctaLabel}
                           </div>
                         ) : null}
                       </TableCell>
-                      <TableCell className="text-[13px]">
+                      <TableCell className="max-w-[240px] py-2 text-[13px] leading-tight text-muted-foreground">
+                        <span className="line-clamp-2">
+                          {row.subtitle?.trim() || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-2 text-[13px]">
                         {row.coverKind === "video" ? "视频" : "图片"}
                       </TableCell>
-                      <TableCell className="max-w-[160px] truncate text-[13px]">
+                      <TableCell className="max-w-[180px] truncate py-2 text-[13px]">
                         {row.href || "—"}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-2">
                         {row.enabled ? (
                           <Badge variant="secondary">启用</Badge>
                         ) : (
                           <Badge variant="outline">停用</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-2 text-right">
                         <Button
                           size="icon"
                           variant="ghost"

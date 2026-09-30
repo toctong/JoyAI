@@ -125,9 +125,10 @@
 
 ## Phase 20 — TTS 语音生成（MVP）
 
-- [x] `kind:audio` Job + OpenAI-compatible `/audio/speech`
-- [x] 画布音频节点：文本 → 语音（音色 / 格式 / 语速）
+- [x] `kind:audio` Job + `openai-audio` / `dashscope-audio` / `volcengine-audio`
+- [x] 画布音频节点：文本 → 语音（音色 / 格式 / 语速 / instructions）
 - [ ] 全量 TTS 供应商面板（Gemini / MiMo / Grok / GLM…）— 明确不做
+- [ ] 百炼/火山声音复刻创建工作流 UI（合成侧已接，复刻 speaker 需控制台自备）
 
 ## Phase 21 — AI 工具箱（MVP）
 

@@ -33,6 +33,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/ui/page-header";
+import { AdminImportExportButtons } from "@/components/admin/admin-import-export";
+import { useAdminImportExport } from "@/features/admin/use-admin-import-export";
 import {
   ListPageCard,
   ListPageFooter,
@@ -101,6 +103,7 @@ const schema = z.object({
   imageProfile: z.string().optional(),
   modelAlias: z.string().optional(),
   imagePath: z.enum(["", "generations", "edits"]).optional(),
+  enabled: z.boolean().optional(),
   asyncMode: z.boolean().optional(),
   inputMods: z.string().optional(),
   outputMods: z.string().optional(),
@@ -112,6 +115,8 @@ const schema = z.object({
   resolutions: z.string().optional(),
   ratios: z.string().optional(),
   sizes: z.string().optional(),
+  voices: z.string().optional(),
+  audioFormats: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -146,10 +151,49 @@ const IMAGE_PATH_OPTIONS = [
   { value: "edits", label: "/images/edits" },
 ] as const;
 
+const AUDIO_ADAPTER_OPTIONS = [
+  { value: AUTO, label: "自动（按渠道推断）" },
+  { value: AdapterId.OPENAI_AUDIO, label: "openai-audio · OpenAI 兼容 speech" },
+  {
+    value: AdapterId.DASHSCOPE_AUDIO,
+    label: "dashscope-audio · 百炼 CosyVoice / Qwen-TTS",
+  },
+  {
+    value: AdapterId.VOLCENGINE_AUDIO,
+    label: "volcengine-audio · 豆包 openspeech",
+  },
+] as const;
+
+const TTS_VOICE_PRESETS = [
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "fable",
+  "onyx",
+  "nova",
+  "sage",
+  "shimmer",
+  "verse",
+  "marin",
+  "cedar",
+] as const;
+
+const TTS_FORMAT_PRESETS = [
+  "mp3",
+  "wav",
+  "opus",
+  "aac",
+  "flac",
+  "pcm",
+] as const;
+
 function adapterOptionsForKind(kind: FormValues["kind"]) {
   if (kind === "image") return IMAGE_ADAPTER_OPTIONS;
   if (kind === "video") return VIDEO_ADAPTER_OPTIONS;
-  return [{ value: AUTO, label: "LLM / 音频无需适配器" }] as const;
+  if (kind === "audio") return AUDIO_ADAPTER_OPTIONS;
+  return [{ value: AUTO, label: "LLM 无需适配器" }] as const;
 }
 
 type CatalogSuggestItem = {
@@ -191,6 +235,8 @@ function buildCapabilities(values: FormValues): ModelCapabilities {
   const resolutions = normalizeResolutions(parseList(values.resolutions));
   const ratios = normalizeRatios(parseList(values.ratios));
   const sizes = normalizeSizes(parseList(values.sizes));
+  const voices = parseList(values.voices);
+  const audioFormats = parseList(values.audioFormats);
 
   const caps: ModelCapabilities = {
     input: input.length ? input : ["text"],
@@ -203,7 +249,11 @@ function buildCapabilities(values: FormValues): ModelCapabilities {
           : values.kind === "audio"
             ? ["audio"]
             : ["video"],
-    features: features.length ? features : undefined,
+    features: features.length
+      ? features
+      : values.kind === "audio"
+        ? ["tts"]
+        : undefined,
     maxRefImages: numOrUndef(values.maxRefImages),
     maxRefVideos: numOrUndef(values.maxRefVideos),
     maxRefAudios: numOrUndef(values.maxRefAudios),
@@ -211,6 +261,8 @@ function buildCapabilities(values: FormValues): ModelCapabilities {
     resolutions: resolutions.length ? resolutions : undefined,
     ratios: ratios.length ? ratios : undefined,
     sizes: sizes.length ? sizes : undefined,
+    voices: voices.length ? voices : undefined,
+    audioFormats: audioFormats.length ? audioFormats : undefined,
   };
 
   const adapterId = values.adapterId?.trim();
@@ -273,6 +325,7 @@ export default function ModelsPage() {
       imageProfile: "",
       modelAlias: "",
       imagePath: "",
+      enabled: true,
       asyncMode: false,
       inputMods: "text",
       outputMods: "image",
@@ -352,6 +405,14 @@ export default function ModelsPage() {
   useEffect(() => {
     void loadModels();
   }, [loadModels]);
+
+  const io = useAdminImportExport({
+    kind: "models",
+    exportPath: "/admin/models/export",
+    importPath: "/admin/models/import",
+    selectedIds,
+    onDone: loadModels,
+  });
 
   useEffect(() => {
     setSelectedIds([]);
@@ -433,6 +494,7 @@ export default function ModelsPage() {
       imageProfile: "",
       modelAlias: "",
       imagePath: "",
+      enabled: true,
       asyncMode: false,
       inputMods: "text",
       outputMods: "image",
@@ -444,6 +506,8 @@ export default function ModelsPage() {
       resolutions: "",
       ratios: "",
       sizes: "",
+      voices: "",
+      audioFormats: "",
     });
     setOpen(true);
   }
@@ -462,6 +526,7 @@ export default function ModelsPage() {
       imageProfile: c?.protocol?.imageProfile ?? "",
       modelAlias: c?.protocol?.modelAlias ?? "",
       imagePath: c?.protocol?.imagePath ?? "",
+      enabled: m.enabled,
       asyncMode: Boolean(c?.async),
       inputMods: (c?.input ?? ["text"]).join(","),
       outputMods: (c?.output ?? []).join(","),
@@ -474,6 +539,8 @@ export default function ModelsPage() {
       resolutions: normalizeResolutions(c?.resolutions ?? []).join(","),
       ratios: normalizeRatios(c?.ratios ?? []).join(","),
       sizes: normalizeSizes(c?.sizes ?? []).join(","),
+      voices: (c?.voices ?? []).join(","),
+      audioFormats: (c?.audioFormats ?? []).join(","),
     });
     setOpen(true);
   }
@@ -529,6 +596,8 @@ export default function ModelsPage() {
     );
     form.setValue("ratios", normalizeRatios(c?.ratios ?? []).join(","));
     form.setValue("sizes", normalizeSizes(c?.sizes ?? []).join(","));
+    form.setValue("voices", (c?.voices ?? []).join(","));
+    form.setValue("audioFormats", (c?.audioFormats ?? []).join(","));
   }
 
   /** Fill form from catalog by current remoteId; edit keeps channel/kind locked. */
@@ -581,6 +650,7 @@ export default function ModelsPage() {
             name: values.name,
             remoteId: values.remoteId,
             description: values.description,
+            enabled: values.enabled !== false,
             capabilities,
           },
         });
@@ -594,6 +664,7 @@ export default function ModelsPage() {
             kind: values.kind,
             remoteId: values.remoteId,
             description: values.description,
+            enabled: values.enabled !== false,
             capabilities,
           },
         });
@@ -703,7 +774,7 @@ export default function ModelsPage() {
 
   const selectedChannel = channels.find((c) => c.id === formChannelId);
   const inferredAdapter =
-    (formKind === "image" || formKind === "video") &&
+    (formKind === "image" || formKind === "video" || formKind === "audio") &&
     selectedChannel?.platform
       ? defaultAdapterId(selectedChannel.platform, formKind)
       : null;
@@ -778,13 +849,13 @@ export default function ModelsPage() {
                   resetPageAnd(() => setEnabledFilter(v))
                 }
               >
-                <SelectTrigger className="h-9 w-[100px] rounded-xl">
-                  <SelectValue />
+                <SelectTrigger className="h-10 w-[132px] shrink-0 px-3">
+                  <SelectValue placeholder="状态" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">全部状态</SelectItem>
-                  <SelectItem value="enabled">启用</SelectItem>
-                  <SelectItem value="disabled">停用</SelectItem>
+                  <SelectItem value="enabled">已启用</SelectItem>
+                  <SelectItem value="disabled">已停用</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -793,7 +864,7 @@ export default function ModelsPage() {
                   resetPageAnd(() => setChannelFilter(v))
                 }
               >
-                <SelectTrigger className="h-9 w-[140px] rounded-xl">
+                <SelectTrigger className="h-10 w-[180px] shrink-0 px-3">
                   <SelectValue placeholder="渠道" />
                 </SelectTrigger>
                 <SelectContent>
@@ -814,6 +885,13 @@ export default function ModelsPage() {
           refreshing={refreshing}
           actions={
             <>
+              <AdminImportExportButtons
+                exporting={io.exporting}
+                importing={io.importing}
+                selectedCount={selectedIds.length}
+                onExport={() => void io.handleExport()}
+                onImport={() => void io.handleImport()}
+              />
               {selectedIds.length > 0 ? (
                 <Button
                   size="sm"
@@ -917,7 +995,13 @@ export default function ModelsPage() {
                   </div>
                   <div className="joy-admin-card-grid">
                     {group.items.map((m) => (
-                      <article key={m.id} className="joy-admin-card-item">
+                      <article
+                        key={m.id}
+                        className={cn(
+                          "joy-admin-card-item",
+                          selectedIds.includes(m.id) && "is-selected",
+                        )}
+                      >
                         <div className="joy-admin-card-item-head">
                           <div className="flex min-w-0 items-start gap-2.5">
                             <Checkbox
@@ -964,19 +1048,14 @@ export default function ModelsPage() {
                         </div>
                         <CapabilityBadges capabilities={m.capabilities} />
                         <div className="joy-admin-card-item-foot">
-                          <label
-                            className={
-                              m.enabled
-                                ? "joy-admin-switch-label is-on flex items-center gap-2"
-                                : "joy-admin-switch-label flex items-center gap-2"
-                            }
-                          >
+                          <div className="flex min-w-0 flex-1 items-center justify-between rounded-xl border border-transparent bg-muted px-3 py-1.5">
+                            <span className="text-sm">启用</span>
                             <Switch
                               checked={m.enabled}
                               onCheckedChange={() => void toggle(m)}
+                              aria-label={m.enabled ? "已启用" : "已停用"}
                             />
-                            {m.enabled ? "已启用" : "已停用"}
-                          </label>
+                          </div>
                           {renderActions(m)}
                         </div>
                       </article>
@@ -987,8 +1066,8 @@ export default function ModelsPage() {
             </div>
           </div>
         ) : (
-          <ListPageCard className="admin-table">
-            <Table className="min-w-[1120px]">
+          <ListPageCard scroll className="admin-table">
+            <Table container={false} className="min-w-[1120px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[40px]">
@@ -1179,7 +1258,7 @@ export default function ModelsPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-8 rounded-md"
+              className="h-10 rounded-xl"
               onClick={() => setOpen(false)}
             >
               取消
@@ -1187,7 +1266,7 @@ export default function ModelsPage() {
             <Button
               type="submit"
               form="admin-model-form"
-              className="h-8 rounded-md"
+              className="h-10 rounded-xl"
             >
               {editing ? "保存" : "创建"}
             </Button>
@@ -1203,7 +1282,7 @@ export default function ModelsPage() {
                 <div className="space-y-2">
                   <Label>渠道</Label>
                   {editing ? (
-                    <div className="flex h-8 items-center rounded-md border border-border bg-muted/40 px-3 text-[13px]">
+                    <div className="flex h-10 items-center rounded-xl border border-transparent bg-muted px-3 text-[13px]">
                       <BrandLabel
                         src={
                           selectedChannel?.platform
@@ -1224,7 +1303,7 @@ export default function ModelsPage() {
                       value={form.watch("channelId")}
                       onValueChange={(v) => form.setValue("channelId", v)}
                     >
-                      <SelectTrigger className="h-8 rounded-md">
+                      <SelectTrigger className="h-10 rounded-xl">
                         <SelectValue placeholder="选择渠道" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1245,7 +1324,7 @@ export default function ModelsPage() {
                 <div className="space-y-2">
                   <Label>类型</Label>
                   {editing ? (
-                    <div className="flex h-8 items-center rounded-md border border-border bg-muted/40 px-3 text-[13px]">
+                    <div className="flex h-10 items-center rounded-xl border border-transparent bg-muted px-3 text-[13px]">
                       {kindLabel(formKind)}
                     </div>
                   ) : (
@@ -1267,15 +1346,23 @@ export default function ModelsPage() {
                           form.setValue("features", "t2i");
                         } else if (kind === "audio") {
                           form.setValue("outputMods", "audio");
-                          form.setValue("features", "");
+                          form.setValue("features", "tts");
                           form.setValue("asyncMode", false);
+                          form.setValue(
+                            "voices",
+                            TTS_VOICE_PRESETS.join(","),
+                          );
+                          form.setValue(
+                            "audioFormats",
+                            TTS_FORMAT_PRESETS.join(","),
+                          );
                         } else {
                           form.setValue("outputMods", "video");
                           form.setValue("features", "t2v");
                         }
                       }}
                     >
-                      <SelectTrigger className="h-8 rounded-md">
+                      <SelectTrigger className="h-10 rounded-xl">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1296,7 +1383,7 @@ export default function ModelsPage() {
 
               <div className="space-y-2">
                 <Label>显示名称</Label>
-                <Input className="h-8 rounded-md" {...form.register("name")} />
+                <Input className="h-10 rounded-xl" {...form.register("name")} />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
@@ -1305,7 +1392,7 @@ export default function ModelsPage() {
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 rounded-md text-[12px]"
+                    className="h-8 rounded-xl text-[12px]"
                     disabled={refreshingCaps || !form.watch("remoteId")?.trim()}
                     onClick={() => void applyCatalogCapabilities()}
                   >
@@ -1319,7 +1406,7 @@ export default function ModelsPage() {
                   </Button>
                 </div>
                 <Input
-                  className="h-8 rounded-md font-mono text-xs"
+                  className="h-10 rounded-xl font-mono text-xs"
                   list="model-catalog-remote-ids"
                   {...form.register("remoteId")}
                   onChange={(e) => {
@@ -1359,7 +1446,7 @@ export default function ModelsPage() {
               <div className="space-y-2">
                 <Label>说明</Label>
                 <Input
-                  className="h-8 rounded-md"
+                  className="h-10 rounded-xl"
                   {...form.register("description")}
                 />
               </div>
@@ -1379,32 +1466,57 @@ export default function ModelsPage() {
                   onOutputChange={(csv) => form.setValue("outputMods", csv)}
                   onFeaturesChange={(csv) => form.setValue("features", csv)}
                 />
-                <ModelCapabilityOptionChips
-                  resolutions={form.watch("resolutions") ?? ""}
-                  ratios={form.watch("ratios") ?? ""}
-                  sizes={form.watch("sizes") ?? ""}
-                  maxRefImages={form.watch("maxRefImages") ?? ""}
-                  maxRefVideos={form.watch("maxRefVideos") ?? ""}
-                  maxRefAudios={form.watch("maxRefAudios") ?? ""}
-                  maxDurationSec={form.watch("maxDurationSec") ?? ""}
-                  onResolutionsChange={(csv) =>
-                    form.setValue("resolutions", csv)
-                  }
-                  onRatiosChange={(csv) => form.setValue("ratios", csv)}
-                  onSizesChange={(csv) => form.setValue("sizes", csv)}
-                  onMaxRefImagesChange={(raw) =>
-                    form.setValue("maxRefImages", raw)
-                  }
-                  onMaxRefVideosChange={(raw) =>
-                    form.setValue("maxRefVideos", raw)
-                  }
-                  onMaxRefAudiosChange={(raw) =>
-                    form.setValue("maxRefAudios", raw)
-                  }
-                  onMaxDurationSecChange={(raw) =>
-                    form.setValue("maxDurationSec", raw)
-                  }
-                />
+                {formKind === "audio" ? (
+                  <div className="space-y-3 rounded-xl border border-dashed border-border p-3">
+                    <p className="text-[12px] text-muted-foreground">
+                      TTS 音色与输出格式（写入 capabilities.voices /
+                      audioFormats，画布配音面板会读取）
+                    </p>
+                    <div className="space-y-2">
+                      <Label>音色 voices</Label>
+                      <Input
+                        className="h-10 rounded-xl font-mono text-xs"
+                        placeholder="alloy,echo,fable,onyx,nova,shimmer"
+                        {...form.register("voices")}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>格式 audioFormats</Label>
+                      <Input
+                        className="h-10 rounded-xl font-mono text-xs"
+                        placeholder="mp3,wav,opus,aac,flac,pcm"
+                        {...form.register("audioFormats")}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <ModelCapabilityOptionChips
+                    resolutions={form.watch("resolutions") ?? ""}
+                    ratios={form.watch("ratios") ?? ""}
+                    sizes={form.watch("sizes") ?? ""}
+                    maxRefImages={form.watch("maxRefImages") ?? ""}
+                    maxRefVideos={form.watch("maxRefVideos") ?? ""}
+                    maxRefAudios={form.watch("maxRefAudios") ?? ""}
+                    maxDurationSec={form.watch("maxDurationSec") ?? ""}
+                    onResolutionsChange={(csv) =>
+                      form.setValue("resolutions", csv)
+                    }
+                    onRatiosChange={(csv) => form.setValue("ratios", csv)}
+                    onSizesChange={(csv) => form.setValue("sizes", csv)}
+                    onMaxRefImagesChange={(raw) =>
+                      form.setValue("maxRefImages", raw)
+                    }
+                    onMaxRefVideosChange={(raw) =>
+                      form.setValue("maxRefVideos", raw)
+                    }
+                    onMaxRefAudiosChange={(raw) =>
+                      form.setValue("maxRefAudios", raw)
+                    }
+                    onMaxDurationSecChange={(raw) =>
+                      form.setValue("maxDurationSec", raw)
+                    }
+                  />
+                )}
               </div>
 
               <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
@@ -1412,7 +1524,7 @@ export default function ModelsPage() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="h-8 w-full justify-between rounded-md px-2 text-[13px]"
+                    className="h-10 w-full justify-between rounded-xl px-2 text-[13px]"
                   >
                     高级 · 协议适配
                     <ChevronDown
@@ -1431,9 +1543,9 @@ export default function ModelsPage() {
                       onValueChange={(v) =>
                         form.setValue("adapterId", fromSelectValue(v))
                       }
-                      disabled={formKind === "llm" || formKind === "audio"}
+                      disabled={formKind === "llm"}
                     >
-                      <SelectTrigger className="h-8 rounded-md">
+                      <SelectTrigger className="h-10 rounded-xl">
                         <SelectValue placeholder="选择适配器" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1447,19 +1559,24 @@ export default function ModelsPage() {
                     <p className="text-[12px] text-muted-foreground">
                       {inferredAdapter
                         ? `当前渠道默认推断为 ${inferredAdapter}；留空则使用推断。`
-                        : formKind === "llm" || formKind === "audio"
-                          ? "LLM / 音频不走生成适配器。"
-                          : "请选择渠道后可查看默认推断。"}
+                        : formKind === "llm"
+                          ? "LLM 对话不走图像/视频生成适配器。"
+                          : formKind === "audio"
+                            ? "音频 TTS：OpenAI 兼容用 openai-audio；百炼用 dashscope-audio；火山豆包语音用 volcengine-audio。"
+                            : "请选择渠道后可查看默认推断。"}
                     </p>
                   </div>
                   {formKind === "image" || formKind === "video" ? (
-                    <label className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center justify-between rounded-xl border border-transparent bg-muted px-3 py-2">
+                      <Label htmlFor="model-async-mode">
+                        异步任务（submit + poll）
+                      </Label>
                       <Switch
+                        id="model-async-mode"
                         checked={!!form.watch("asyncMode")}
                         onCheckedChange={(v) => form.setValue("asyncMode", v)}
                       />
-                      异步任务（submit + poll）
-                    </label>
+                    </div>
                   ) : null}
                   {showOpenaiProtocol ? (
                     <>
@@ -1471,7 +1588,7 @@ export default function ModelsPage() {
                             form.setValue("imageProfile", fromSelectValue(v))
                           }
                         >
-                          <SelectTrigger className="h-8 rounded-md">
+                          <SelectTrigger className="h-10 rounded-xl">
                             <SelectValue placeholder="自动推断" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1487,7 +1604,7 @@ export default function ModelsPage() {
                         <div className="space-y-2">
                           <Label>模型别名</Label>
                           <Input
-                            className="h-8 rounded-md font-mono text-xs"
+                            className="h-10 rounded-xl font-mono text-xs"
                             placeholder="可选，发送前改写 remoteId"
                             {...form.register("modelAlias")}
                           />
@@ -1503,7 +1620,7 @@ export default function ModelsPage() {
                               )
                             }
                           >
-                            <SelectTrigger className="h-8 rounded-md">
+                            <SelectTrigger className="h-10 rounded-xl">
                               <SelectValue placeholder="默认 generations" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1520,6 +1637,14 @@ export default function ModelsPage() {
                   ) : null}
                 </CollapsibleContent>
               </Collapsible>
+              <div className="flex items-center justify-between rounded-xl border border-transparent bg-muted px-3 py-2">
+                <Label htmlFor="model-enabled">启用</Label>
+                <Switch
+                  id="model-enabled"
+                  checked={form.watch("enabled") !== false}
+                  onCheckedChange={(v) => form.setValue("enabled", v)}
+                />
+              </div>
         </form>
       </AdminDrawer>
 

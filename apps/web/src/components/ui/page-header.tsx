@@ -15,7 +15,7 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "mb-6 flex flex-wrap items-end justify-between gap-3",
+        "mb-0 flex flex-wrap items-end justify-between gap-3",
         className,
       )}
     >

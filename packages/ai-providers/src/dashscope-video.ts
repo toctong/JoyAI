@@ -183,25 +183,39 @@ function normalizeWan3Resolution(raw?: string): string | undefined {
   return raw.trim().toUpperCase();
 }
 
-/** Derive DashScope native API root from compatible-mode baseUrl or metadata. */
+/**
+ * Derive DashScope native API root for images / video / CosyVoice.
+ * Prefer the channel's workspace MaaS host (baseUrl) over metadata.dashscopeApiBase:
+ * CosyVoice HTTP is Beijing-workspace-only, and create-channel seeds a generic
+ * `https://dashscope.aliyuncs.com/api/v1` that would otherwise ignore the workspace URL.
+ */
 export function resolveDashscopeApiBase(
   baseUrl: string,
   metadata?: Record<string, unknown> | null,
 ): string {
+  const raw = (baseUrl || "").trim();
+
+  // Workspace compatible-mode → native /api/v1 (SpeechSynthesizer / wan / etc.)
+  if (raw.includes("compatible-mode")) {
+    return raw
+      .replace(/\/compatible-mode\/v1\/?$/, "/api/v1")
+      .replace(/\/$/, "");
+  }
+  if (/\.maas\.aliyuncs\.com/i.test(raw)) {
+    if (raw.includes("/api/v1")) return raw.replace(/\/$/, "");
+    return `${raw.replace(/\/$/, "")}/api/v1`;
+  }
+  if (raw.includes("/api/v1")) {
+    return raw.replace(/\/$/, "");
+  }
+
   const fromMeta = metadata?.dashscopeApiBase;
-  if (typeof fromMeta === "string" && fromMeta) {
+  if (typeof fromMeta === "string" && fromMeta.trim()) {
     return fromMeta.replace(/\/$/, "");
   }
+
   const preset = CHANNEL_PRESETS[ProviderPlatform.DASHSCOPE].dashscopeApiBase;
   if (preset) return preset.replace(/\/$/, "");
-
-  // compatible-mode/v1 → api/v1
-  if (baseUrl.includes("compatible-mode")) {
-    return baseUrl.replace(/\/compatible-mode\/v1\/?$/, "/api/v1").replace(/\/$/, "");
-  }
-  if (baseUrl.includes("/api/v1")) {
-    return baseUrl.replace(/\/$/, "");
-  }
   return "https://dashscope.aliyuncs.com/api/v1";
 }
 

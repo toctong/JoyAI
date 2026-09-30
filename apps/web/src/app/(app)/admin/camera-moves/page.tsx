@@ -25,6 +25,9 @@ import { ListPagination } from "@/components/admin/list-pagination";
 import { AdminEmptyState } from "@/components/admin/empty-state";
 import { AdminListSkeleton } from "@/components/admin/list-skeleton";
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { AdminImportExportButtons } from "@/components/admin/admin-import-export";
+import { AdminSelectAllCheckbox } from "@/components/admin/admin-select-all-checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -40,6 +43,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAdminImportExport } from "@/features/admin/use-admin-import-export";
+import { useAdminSelection } from "@/features/admin/use-admin-selection";
+
 
 type MoveRow = {
   id: string;
@@ -119,6 +125,20 @@ export default function AdminCameraMovesPage() {
     const start = (page - 1) * pageSize;
     return rows.slice(start, start + pageSize);
   }, [rows, page, pageSize]);
+
+  const pageIds = useMemo(() => pageRows.map((r) => r.id), [pageRows]);
+  const selection = useAdminSelection(pageIds);
+
+  const io = useAdminImportExport({
+    kind: "camera-moves",
+    exportPath: "/admin/camera-moves/export",
+    importPath: "/admin/camera-moves/import",
+    selectedIds: selection.selectedIds,
+    onDone: async () => {
+      selection.clear();
+      await load();
+    },
+  });
 
   function openCreate() {
     setForm(EMPTY_FORM);
@@ -213,6 +233,7 @@ export default function AdminCameraMovesPage() {
         <PageHeader
           title="运镜库"
           description="视频生成运镜卡片；可组合最多 3 个，同互斥组会互相替换。"
+          className="mb-0"
         />
         <ListToolbar
           search={searchDraft}
@@ -231,7 +252,7 @@ export default function AdminCameraMovesPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="h-8 w-[110px]">
+              <SelectTrigger className="h-10 w-[132px] shrink-0 px-3">
                 <SelectValue placeholder="状态" />
               </SelectTrigger>
               <SelectContent>
@@ -242,10 +263,19 @@ export default function AdminCameraMovesPage() {
             </Select>
           }
           actions={
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="size-4" />
-              新建运镜
-            </Button>
+            <div className="flex items-center gap-2">
+              <AdminImportExportButtons
+                exporting={io.exporting}
+                importing={io.importing}
+                selectedCount={selection.selectedCount}
+                onExport={() => void io.handleExport()}
+                onImport={() => void io.handleImport()}
+              />
+              <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
+                <Plus className="size-4" />
+                新建运镜
+              </Button>
+            </div>
           }
         />
       </ListPageHeader>
@@ -260,11 +290,18 @@ export default function AdminCameraMovesPage() {
               description="新建后，视频节点「运镜」即可选用。"
             />
           ) : (
-            <Table>
+            <Table container={false}>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <AdminSelectAllCheckbox
+                      allSelected={selection.allPageSelected}
+                      someSelected={selection.somePageSelected}
+                      onToggle={selection.togglePage}
+                    />
+                  </TableHead>
                   <TableHead className="w-[72px]">排序</TableHead>
-                  <TableHead className="w-[72px]">预览</TableHead>
+                  <TableHead className="w-[56px]">预览</TableHead>
                   <TableHead>名称 / slug</TableHead>
                   <TableHead>分类</TableHead>
                   <TableHead>互斥组</TableHead>
@@ -276,12 +313,28 @@ export default function AdminCameraMovesPage() {
                 {pageRows.map((row) => {
                   const thumb = resolvePreview(row.thumbUrl ?? "");
                   return (
-                    <TableRow key={row.id}>
-                      <TableCell className="tabular-nums text-muted-foreground">
+                    <TableRow
+                      key={row.id}
+                      data-state={
+                        selection.selectedIds.includes(row.id)
+                          ? "selected"
+                          : undefined
+                      }
+                    >
+                      <TableCell className="py-2">
+                        <Checkbox
+                          checked={selection.selectedIds.includes(row.id)}
+                          onCheckedChange={(v) =>
+                            selection.toggle(row.id, v === true)
+                          }
+                          aria-label={`选择 ${row.label}`}
+                        />
+                      </TableCell>
+                      <TableCell className="py-2 tabular-nums text-muted-foreground">
                         {row.sortOrder}
                       </TableCell>
-                      <TableCell>
-                        <div className="size-12 overflow-hidden rounded-md border bg-muted">
+                      <TableCell className="w-[56px] py-2">
+                        <div className="size-9 overflow-hidden rounded-lg border border-transparent bg-muted">
                           {thumb ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -292,26 +345,26 @@ export default function AdminCameraMovesPage() {
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{row.label}</div>
-                        <div className="mt-0.5 font-mono text-[12px] text-muted-foreground">
+                      <TableCell className="py-2">
+                        <div className="font-medium leading-tight">{row.label}</div>
+                        <div className="mt-0.5 font-mono text-[12px] leading-tight text-muted-foreground">
                           {row.slug}
                         </div>
                       </TableCell>
-                      <TableCell className="text-[13px]">
+                      <TableCell className="py-2 text-[13px]">
                         {row.category}
                       </TableCell>
-                      <TableCell className="font-mono text-[12px] text-muted-foreground">
+                      <TableCell className="py-2 font-mono text-[12px] text-muted-foreground">
                         {row.exclusiveGroup || "—"}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-2">
                         {row.enabled ? (
                           <Badge variant="secondary">启用</Badge>
                         ) : (
                           <Badge variant="outline">停用</Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-2 text-right">
                         <Button
                           size="icon"
                           variant="ghost"
@@ -408,7 +461,7 @@ export default function AdminCameraMovesPage() {
           <div className="space-y-2">
             <Label>封面（可选）</Label>
             <div className="flex gap-3">
-              <div className="size-20 shrink-0 overflow-hidden rounded-md border bg-muted">
+              <div className="size-20 shrink-0 overflow-hidden rounded-xl border bg-muted">
                 {preview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -489,7 +542,7 @@ export default function AdminCameraMovesPage() {
               }
             />
           </div>
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+          <div className="flex items-center justify-between rounded-xl border border-transparent bg-muted px-3 py-2">
             <Label htmlFor="move-enabled">启用</Label>
             <Switch
               id="move-enabled"

@@ -2,10 +2,13 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
+import {
+  makeAdminExport,
+  parseAdminImportItems,
+} from "../../common/admin-export";
 import { InspireBanner } from "../../database/entities/inspire-banner.entity";
 
 export type InspireBannerInput = {
@@ -20,60 +23,12 @@ export type InspireBannerInput = {
   sortOrder?: number;
 };
 
-const SEED: Array<Omit<InspireBannerInput, "enabled"> & { sortOrder: number }> =
-  [
-    {
-      title: "FrameRally 探索开场",
-      subtitle: "电影级氛围 · 写实摄影融合绘画质感",
-      coverUrl: "/inspire/hero-01.webp",
-      coverKind: "image",
-      ctaLabel: "免费体验",
-      href: "/studio",
-      sortOrder: 10,
-    },
-    {
-      title: "无限画布",
-      subtitle: "Agent 驱动的多模态创作空间",
-      coverUrl: "/inspire/hero-02.webp",
-      coverKind: "image",
-      ctaLabel: "打开画布",
-      href: "/canvas",
-      sortOrder: 20,
-    },
-    {
-      title: "漫剧工作台",
-      subtitle: "分镜到成片，一条创作链路",
-      coverUrl: "/inspire/hero-03.webp",
-      coverKind: "image",
-      ctaLabel: "开始漫剧",
-      href: "/manju",
-      sortOrder: 30,
-    },
-  ];
-
 @Injectable()
-export class InspireBannersService implements OnModuleInit {
+export class InspireBannersService {
   constructor(
     @InjectRepository(InspireBanner)
     private readonly banners: Repository<InspireBanner>,
   ) {}
-
-  async onModuleInit() {
-    const count = await this.banners.count();
-    if (count > 0) return;
-    for (const seed of SEED) {
-      await this.banners.save(
-        this.banners.create({
-          ...seed,
-          subtitle: seed.subtitle ?? null,
-          ctaLabel: seed.ctaLabel ?? null,
-          href: seed.href ?? null,
-          coverKind: seed.coverKind ?? "image",
-          enabled: true,
-        }),
-      );
-    }
-  }
 
   /** Public inspire carousel — enabled only. */
   async listPublic() {
@@ -84,7 +39,10 @@ export class InspireBannersService implements OnModuleInit {
   }
 
   async listAdmin(opts?: { enabled?: boolean; q?: string }) {
-    const qb = this.banners.createQueryBuilder("b").orderBy("b.sortOrder", "ASC").addOrderBy("b.createdAt", "ASC");
+    const qb = this.banners
+      .createQueryBuilder("b")
+      .orderBy("b.sortOrder", "ASC")
+      .addOrderBy("b.createdAt", "ASC");
     if (opts?.enabled !== undefined) {
       qb.andWhere("b.enabled = :enabled", { enabled: opts.enabled });
     }
@@ -156,5 +114,67 @@ export class InspireBannersService implements OnModuleInit {
     const row = await this.get(id);
     await this.banners.remove(row);
     return { ok: true };
+  }
+
+  async exportAll(ids?: string[]) {
+    const rows = await this.banners.find({
+      where: ids?.length ? { id: In(ids) } : undefined,
+      order: { sortOrder: "ASC", createdAt: "ASC" },
+    });
+    return makeAdminExport(
+      "inspire-banners",
+      rows.map((r) => ({
+        title: r.title,
+        subtitle: r.subtitle,
+        coverUrl: r.coverUrl,
+        coverKind: r.coverKind,
+        posterUrl: r.posterUrl,
+        ctaLabel: r.ctaLabel,
+        href: r.href,
+        enabled: r.enabled,
+        sortOrder: r.sortOrder,
+      })),
+    );
+  }
+
+  async importItems(body: unknown) {
+    let raw: Array<Partial<InspireBannerInput>>;
+    try {
+      raw = parseAdminImportItems(body, "inspire-banners");
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : "导入失败",
+      );
+    }
+    let created = 0;
+    let updated = 0;
+    for (const item of raw) {
+      const title = String(item.title ?? "").trim();
+      const coverUrl = String(item.coverUrl ?? "").trim();
+      if (!title || !coverUrl) continue;
+      const existing = await this.banners.findOne({ where: { title } });
+      const payload = {
+        title,
+        subtitle: item.subtitle?.trim() || null,
+        coverUrl,
+        coverKind: (item.coverKind === "video" ? "video" : "image") as
+          | "image"
+          | "video",
+        posterUrl: item.posterUrl?.trim() || null,
+        ctaLabel: item.ctaLabel?.trim() || null,
+        href: item.href?.trim() || null,
+        enabled: item.enabled !== false,
+        sortOrder: Number(item.sortOrder) || 100,
+      };
+      if (existing) {
+        Object.assign(existing, payload);
+        await this.banners.save(existing);
+        updated += 1;
+      } else {
+        await this.banners.save(this.banners.create(payload));
+        created += 1;
+      }
+    }
+    return { created, updated, total: raw.length };
   }
 }

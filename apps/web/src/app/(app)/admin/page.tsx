@@ -5,10 +5,16 @@ import Link from "next/link";
 import {
   Activity,
   AlertTriangle,
+  Aperture,
   CheckCircle2,
   ChevronRight,
+  Clapperboard,
+  ImageIcon,
   LayoutGrid,
+  Mic2,
   RefreshCw,
+  ScrollText,
+  Sparkles,
   Users,
   Waypoints,
   type LucideIcon,
@@ -23,7 +29,7 @@ import { MonitorActivity } from "@/components/icons/monitor-activity";
 import { cn } from "@/shared/lib/utils";
 import "@/features/admin/admin-overview.css";
 
-type Counts = {
+type PlatformCounts = {
   users: number;
   jobs: number;
   channels: number;
@@ -31,6 +37,15 @@ type Counts = {
   running: number;
   failed: number;
   success: number;
+};
+
+type ContentCounts = {
+  presets: number;
+  styles: number;
+  cameraMoves: number;
+  voices: number;
+  skills: number;
+  banners: number;
 };
 
 type Job = {
@@ -46,6 +61,59 @@ type Job = {
   error?: string | null;
 };
 
+type CatalogItem = {
+  key: keyof ContentCounts;
+  href: string;
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+};
+
+const CATALOG: CatalogItem[] = [
+  {
+    key: "presets",
+    href: "/admin/prompt-presets",
+    label: "提示词",
+    hint: "全局预设",
+    icon: ScrollText,
+  },
+  {
+    key: "styles",
+    href: "/admin/styles",
+    label: "风格",
+    hint: "漫剧 / 画布",
+    icon: Sparkles,
+  },
+  {
+    key: "cameraMoves",
+    href: "/admin/camera-moves",
+    label: "运镜",
+    hint: "镜头运动",
+    icon: Aperture,
+  },
+  {
+    key: "voices",
+    href: "/admin/voices",
+    label: "音色库",
+    hint: "TTS 音色",
+    icon: Mic2,
+  },
+  {
+    key: "skills",
+    href: "/admin/skills",
+    label: "技能",
+    hint: "能力清单",
+    icon: Clapperboard,
+  },
+  {
+    key: "banners",
+    href: "/admin/inspire-banners",
+    label: "横幅",
+    hint: "灵感页",
+    icon: ImageIcon,
+  },
+];
+
 function kindLabel(kind: string) {
   if (kind === "image") return "图片";
   if (kind === "video") return "视频";
@@ -54,7 +122,20 @@ function kindLabel(kind: string) {
   return kind;
 }
 
+function arrayLen(data: unknown): number {
+  return Array.isArray(data) ? data.length : 0;
+}
+
+async function safeLen(path: string) {
+  try {
+    return arrayLen(await api<unknown>(path));
+  } catch {
+    return 0;
+  }
+}
+
 function MetricCard({
+  href,
   label,
   value,
   hint,
@@ -62,6 +143,7 @@ function MetricCard({
   tone = "blue",
   loading,
 }: {
+  href: string;
   label: string;
   value: number;
   hint: string;
@@ -70,7 +152,7 @@ function MetricCard({
   loading?: boolean;
 }) {
   return (
-    <div className="joy-ov-metric" data-tone={tone}>
+    <Link href={href} className="joy-ov-metric" data-tone={tone}>
       <div className="joy-ov-metric-icon" aria-hidden>
         <Icon className="size-5" />
       </div>
@@ -83,12 +165,12 @@ function MetricCard({
           {loading ? <span className="joy-ov-metric-skel-sm" /> : hint}
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
 export default function AdminDashboardPage() {
-  const [counts, setCounts] = useState<Counts>({
+  const [counts, setCounts] = useState<PlatformCounts>({
     users: 0,
     jobs: 0,
     channels: 0,
@@ -96,6 +178,14 @@ export default function AdminDashboardPage() {
     running: 0,
     failed: 0,
     success: 0,
+  });
+  const [content, setContent] = useState<ContentCounts>({
+    presets: 0,
+    styles: 0,
+    cameraMoves: 0,
+    voices: 0,
+    skills: 0,
+    banners: 0,
   });
   const [recent, setRecent] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,11 +195,34 @@ export default function AdminDashboardPage() {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     try {
-      const [users, jobsRes, channels, models] = await Promise.all([
-        api<unknown[]>("/admin/users"),
-        api<{ items: Job[]; total: number }>("/admin/jobs?page=1&pageSize=100"),
-        api<{ total: number }>("/admin/channels?page=1&pageSize=1"),
-        api<{ total: number }>("/admin/models?page=1&pageSize=1"),
+      const [
+        users,
+        jobsRes,
+        channels,
+        models,
+        presets,
+        styles,
+        cameraMoves,
+        voices,
+        skills,
+        banners,
+      ] = await Promise.all([
+        api<unknown[]>("/admin/users").catch(() => []),
+        api<{ items: Job[]; total: number }>(
+          "/admin/jobs?page=1&pageSize=100",
+        ).catch(() => ({ items: [] as Job[], total: 0 })),
+        api<{ total: number }>("/admin/channels?page=1&pageSize=1").catch(
+          () => ({ total: 0 }),
+        ),
+        api<{ total: number }>("/admin/models?page=1&pageSize=1").catch(
+          () => ({ total: 0 }),
+        ),
+        safeLen("/admin/prompt-presets"),
+        safeLen("/admin/styles"),
+        safeLen("/admin/camera-moves"),
+        safeLen("/admin/voices"),
+        safeLen("/admin/skills"),
+        safeLen("/admin/inspire-banners"),
       ]);
       const jobs = jobsRes.items ?? [];
       const running = jobs.filter((j) =>
@@ -118,13 +231,21 @@ export default function AdminDashboardPage() {
       const failed = jobs.filter((j) => j.status === "failed").length;
       const success = jobs.filter((j) => j.status === "succeeded").length;
       setCounts({
-        users: users.length,
+        users: Array.isArray(users) ? users.length : 0,
         jobs: jobsRes.total ?? jobs.length,
         channels: channels.total ?? 0,
         models: models.total ?? 0,
         running,
         failed,
         success,
+      });
+      setContent({
+        presets,
+        styles,
+        cameraMoves,
+        voices,
+        skills,
+        banners,
       });
       setRecent(jobs.slice(0, 12));
     } finally {
@@ -155,19 +276,18 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="joy-ov h-full overflow-y-auto">
-      {/* 1. 页头 + 健康状态 */}
       <header className="joy-ov-header">
         <div className="min-w-0">
           <h1 className="joy-ov-title">概览</h1>
           <p className="joy-ov-desc">
-            集中查看核心资源与生成队列状态。
+            查看平台资源、内容库规模与最近生成队列。
           </p>
         </div>
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 shrink-0 gap-1.5 rounded-[2px] shadow-none"
+          className="h-9 shrink-0 gap-1.5 rounded-xl shadow-none"
           disabled={refreshing || loading}
           onClick={() => void load(true)}
         >
@@ -208,13 +328,14 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 2. 核心指标 */}
-      <section className="joy-ov-section" aria-label="核心指标">
+      <section className="joy-ov-section" aria-label="平台资源">
         <div className="joy-ov-section-head">
-          <h2 className="joy-ov-section-title">核心指标</h2>
+          <h2 className="joy-ov-section-title">平台资源</h2>
+          <p className="joy-ov-section-sub">账号、渠道、模型与任务总量</p>
         </div>
         <div className="joy-ov-metrics">
           <MetricCard
+            href="/admin/users"
             label="用户"
             value={counts.users}
             hint="全部账号"
@@ -223,6 +344,7 @@ export default function AdminDashboardPage() {
             loading={loading}
           />
           <MetricCard
+            href="/admin/channels"
             label="渠道"
             value={counts.channels}
             hint="上游供应商"
@@ -231,6 +353,7 @@ export default function AdminDashboardPage() {
             loading={loading}
           />
           <MetricCard
+            href="/admin/models"
             label="模型"
             value={counts.models}
             hint="已登记模型"
@@ -239,6 +362,7 @@ export default function AdminDashboardPage() {
             loading={loading}
           />
           <MetricCard
+            href="/admin/jobs"
             label="任务总量"
             value={counts.jobs}
             hint={`近窗失败 ${counts.failed}`}
@@ -249,8 +373,47 @@ export default function AdminDashboardPage() {
         </div>
       </section>
 
-      {/* 最近任务 */}
-      <section className="joy-ov-section joy-ov-section-fill" aria-label="最近任务">
+      <section className="joy-ov-section" aria-label="内容库">
+        <div className="joy-ov-section-head">
+          <h2 className="joy-ov-section-title">内容库</h2>
+          <p className="joy-ov-section-sub">
+            提示词 / 风格 / 运镜 / 音色 / 技能 / 横幅
+          </p>
+        </div>
+        <div className="joy-ov-catalog">
+          {CATALOG.map((item) => {
+            const Icon = item.icon;
+            const value = content[item.key];
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className="joy-ov-catalog-item"
+              >
+                <div className="joy-ov-catalog-top">
+                  <span className="joy-ov-catalog-icon" aria-hidden>
+                    <Icon className="size-4" />
+                  </span>
+                  <ChevronRight className="joy-ov-catalog-go size-3.5" />
+                </div>
+                <div>
+                  <p className="joy-ov-catalog-label">{item.label}</p>
+                  <p className="joy-ov-catalog-value">
+                    {loading ? (
+                      <span className="joy-ov-metric-skel" />
+                    ) : (
+                      value
+                    )}
+                  </p>
+                  <p className="joy-ov-catalog-hint">{item.hint}</p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="joy-ov-section" aria-label="最近任务">
         <div className="joy-ov-panel">
           <div className="joy-ov-panel-head">
             <div>
@@ -264,7 +427,7 @@ export default function AdminDashboardPage() {
               asChild
               variant="ghost"
               size="sm"
-              className="h-7 rounded-[2px] px-2"
+              className="h-8 rounded-xl px-2"
             >
               <Link href="/admin/jobs" className="gap-1 text-[12px]">
                 查看全部
@@ -306,7 +469,7 @@ export default function AdminDashboardPage() {
                     <div className="joy-ov-job-meta">
                       <Badge
                         variant="secondary"
-                        className="rounded-[2px] px-1.5 text-[10px] font-normal"
+                        className="rounded-xl px-1.5 text-[10px] font-normal"
                       >
                         {kindLabel(job.kind)}
                       </Badge>

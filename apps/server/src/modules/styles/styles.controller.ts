@@ -22,6 +22,7 @@ import {
 import { Transform, Type } from "class-transformer";
 import { toOptionalBoolean } from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
+import { normalizeExportIds } from "../../common/admin-export";
 import type { StyleSurface } from "../../database/entities/style-template.entity";
 import { StylesService } from "./styles.service";
 
@@ -141,6 +142,20 @@ export class StylesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   listAdmin(@Query() query: ListAdminQueryDto) {
     return this.styles.listAdmin(query);
+  }
+
+  @Get("admin/styles/export")
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  exportAll(@Query("ids") ids?: string | string[]) {
+    return this.styles.exportAll(normalizeExportIds(ids));
+  }
+
+  @Post("admin/styles/import")
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  importAll(@Body() body: unknown) {
+    return this.styles.importItems(body);
   }
 
   @Post("admin/styles")

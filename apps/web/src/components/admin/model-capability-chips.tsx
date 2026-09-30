@@ -22,6 +22,7 @@ const FEATURE_OPTIONS = [
   { value: "t2v", label: "文生视频" },
   { value: "i2v", label: "图生视频" },
   { value: "r2v", label: "参考生视频" },
+  { value: "tts", label: "语音合成" },
   { value: "long-context", label: "长上下文" },
 ] as const;
 

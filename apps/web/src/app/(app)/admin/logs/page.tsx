@@ -119,6 +119,7 @@ export default function AdminLogsPage() {
         <PageHeader
           title="日志"
           description="登录、安全与管理操作审计，便于追溯谁在何时做了什么。"
+          className="mb-0"
         />
         <ListToolbar
           search={searchDraft}
@@ -136,7 +137,7 @@ export default function AdminLogsPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="h-8 w-[140px] rounded-[2px]">
+              <SelectTrigger className="h-9 w-[140px] rounded-xl">
                 <SelectValue placeholder="动作" />
               </SelectTrigger>
               <SelectContent className="shadow-none">
@@ -164,8 +165,8 @@ export default function AdminLogsPage() {
             />
           </ListPageCard>
         ) : (
-          <ListPageCard className="admin-table">
-            <Table>
+          <ListPageCard scroll className="admin-table">
+            <Table container={false}>
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[160px]">时间</TableHead>
@@ -189,7 +190,7 @@ export default function AdminLogsPage() {
                     <TableCell>
                       <Badge
                         variant="secondary"
-                        className="rounded-[2px] font-normal"
+                        className="rounded-xl font-normal"
                       >
                         {actionLabel(row.action)}
                       </Badge>
@@ -202,7 +203,7 @@ export default function AdminLogsPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="size-8 rounded-[2px]"
+                        className="size-9 rounded-xl"
                         onClick={() => setDetail(row)}
                         aria-label="查看详情"
                       >
@@ -242,7 +243,7 @@ export default function AdminLogsPage() {
           <Button
             type="button"
             variant="outline"
-            className="h-8 rounded-[2px]"
+            className="h-10 rounded-xl"
             onClick={() => setDetail(null)}
           >
             关闭
@@ -263,7 +264,7 @@ export default function AdminLogsPage() {
             </div>
             <div className="space-y-1.5">
               <div className="text-muted-foreground">详情 JSON</div>
-              <pre className="overflow-x-auto rounded-[2px] border border-border bg-muted/40 p-3 font-mono text-[12px] leading-relaxed">
+              <pre className="overflow-x-auto rounded-xl border border-border bg-muted/40 p-3 font-mono text-[12px] leading-relaxed">
                 {detail.detail
                   ? JSON.stringify(detail.detail, null, 2)
                   : "null"}

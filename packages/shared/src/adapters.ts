@@ -10,8 +10,12 @@ export const AdapterId = {
   OPENAI_AUDIO: "openai-audio",
   ARK_IMAGES: "ark-images",
   ARK_VIDEO: "ark-video",
+  /** 火山豆包语音 openspeech HTTP Chunked */
+  VOLCENGINE_AUDIO: "volcengine-audio",
   DASHSCOPE_IMAGES: "dashscope-images",
   DASHSCOPE_VIDEO: "dashscope-video",
+  /** 百炼 CosyVoice / Qwen-Audio-TTS 原生 SpeechSynthesizer */
+  DASHSCOPE_AUDIO: "dashscope-audio",
 } as const;
 
 export type AdapterIdValue = (typeof AdapterId)[keyof typeof AdapterId];
@@ -42,6 +46,8 @@ export function defaultAdapterId(
     return AdapterId.OPENAI_CHAT;
   }
   if (kind === "audio") {
+    if (p === "volcengine") return AdapterId.VOLCENGINE_AUDIO;
+    if (p === "dashscope") return AdapterId.DASHSCOPE_AUDIO;
     return AdapterId.OPENAI_AUDIO;
   }
   if (kind === "image") {

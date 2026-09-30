@@ -1,7 +1,7 @@
 {
   "platform": "toapis",
-  "updatedAt": "2026-09-17",
-  "note": "adapterId defaults: image→openai-images, video→openai-videos. Override per model via adapterId. image dialect via capabilities.protocol.imageProfile (inferred if omitted).",
+  "updatedAt": "2026-09-30",
+  "note": "adapterId defaults: image→openai-images, video→openai-videos。Override per model via adapterId. image dialect via capabilities.protocol.imageProfile (inferred if omitted). 音频：OpenAI-compatible /v1/audio/speech 种子（tts-1 / tts-1-hd / gpt-4o-mini-tts）；文档未列具体 id，以账户可用为准。",
   "llm": [
     {
       "name": "GPT-5.5",
@@ -1873,35 +1873,102 @@
     {
       "name": "GPT-4o Mini TTS",
       "remoteId": "gpt-4o-mini-tts",
-      "description": "ToAPIs 宣称 OpenAI-compatible TTS；文档未列具体 model id，按兼容约定种子",
+      "description": "ToAPIs OpenAI-compatible TTS；支持 instructions",
       "isDefault": true,
       "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "audio"
-        ],
-        "features": [
-          "tts"
-        ],
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
         "adapterId": "openai-audio",
         "voices": [
           "alloy",
+          "ash",
+          "ballad",
+          "coral",
           "echo",
           "fable",
           "onyx",
           "nova",
+          "sage",
+          "shimmer",
+          "verse",
+          "marin",
+          "cedar"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "aac", "flac", "pcm"]
+      }
+    },
+    {
+      "name": "TTS-1",
+      "remoteId": "tts-1",
+      "description": "OpenAI 兼容高速 TTS（ToAPIs 宣称 /v1/audio/speech）",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "openai-audio",
+        "voices": [
+          "alloy",
+          "ash",
+          "coral",
+          "echo",
+          "fable",
+          "onyx",
+          "nova",
+          "sage",
           "shimmer"
         ],
-        "audioFormats": [
-          "mp3",
-          "wav",
-          "opus",
-          "aac",
-          "flac",
-          "pcm"
-        ]
+        "audioFormats": ["mp3", "opus", "aac", "flac", "wav", "pcm"]
+      }
+    },
+    {
+      "name": "TTS-1 HD",
+      "remoteId": "tts-1-hd",
+      "description": "OpenAI 兼容高品质 TTS",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "openai-audio",
+        "voices": [
+          "alloy",
+          "ash",
+          "coral",
+          "echo",
+          "fable",
+          "onyx",
+          "nova",
+          "sage",
+          "shimmer"
+        ],
+        "audioFormats": ["mp3", "opus", "aac", "flac", "wav", "pcm"]
+      }
+    },
+    {
+      "name": "GPT-4o Mini TTS (2025-12-15)",
+      "remoteId": "gpt-4o-mini-tts-2025-12-15",
+      "description": "OpenAI 快照版；账户未开放该 id 时会失败",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "openai-audio",
+        "voices": [
+          "alloy",
+          "ash",
+          "ballad",
+          "coral",
+          "echo",
+          "fable",
+          "onyx",
+          "nova",
+          "sage",
+          "shimmer",
+          "verse",
+          "marin",
+          "cedar"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "aac", "flac", "pcm"]
       }
     }
   ]

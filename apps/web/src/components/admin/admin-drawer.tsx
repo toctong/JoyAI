@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 
 /**
- * Volcengine-style right drawer used for admin create/edit forms.
+ * Right drawer for admin create/edit forms (manju-aligned chrome).
  */
 export function AdminDrawer({
   open,

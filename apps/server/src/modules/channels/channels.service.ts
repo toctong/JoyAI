@@ -1,12 +1,16 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
 import axios from "axios";
 import { formatProviderErrorBody } from "@joyai/ai-providers";
 import {
   normalizePage,
   type PaginatedResult,
 } from "../../common/dto/pagination-query.dto";
+import {
+  makeAdminExport,
+  parseAdminImportItems,
+} from "../../common/admin-export";
 import { Channel } from "../../database/entities/channel.entity";
 import { Model } from "../../database/entities/model.entity";
 import { JobKind } from "../../database/enums";
@@ -120,7 +124,28 @@ export class ChannelsService {
     }>,
   ) {
     const channel = await this.require(id);
-    Object.assign(channel, data);
+    const { metadata, ...rest } = data;
+    Object.assign(channel, rest);
+    if (metadata !== undefined) {
+      if (metadata === null) {
+        channel.metadata = null;
+      } else {
+        const prev =
+          channel.metadata &&
+          typeof channel.metadata === "object" &&
+          !Array.isArray(channel.metadata)
+            ? { ...channel.metadata }
+            : {};
+        for (const [key, value] of Object.entries(metadata)) {
+          if (value === null || value === "") {
+            delete prev[key];
+          } else {
+            prev[key] = value;
+          }
+        }
+        channel.metadata = prev;
+      }
+    }
     return this.channels.save(channel);
   }
 
@@ -134,6 +159,76 @@ export class ChannelsService {
     const channel = await this.require(id);
     await this.channels.delete(id);
     return channel;
+  }
+
+  async exportAll(ids?: string[]) {
+    const rows = await this.channels.find({
+      where: ids?.length ? { id: In(ids) } : undefined,
+      order: { createdAt: "ASC" },
+    });
+    return makeAdminExport(
+      "channels",
+      rows.map((r) => ({
+        name: r.name,
+        platform: r.platform,
+        apiKey: r.apiKey,
+        baseUrl: r.baseUrl,
+        enabled: r.enabled,
+        metadata: r.metadata,
+      })),
+    );
+  }
+
+  async importItems(body: unknown) {
+    let raw: Array<{
+      name?: string;
+      platform?: string;
+      apiKey?: string;
+      baseUrl?: string;
+      enabled?: boolean;
+      metadata?: Record<string, unknown> | null;
+    }>;
+    try {
+      raw = parseAdminImportItems(body, "channels");
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : "导入失败",
+      );
+    }
+    let created = 0;
+    let updated = 0;
+    for (const item of raw) {
+      const name = String(item.name ?? "").trim();
+      const platform = String(item.platform ?? "").trim();
+      const baseUrl = String(item.baseUrl ?? "").trim();
+      if (!name || !platform || !baseUrl) continue;
+      const existing = await this.channels.findOne({
+        where: { name, platform },
+      });
+      const apiKey = String(item.apiKey ?? "").trim();
+      if (existing) {
+        existing.baseUrl = baseUrl;
+        existing.enabled = item.enabled !== false;
+        if (apiKey) existing.apiKey = apiKey;
+        if (item.metadata !== undefined) existing.metadata = item.metadata;
+        await this.channels.save(existing);
+        updated += 1;
+      } else {
+        if (!apiKey) continue;
+        await this.channels.save(
+          this.channels.create({
+            name,
+            platform,
+            apiKey,
+            baseUrl,
+            enabled: item.enabled !== false,
+            metadata: item.metadata ?? null,
+          }),
+        );
+        created += 1;
+      }
+    }
+    return { created, updated, total: raw.length };
   }
 
   /**

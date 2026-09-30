@@ -2,15 +2,17 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
+import {
+  makeAdminExport,
+  parseAdminImportItems,
+} from "../../common/admin-export";
 import {
   StyleTemplate,
   type StyleSurface,
 } from "../../database/entities/style-template.entity";
-import { STYLE_SEEDS } from "./style-seed";
 
 const SURFACES: StyleSurface[] = ["manju", "canvas"];
 
@@ -50,30 +52,11 @@ function slugify(raw: string) {
 }
 
 @Injectable()
-export class StylesService implements OnModuleInit {
+export class StylesService {
   constructor(
     @InjectRepository(StyleTemplate)
     private readonly styles: Repository<StyleTemplate>,
   ) {}
-
-  async onModuleInit() {
-    const count = await this.styles.count();
-    if (count > 0) return;
-    for (const seed of STYLE_SEEDS) {
-      await this.styles.save(
-        this.styles.create({
-          slug: seed.slug,
-          label: seed.label,
-          prompt: seed.prompt,
-          thumbUrl: seed.thumbUrl,
-          tone: seed.tone,
-          enabled: true,
-          sortOrder: seed.sortOrder,
-          surfaces: [...SURFACES],
-        }),
-      );
-    }
-  }
 
   async listPublic(surface?: StyleSurface) {
     const rows = await this.styles.find({
@@ -179,5 +162,64 @@ export class StylesService implements OnModuleInit {
     const row = await this.get(id);
     await this.styles.remove(row);
     return { ok: true };
+  }
+
+  async exportAll(ids?: string[]) {
+    const rows = await this.styles.find({
+      where: ids?.length ? { id: In(ids) } : undefined,
+      order: { sortOrder: "ASC", createdAt: "ASC" },
+    });
+    return makeAdminExport(
+      "styles",
+      rows.map((r) => ({
+        slug: r.slug,
+        label: r.label,
+        prompt: r.prompt,
+        thumbUrl: r.thumbUrl,
+        tone: r.tone,
+        enabled: r.enabled,
+        sortOrder: r.sortOrder,
+        surfaces: r.surfaces ?? [...SURFACES],
+      })),
+    );
+  }
+
+  async importItems(body: unknown) {
+    let raw: Array<Partial<StyleInput> & { slug?: string }>;
+    try {
+      raw = parseAdminImportItems(body, "styles");
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : "导入失败",
+      );
+    }
+    let created = 0;
+    let updated = 0;
+    for (const item of raw) {
+      const slug = slugify(String(item.slug ?? ""));
+      const label = String(item.label ?? "").trim();
+      const prompt = String(item.prompt ?? "").trim();
+      const thumbUrl = String(item.thumbUrl ?? "").trim();
+      if (!slug || !label || !prompt || !thumbUrl) continue;
+      const existing = await this.styles.findOne({ where: { slug } });
+      const payload = {
+        label,
+        prompt,
+        thumbUrl,
+        tone: String(item.tone ?? "cinematic").trim() || "cinematic",
+        enabled: item.enabled !== false,
+        sortOrder: Number(item.sortOrder) || 100,
+        surfaces: normalizeSurfaces(item.surfaces),
+      };
+      if (existing) {
+        Object.assign(existing, payload);
+        await this.styles.save(existing);
+        updated += 1;
+      } else {
+        await this.styles.save(this.styles.create({ slug, ...payload }));
+        created += 1;
+      }
+    }
+    return { created, updated, total: raw.length };
   }
 }

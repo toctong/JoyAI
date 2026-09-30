@@ -26,6 +26,7 @@ import { InspireShowcaseModule } from "./modules/inspire-showcase/inspire-showca
 import { PromptPresetsModule } from "./modules/prompt-presets/prompt-presets.module";
 import { StylesModule } from "./modules/styles/styles.module";
 import { CameraMovesModule } from "./modules/camera-moves/camera-moves.module";
+import { VoicesModule } from "./modules/voices/voices.module";
 import { BootstrapService } from "./common/bootstrap.service";
 
 @Module({
@@ -61,6 +62,7 @@ import { BootstrapService } from "./common/bootstrap.service";
     PromptPresetsModule,
     StylesModule,
     CameraMovesModule,
+    VoicesModule,
     JobsModule,
     StorageModule,
     AssetsModule,

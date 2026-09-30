@@ -24,6 +24,11 @@ import { ListPagination } from "@/components/admin/list-pagination";
 import { AdminEmptyState } from "@/components/admin/empty-state";
 import { AdminListSkeleton } from "@/components/admin/list-skeleton";
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { AdminImportExportButtons } from "@/components/admin/admin-import-export";
+import { AdminSelectAllCheckbox } from "@/components/admin/admin-select-all-checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAdminImportExport } from "@/features/admin/use-admin-import-export";
+import { useAdminSelection } from "@/features/admin/use-admin-selection";
 import {
   Table,
   TableBody,
@@ -123,6 +128,20 @@ export default function AdminSkillsPage() {
     return skills.slice(start, start + pageSize);
   }, [skills, page, pageSize]);
 
+  const pageIds = useMemo(() => pageItems.map((r) => r.id), [pageItems]);
+  const selection = useAdminSelection(pageIds);
+
+  const io = useAdminImportExport({
+    kind: "skills",
+    exportPath: "/admin/skills/export",
+    importPath: "/admin/skills/import",
+    selectedIds: selection.selectedIds,
+    onDone: async () => {
+      selection.clear();
+      await load();
+    },
+  });
+
   function resetPageAnd(fn: () => void) {
     setPage(1);
     fn();
@@ -187,11 +206,9 @@ export default function AdminSkillsPage() {
             name: form.name.trim(),
             description: form.description.trim() || null,
             category: form.category,
-            purpose: dialog.skill.builtin
-              ? undefined
-              : form.purpose.trim(),
+            purpose: form.purpose.trim(),
             systemPrompt: form.systemPrompt.trim(),
-            enabled: dialog.skill.builtin ? true : form.enabled,
+            enabled: form.enabled,
             sortOrder: form.sortOrder,
           },
         });
@@ -207,10 +224,6 @@ export default function AdminSkillsPage() {
   }
 
   async function toggleEnabled(skill: SkillRow) {
-    if (skill.builtin) {
-      toast.error("内置技能不可停用");
-      return;
-    }
     try {
       await api(`/admin/skills/${skill.id}`, {
         method: "PATCH",
@@ -223,10 +236,6 @@ export default function AdminSkillsPage() {
   }
 
   async function removeSkill(skill: SkillRow) {
-    if (skill.builtin) {
-      toast.error("内置技能不可删除，可改为停用");
-      return;
-    }
     const ok = await confirmDialog({
       title: "删除技能",
       description: `确定删除「${skill.name}」？此操作不可恢复。`,
@@ -251,7 +260,7 @@ export default function AdminSkillsPage() {
       <ListPageHeader>
         <PageHeader
           title="技能"
-          description="内置技能不可删除、不可停用；可编辑系统提示词。运行时 LLM 按 purpose 读取已启用技能。"
+          description="管理技能提示词；支持 JSON 导入导出。运行时 LLM 按 purpose 读取已启用技能。"
           className="mb-0"
         />
         <ListToolbar
@@ -287,8 +296,8 @@ export default function AdminSkillsPage() {
                   resetPageAnd(() => setEnabledFilter(v))
                 }
               >
-                <SelectTrigger className="h-9 w-[120px] rounded-xl">
-                  <SelectValue />
+                <SelectTrigger className="h-10 w-[132px] shrink-0 px-3">
+                  <SelectValue placeholder="状态" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">全部状态</SelectItem>
@@ -301,14 +310,23 @@ export default function AdminSkillsPage() {
           onRefresh={() => void load()}
           refreshing={refreshing}
           actions={
-            <Button
-              size="sm"
-              className="h-9 rounded-xl"
-              onClick={openCreate}
-            >
-              <Plus className="size-3.5" />
-              新建技能
-            </Button>
+            <div className="flex items-center gap-2">
+              <AdminImportExportButtons
+                exporting={io.exporting}
+                importing={io.importing}
+                selectedCount={selection.selectedCount}
+                onExport={() => void io.handleExport()}
+                onImport={() => void io.handleImport()}
+              />
+              <Button
+                size="sm"
+                className="h-9 rounded-xl"
+                onClick={openCreate}
+              >
+                <Plus className="size-3.5" />
+                新建技能
+              </Button>
+            </div>
           }
         />
       </ListPageHeader>
@@ -323,11 +341,11 @@ export default function AdminSkillsPage() {
               description={
                 hasFilters
                   ? "试试调整搜索或筛选"
-                  : "启动服务后会自动写入内置技能"
+                  : "可通过导入 JSON 或手动新建"
               }
               action={
                 !hasFilters ? (
-                  <Button size="sm" onClick={openCreate}>
+                  <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
                     <Plus className="size-3.5" />
                     新建技能
                   </Button>
@@ -335,9 +353,16 @@ export default function AdminSkillsPage() {
               }
             />
           ) : (
-            <Table>
+            <Table container={false}>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <AdminSelectAllCheckbox
+                      allSelected={selection.allPageSelected}
+                      someSelected={selection.somePageSelected}
+                      onToggle={selection.togglePage}
+                    />
+                  </TableHead>
                   <TableHead>名称</TableHead>
                   <TableHead>分类</TableHead>
                   <TableHead>purpose</TableHead>
@@ -348,19 +373,27 @@ export default function AdminSkillsPage() {
               </TableHeader>
               <TableBody>
                 {pageItems.map((skill) => (
-                  <TableRow key={skill.id}>
+                  <TableRow
+                    key={skill.id}
+                    data-state={
+                      selection.selectedIds.includes(skill.id)
+                        ? "selected"
+                        : undefined
+                    }
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selection.selectedIds.includes(skill.id)}
+                        onCheckedChange={(v) =>
+                          selection.toggle(skill.id, v === true)
+                        }
+                        aria-label={`选择 ${skill.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{skill.name}</span>
-                          {skill.builtin ? (
-                            <Badge
-                              variant="outline"
-                              className="rounded-md px-1.5 font-normal"
-                            >
-                              内置
-                            </Badge>
-                          ) : null}
                         </div>
                         <span className="text-xs text-muted-foreground">
                           {skill.slug}
@@ -412,7 +445,6 @@ export default function AdminSkillsPage() {
                           size="icon"
                           variant="ghost"
                           className="size-8 text-destructive"
-                          disabled={skill.builtin}
                           onClick={() => void removeSkill(skill)}
                           aria-label="删除"
                         >
@@ -529,9 +561,6 @@ export default function AdminSkillsPage() {
               <Input
                 id="skill-purpose"
                 value={form.purpose}
-                disabled={
-                  dialog?.type === "edit" && dialog.skill.builtin
-                }
                 onChange={(e) =>
                   setForm((f) => ({ ...f, purpose: e.target.value }))
                 }
@@ -570,16 +599,11 @@ export default function AdminSkillsPage() {
             <div className="flex items-end gap-3 pb-1">
               <Switch
                 checked={form.enabled}
-                disabled={dialog?.type === "edit" && dialog.skill.builtin}
                 onCheckedChange={(v) =>
                   setForm((f) => ({ ...f, enabled: v }))
                 }
               />
-              <Label>
-                {dialog?.type === "edit" && dialog.skill.builtin
-                  ? "内置启用（不可停用）"
-                  : "启用"}
-              </Label>
+              <Label>启用</Label>
             </div>
           </div>
 

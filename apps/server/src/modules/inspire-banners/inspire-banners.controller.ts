@@ -21,6 +21,7 @@ import {
 import { Transform, Type } from "class-transformer";
 import { toOptionalBoolean } from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
+import { normalizeExportIds } from "../../common/admin-export";
 import { InspireBannersService } from "./inspire-banners.service";
 
 class ListAdminQueryDto {
@@ -132,6 +133,20 @@ export class InspireBannersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   listAdmin(@Query() query: ListAdminQueryDto) {
     return this.banners.listAdmin(query);
+  }
+
+  @Get("admin/inspire-banners/export")
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  exportAll(@Query("ids") ids?: string | string[]) {
+    return this.banners.exportAll(normalizeExportIds(ids));
+  }
+
+  @Post("admin/inspire-banners/import")
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  importAll(@Body() body: unknown) {
+    return this.banners.importItems(body);
   }
 
   @Post("admin/inspire-banners")

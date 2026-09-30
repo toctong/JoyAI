@@ -246,6 +246,9 @@ export function NodeGenPanel({ node, viewport }: Props) {
     const n = Number(node.data.genAudioSpeed);
     return Number.isFinite(n) ? Math.min(4, Math.max(0.25, n)) : 1;
   });
+  const [audioInstructions, setAudioInstructions] = useState(() =>
+    String(node.data.genAudioInstructions ?? ""),
+  );
   const [cameraControl, setCameraControl] = useState<CameraControlOptions>(() =>
     parseCameraControl(node.data.cameraControl),
   );
@@ -306,6 +309,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
     setAudioSpeed(
       Number.isFinite(speed) ? Math.min(4, Math.max(0.25, speed)) : 1,
     );
+    setAudioInstructions(String(node.data.genAudioInstructions ?? ""));
     setCameraControl(parseCameraControl(node.data.cameraControl));
     setFirstFrameNodeId(String(node.data.firstFrameNodeId ?? "") || "");
     setLastFrameNodeId(String(node.data.lastFrameNodeId ?? "") || "");
@@ -430,6 +434,20 @@ export function NodeGenPanel({ node, viewport }: Props) {
     if (output !== "video" || !durations.length) return;
     setDuration((prev) => (durations.includes(prev) ? prev : durations[0]!));
   }, [durations, output]);
+
+  useEffect(() => {
+    if (output !== "audio" || !voiceOptions.length) return;
+    setVoice((prev) =>
+      voiceOptions.includes(prev) ? prev : voiceOptions[0]!,
+    );
+  }, [output, voiceOptions]);
+
+  useEffect(() => {
+    if (output !== "audio" || !formatOptions.length) return;
+    setAudioFormat((prev) =>
+      formatOptions.includes(prev) ? prev : formatOptions[0]!,
+    );
+  }, [output, formatOptions]);
 
   const { left, top } = useMemo(
     () => panelAnchor(node, viewport),
@@ -781,6 +799,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
               voice,
               format: audioFormat,
               speed: audioSpeed,
+              instructions: audioInstructions.trim() || undefined,
               canvasProjectId: projectId,
               canvasNodeId: targetId,
             },
@@ -791,6 +810,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
           genVoice: voice,
           genAudioFormat: audioFormat,
           genAudioSpeed: audioSpeed,
+          genAudioInstructions: audioInstructions.trim(),
         });
       } else {
         if (node.type !== "video") {
@@ -1140,6 +1160,23 @@ export function NodeGenPanel({ node, viewport }: Props) {
                     </button>
                   ))}
                 </div>
+              </div>
+              <div className="joy-composer-params-row">
+                <span className="joy-composer-params-label">语气指示</span>
+                <input
+                  type="text"
+                  className="joy-composer-params-input"
+                  value={audioInstructions}
+                  maxLength={2000}
+                  placeholder="可选：冷静、低沉、带笑意…"
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setAudioInstructions(next);
+                    persistParams({ genAudioInstructions: next });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
               </div>
             </>
           ) : null}

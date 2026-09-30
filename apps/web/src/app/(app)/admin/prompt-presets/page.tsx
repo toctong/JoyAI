@@ -24,6 +24,9 @@ import { ListPagination } from "@/components/admin/list-pagination";
 import { AdminEmptyState } from "@/components/admin/empty-state";
 import { AdminListSkeleton } from "@/components/admin/list-skeleton";
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { AdminImportExportButtons } from "@/components/admin/admin-import-export";
+import { AdminSelectAllCheckbox } from "@/components/admin/admin-select-all-checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -39,6 +42,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAdminImportExport } from "@/features/admin/use-admin-import-export";
+import { useAdminSelection } from "@/features/admin/use-admin-selection";
+
 
 type PresetRow = {
   id: string;
@@ -105,6 +111,20 @@ export default function AdminPromptPresetsPage() {
     const start = (page - 1) * pageSize;
     return rows.slice(start, start + pageSize);
   }, [rows, page, pageSize]);
+
+  const pageIds = useMemo(() => pageRows.map((r) => r.id), [pageRows]);
+  const selection = useAdminSelection(pageIds);
+
+  const io = useAdminImportExport({
+    kind: "prompt-presets",
+    exportPath: "/admin/prompt-presets/export",
+    importPath: "/admin/prompt-presets/import",
+    selectedIds: selection.selectedIds,
+    onDone: async () => {
+      selection.clear();
+      await load();
+    },
+  });
 
   function openCreate() {
     setForm(EMPTY_FORM);
@@ -176,6 +196,7 @@ export default function AdminPromptPresetsPage() {
         <PageHeader
           title="提示词库"
           description="全局预设提示词，画布「预设词 · 全局」只读选用。"
+          className="mb-0"
         />
         <ListToolbar
           search={searchDraft}
@@ -194,7 +215,7 @@ export default function AdminPromptPresetsPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="h-8 w-[110px]">
+              <SelectTrigger className="h-10 w-[132px] shrink-0 px-3">
                 <SelectValue placeholder="状态" />
               </SelectTrigger>
               <SelectContent>
@@ -205,10 +226,19 @@ export default function AdminPromptPresetsPage() {
             </Select>
           }
           actions={
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="size-4" />
-              新建预设
-            </Button>
+            <div className="flex items-center gap-2">
+              <AdminImportExportButtons
+                exporting={io.exporting}
+                importing={io.importing}
+                selectedCount={selection.selectedCount}
+                onExport={() => void io.handleExport()}
+                onImport={() => void io.handleImport()}
+              />
+              <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
+                <Plus className="size-4" />
+                新建预设
+              </Button>
+            </div>
           }
         />
       </ListPageHeader>
@@ -223,9 +253,16 @@ export default function AdminPromptPresetsPage() {
               description="新建后，所有画布可在「全局」里选用。"
             />
           ) : (
-            <Table>
+            <Table container={false}>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <AdminSelectAllCheckbox
+                      allSelected={selection.allPageSelected}
+                      someSelected={selection.somePageSelected}
+                      onToggle={selection.togglePage}
+                    />
+                  </TableHead>
                   <TableHead className="w-[72px]">排序</TableHead>
                   <TableHead className="w-[160px]">标题</TableHead>
                   <TableHead>提示词</TableHead>
@@ -235,7 +272,23 @@ export default function AdminPromptPresetsPage() {
               </TableHeader>
               <TableBody>
                 {pageRows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    data-state={
+                      selection.selectedIds.includes(row.id)
+                        ? "selected"
+                        : undefined
+                    }
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selection.selectedIds.includes(row.id)}
+                        onCheckedChange={(v) =>
+                          selection.toggle(row.id, v === true)
+                        }
+                        aria-label={`选择 ${row.title}`}
+                      />
+                    </TableCell>
                     <TableCell className="tabular-nums text-muted-foreground">
                       {row.sortOrder}
                     </TableCell>
@@ -364,7 +417,7 @@ export default function AdminPromptPresetsPage() {
               }
             />
           </div>
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+          <div className="flex items-center justify-between rounded-xl border border-transparent bg-muted px-3 py-2">
             <Label htmlFor="preset-enabled">启用</Label>
             <Switch
               id="preset-enabled"

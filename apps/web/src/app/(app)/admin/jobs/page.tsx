@@ -168,7 +168,7 @@ export default function JobsPage() {
                 value={statusFilter}
                 onValueChange={(v) => resetPageAnd(() => setStatusFilter(v))}
               >
-                <SelectTrigger className="h-9 w-[120px] rounded-xl">
+                <SelectTrigger className="h-10 w-[132px] shrink-0 px-3">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -217,7 +217,7 @@ export default function JobsPage() {
               }
             />
           ) : (
-            <Table className="min-w-[1180px]">
+            <Table container={false} className="min-w-[1180px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[88px]">用户</TableHead>
@@ -275,7 +275,7 @@ export default function JobsPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-8 rounded-lg px-2"
+                        className="h-9 rounded-xl px-2"
                         onClick={() => void openDetail(job)}
                       >
                         <Eye className="size-3.5" />

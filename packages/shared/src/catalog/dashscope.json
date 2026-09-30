@@ -1,7 +1,7 @@
 {
   "platform": "dashscope",
-  "updatedAt": "2026-09-16",
-  "note": "adapterId defaults: image→dashscope-images, video→dashscope-video. Override per model via adapterId.",
+  "updatedAt": "2026-09-30",
+  "note": "adapterId defaults: image→dashscope-images, video→dashscope-video, audio→dashscope-audio. Override per model via adapterId. 音频走原生 SpeechSynthesizer（非 /audio/speech）。",
   "llm": [
     {
       "name": "Qwen3.8 Max",
@@ -1540,6 +1540,134 @@
           "720P",
           "1080P"
         ]
+      }
+    }
+  ],
+  "audio": [
+    {
+      "name": "CosyVoice v3.5 Flash",
+      "remoteId": "cosyvoice-v3.5-flash",
+      "description": "百炼 CosyVoice 非实时 HTTP；默认音色 longanyang",
+      "isDefault": true,
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "dashscope-audio",
+        "voices": [
+          "longanyang",
+          "longanhuan",
+          "longxiaochun_v3",
+          "longyan_v3",
+          "longwanjun_v3"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
+      }
+    },
+    {
+      "name": "CosyVoice v3.5 Plus",
+      "remoteId": "cosyvoice-v3.5-plus",
+      "description": "百炼 CosyVoice 高品质；支持 instruction",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "dashscope-audio",
+        "voices": [
+          "longanyang",
+          "longanhuan",
+          "longxiaochun_v3",
+          "longyan_v3",
+          "longwanjun_v3"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
+      }
+    },
+    {
+      "name": "CosyVoice v3 Flash",
+      "remoteId": "cosyvoice-v3-flash",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "dashscope-audio",
+        "voices": [
+          "longanyang",
+          "longanhuan",
+          "longxiaochun_v3",
+          "longyan_v3"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
+      }
+    },
+    {
+      "name": "CosyVoice v3 Plus",
+      "remoteId": "cosyvoice-v3-plus",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "dashscope-audio",
+        "voices": [
+          "longanyang",
+          "longanhuan",
+          "longxiaochun_v3",
+          "longyan_v3"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
+      }
+    },
+    {
+      "name": "Qwen Audio 3.1 TTS Flash",
+      "remoteId": "qwen-audio-3.1-tts-flash",
+      "description": "千问音频 TTS 3.1 Flash；低延迟，支持指令控制；音色如 longanhuan_v3.6",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "dashscope-audio",
+        "voices": [
+          "longanhuan_v3.6",
+          "longanhuan_v3.1",
+          "longanfengyue",
+          "longanlingxi",
+          "longanxiaoxin",
+          "longjielidou_v3.6"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
+      }
+    },
+    {
+      "name": "Qwen Audio TTS Flash",
+      "remoteId": "qwen-audio-3.0-tts-flash",
+      "description": "千问音频 TTS 3.0 Flash；音色以控制台列表为准",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "dashscope-audio",
+        "voices": [
+          "longanhuan_v3.6",
+          "longanyang",
+          "longxiaochun_v3"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
+      }
+    },
+    {
+      "name": "Qwen Audio TTS Plus",
+      "remoteId": "qwen-audio-3.0-tts-plus",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "dashscope-audio",
+        "voices": [
+          "longanlingxin",
+          "longanlufeng",
+          "longanyang"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
       }
     }
   ]

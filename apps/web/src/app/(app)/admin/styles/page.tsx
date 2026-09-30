@@ -25,6 +25,9 @@ import { ListPagination } from "@/components/admin/list-pagination";
 import { AdminEmptyState } from "@/components/admin/empty-state";
 import { AdminListSkeleton } from "@/components/admin/list-skeleton";
 import { AdminDrawer } from "@/components/admin/admin-drawer";
+import { AdminImportExportButtons } from "@/components/admin/admin-import-export";
+import { AdminSelectAllCheckbox } from "@/components/admin/admin-select-all-checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -41,6 +44,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/shared/lib/utils";
+import { useAdminImportExport } from "@/features/admin/use-admin-import-export";
+import { useAdminSelection } from "@/features/admin/use-admin-selection";
 
 type StyleSurface = "manju" | "canvas";
 
@@ -129,6 +134,20 @@ export default function AdminStylesPage() {
     const start = (page - 1) * pageSize;
     return rows.slice(start, start + pageSize);
   }, [rows, page, pageSize]);
+
+  const pageIds = useMemo(() => pageRows.map((r) => r.id), [pageRows]);
+  const selection = useAdminSelection(pageIds);
+
+  const io = useAdminImportExport({
+    kind: "styles",
+    exportPath: "/admin/styles/export",
+    importPath: "/admin/styles/import",
+    selectedIds: selection.selectedIds,
+    onDone: async () => {
+      selection.clear();
+      await load();
+    },
+  });
 
   function openCreate() {
     setForm(EMPTY_FORM);
@@ -233,6 +252,7 @@ export default function AdminStylesPage() {
         <PageHeader
           title="风格库"
           description="全局风格模板，漫剧与画布生成面板共用。"
+          className="mb-0"
         />
         <ListToolbar
           search={searchDraft}
@@ -251,7 +271,7 @@ export default function AdminStylesPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="h-8 w-[110px]">
+              <SelectTrigger className="h-10 w-[132px] shrink-0 px-3">
                 <SelectValue placeholder="状态" />
               </SelectTrigger>
               <SelectContent>
@@ -262,10 +282,19 @@ export default function AdminStylesPage() {
             </Select>
           }
           actions={
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="size-4" />
-              新建风格
-            </Button>
+            <div className="flex items-center gap-2">
+              <AdminImportExportButtons
+                exporting={io.exporting}
+                importing={io.importing}
+                selectedCount={selection.selectedCount}
+                onExport={() => void io.handleExport()}
+                onImport={() => void io.handleImport()}
+              />
+              <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
+                <Plus className="size-4" />
+                新建风格
+              </Button>
+            </div>
           }
         />
       </ListPageHeader>
@@ -280,9 +309,16 @@ export default function AdminStylesPage() {
               description="新建后，漫剧与画布即可选用。"
             />
           ) : (
-            <Table>
+            <Table container={false}>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <AdminSelectAllCheckbox
+                      allSelected={selection.allPageSelected}
+                      someSelected={selection.somePageSelected}
+                      onToggle={selection.togglePage}
+                    />
+                  </TableHead>
                   <TableHead className="w-[72px]">排序</TableHead>
                   <TableHead className="w-[72px]">预览</TableHead>
                   <TableHead>名称 / slug</TableHead>
@@ -296,12 +332,28 @@ export default function AdminStylesPage() {
                 {pageRows.map((row) => {
                   const thumb = resolvePreview(row.thumbUrl);
                   return (
-                    <TableRow key={row.id}>
+                    <TableRow
+                      key={row.id}
+                      data-state={
+                        selection.selectedIds.includes(row.id)
+                          ? "selected"
+                          : undefined
+                      }
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selection.selectedIds.includes(row.id)}
+                          onCheckedChange={(v) =>
+                            selection.toggle(row.id, v === true)
+                          }
+                          aria-label={`选择 ${row.label}`}
+                        />
+                      </TableCell>
                       <TableCell className="tabular-nums text-muted-foreground">
                         {row.sortOrder}
                       </TableCell>
                       <TableCell>
-                        <div className="size-12 overflow-hidden rounded-md border bg-muted">
+                        <div className="size-12 overflow-hidden rounded-xl border bg-muted">
                           {thumb ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -430,7 +482,7 @@ export default function AdminStylesPage() {
           <div className="space-y-2">
             <Label>封面</Label>
             <div className="flex gap-3">
-              <div className="size-20 shrink-0 overflow-hidden rounded-md border bg-muted">
+              <div className="size-20 shrink-0 overflow-hidden rounded-xl border bg-muted">
                 {preview ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -495,10 +547,10 @@ export default function AdminStylesPage() {
                     key={surface}
                     type="button"
                     className={cn(
-                      "rounded-md border px-3 py-1.5 text-[13px]",
+                      "rounded-xl border border-transparent px-3.5 py-1.5 text-[13px] transition-colors",
                       on
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "text-muted-foreground",
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:text-foreground",
                     )}
                     onClick={() =>
                       setForm((f) => ({
@@ -527,7 +579,7 @@ export default function AdminStylesPage() {
               }
             />
           </div>
-          <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+          <div className="flex items-center justify-between rounded-xl border border-transparent bg-muted px-3 py-2">
             <Label htmlFor="style-enabled">启用</Label>
             <Switch
               id="style-enabled"

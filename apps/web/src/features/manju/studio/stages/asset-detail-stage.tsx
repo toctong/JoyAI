@@ -37,6 +37,8 @@ import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
 import { guessManjuAssetDetail, mergeManjuAssetDetail } from "@joyai/shared";
 import { ManjuLibraryImport } from "../../manju-library-import";
+import { ManjuAudioLibraryDialog } from "../../manju-audio-library-dialog";
+import { ManjuVoiceTtsDialog } from "../../manju-voice-tts-dialog";
 import { AssetRefUpload } from "../../asset-ref-upload";
 import { ManjuTextField } from "../../manju-text-field";
 import { useManjuStore } from "../../manju-store";
@@ -126,6 +128,8 @@ export function AssetDetailStage({
   const [lookEditing, setLookEditing] = useState(false);
   const [propDraft, setPropDraft] = useState("");
   const [genOpen, setGenOpen] = useState(false);
+  const [voiceTtsOpen, setVoiceTtsOpen] = useState(false);
+  const [audioLibOpen, setAudioLibOpen] = useState(false);
 
   const asset = useMemo(
     () => project?.assets.find((a) => a.id === assetId) ?? null,
@@ -831,21 +835,43 @@ export function AssetDetailStage({
                           src={detail.voiceAudioUrl}
                         />
                       ) : (
-                        <label className="manju-asset-detail__drop">
-                          <Upload className="size-5 opacity-50" />
-                          <span>点击或拖拽上传音频文件</span>
-                          <em>支持 mp3 / wav，建议 2–5 秒</em>
-                          <input
-                            type="file"
-                            accept="audio/mpeg,audio/wav,audio/mp3,.mp3,.wav"
-                            className="sr-only"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) void uploadVoiceAudio(file);
-                              e.target.value = "";
-                            }}
-                          />
-                        </label>
+                        <div className="space-y-2">
+                          <label className="manju-asset-detail__drop">
+                            <Upload className="size-5 opacity-50" />
+                            <span>点击或拖拽上传音频文件</span>
+                            <em>支持 mp3 / wav，建议 2–5 秒</em>
+                            <input
+                              type="file"
+                              accept="audio/mpeg,audio/wav,audio/mp3,.mp3,.wav"
+                              className="sr-only"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadVoiceAudio(file);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setVoiceTtsOpen(true)}
+                            >
+                              <Mic2 className="size-3.5" />
+                              AI 配音
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setAudioLibOpen(true)}
+                            >
+                              <FolderOpen className="size-3.5" />
+                              资产库
+                            </Button>
+                          </div>
+                        </div>
                       )
                     ) : (
                       <p className="manju-asset-detail__hint">勾选后上传参考音频</p>
@@ -1079,9 +1105,7 @@ export function AssetDetailStage({
                       size="sm"
                       variant="secondary"
                       className="manju-asset-detail__action"
-                      onClick={() =>
-                        toast.message("音频资产库即将接入")
-                      }
+                      onClick={() => setAudioLibOpen(true)}
                     >
                       <FolderOpen className="size-3.5" />
                       资产库
@@ -1091,9 +1115,7 @@ export function AssetDetailStage({
                       size="sm"
                       variant="secondary"
                       className="manju-asset-detail__action"
-                      onClick={() =>
-                        toast.message("AI 配音即将接入")
-                      }
+                      onClick={() => setVoiceTtsOpen(true)}
                     >
                       <Mic2 className="size-3.5" />
                       AI 配音
@@ -1152,6 +1174,30 @@ export function AssetDetailStage({
           </div>
         ) : null}
       </div>
+
+      {asset.kind === "character" ? (
+        <>
+          <ManjuVoiceTtsDialog
+            open={voiceTtsOpen}
+            onOpenChange={setVoiceTtsOpen}
+            projectId={projectId}
+            asset={asset}
+            detail={detail}
+          />
+          <ManjuAudioLibraryDialog
+            open={audioLibOpen}
+            onOpenChange={setAudioLibOpen}
+            onPick={({ url }) => {
+              updateAsset(projectId, asset.id, {
+                detail: patchDetail(asset, {
+                  voiceAudioUrl: url,
+                  voiceUseAudio: true,
+                }),
+              });
+            }}
+          />
+        </>
+      ) : null}
     </JoyPhotoProvider>
   );
 }

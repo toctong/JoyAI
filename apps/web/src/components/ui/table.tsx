@@ -3,19 +3,40 @@
 import * as React from "react";
 import { cn } from "@/shared/lib/utils";
 
+type TableProps = React.HTMLAttributes<HTMLTableElement> & {
+  /**
+   * When false, skip the inner overflow wrapper — use when parent
+   * (e.g. ListPageCard.admin-table) is already the scrollport so sticky
+   * thead / sticky-right columns keep working.
+   */
+  container?: boolean;
+  containerClassName?: string;
+};
+
 export function Table({
   className,
+  container = true,
+  containerClassName,
   ...props
-}: React.HTMLAttributes<HTMLTableElement>) {
-  return (
-    <div className="admin-table-scroll w-full overflow-x-auto">
-      <table
+}: TableProps) {
+  const table = (
+    <table
       className={cn(
-          "admin-table w-full min-w-[720px] caption-bottom text-sm",
-          className,
-        )}
-        {...props}
-      />
+        "admin-table w-full min-w-[720px] caption-bottom text-sm",
+        className,
+      )}
+      {...props}
+    />
+  );
+  if (!container) return table;
+  return (
+    <div
+      className={cn(
+        "admin-table-scroll w-full overflow-x-auto",
+        containerClassName,
+      )}
+    >
+      {table}
     </div>
   );
 }

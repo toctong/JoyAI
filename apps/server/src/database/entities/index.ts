@@ -15,6 +15,7 @@ import { InspireBanner } from "./inspire-banner.entity";
 import { PromptPreset } from "./prompt-preset.entity";
 import { StyleTemplate } from "./style-template.entity";
 import { CameraMove } from "./camera-move.entity";
+import { TtsVoice } from "./tts-voice.entity";
 
 export const ENTITIES = [
   User,
@@ -34,6 +35,7 @@ export const ENTITIES = [
   PromptPreset,
   StyleTemplate,
   CameraMove,
+  TtsVoice,
 ] as const;
 
 export {
@@ -54,4 +56,5 @@ export {
   PromptPreset,
   StyleTemplate,
   CameraMove,
+  TtsVoice,
 };

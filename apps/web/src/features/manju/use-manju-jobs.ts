@@ -11,6 +11,7 @@ import {
   peekGridJob,
   takeGridJob,
 } from "./lib/grid-jobs";
+import { takeVoiceJob } from "./lib/pending-voice-job";
 import { isManjuAssetSubmitPending } from "./lib/pending-asset-submit";
 import {
   manjuJobKindLabel,
@@ -175,6 +176,31 @@ export function useManjuJobBridge(activeProjectId?: string) {
       }
 
       const media = pickMedia(payload.assets ?? payload.job?.assets);
+      const voice = takeVoiceJob(jobId);
+      if (voice) {
+        if (!media.url) {
+          toast.error("配音缺少结果地址");
+          return;
+        }
+        const project = useManjuStore
+          .getState()
+          .projects.find((p) => p.id === voice.projectId);
+        const asset = project?.assets.find((a) => a.id === voice.assetId);
+        if (asset) {
+          useManjuStore.getState().updateAsset(voice.projectId, voice.assetId, {
+            detail: {
+              ...(asset.detail ?? {}),
+              voiceAudioUrl: media.url,
+              voiceUseAudio: true,
+            },
+            status: "succeeded",
+            jobId: null,
+          });
+          toast.success("AI 配音已写入角色音色");
+        }
+        return;
+      }
+
       const grid = peekGridJob(jobId);
       if (grid) {
         if (!media.url) {
@@ -216,6 +242,13 @@ export function useManjuJobBridge(activeProjectId?: string) {
     }) => {
       const jobId = resolveJobId(payload);
       if (!jobId) return;
+      const voice = takeVoiceJob(jobId);
+      if (voice) {
+        useManjuStore.getState().updateAsset(voice.projectId, voice.assetId, {
+          status: "failed",
+          jobId: null,
+        });
+      }
       const grid = takeGridJob(jobId);
       if (grid) {
         for (const shotId of grid.shotIds) {
@@ -380,6 +413,32 @@ export async function submitVideoJob(input: {
         referenceAssetIds: input.referenceAssetIds,
         referenceUrls: input.referenceUrls,
         refMode: input.refMode,
+        manjuProjectId: input.manjuProjectId,
+      },
+    },
+  });
+}
+
+export async function submitAudioJob(input: {
+  prompt: string;
+  voice?: string;
+  format?: "mp3" | "wav" | "opus" | "aac" | "flac" | "pcm";
+  speed?: number;
+  instructions?: string;
+  modelId?: string;
+  manjuProjectId: string;
+}): Promise<{ id: string }> {
+  return api<{ id: string }>("/jobs", {
+    method: "POST",
+    body: {
+      kind: "audio",
+      input: {
+        prompt: input.prompt,
+        voice: input.voice,
+        format: input.format,
+        speed: input.speed,
+        instructions: input.instructions,
+        modelId: input.modelId || undefined,
         manjuProjectId: input.manjuProjectId,
       },
     },

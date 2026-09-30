@@ -60,14 +60,9 @@ export function ListToolbar({
           className="flex min-w-[220px] max-w-xl flex-1"
           onSubmit={submit}
         >
-          <div
-            className={cn(
-              "flex h-8 w-full min-w-0 items-stretch overflow-hidden rounded-[2px] border border-border bg-card",
-              "focus-within:border-primary",
-            )}
-          >
+          <div className="joy-admin-toolbar-search">
             <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={draft}
                 onChange={(e) => {
@@ -76,7 +71,7 @@ export function ListToolbar({
                   onSearchChange(value);
                 }}
                 placeholder={searchPlaceholder}
-                className="h-full rounded-none border-0 bg-transparent pl-8 shadow-none focus-visible:ring-0"
+                className="h-full rounded-none border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0"
               />
             </div>
             {onSearchSubmit ? (
@@ -84,7 +79,7 @@ export function ListToolbar({
                 type="submit"
                 variant="ghost"
                 size="sm"
-                className="h-full shrink-0 rounded-none border-l border-border/80 px-3.5 text-sm font-medium"
+                className="h-full shrink-0 rounded-none border-l border-border/60 px-3.5 text-sm font-medium"
               >
                 搜索
               </Button>
@@ -100,7 +95,7 @@ export function ListToolbar({
             type="button"
             variant="outline"
             size="icon"
-            className="size-8 rounded-[2px]"
+            className="size-10 rounded-xl"
             disabled={refreshing}
             onClick={onRefresh}
             aria-label="刷新"
@@ -113,14 +108,14 @@ export function ListToolbar({
         ) : null}
 
         {viewMode && onViewModeChange ? (
-          <div className="inline-flex h-8 items-center rounded-[2px] border border-border bg-card p-0.5">
+          <div className="joy-admin-view-toggle">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className={cn(
-                "size-7 rounded-[2px]",
-                viewMode === "card" && "bg-secondary text-foreground",
+                "size-8 rounded-xl",
+                viewMode === "card" && "is-on",
               )}
               onClick={() => onViewModeChange("card")}
               aria-label="卡片视图"
@@ -133,8 +128,8 @@ export function ListToolbar({
               variant="ghost"
               size="icon"
               className={cn(
-                "size-7 rounded-[2px]",
-                viewMode === "list" && "bg-secondary text-foreground",
+                "size-8 rounded-xl",
+                viewMode === "list" && "is-on",
               )}
               onClick={() => onViewModeChange("list")}
               aria-label="列表视图"

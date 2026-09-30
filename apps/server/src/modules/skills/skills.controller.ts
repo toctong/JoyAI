@@ -21,6 +21,7 @@ import {
 import { Transform, Type } from "class-transformer";
 import { toOptionalBoolean } from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
+import { normalizeExportIds } from "../../common/admin-export";
 import type { SkillCategory } from "../../database/entities/skill.entity";
 import { SkillsService } from "./skills.service";
 
@@ -134,6 +135,22 @@ export class SkillsController {
   @Get("admin/skills")
   list(@Query() query: ListSkillsQueryDto) {
     return this.skills.list(query);
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get("admin/skills/export")
+  exportAll(@Query("ids") ids?: string | string[]) {
+    return this.skills.exportAll(normalizeExportIds(ids));
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post("admin/skills/import")
+  importAll(@Body() body: unknown) {
+    return this.skills.importItems(body);
   }
 
   @ApiBearerAuth()

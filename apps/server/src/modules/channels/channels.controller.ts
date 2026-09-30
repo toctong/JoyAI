@@ -18,6 +18,7 @@ import {
   toOptionalBoolean,
 } from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
+import { normalizeExportIds } from "../../common/admin-export";
 import { ChannelsService } from "./channels.service";
 import { ModelsService } from "../models/models.service";
 import {
@@ -57,6 +58,16 @@ export class ChannelsController {
   @Get()
   list(@Query() query: ListChannelsQueryDto) {
     return this.channels.list(query);
+  }
+
+  @Get("export")
+  exportAll(@Query("ids") ids?: string | string[]) {
+    return this.channels.exportAll(normalizeExportIds(ids));
+  }
+
+  @Post("import")
+  importAll(@Body() body: unknown) {
+    return this.channels.importItems(body);
   }
 
   @Post("probe")

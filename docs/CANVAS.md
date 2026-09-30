@@ -234,10 +234,11 @@
 ### 6.17 Phase 20 — TTS 语音生成（MVP）
 
 - [x] `JobKind.audio` + BullMQ `audio-generation` + OpenAI-compatible `/audio/speech`
-- [x] Catalog：APIMart 文档确认 `gpt-4o-mini-tts`；ToAPIs 仅留同名兼容种子（文档未列具体 id）
-- [x] 画布音频节点生成面板：文本 → 语音（音色 / 格式 / 语速）
+- [x] Catalog：APIMart / ToAPIs 音频种子含 `gpt-4o-mini-tts`、`tts-1`、`tts-1-hd`、快照版；百炼 CosyVoice / Qwen-TTS；火山 `seed-tts-2.0` / `1.0` / ICL
+- [x] 适配器：`openai-audio` · `dashscope-audio` · `volcengine-audio`
+- [x] 画布音频节点生成面板：文本 → 语音（音色 / 格式 / 语速 / instructions）
 
-**仍明确不做：** Gemini / MiMo / Grok / GLM 等全量 TTS 供应商面板、克隆音色、参考音频驱动；火山豆包语音 / 百炼 CosyVoice 原生协议（非 `/audio/speech`）。
+**仍明确不做：** Gemini / MiMo / Grok / GLM 等全量 TTS 供应商面板、克隆音色工作流 UI、参考音频驱动；百炼/火山声音复刻创建流程（仅合成侧已接，复刻 speaker 需控制台自备）。
 
 
 ## 7. 文档与工程入口

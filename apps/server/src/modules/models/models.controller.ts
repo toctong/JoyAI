@@ -26,6 +26,7 @@ import {
   toOptionalBoolean,
 } from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
+import { normalizeExportIds } from "../../common/admin-export";
 import { JobKind } from "../../database/enums";
 import { ModelsService } from "./models.service";
 
@@ -157,6 +158,22 @@ export class ModelsController {
   @Get("admin/models")
   list(@Query() query: ListModelsQueryDto) {
     return this.models.list(query);
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get("admin/models/export")
+  exportAll(@Query("ids") ids?: string | string[]) {
+    return this.models.exportAll(normalizeExportIds(ids));
+  }
+
+  @ApiBearerAuth()
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Post("admin/models/import")
+  importAll(@Body() body: unknown) {
+    return this.models.importItems(body);
   }
 
   @ApiBearerAuth()

@@ -1,7 +1,7 @@
 {
   "platform": "volcengine",
-  "updatedAt": "2026-09-16",
-  "note": "火山豆包视频仅保留 Seedance 2.5 / 2.0 / 2.0 Mini / 2.0 Fast。NotFound 多为方舟未开通该模型，不是 remoteId 写错。",
+  "updatedAt": "2026-09-30",
+  "note": "火山豆包视频仅保留 Seedance 2.5 / 2.0 / 2.0 Mini / 2.0 Fast。NotFound 多为方舟未开通该模型，不是 remoteId 写错。音频：豆包语音 openspeech（volcengine-audio）；remoteId=X-Api-Resource-Id。鉴权可用渠道 apiKey 作 X-Api-Key，或 metadata.openspeechApiKey / openspeechAppId+openspeechAccessKey。",
   "llm": [
     {
       "name": "Doubao Seed 2.1 Pro",
@@ -532,6 +532,103 @@
           "9:16",
           "adaptive"
         ]
+      }
+    }
+  ],
+  "audio": [
+    {
+      "name": "豆包语音合成 2.0",
+      "remoteId": "seed-tts-2.0",
+      "description": "openspeech HTTP Chunked；音色为 *_uranus_bigtts；需语音控制台 API Key",
+      "isDefault": true,
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "volcengine-audio",
+        "voices": [
+          "zh_female_vv_uranus_bigtts",
+          "saturn_zh_female_cancan_tob",
+          "saturn_zh_female_keainvsheng_tob",
+          "saturn_zh_female_tiaopigongzhu_tob",
+          "saturn_zh_male_shuanglangshaonian_tob",
+          "saturn_zh_male_tiancaitongzhuo_tob",
+          "zh_female_xiaohe_uranus_bigtts",
+          "zh_male_m191_uranus_bigtts",
+          "zh_male_taocheng_uranus_bigtts",
+          "en_male_tim_uranus_bigtts",
+          "en_female_dacey_uranus_bigtts",
+          "en_female_stokie_uranus_bigtts",
+          "zh_male_liufei_uranus_bigtts",
+          "zh_female_qingxinnvsheng_uranus_bigtts",
+          "zh_female_cancan_uranus_bigtts",
+          "zh_female_sajiaoxuemei_uranus_bigtts",
+          "zh_female_tianmeixiaoyuan_uranus_bigtts",
+          "zh_female_tianmeitaozi_uranus_bigtts",
+          "zh_female_shuangkuaisisi_uranus_bigtts",
+          "zh_female_peiqi_uranus_bigtts",
+          "zh_female_linjianvhai_uranus_bigtts",
+          "zh_male_shaonianzixin_uranus_bigtts",
+          "zh_male_sunwukong_uranus_bigtts",
+          "zh_female_yingyujiaoxue_uranus_bigtts",
+          "zh_female_kefunvsheng_uranus_bigtts",
+          "zh_female_xiaoxue_uranus_bigtts",
+          "zh_male_dayi_uranus_bigtts",
+          "zh_female_mizai_uranus_bigtts",
+          "zh_female_jitangnv_uranus_bigtts",
+          "zh_female_meilinvyou_uranus_bigtts",
+          "zh_female_liuchangnv_uranus_bigtts",
+          "zh_male_ruyayichen_uranus_bigtts",
+          "zh_female_wenroumama_uranus_bigtts",
+          "zh_male_jieshuoxiaoming_uranus_bigtts",
+          "zh_female_tvbnv_uranus_bigtts",
+          "zh_male_yizhipiannan_uranus_bigtts",
+          "zh_female_qiaopinv_uranus_bigtts",
+          "zh_female_zhishuaiyingzi_uranus_bigtts",
+          "zh_male_linjiananhai_uranus_bigtts",
+          "zh_male_silang_uranus_bigtts",
+          "zh_male_ruyaqingnian_uranus_bigtts",
+          "zh_male_qingcang_uranus_bigtts",
+          "zh_male_xionger_uranus_bigtts",
+          "zh_female_yingtaowanzi_uranus_bigtts",
+          "zh_male_wennuanahu_uranus_bigtts",
+          "zh_male_naiqimengwa_uranus_bigtts",
+          "zh_female_popo_uranus_bigtts",
+          "zh_female_gaolengyujie_uranus_bigtts",
+          "zh_male_aojiaobazong_uranus_bigtts",
+          "zh_male_lanyinmianbao_uranus_bigtts"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
+      }
+    },
+    {
+      "name": "豆包语音合成 1.0",
+      "remoteId": "seed-tts-1.0",
+      "description": "1.0 字符版；音色与 2.0 不可混用",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "volcengine-audio",
+        "voices": [
+          "zh_female_shuangkuaisisi_moon_bigtts",
+          "zh_male_M392_conversation_wvae_bigtts",
+          "BV001_streaming",
+          "BV002_streaming"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
+      }
+    },
+    {
+      "name": "豆包声音复刻 2.0",
+      "remoteId": "seed-icl-2.0",
+      "description": "声音复刻 2.0；在生成面板音色处填写控制台复刻 speaker id",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "volcengine-audio",
+        "audioFormats": ["mp3", "wav", "opus", "pcm"]
       }
     }
   ]

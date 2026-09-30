@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { IsNull, Repository } from "typeorm";
+import { In, IsNull, Repository } from "typeorm";
+import {
+  makeAdminExport,
+  parseAdminImportItems,
+} from "../../common/admin-export";
 import {
   PromptPreset,
   type PromptPresetScope,
@@ -112,6 +116,76 @@ export class PromptPresetsService {
     const row = await this.getGlobal(id);
     await this.presets.remove(row);
     return { ok: true };
+  }
+
+  async exportGlobal(ids?: string[]) {
+    const rows = await this.presets.find({
+      where: ids?.length
+        ? { id: In(ids), scope: "global", canvasProjectId: IsNull() }
+        : { scope: "global", canvasProjectId: IsNull() },
+      order: { sortOrder: "ASC", updatedAt: "DESC" },
+    });
+    return makeAdminExport(
+      "prompt-presets",
+      rows.map((r) => ({
+        title: r.title,
+        text: r.text,
+        enabled: r.enabled,
+        sortOrder: r.sortOrder,
+      })),
+    );
+  }
+
+  async importGlobal(body: unknown) {
+    let raw: Array<{
+      title?: string;
+      text?: string;
+      enabled?: boolean;
+      sortOrder?: number;
+    }>;
+    try {
+      raw = parseAdminImportItems(body, "prompt-presets");
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : "导入失败",
+      );
+    }
+    let created = 0;
+    let updated = 0;
+    for (const item of raw) {
+      const textRaw = String(item.text ?? "").trim();
+      if (!textRaw) continue;
+      const text = normalizeText(textRaw);
+      const title = normalizeTitle(String(item.title ?? ""), text);
+      const existing = await this.presets.findOne({
+        where: {
+          scope: "global",
+          canvasProjectId: IsNull(),
+          title,
+        },
+      });
+      if (existing) {
+        existing.text = text;
+        existing.enabled = item.enabled !== false;
+        existing.sortOrder = Number(item.sortOrder) || existing.sortOrder;
+        await this.presets.save(existing);
+        updated += 1;
+      } else {
+        await this.presets.save(
+          this.presets.create({
+            title,
+            text,
+            scope: "global",
+            canvasProjectId: null,
+            enabled: item.enabled !== false,
+            sortOrder: Number(item.sortOrder) || 100,
+            createdByUserId: null,
+          }),
+        );
+        created += 1;
+      }
+    }
+    return { created, updated, total: raw.length };
   }
 
   async listForCanvas(userId: string, projectId: string) {

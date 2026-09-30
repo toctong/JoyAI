@@ -1,18 +1,19 @@
-/* Admin Overview — market console dashboard pattern */
+/* Admin Overview — soft radius, aligned with .joy-admin tokens */
 
 .joy-ov {
-  --ov-radius: 4px;
-  --ov-border: var(--ve-border, #e5e6eb);
-  --ov-surface: var(--ve-surface, #fff);
-  --ov-hover: var(--ve-hover, #f7f8fa);
-  --ov-text: var(--ve-text, #1d2129);
-  --ov-muted: var(--ve-text-muted, #86909c);
-  --ov-secondary: var(--ve-text-secondary, #4e5969);
-  --ov-primary: var(--ve-primary, #1664ff);
-  --ov-soft-blue: #e8f3ff;
-  --ov-soft-violet: #f5e8ff;
-  --ov-soft-green: #e8ffea;
-  --ov-soft-orange: #fff7e8;
+  --ov-radius: var(--joy-radius-lg, 12px);
+  --ov-radius-lg: var(--joy-radius-xl, 16px);
+  --ov-border: var(--border);
+  --ov-surface: var(--card);
+  --ov-hover: var(--muted);
+  --ov-text: var(--foreground);
+  --ov-muted: var(--muted-foreground);
+  --ov-secondary: color-mix(in oklab, var(--foreground) 72%, var(--muted-foreground));
+  --ov-primary: var(--primary);
+  --ov-soft-blue: color-mix(in oklab, var(--primary) 12%, var(--card));
+  --ov-soft-violet: color-mix(in oklab, #7c3aed 12%, var(--card));
+  --ov-soft-green: color-mix(in oklab, #16a34a 12%, var(--card));
+  --ov-soft-orange: color-mix(in oklab, #ea580c 12%, var(--card));
 
   display: flex;
   flex-direction: column;
@@ -39,7 +40,7 @@
 
 .joy-ov-desc {
   margin: 4px 0 0;
-  max-width: 36rem;
+  max-width: 40rem;
   font-size: 13px;
   line-height: 20px;
   color: var(--ov-muted);
@@ -52,24 +53,30 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px 20px;
-  border: 1px solid var(--ov-border);
-  border-radius: var(--ov-radius);
-  background: var(--ov-surface);
+  border: 1px solid transparent;
+  border-radius: var(--ov-radius-lg);
+  background: var(--muted);
   padding: 12px 16px;
 }
 
 .joy-ov-health.is-ok {
-  border-color: color-mix(in oklab, #00b42a 28%, var(--ov-border));
-  background: linear-gradient(90deg, var(--ov-soft-green), var(--ov-surface) 42%);
+  background: linear-gradient(
+    90deg,
+    var(--ov-soft-green),
+    var(--muted) 48%
+  );
 }
 
 .joy-ov-health.is-warn {
-  border-color: color-mix(in oklab, #ff7d00 28%, var(--ov-border));
-  background: linear-gradient(90deg, var(--ov-soft-orange), var(--ov-surface) 42%);
+  background: linear-gradient(
+    90deg,
+    var(--ov-soft-orange),
+    var(--muted) 48%
+  );
 }
 
 .joy-ov-health.is-neutral {
-  background: var(--ov-surface);
+  background: var(--muted);
 }
 
 .joy-ov-health-main {
@@ -82,11 +89,11 @@
 }
 
 .joy-ov-health.is-ok .joy-ov-health-main {
-  color: #00b42a;
+  color: #16a34a;
 }
 
 .joy-ov-health.is-warn .joy-ov-health-main {
-  color: #ff7d00;
+  color: #ea580c;
 }
 
 .joy-ov-health-stats {
@@ -115,6 +122,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
+  justify-content: space-between;
   gap: 8px 12px;
 }
 
@@ -148,11 +156,17 @@
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  border: 1px solid var(--ov-border);
-  border-radius: var(--ov-radius);
-  background: var(--ov-surface);
+  border: 1px solid transparent;
+  border-radius: var(--ov-radius-lg);
+  background: var(--muted);
   padding: 16px;
   color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+a.joy-ov-metric:hover {
+  background: color-mix(in oklab, var(--muted) 86%, var(--foreground));
 }
 
 .joy-ov-metric-icon {
@@ -169,17 +183,17 @@
 
 .joy-ov-metric[data-tone="violet"] .joy-ov-metric-icon {
   background: var(--ov-soft-violet);
-  color: #722ed1;
+  color: #7c3aed;
 }
 
 .joy-ov-metric[data-tone="green"] .joy-ov-metric-icon {
   background: var(--ov-soft-green);
-  color: #00b42a;
+  color: #16a34a;
 }
 
 .joy-ov-metric[data-tone="orange"] .joy-ov-metric-icon {
   background: var(--ov-soft-orange);
-  color: #ff7d00;
+  color: #ea580c;
 }
 
 .joy-ov-metric-body {
@@ -213,8 +227,8 @@
   display: inline-block;
   height: 28px;
   width: 52px;
-  border-radius: 2px;
-  background: var(--ov-hover);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
   animation: joy-ov-pulse 1.4s ease-in-out infinite;
 }
 
@@ -222,9 +236,97 @@
   display: inline-block;
   height: 12px;
   width: 72px;
-  border-radius: 2px;
-  background: var(--ov-hover);
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
   animation: joy-ov-pulse 1.4s ease-in-out infinite;
+}
+
+/* —— Content catalog / module shortcuts —— */
+.joy-ov-catalog {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 720px) {
+  .joy-ov-catalog {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .joy-ov-catalog {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.joy-ov-catalog-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 108px;
+  padding: 14px 14px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--ov-radius-lg);
+  background: var(--muted);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.joy-ov-catalog-item:hover {
+  background: color-mix(in oklab, var(--muted) 86%, var(--foreground));
+}
+
+.joy-ov-catalog-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.joy-ov-catalog-icon {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ov-radius);
+  background: var(--card);
+  color: var(--ov-text);
+}
+
+.joy-ov-catalog-go {
+  color: var(--ov-muted);
+  opacity: 0.7;
+}
+
+.joy-ov-catalog-item:hover .joy-ov-catalog-go {
+  opacity: 1;
+  color: var(--ov-text);
+}
+
+.joy-ov-catalog-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ov-text);
+}
+
+.joy-ov-catalog-value {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ov-text);
+}
+
+.joy-ov-catalog-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--ov-muted);
 }
 
 /* —— Recent jobs panel —— */
@@ -233,9 +335,9 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--ov-border);
-  border-radius: var(--ov-radius);
-  background: var(--ov-surface);
+  border: 1px solid transparent;
+  border-radius: var(--ov-radius-lg);
+  background: var(--muted);
 }
 
 .joy-ov-panel-head {
@@ -246,7 +348,7 @@
   gap: 8px;
   flex-shrink: 0;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--ov-border);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
 }
 
 .joy-ov-panel-title {
@@ -270,8 +372,9 @@
 }
 
 .joy-ov-jobs {
-  max-height: min(440px, calc(100vh - 420px));
+  max-height: min(420px, calc(100vh - 520px));
   overflow: auto;
+  background: var(--card);
 }
 
 .joy-ov-jobs-head {
@@ -285,8 +388,8 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--ov-muted);
-  background: var(--ov-hover);
-  border-bottom: 1px solid var(--ov-border);
+  background: color-mix(in oklab, var(--muted) 70%, var(--card));
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
 }
 
 .joy-ov-job {
@@ -295,7 +398,7 @@
   gap: 8px 16px;
   align-items: center;
   padding: 11px 16px;
-  border-bottom: 1px solid var(--ov-border);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
 }
 
 .joy-ov-job:last-child {
@@ -303,7 +406,7 @@
 }
 
 .joy-ov-job:hover {
-  background: var(--ov-hover);
+  background: color-mix(in oklab, var(--muted) 55%, var(--card));
 }
 
 .joy-ov-job-main {
@@ -341,7 +444,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--ov-border);
+  border-bottom: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
 }
 
 .joy-ov-job-skel-left {
@@ -354,8 +457,8 @@
 .joy-ov-skel-chip,
 .joy-ov-skel-time {
   display: inline-block;
-  border-radius: 2px;
-  background: var(--ov-hover);
+  border-radius: 6px;
+  background: var(--muted);
   animation: joy-ov-pulse 1.4s ease-in-out infinite;
 }
 
@@ -376,13 +479,14 @@
 
 .joy-ov-empty {
   display: flex;
-  min-height: 180px;
+  min-height: 160px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
   padding: 32px 20px;
   text-align: center;
+  background: var(--card);
 }
 
 .joy-ov-empty-title {
@@ -437,6 +541,6 @@
   }
 
   .joy-ov-jobs {
-    max-height: 300px;
+    max-height: 280px;
   }
 }

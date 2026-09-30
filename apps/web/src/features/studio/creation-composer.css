@@ -1136,6 +1136,23 @@
   font-variant-numeric: tabular-nums;
 }
 
+.joy-composer-params-input {
+  width: 100%;
+  min-width: 0;
+  height: var(--joy-control-h-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--joy-radius-sm, 8px);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: var(--joy-font-caption);
+  padding: 0 10px;
+  outline: none;
+}
+
+.joy-composer-params-input:focus {
+  border-color: var(--ring);
+}
+
 .joy-composer-params-slider-fixed {
   height: var(--joy-control-h-sm);
   display: inline-flex;

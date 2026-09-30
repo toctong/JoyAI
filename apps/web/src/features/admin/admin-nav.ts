@@ -17,7 +17,7 @@ export type AdminNavTab = {
 /**
  * Top admin nav — keep short; related screens live under `children` as page tabs.
  *
- * 概览 · 任务 · 模型(模型/渠道) · 内容(提示词/风格/运镜/技能/横幅) · 插件 · 系统(用户/日志/设置)
+ * 概览 · 任务 · 模型(模型/渠道) · 内容(提示词/风格/运镜/音色/技能/横幅) · 插件 · 系统(用户/日志/设置)
  */
 export const ADMIN_NAV_TABS: AdminNavTab[] = [
   { href: "/admin", label: "概览", icon: "overview", end: true },
@@ -39,6 +39,7 @@ export const ADMIN_NAV_TABS: AdminNavTab[] = [
       { href: "/admin/prompt-presets", label: "提示词" },
       { href: "/admin/styles", label: "风格" },
       { href: "/admin/camera-moves", label: "运镜" },
+      { href: "/admin/voices", label: "音色库" },
       { href: "/admin/skills", label: "技能" },
       { href: "/admin/inspire-banners", label: "横幅" },
     ],

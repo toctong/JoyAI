@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import {
@@ -13,6 +13,10 @@ import {
   normalizePage,
   type PaginatedResult,
 } from "../../common/dto/pagination-query.dto";
+import {
+  makeAdminExport,
+  parseAdminImportItems,
+} from "../../common/admin-export";
 import { Channel } from "../../database/entities/channel.entity";
 import { Model } from "../../database/entities/model.entity";
 import { JobKind } from "../../database/enums";
@@ -443,5 +447,107 @@ export class ModelsService {
     }
 
     return { remoteIds: [...remoteIds] };
+  }
+
+  async exportAll(ids?: string[]) {
+    const rows = await this.models.find({
+      where: ids?.length ? { id: In(ids) } : undefined,
+      relations: ["channel"],
+      order: { createdAt: "ASC" },
+    });
+    return makeAdminExport(
+      "models",
+      rows.map((m) => ({
+        channelName: m.channel?.name ?? "",
+        channelPlatform: m.channel?.platform ?? "",
+        name: m.name,
+        kind: m.kind,
+        remoteId: m.remoteId,
+        description: m.description,
+        pricing: m.pricing,
+        capabilities: m.capabilities,
+        enabled: m.enabled,
+        isDefault: m.isDefault,
+      })),
+    );
+  }
+
+  async importItems(body: unknown) {
+    let raw: Array<{
+      channelName?: string;
+      channelPlatform?: string;
+      name?: string;
+      kind?: string;
+      remoteId?: string;
+      description?: string | null;
+      pricing?: Record<string, unknown> | null;
+      capabilities?: Record<string, unknown> | null;
+      enabled?: boolean;
+      isDefault?: boolean;
+    }>;
+    try {
+      raw = parseAdminImportItems(body, "models");
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : "导入失败",
+      );
+    }
+    const channels = await this.channels.find();
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    for (const item of raw) {
+      const channelName = String(item.channelName ?? "").trim();
+      const channelPlatform = String(item.channelPlatform ?? "").trim();
+      const name = String(item.name ?? "").trim();
+      const remoteId = String(item.remoteId ?? "").trim();
+      const kind = String(item.kind ?? "").trim() as JobKind;
+      if (!name || !remoteId || !kind) {
+        skipped += 1;
+        continue;
+      }
+      let channel =
+        channels.find(
+          (c) =>
+            c.name === channelName &&
+            (!channelPlatform || c.platform === channelPlatform),
+        ) ??
+        channels.find((c) => c.name === channelName) ??
+        (channelPlatform
+          ? channels.find((c) => c.platform === channelPlatform)
+          : undefined);
+      if (!channel) {
+        skipped += 1;
+        continue;
+      }
+      const existing = await this.models.findOne({
+        where: { channelId: channel.id, remoteId },
+      });
+      const payload = {
+        name,
+        kind,
+        description: item.description?.trim() || null,
+        pricing: (item.pricing as Record<string, unknown> | null) ?? null,
+        capabilities:
+          (item.capabilities as Record<string, unknown> | null) ?? null,
+        enabled: item.enabled !== false,
+        isDefault: item.isDefault === true,
+      };
+      if (existing) {
+        Object.assign(existing, payload);
+        await this.models.save(existing);
+        updated += 1;
+      } else {
+        await this.models.save(
+          this.models.create({
+            channelId: channel.id,
+            remoteId,
+            ...payload,
+          }),
+        );
+        created += 1;
+      }
+    }
+    return { created, updated, skipped, total: raw.length };
   }
 }

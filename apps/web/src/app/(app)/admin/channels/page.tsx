@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,6 +36,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/ui/page-header";
+import { AdminImportExportButtons } from "@/components/admin/admin-import-export";
+import { AdminSelectAllCheckbox } from "@/components/admin/admin-select-all-checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useAdminImportExport } from "@/features/admin/use-admin-import-export";
+import { useAdminSelection } from "@/features/admin/use-admin-selection";
+import { cn } from "@/shared/lib/utils";
 import {
   ListPageCard,
   ListPageFooter,
@@ -57,7 +63,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from "@/shared/lib/utils";
 
 type Channel = {
   id: string;
@@ -67,6 +72,7 @@ type Channel = {
   enabled: boolean;
   apiKey?: string;
   modelCount?: number;
+  metadata?: Record<string, unknown> | null;
 };
 
 type Paginated<T> = {
@@ -92,7 +98,10 @@ const schema = z.object({
   name: z.string().min(1, "必填"),
   platform: z.string().min(1),
   apiKey: z.string().optional(),
+  /** 豆包语音 openspeech Key（与方舟 Ark Key 不同）；仅火山渠道 */
+  openspeechApiKey: z.string().optional(),
   baseUrl: z.string().url("请输入合法 URL"),
+  enabled: z.boolean().optional(),
   importCatalog: z.boolean().optional(),
 });
 
@@ -124,7 +133,9 @@ export default function ChannelsPage() {
       name: CHANNEL_PRESETS.volcengine.defaultName,
       platform: "volcengine",
       apiKey: "",
+      openspeechApiKey: "",
       baseUrl: CHANNEL_PRESETS.volcengine.baseUrl,
+      enabled: true,
       importCatalog: true,
     },
   });
@@ -169,6 +180,20 @@ export default function ChannelsPage() {
     void load();
   }, [load]);
 
+  const pageIds = useMemo(() => channels.map((c) => c.id), [channels]);
+  const selection = useAdminSelection(pageIds);
+
+  const io = useAdminImportExport({
+    kind: "channels",
+    exportPath: "/admin/channels/export",
+    importPath: "/admin/channels/import",
+    selectedIds: selection.selectedIds,
+    onDone: async () => {
+      selection.clear();
+      await load();
+    },
+  });
+
   function resetPageAnd(apply: () => void) {
     apply();
     setPage(1);
@@ -193,7 +218,9 @@ export default function ChannelsPage() {
       name: CHANNEL_PRESETS.volcengine.defaultName,
       platform: "volcengine",
       apiKey: "",
+      openspeechApiKey: "",
       baseUrl: CHANNEL_PRESETS.volcengine.baseUrl,
+      enabled: true,
       importCatalog: true,
     });
     setOpen(true);
@@ -205,10 +232,22 @@ export default function ChannelsPage() {
       name: ch.name,
       platform: ch.platform,
       apiKey: "",
+      openspeechApiKey: "",
       baseUrl: ch.baseUrl,
+      enabled: ch.enabled,
       importCatalog: false,
     });
     setOpen(true);
+  }
+
+  function channelHasOpenspeechKey(ch: Channel | null) {
+    const meta = ch?.metadata;
+    if (!meta || typeof meta !== "object") return false;
+    const key =
+      meta.openspeechApiKey ??
+      meta.volcSpeechApiKey ??
+      meta.openspeechAccessKey;
+    return typeof key === "string" && key.trim().length > 0;
   }
 
   function showTestToast(res: TestResult) {
@@ -273,12 +312,20 @@ export default function ChannelsPage() {
 
   async function onSubmit(values: FormValues) {
     try {
+      const isVolc =
+        (editing?.platform ?? values.platform) === "volcengine";
+      const openspeechTrim = values.openspeechApiKey?.trim();
+
       if (editing) {
         const body: Record<string, unknown> = {
           name: values.name,
           baseUrl: values.baseUrl,
+          enabled: values.enabled !== false,
         };
         if (values.apiKey?.trim()) body.apiKey = values.apiKey.trim();
+        if (isVolc && openspeechTrim) {
+          body.metadata = { openspeechApiKey: openspeechTrim };
+        }
         await api(`/admin/channels/${editing.id}`, { method: "PATCH", body });
         toast.success("渠道已更新");
       } else {
@@ -286,6 +333,10 @@ export default function ChannelsPage() {
           toast.error("请填写 API Key");
           return;
         }
+        const metadata =
+          isVolc && openspeechTrim
+            ? { openspeechApiKey: openspeechTrim }
+            : undefined;
         const res = await api<{
           catalog?: {
             created: number;
@@ -299,7 +350,9 @@ export default function ChannelsPage() {
             platform: values.platform,
             apiKey: values.apiKey,
             baseUrl: values.baseUrl,
+            enabled: values.enabled !== false,
             importCatalog: values.importCatalog ?? true,
+            ...(metadata ? { metadata } : {}),
           },
         });
         const c = res.catalog;
@@ -520,13 +573,13 @@ export default function ChannelsPage() {
                   resetPageAnd(() => setEnabledFilter(v))
                 }
               >
-                <SelectTrigger className="h-9 w-[100px] rounded-xl">
-                  <SelectValue />
+                <SelectTrigger className="h-10 w-[132px] shrink-0 px-3">
+                  <SelectValue placeholder="状态" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">全部状态</SelectItem>
-                  <SelectItem value="enabled">启用</SelectItem>
-                  <SelectItem value="disabled">停用</SelectItem>
+                  <SelectItem value="enabled">已启用</SelectItem>
+                  <SelectItem value="disabled">已停用</SelectItem>
                 </SelectContent>
               </Select>
             </>
@@ -534,10 +587,19 @@ export default function ChannelsPage() {
           onRefresh={() => void load()}
           refreshing={refreshing}
           actions={
-            <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
-              <Plus className="size-3.5" />
-              新建渠道
-            </Button>
+            <div className="flex items-center gap-2">
+              <AdminImportExportButtons
+                exporting={io.exporting}
+                importing={io.importing}
+                selectedCount={selection.selectedCount}
+                onExport={() => void io.handleExport()}
+                onImport={() => void io.handleImport()}
+              />
+              <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
+                <Plus className="size-3.5" />
+                新建渠道
+              </Button>
+            </div>
           }
         />
       </ListPageHeader>
@@ -550,7 +612,7 @@ export default function ChannelsPage() {
               description="创建渠道后可测试连通性；全量同步会按目录创建/更新模型，并禁用已下线项"
               action={
                 !hasFilters ? (
-                  <Button size="sm" onClick={openCreate}>
+                  <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
                     <Plus className="size-3.5" />
                     新建渠道
                   </Button>
@@ -562,9 +624,22 @@ export default function ChannelsPage() {
           <div className="joy-admin-scroll-body">
             <div className="joy-admin-card-grid">
             {channels.map((ch) => (
-              <article key={ch.id} className="joy-admin-card-item">
+              <article
+                key={ch.id}
+                className={cn(
+                  "joy-admin-card-item",
+                  selection.selectedIds.includes(ch.id) && "is-selected",
+                )}
+              >
                 <div className="joy-admin-card-item-head">
                   <div className="flex min-w-0 items-center gap-2.5">
+                    <Checkbox
+                      checked={selection.selectedIds.includes(ch.id)}
+                      onCheckedChange={(v) =>
+                        selection.toggle(ch.id, v === true)
+                      }
+                      aria-label={`选择 ${ch.name}`}
+                    />
                     <BrandAvatar
                       src={channelIconSrc(ch.platform)}
                       label={platformLabel(ch.platform)}
@@ -598,19 +673,14 @@ export default function ChannelsPage() {
                   {connectivityHint(ch)}
                 </div>
                 <div className="joy-admin-card-item-foot">
-                  <label
-                    className={
-                      ch.enabled
-                        ? "joy-admin-switch-label is-on flex items-center gap-2"
-                        : "joy-admin-switch-label flex items-center gap-2"
-                    }
-                  >
+                  <div className="flex min-w-0 flex-1 items-center justify-between rounded-xl border border-transparent bg-muted px-3 py-1.5">
+                    <span className="text-sm">启用</span>
                     <Switch
                       checked={ch.enabled}
                       onCheckedChange={() => void toggle(ch)}
+                      aria-label={ch.enabled ? "已启用" : "已停用"}
                     />
-                    {ch.enabled ? "已启用" : "已停用"}
-                  </label>
+                  </div>
                   {renderActions(ch)}
                 </div>
               </article>
@@ -618,10 +688,17 @@ export default function ChannelsPage() {
           </div>
           </div>
         ) : (
-          <ListPageCard className="admin-table">
-            <Table className="min-w-[820px]">
+          <ListPageCard scroll className="admin-table">
+            <Table container={false} className="min-w-[820px]">
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <AdminSelectAllCheckbox
+                      allSelected={selection.allPageSelected}
+                      someSelected={selection.somePageSelected}
+                      onToggle={selection.togglePage}
+                    />
+                  </TableHead>
                   <TableHead>名称</TableHead>
                   <TableHead>平台</TableHead>
                   <TableHead>Base URL</TableHead>
@@ -635,7 +712,23 @@ export default function ChannelsPage() {
               </TableHeader>
               <TableBody>
                 {channels.map((ch) => (
-                  <TableRow key={ch.id}>
+                  <TableRow
+                    key={ch.id}
+                    data-state={
+                      selection.selectedIds.includes(ch.id)
+                        ? "selected"
+                        : undefined
+                    }
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selection.selectedIds.includes(ch.id)}
+                        onCheckedChange={(v) =>
+                          selection.toggle(ch.id, v === true)
+                        }
+                        aria-label={`选择 ${ch.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex min-w-0 items-center gap-2.5">
                         <BrandAvatar
@@ -710,7 +803,7 @@ export default function ChannelsPage() {
             <Button
               type="button"
               variant="secondary"
-              className="h-8 rounded-[2px]"
+              className="h-10 rounded-xl"
               disabled={probing}
               onClick={() => void probeInDialog()}
             >
@@ -725,7 +818,7 @@ export default function ChannelsPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="h-8 rounded-[2px]"
+                className="h-10 rounded-xl"
                 onClick={() => setOpen(false)}
               >
                 取消
@@ -733,7 +826,7 @@ export default function ChannelsPage() {
               <Button
                 type="submit"
                 form="admin-channel-form"
-                className="h-8 rounded-[2px]"
+                className="h-10 rounded-xl"
               >
                 {editing ? "保存" : "创建"}
               </Button>
@@ -748,13 +841,13 @@ export default function ChannelsPage() {
         >
           <div className="space-y-2">
             <Label>名称</Label>
-            <Input className="h-8 rounded-[2px]" {...form.register("name")} />
+            <Input className="h-10 rounded-xl" {...form.register("name")} />
           </div>
 
           {editing ? (
             <div className="space-y-2">
               <Label>平台</Label>
-              <div className="flex h-8 items-center gap-2 rounded-[2px] border border-border bg-muted/40 px-3">
+              <div className="flex h-10 items-center gap-2 rounded-xl border border-transparent bg-muted px-3">
                 <BrandAvatar
                   src={channelIconSrc(editing.platform)}
                   label={platformLabel(editing.platform)}
@@ -779,7 +872,7 @@ export default function ChannelsPage() {
                 value={form.watch("platform")}
                 onValueChange={applyPlatform}
               >
-                <SelectTrigger className="h-8 rounded-[2px]">
+                <SelectTrigger className="h-10 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="shadow-none">
@@ -805,7 +898,7 @@ export default function ChannelsPage() {
                 </a>
               ) : null}
               {watchedPlatform === "openai-compatible" ? (
-                <p className="rounded-[2px] bg-muted/50 px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">
+                <p className="rounded-xl bg-muted px-3 py-2 text-[12px] leading-relaxed text-muted-foreground">
                   适用于任意 OpenAI 兼容网关。创建后请到「模型」页手动登记，
                   图片用 <code className="font-mono">openai-images</code>
                   、视频用{" "}
@@ -818,7 +911,9 @@ export default function ChannelsPage() {
 
           <div className="space-y-2">
             <Label>
-              API Key
+              {(editing?.platform ?? watchedPlatform) === "volcengine"
+                ? "方舟 API Key"
+                : "API Key"}
               {editing ? (
                 <span className="ml-1 font-normal text-muted-foreground">
                   （留空则不修改）
@@ -826,16 +921,51 @@ export default function ChannelsPage() {
               ) : null}
             </Label>
             <Input
-              className="h-8 rounded-[2px]"
+              className="h-10 rounded-xl"
               type="password"
               autoComplete="off"
               {...form.register("apiKey")}
             />
+            {(editing?.platform ?? watchedPlatform) === "volcengine" ? (
+              <p className="text-[12px] text-muted-foreground">
+                用于方舟对话 / 生图 / 视频等；豆包语音请另填下方 openspeech Key。
+              </p>
+            ) : null}
           </div>
+          {(editing?.platform ?? watchedPlatform) === "volcengine" ? (
+            <div className="space-y-2">
+              <Label>
+                豆包语音 API Key
+                {editing ? (
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    {channelHasOpenspeechKey(editing)
+                      ? "（已配置，留空不修改）"
+                      : "（留空则不修改）"}
+                  </span>
+                ) : (
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    （可选）
+                  </span>
+                )}
+              </Label>
+              <Input
+                className="h-10 rounded-xl"
+                type="password"
+                autoComplete="off"
+                placeholder="openspeech / 语音控制台 API Key"
+                {...form.register("openspeechApiKey")}
+              />
+              <p className="text-[12px] leading-relaxed text-muted-foreground">
+                与方舟 Key 不是同一把。在火山「豆包语音 / OpenSpeech」控制台申请；写入渠道{" "}
+                <code className="font-mono">metadata.openspeechApiKey</code>
+                ，TTS 鉴权优先用它。
+              </p>
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label>Base URL</Label>
             <Input
-              className="h-8 rounded-[2px] font-mono text-xs"
+              className="h-10 rounded-xl font-mono text-xs"
               placeholder="https://…/v1"
               {...form.register("baseUrl")}
             />
@@ -846,17 +976,18 @@ export default function ChannelsPage() {
             </p>
           </div>
           {!editing ? (
-            <div className="space-y-2 rounded-[2px] border border-border p-3">
-              <label className="flex items-center gap-2 text-sm">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-transparent bg-muted px-3 py-2">
+                <Label htmlFor="channel-import-catalog">创建后同步目录模型</Label>
                 <Switch
+                  id="channel-import-catalog"
                   checked={!!form.watch("importCatalog") && canImportCatalog}
                   disabled={!canImportCatalog}
                   onCheckedChange={(v) =>
                     form.setValue("importCatalog", v)
                   }
                 />
-                创建后同步全部目录模型
-              </label>
+              </div>
               <p className="text-[12px] leading-relaxed text-muted-foreground">
                 {canImportCatalog
                   ? "按平台内置目录批量创建/更新；目录里已下线的模型会被禁用。细粒度勾选请到「模型」页从目录添加。"
@@ -864,6 +995,14 @@ export default function ChannelsPage() {
               </p>
             </div>
           ) : null}
+          <div className="flex items-center justify-between rounded-xl border border-transparent bg-muted px-3 py-2">
+            <Label htmlFor="channel-enabled">启用</Label>
+            <Switch
+              id="channel-enabled"
+              checked={form.watch("enabled") !== false}
+              onCheckedChange={(v) => form.setValue("enabled", v)}
+            />
+          </div>
         </form>
       </AdminDrawer>
     </ListPageShell>

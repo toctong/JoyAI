@@ -22,6 +22,7 @@ import {
 import { Transform, Type } from "class-transformer";
 import { toOptionalBoolean } from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
+import { normalizeExportIds } from "../../common/admin-export";
 import { CurrentUser, AuthUser } from "../../common/current-user.decorator";
 import { PromptPresetsService } from "./prompt-presets.service";
 
@@ -132,6 +133,20 @@ export class PromptPresetsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   listAdmin(@Query() query: ListAdminQueryDto) {
     return this.presets.listAdmin(query);
+  }
+
+  @Get("admin/prompt-presets/export")
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  exportAll(@Query("ids") ids?: string | string[]) {
+    return this.presets.exportGlobal(normalizeExportIds(ids));
+  }
+
+  @Post("admin/prompt-presets/import")
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  importAll(@Body() body: unknown) {
+    return this.presets.importGlobal(body);
   }
 
   @Post("admin/prompt-presets")

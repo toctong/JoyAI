@@ -20,6 +20,7 @@ import {
 import { Transform, Type } from "class-transformer";
 import { toOptionalBoolean } from "../../common/dto/pagination-query.dto";
 import { JwtAuthGuard, Roles, RolesGuard } from "../../common/guards";
+import { normalizeExportIds } from "../../common/admin-export";
 import { CameraMovesService } from "./camera-moves.service";
 
 class ListPublicQueryDto {
@@ -139,6 +140,20 @@ export class CameraMovesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   listAdmin(@Query() query: ListAdminQueryDto) {
     return this.moves.listAdmin(query);
+  }
+
+  @Get("admin/camera-moves/export")
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  exportAll(@Query("ids") ids?: string | string[]) {
+    return this.moves.exportAll(normalizeExportIds(ids));
+  }
+
+  @Post("admin/camera-moves/import")
+  @Roles("admin")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  importAll(@Body() body: unknown) {
+    return this.moves.importItems(body);
   }
 
   @Post("admin/camera-moves")

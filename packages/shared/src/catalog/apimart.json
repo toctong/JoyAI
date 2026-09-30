@@ -1,7 +1,7 @@
 {
   "platform": "apimart",
-  "updatedAt": "2026-09-17",
-  "note": "官方文档对齐的模型种子；大陆 Base URL 使用 https://apib.ai/v1（国际域名为 api.apimart.ai）。视频请求体见 packages/ai-providers buildApiMartVideoBody。实际可用模型以账户 /v1/models?expand=parameters&category=video 为准。",
+  "updatedAt": "2026-09-30",
+  "note": "官方文档对齐的模型种子；大陆 Base URL 使用 https://apib.ai/v1（国际域名为 api.apimart.ai）。视频请求体见 packages/ai-providers buildApiMartVideoBody。实际可用模型以账户 /v1/models?expand=parameters&category=video|audio 为准。音频：文档确认 gpt-4o-mini-tts；另附 tts-1 / tts-1-hd / 快照版兼容种子。",
   "llm": [
     {
       "name": "GPT-5.5",
@@ -2436,18 +2436,12 @@
     {
       "name": "GPT-4o Mini TTS",
       "remoteId": "gpt-4o-mini-tts",
-      "description": "APIMart 文档确认：POST /v1/audio/speech",
+      "description": "APIMart 文档确认：POST /v1/audio/speech；支持 instructions",
       "isDefault": true,
       "capabilities": {
-        "input": [
-          "text"
-        ],
-        "output": [
-          "audio"
-        ],
-        "features": [
-          "tts"
-        ],
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
         "adapterId": "openai-audio",
         "voices": [
           "alloy",
@@ -2457,13 +2451,80 @@
           "nova",
           "shimmer"
         ],
-        "audioFormats": [
-          "wav",
-          "opus",
-          "aac",
-          "flac",
-          "pcm"
-        ]
+        "audioFormats": ["mp3", "wav", "opus", "aac", "flac", "pcm"]
+      }
+    },
+    {
+      "name": "TTS-1",
+      "remoteId": "tts-1",
+      "description": "OpenAI 兼容高速 TTS；APIMart 文档未单列，以账户 /v1/models?category=audio 为准",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "openai-audio",
+        "voices": [
+          "alloy",
+          "ash",
+          "coral",
+          "echo",
+          "fable",
+          "onyx",
+          "nova",
+          "sage",
+          "shimmer"
+        ],
+        "audioFormats": ["mp3", "opus", "aac", "flac", "wav", "pcm"]
+      }
+    },
+    {
+      "name": "TTS-1 HD",
+      "remoteId": "tts-1-hd",
+      "description": "OpenAI 兼容高品质 TTS；APIMart 文档未单列，以账户 /v1/models?category=audio 为准",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "openai-audio",
+        "voices": [
+          "alloy",
+          "ash",
+          "coral",
+          "echo",
+          "fable",
+          "onyx",
+          "nova",
+          "sage",
+          "shimmer"
+        ],
+        "audioFormats": ["mp3", "opus", "aac", "flac", "wav", "pcm"]
+      }
+    },
+    {
+      "name": "GPT-4o Mini TTS (2025-12-15)",
+      "remoteId": "gpt-4o-mini-tts-2025-12-15",
+      "description": "OpenAI 快照版；网关有开放该 id 时可用",
+      "capabilities": {
+        "input": ["text"],
+        "output": ["audio"],
+        "features": ["tts"],
+        "adapterId": "openai-audio",
+        "voices": [
+          "alloy",
+          "ash",
+          "ballad",
+          "coral",
+          "echo",
+          "fable",
+          "onyx",
+          "nova",
+          "sage",
+          "shimmer",
+          "verse",
+          "marin",
+          "cedar"
+        ],
+        "audioFormats": ["mp3", "wav", "opus", "aac", "flac", "pcm"]
       }
     }
   ]

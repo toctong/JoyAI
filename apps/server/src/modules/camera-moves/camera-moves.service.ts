@@ -2,12 +2,14 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { In, Repository } from "typeorm";
+import {
+  makeAdminExport,
+  parseAdminImportItems,
+} from "../../common/admin-export";
 import { CameraMove } from "../../database/entities/camera-move.entity";
-import { CAMERA_MOVE_SEEDS } from "./camera-move-seed";
 
 export type CameraMoveListQuery = {
   enabled?: boolean;
@@ -36,30 +38,11 @@ function slugify(raw: string) {
 }
 
 @Injectable()
-export class CameraMovesService implements OnModuleInit {
+export class CameraMovesService {
   constructor(
     @InjectRepository(CameraMove)
     private readonly moves: Repository<CameraMove>,
   ) {}
-
-  async onModuleInit() {
-    const count = await this.moves.count();
-    if (count > 0) return;
-    for (const seed of CAMERA_MOVE_SEEDS) {
-      await this.moves.save(
-        this.moves.create({
-          slug: seed.slug,
-          label: seed.label,
-          prompt: seed.prompt,
-          thumbUrl: seed.thumbUrl ?? null,
-          category: seed.category,
-          exclusiveGroup: seed.exclusiveGroup,
-          enabled: true,
-          sortOrder: seed.sortOrder,
-        }),
-      );
-    }
-  }
 
   async listPublic(category?: string) {
     const qb = this.moves
@@ -174,5 +157,63 @@ export class CameraMovesService implements OnModuleInit {
     const row = await this.get(id);
     await this.moves.remove(row);
     return { ok: true };
+  }
+
+  async exportAll(ids?: string[]) {
+    const rows = await this.moves.find({
+      where: ids?.length ? { id: In(ids) } : undefined,
+      order: { sortOrder: "ASC", createdAt: "ASC" },
+    });
+    return makeAdminExport(
+      "camera-moves",
+      rows.map((r) => ({
+        slug: r.slug,
+        label: r.label,
+        prompt: r.prompt,
+        thumbUrl: r.thumbUrl,
+        category: r.category,
+        exclusiveGroup: r.exclusiveGroup,
+        enabled: r.enabled,
+        sortOrder: r.sortOrder,
+      })),
+    );
+  }
+
+  async importItems(body: unknown) {
+    let raw: Array<Partial<CameraMoveInput> & { slug?: string }>;
+    try {
+      raw = parseAdminImportItems(body, "camera-moves");
+    } catch (e) {
+      throw new BadRequestException(
+        e instanceof Error ? e.message : "导入失败",
+      );
+    }
+    let created = 0;
+    let updated = 0;
+    for (const item of raw) {
+      const slug = slugify(String(item.slug ?? ""));
+      const label = String(item.label ?? "").trim();
+      const prompt = String(item.prompt ?? "").trim();
+      if (!slug || !label || !prompt) continue;
+      const existing = await this.moves.findOne({ where: { slug } });
+      const payload = {
+        label,
+        prompt,
+        thumbUrl: item.thumbUrl?.trim() || null,
+        category: String(item.category ?? "基础控制").trim() || "基础控制",
+        exclusiveGroup: item.exclusiveGroup?.trim() || null,
+        enabled: item.enabled !== false,
+        sortOrder: Number(item.sortOrder) || 100,
+      };
+      if (existing) {
+        Object.assign(existing, payload);
+        await this.moves.save(existing);
+        updated += 1;
+      } else {
+        await this.moves.save(this.moves.create({ slug, ...payload }));
+        created += 1;
+      }
+    }
+    return { created, updated, total: raw.length };
   }
 }

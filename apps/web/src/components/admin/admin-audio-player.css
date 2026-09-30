@@ -1,0 +1,73 @@
+/* Compact WaveSurfer strip for admin voice lists / drawers */
+.joy-admin-audio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 260px;
+  min-width: 200px;
+  height: 36px;
+  padding: 0 8px 0 4px;
+  border-radius: var(--joy-radius-lg, 12px);
+  background: var(--muted);
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
+.joy-admin-audio--wide {
+  max-width: none;
+}
+
+.joy-admin-audio-play {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--joy-radius-md, 10px);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.joy-admin-audio-play:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.joy-admin-audio-play:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.joy-admin-audio-wave {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  overflow: hidden;
+}
+
+.joy-admin-audio-wave > div,
+.joy-admin-audio-wave wave {
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+}
+
+.joy-admin-audio-wave canvas {
+  display: block;
+  max-width: 100%;
+  position: relative;
+  z-index: 0;
+}
+
+.joy-admin-audio-time {
+  flex-shrink: 0;
+  min-width: 4.5rem;
+  text-align: right;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted-foreground);
+}

@@ -17,6 +17,8 @@ import { OpenAICompatibleLlmProvider } from "./openai-chat";
 import { OpenAICompatibleAudioProvider } from "./openai-audio";
 import { DashscopeVideoProvider } from "./dashscope-video";
 import { DashscopeImageProvider } from "./dashscope-image";
+import { DashscopeAudioProvider } from "./dashscope-audio";
+import { VolcengineAudioProvider } from "./volcengine-audio";
 
 export * from "./types";
 export * from "./error-codes";
@@ -30,11 +32,15 @@ export * from "./openai-chat";
 export * from "./openai-audio";
 export * from "./dashscope-video";
 export * from "./dashscope-image";
+export * from "./dashscope-audio";
+export * from "./volcengine-audio";
 
 const arkImages = new VolcengineImageProvider();
 const arkVideo = new VolcengineVideoProvider();
 const dashscopeImages = new DashscopeImageProvider();
 const dashscopeVideo = new DashscopeVideoProvider();
+const dashscopeAudio = new DashscopeAudioProvider();
+const volcengineAudio = new VolcengineAudioProvider();
 
 const openaiImageCache = new Map<string, ImageProvider>();
 const openaiVideoCache = new Map<string, VideoProvider>();
@@ -155,6 +161,8 @@ export function resolveAudioProvider(opts: {
   if (id === AdapterId.OPENAI_AUDIO) {
     return openaiAudioFor(opts.platform);
   }
+  if (id === AdapterId.DASHSCOPE_AUDIO) return dashscopeAudio;
+  if (id === AdapterId.VOLCENGINE_AUDIO) return volcengineAudio;
   throw new Error(`Unknown audio adapter: ${id}`);
 }
 
@@ -188,6 +196,8 @@ export function getAudioProvider(adapterId: string): AudioProvider {
   if (adapterId === AdapterId.OPENAI_AUDIO) {
     return openaiAudioFor("openai-compatible");
   }
+  if (adapterId === AdapterId.DASHSCOPE_AUDIO) return dashscopeAudio;
+  if (adapterId === AdapterId.VOLCENGINE_AUDIO) return volcengineAudio;
   throw new Error(`Unknown audio adapter: ${adapterId}`);
 }
 

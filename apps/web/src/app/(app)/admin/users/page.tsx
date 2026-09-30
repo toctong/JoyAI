@@ -267,7 +267,7 @@ export default function UsersPage() {
               }
               action={
                 !hasFilters ? (
-                  <Button size="sm" onClick={openCreate}>
+                  <Button size="sm" className="h-9 rounded-xl" onClick={openCreate}>
                     <Plus className="size-3.5" />
                     新建用户
                   </Button>
@@ -275,7 +275,7 @@ export default function UsersPage() {
               }
             />
           ) : (
-            <Table>
+            <Table container={false}>
               <TableHeader>
                 <TableRow>
                   <TableHead>用户名</TableHead>
@@ -323,7 +323,7 @@ export default function UsersPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-8 rounded-lg"
+                          className="h-9 rounded-xl"
                           onClick={() => openRole(u)}
                         >
                           角色
@@ -332,7 +332,7 @@ export default function UsersPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className="h-8 rounded-lg"
+                          className="h-9 rounded-xl"
                           onClick={() => openPassword(u)}
                         >
                           <KeyRound className="size-3.5" />
@@ -383,7 +383,7 @@ export default function UsersPage() {
             <Button
               type="button"
               variant="outline"
-              className="h-8 rounded-[2px]"
+              className="h-10 rounded-xl"
               disabled={saving}
               onClick={() => setDialog(null)}
             >
@@ -391,7 +391,7 @@ export default function UsersPage() {
             </Button>
             <Button
               type="button"
-              className="h-8 rounded-[2px]"
+              className="h-10 rounded-xl"
               disabled={saving}
               onClick={() => void submitDialog()}
             >
@@ -406,7 +406,7 @@ export default function UsersPage() {
               <div className="space-y-2">
                 <Label>用户名</Label>
                 <Input
-                  className="h-8 rounded-[2px]"
+                  className="h-10 rounded-xl"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="至少 3 位"
@@ -415,7 +415,7 @@ export default function UsersPage() {
               <div className="space-y-2">
                 <Label>密码</Label>
                 <Input
-                  className="h-8 rounded-[2px]"
+                  className="h-10 rounded-xl"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -428,7 +428,7 @@ export default function UsersPage() {
                   value={role}
                   onValueChange={(v) => setRole(v as "admin" | "creator")}
                 >
-                  <SelectTrigger className="h-8 rounded-[2px]">
+                  <SelectTrigger className="h-10 rounded-xl">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="shadow-none">
@@ -447,7 +447,7 @@ export default function UsersPage() {
                 value={role}
                 onValueChange={(v) => setRole(v as "admin" | "creator")}
               >
-                <SelectTrigger className="h-8 rounded-[2px]">
+                <SelectTrigger className="h-10 rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="shadow-none">
@@ -462,7 +462,7 @@ export default function UsersPage() {
             <div className="space-y-2">
               <Label>新密码</Label>
               <Input
-                className="h-8 rounded-[2px]"
+                className="h-10 rounded-xl"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
