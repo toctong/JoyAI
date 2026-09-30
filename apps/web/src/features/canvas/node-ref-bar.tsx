@@ -4,15 +4,21 @@ import { CanvasIconClose } from "./icons/canvas-icons";
 import type { CanvasNode } from "@joyai/shared";
 import { useCanvasStore } from "./store";
 import { nodeTitleLabel } from "./lib/node-chrome";
+import {
+  canvasRefKindOf,
+  type CanvasRefKind,
+} from "./lib/canvas-ref-candidates";
 import { CanvasRefThumb } from "./canvas-ref-thumb";
 import { CanvasRefHoverPreview } from "./canvas-ref-preview";
 
 type Props = {
   nodeId: string;
+  /** When set, only show chips whose kind is allowed for this host. */
+  allowedKinds?: readonly CanvasRefKind[];
 };
 
 /** Incoming media chips on a prompt node. Disconnect removes the edge only. */
-export function NodeRefBar({ nodeId }: Props) {
+export function NodeRefBar({ nodeId, allowedKinds }: Props) {
   const nodes = useCanvasStore((s) => s.nodes);
   const edges = useCanvasStore((s) => s.edges);
   const removeEdge = useCanvasStore((s) => s.removeEdge);
@@ -25,13 +31,13 @@ export function NodeRefBar({ nodeId }: Props) {
       node: nodes.find((item) => item.id === edge.source),
     }))
     .filter(
-      (item): item is { edge: (typeof edges)[number]; node: CanvasNode } =>
-        item.node != null &&
-        (item.node.type === "image" ||
-          item.node.type === "video" ||
-          item.node.type === "panorama" ||
-          item.node.type === "audio" ||
-          item.node.type === "text"),
+      (item): item is { edge: (typeof edges)[number]; node: CanvasNode } => {
+        if (item.node == null) return false;
+        const kind = canvasRefKindOf(item.node);
+        if (!kind) return false;
+        if (!allowedKinds?.length) return true;
+        return allowedKinds.includes(kind);
+      },
     );
 
   if (!incoming.length) return null;

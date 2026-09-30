@@ -25,6 +25,7 @@ export type ComposerModelOption = {
   remoteId?: string;
   capabilities?: ModelCapabilities | null;
   channel?: {
+    id?: string;
     platform?: string;
     name?: string;
   };

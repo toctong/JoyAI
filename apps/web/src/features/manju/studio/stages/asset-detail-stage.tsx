@@ -868,7 +868,7 @@ export function AssetDetailStage({
                               onClick={() => setAudioLibOpen(true)}
                             >
                               <FolderOpen className="size-3.5" />
-                              资产库
+                              音频库
                             </Button>
                           </div>
                         </div>
@@ -1108,7 +1108,7 @@ export function AssetDetailStage({
                       onClick={() => setAudioLibOpen(true)}
                     >
                       <FolderOpen className="size-3.5" />
-                      资产库
+                      音频库
                     </Button>
                     <Button
                       type="button"
@@ -1165,7 +1165,7 @@ export function AssetDetailStage({
                     <Volume2 className="size-10 opacity-30" />
                     <p className="manju-asset-detail__empty-title">暂无音频</p>
                     <p className="manju-asset-detail__hint">
-                      可通过上传或 AI 配音添加角色参考音色。
+                      可通过上传、音频库或 AI 配音添加角色参考音色。
                     </p>
                   </div>
                 )}

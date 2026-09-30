@@ -261,9 +261,6 @@ export function CanvasAudioPlayer({ src, className }: Props) {
     >
       <div className="joy-canvas-audio-wave" ref={hostRef} />
       <div className="joy-canvas-audio-bar">
-        <span className="joy-canvas-audio-time tabular-nums">
-          {formatClock(current)} / {formatClock(duration)}
-        </span>
         <button
           type="button"
           className="joy-canvas-audio-play"
@@ -282,6 +279,9 @@ export function CanvasAudioPlayer({ src, className }: Props) {
             <CanvasIconPlay className="size-3.5" />
           )}
         </button>
+        <span className="joy-canvas-audio-time tabular-nums">
+          {formatClock(current)} / {formatClock(duration)}
+        </span>
       </div>
     </div>
   );

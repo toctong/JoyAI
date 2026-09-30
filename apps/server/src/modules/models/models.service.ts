@@ -158,6 +158,7 @@ export class ModelsService {
         adapterId,
         remoteId: m.remoteId,
         channel: {
+          id: m.channel.id,
           platform: m.channel.platform,
           name: m.channel.name,
         },

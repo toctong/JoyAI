@@ -1,0 +1,102 @@
+/** Canvas voice preset cards — compact list tiles with play affordance. */
+
+.joy-voice-preset-card {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.joy-voice-preset-card__body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--muted);
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.joy-voice-preset-card:hover .joy-voice-preset-card__body {
+  border-color: color-mix(in oklab, var(--foreground) 28%, var(--border));
+}
+
+.joy-voice-preset-card.is-active .joy-voice-preset-card__body {
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.joy-voice-preset-card:focus-visible .joy-voice-preset-card__body {
+  border-color: var(--ring);
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+
+.joy-voice-preset-card__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--background) 70%, transparent);
+  color: var(--foreground);
+}
+
+.joy-voice-preset-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.joy-voice-preset-card__label {
+  font-size: var(--joy-font-caption, 13px);
+  font-weight: 550;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-voice-preset-card__sub {
+  font-size: var(--joy-font-micro, 12px);
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.joy-voice-preset-card__play {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--background) 80%, transparent);
+  color: var(--foreground);
+}
+
+.joy-voice-preset-card__play:hover,
+.joy-voice-preset-card__play.is-on {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.joy-voice-preset-card__badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted-foreground);
+}

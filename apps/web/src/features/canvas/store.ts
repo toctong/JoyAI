@@ -25,6 +25,7 @@ import {
   type DistributeMode,
   type LayoutMode,
 } from "./lib/align";
+import { isAllowedRefSourceForHost } from "./lib/canvas-ref-candidates";
 
 function uid(prefix = "n") {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
@@ -476,8 +477,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       (e) => e.source === source && e.target === target,
     );
     if (exists) return null;
-    if (!get().nodes.some((n) => n.id === source)) return null;
-    if (!get().nodes.some((n) => n.id === target)) return null;
+    const sourceNode = get().nodes.find((n) => n.id === source);
+    const targetNode = get().nodes.find((n) => n.id === target);
+    if (!sourceNode || !targetNode) return null;
+    if (!isAllowedRefSourceForHost(sourceNode, targetNode)) return null;
     const id = uid("e");
     set((s) => ({
       edges: [...s.edges, { id, source, target }],

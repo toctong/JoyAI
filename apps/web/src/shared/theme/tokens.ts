@@ -14,7 +14,8 @@ export const CANVAS_NODE_SIZE = {
   video: CANVAS_BLANK_16x9,
   prompt: CANVAS_BLANK_16x9,
   panorama: { width: 480, height: 240 },
-  audio: CANVAS_BLANK_16x9,
+  /** Compact waveform frame — smaller than image/video blanks. */
+  audio: { width: 360, height: 140 },
   director: CANVAS_BLANK_16x9,
 } as const;
 

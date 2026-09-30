@@ -32,6 +32,10 @@ class ListPublicQueryDto {
 
   @IsOptional()
   @IsString()
+  channelId?: string;
+
+  @IsOptional()
+  @IsString()
   category?: string;
 }
 

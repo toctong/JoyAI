@@ -4,11 +4,13 @@ import {
   CanvasIconAudio,
   CanvasIconFile,
   CanvasIconImage,
+  CanvasIconText,
   CanvasIconVideo,
 } from "./icons/canvas-icons";
 import { JoyRemoteImg } from "@/shared/ui/joy-remote-img";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import { cn } from "@/shared/lib/utils";
+import "./canvas-ref-thumb.css";
 
 type Props = {
   kind: string;
@@ -27,7 +29,10 @@ export function CanvasRefThumb({ kind, url, className }: Props) {
         src={src}
         alt=""
         draggable={false}
-        className={cn("pointer-events-none size-full select-none object-cover", className)}
+        className={cn(
+          "pointer-events-none size-full select-none object-cover",
+          className,
+        )}
         onDragStart={(event) => event.preventDefault()}
       />
     );
@@ -47,14 +52,39 @@ export function CanvasRefThumb({ kind, url, className }: Props) {
     );
   }
 
+  if (kind === "audio") {
+    return (
+      <span
+        className={cn("joy-canvas-ref-audio", className)}
+        aria-hidden
+      >
+        <span className="joy-canvas-ref-audio__wave" aria-hidden>
+          <i /><i /><i /><i /><i /><i /><i /><i /><i />
+        </span>
+        <CanvasIconAudio className="joy-canvas-ref-audio__icon" />
+      </span>
+    );
+  }
+
+  if (kind === "text") {
+    return (
+      <span
+        className={cn(
+          "grid size-full place-items-center bg-muted/80 text-muted-foreground",
+          className,
+        )}
+      >
+        <CanvasIconText className="size-7 opacity-70" />
+      </span>
+    );
+  }
+
   const Icon =
     kind === "video"
       ? CanvasIconVideo
-      : kind === "audio"
-        ? CanvasIconAudio
-        : kind === "image" || kind === "panorama"
-          ? CanvasIconImage
-          : CanvasIconFile;
+      : kind === "image" || kind === "panorama"
+        ? CanvasIconImage
+        : CanvasIconFile;
 
   return (
     <span
@@ -63,7 +93,7 @@ export function CanvasRefThumb({ kind, url, className }: Props) {
         className,
       )}
     >
-      <Icon className="size-4" />
+      <Icon className="size-7 opacity-70" />
     </span>
   );
 }

@@ -4,22 +4,27 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CanvasNode } from "@joyai/shared";
 import {
+  CanvasIconAudio,
   CanvasIconCheck,
   CanvasIconClose,
-  CanvasIconFile,
   CanvasIconImage,
   CanvasIconPlay,
   CanvasIconSearch,
+  CanvasIconText,
 } from "./icons/canvas-icons";
 import { useCanvasStore } from "./store";
-import { isCanvasRefCandidate, canvasRefKindOf } from "./lib/canvas-ref-candidates";
+import {
+  isCanvasRefCandidate,
+  canvasRefKindOf,
+  type CanvasRefKind,
+} from "./lib/canvas-ref-candidates";
 import { nodeTitleLabel } from "./lib/node-chrome";
 import { CanvasRefThumb } from "./canvas-ref-thumb";
 import { cn } from "@/shared/lib/utils";
 
-type KindFilter = "all" | "text" | "video" | "image" | "audio";
+type KindFilter = "all" | CanvasRefKind;
 
-const KIND_TABS: { id: KindFilter; label: string }[] = [
+const ALL_KIND_TABS: { id: KindFilter; label: string }[] = [
   { id: "all", label: "全部" },
   { id: "text", label: "文本" },
   { id: "video", label: "视频" },
@@ -36,6 +41,8 @@ type Props = {
   hostId: string;
   /** e.g. 视频 / 图像 */
   hostLabel?: string;
+  /** Limit selectable ref kinds (e.g. audio host → audio + text). */
+  allowedKinds?: readonly CanvasRefKind[];
   onClose: () => void;
   /** Selected canvas node ids to wire as refs. */
   onConfirm: (nodeIds: string[]) => void;
@@ -49,6 +56,7 @@ export function CanvasNodeRefDialog({
   open,
   hostId,
   hostLabel = "节点",
+  allowedKinds,
   onClose,
   onConfirm,
 }: Props) {
@@ -60,9 +68,17 @@ export function CanvasNodeRefDialog({
   const [kind, setKind] = useState<KindFilter>("all");
   const [selected, setSelected] = useState<string[]>([]);
 
+  const kindTabs = useMemo(() => {
+    if (!allowedKinds?.length) return ALL_KIND_TABS;
+    return ALL_KIND_TABS.filter(
+      (tab) => tab.id === "all" || allowedKinds.includes(tab.id),
+    );
+  }, [allowedKinds]);
+
   const candidates = useMemo(
-    () => nodes.filter((n) => isCanvasRefCandidate(n, hostId)),
-    [nodes, hostId],
+    () =>
+      nodes.filter((n) => isCanvasRefCandidate(n, hostId, allowedKinds)),
+    [nodes, hostId, allowedKinds],
   );
 
   const counts = useMemo(() => {
@@ -107,10 +123,21 @@ export function CanvasNodeRefDialog({
       .filter((id) => candidates.some((n) => n.id === id));
     setSelected(linked);
     setKeyword("");
-    setKind("all");
+    const kindCounts = { text: 0, video: 0, image: 0, audio: 0 };
+    for (const n of candidates) {
+      const k = kindOf(n);
+      if (k && k !== "all") kindCounts[k] += 1;
+    }
+    const present = (
+      ["text", "video", "image", "audio"] as const
+    ).filter((id) => kindCounts[id] > 0);
+    const allowedPresent = allowedKinds?.length
+      ? present.filter((id) => allowedKinds.includes(id))
+      : present;
+    setKind(allowedPresent.length === 1 ? allowedPresent[0]! : "all");
     setHighlightedIds(candidates.map((n) => n.id));
     return () => setHighlightedIds([]);
-  }, [open, hostId, edges, candidates, setHighlightedIds]);
+  }, [open, hostId, edges, candidates, allowedKinds, setHighlightedIds]);
 
   useEffect(() => {
     if (!open) return;
@@ -193,9 +220,14 @@ export function CanvasNodeRefDialog({
             />
           </label>
           <div className="flex flex-wrap gap-1.5">
-            {KIND_TABS.map((tab) => {
+            {kindTabs.map((tab) => {
               const count = counts[tab.id];
               if (tab.id !== "all" && count === 0) return null;
+              // Only one concrete kind → skip redundant「全部」
+              const concrete = kindTabs.filter(
+                (item) => item.id !== "all" && counts[item.id] > 0,
+              );
+              if (tab.id === "all" && concrete.length <= 1) return null;
               return (
                 <button
                   key={tab.id}
@@ -263,8 +295,10 @@ export function CanvasNodeRefDialog({
                           <CanvasIconPlay className="size-3.5" />
                         ) : k === "image" ? (
                           <CanvasIconImage className="size-3.5" />
+                        ) : k === "audio" ? (
+                          <CanvasIconAudio className="size-3.5" />
                         ) : (
-                          <CanvasIconFile className="size-3.5" />
+                          <CanvasIconText className="size-3.5" />
                         )}
                       </span>
                       <span

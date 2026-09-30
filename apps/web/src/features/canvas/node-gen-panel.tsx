@@ -12,6 +12,7 @@ import {
   List,
   Maximize2,
   Minimize2,
+  Mic2,
   Palette,
   Plus,
   RectangleHorizontal,
@@ -25,6 +26,14 @@ import type { Viewport } from "./store";
 import { useCanvasStore } from "./store";
 import { api } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
+import {
+  fallbackVoiceChips,
+  fetchPublicTtsVoices,
+  libraryToVoiceChips,
+  pickLibraryVoices,
+  type PublicTtsVoice,
+  type VoiceChipOption,
+} from "@/shared/lib/tts-voices";
 import { BrandAvatar } from "@/components/admin/brand-avatar";
 import {
   genModeNeedsFirstFrame,
@@ -57,6 +66,10 @@ import {
 } from "./canvas-camera-move-picker";
 import { CanvasPromptPresets } from "./canvas-prompt-presets";
 import { CanvasStylePicker, composePromptWithStyle, type SelectedCanvasStyle } from "./canvas-style-picker";
+import {
+  CanvasVoicePresetPicker,
+  type SelectedVoicePreset,
+} from "./canvas-voice-preset-picker";
 import { CanvasNodeRefDialog } from "./canvas-node-ref-dialog";
 import { CanvasAssetDialog } from "./canvas-asset-dialog";
 import {
@@ -73,6 +86,11 @@ import {
 } from "./lib/node-title";
 import { frameNodeToMedia } from "./lib/fit-node-size";
 import { nodeTypeForAssetKind } from "./lib/upload-node-type";
+import {
+  canvasRefKindOf,
+  hostAssetKindsFor,
+  hostRefKindsFor,
+} from "./lib/canvas-ref-candidates";
 import { NodeRefBar } from "./node-ref-bar";
 import {
   durationsFromCapabilities,
@@ -115,7 +133,7 @@ type PublicModel = {
   kind: "image" | "video" | "llm" | "audio";
   remoteId?: string;
   capabilities?: ModelCapabilities | null;
-  channel?: { name?: string };
+  channel?: { id?: string; name?: string; platform?: string };
 };
 
 const DEFAULT_TTS_VOICES = [
@@ -219,6 +237,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
   const [optimizing, setOptimizing] = useState(false);
   const [paramsOpen, setParamsOpen] = useState(false);
   const [models, setModels] = useState<PublicModel[]>([]);
+  const [library, setLibrary] = useState<PublicTtsVoice[]>([]);
   const [modelId, setModelId] = useState(() =>
     String(node.data.genModelId ?? ""),
   );
@@ -273,6 +292,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
   );
   const [presetOpen, setPresetOpen] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
+  const [voicePresetOpen, setVoicePresetOpen] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<SelectedCanvasStyle | null>(
     () => {
       const slug = String(node.data.genStyleSlug ?? "").trim();
@@ -282,15 +302,44 @@ export function NodeGenPanel({ node, viewport }: Props) {
       return { slug, label: label || slug, prompt };
     },
   );
+  const [selectedVoicePreset, setSelectedVoicePreset] =
+    useState<SelectedVoicePreset | null>(() => {
+      const id = String(node.data.genVoicePresetId ?? "").trim();
+      const label = String(node.data.genVoicePresetLabel ?? "").trim();
+      const voiceId = String(node.data.genVoice ?? "").trim();
+      if (!id || !voiceId) return null;
+      return {
+        id,
+        slug: id,
+        label: label || voiceId,
+        voiceId,
+        previewAudioUrl: null,
+      };
+    });
   const [videoGenMode, setVideoGenMode] = useState<VideoGenModeId>(() =>
     normalizeVideoGenMode(node.data.genVideoMode, []),
   );
 
   const output: GenKind = kindForNode(node);
+  const allowedRefKinds = useMemo(
+    () => hostRefKindsFor(node.type) ?? hostRefKindsFor(output),
+    [node.type, output],
+  );
+  const allowedAssetKinds = useMemo(
+    () => hostAssetKindsFor(node.type) ?? hostAssetKindsFor(output),
+    [node.type, output],
+  );
   const mentionItems = useMemo(() => {
     const { incoming } = collectIncomingMediaFromEdges(nodes, edges, node.id);
-    return buildCanvasMentionItems(incoming);
-  }, [nodes, edges, node.id]);
+    const allowed = allowedRefKinds;
+    const scoped = allowed?.length
+      ? incoming.filter((item) => {
+          const kind = canvasRefKindOf(item);
+          return kind != null && allowed.includes(kind);
+        })
+      : incoming;
+    return buildCanvasMentionItems(scoped);
+  }, [nodes, edges, node.id, allowedRefKinds]);
 
   useEffect(() => {
     setPrompt(resolveGenText(node.data));
@@ -323,6 +372,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
     setCameraMoveOpen(false);
     setPresetOpen(false);
     setStyleOpen(false);
+    setVoicePresetOpen(false);
     setSelectedMoves(parseSelectedMoves(node.data.genCameraMoves));
     {
       const slug = String(node.data.genStyleSlug ?? "").trim();
@@ -334,14 +384,33 @@ export function NodeGenPanel({ node, viewport }: Props) {
           : null,
       );
     }
+    {
+      const id = String(node.data.genVoicePresetId ?? "").trim();
+      const label = String(node.data.genVoicePresetLabel ?? "").trim();
+      const voiceId = String(node.data.genVoice ?? "").trim();
+      setSelectedVoicePreset(
+        id && voiceId
+          ? {
+              id,
+              slug: id,
+              label: label || voiceId,
+              voiceId,
+              previewAudioUrl: null,
+            }
+          : null,
+      );
+    }
     setBusy(false);
     setParamsOpen(false);
   }, [node.id, panorama]);
 
   useEffect(() => {
     let alive = true;
-    void api<PublicModel[]>("/models")
-      .then((list) => {
+    void Promise.all([
+      api<PublicModel[]>("/models"),
+      fetchPublicTtsVoices().catch(() => [] as PublicTtsVoice[]),
+    ])
+      .then(([list, voices]) => {
         if (!alive) return;
         setModels(
           list.filter(
@@ -352,6 +421,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
               item.kind === "audio",
           ),
         );
+        setLibrary(voices ?? []);
       })
       .catch(() => {
         if (alive) toast.error("加载模型失败");
@@ -394,10 +464,19 @@ export function NodeGenPanel({ node, viewport }: Props) {
       ),
     [selectedModel, output],
   );
-  const voiceOptions = useMemo(() => {
+  const voiceOptions = useMemo((): VoiceChipOption[] => {
+    const matched = pickLibraryVoices(library, {
+      channelId: selectedModel?.channel?.id,
+      platform: selectedModel?.channel?.platform,
+    });
+    if (matched.length) return libraryToVoiceChips(matched);
     const fromCaps = selectedModel?.capabilities?.voices?.filter(Boolean);
-    return fromCaps?.length ? fromCaps : [...DEFAULT_TTS_VOICES];
-  }, [selectedModel]);
+    return fallbackVoiceChips(
+      fromCaps?.length ? fromCaps : [...DEFAULT_TTS_VOICES],
+    );
+  }, [library, selectedModel]);
+  const voiceLabel =
+    voiceOptions.find((o) => o.value === voice)?.label ?? voice;
   const formatOptions = useMemo(() => {
     const fromCaps =
       selectedModel?.capabilities?.audioFormats?.filter(Boolean);
@@ -438,7 +517,9 @@ export function NodeGenPanel({ node, viewport }: Props) {
   useEffect(() => {
     if (output !== "audio" || !voiceOptions.length) return;
     setVoice((prev) =>
-      voiceOptions.includes(prev) ? prev : voiceOptions[0]!,
+      voiceOptions.some((o) => o.value === prev)
+        ? prev
+        : voiceOptions[0]!.value,
     );
   }, [output, voiceOptions]);
 
@@ -455,10 +536,27 @@ export function NodeGenPanel({ node, viewport }: Props) {
   );
 
   const running = isBusyStatus(status) || busy || optimizing;
-  const edgeRefs = useMemo(
-    () => collectIncomingMediaFromEdges(nodes, edges, node.id),
-    [edges, node.id, nodes],
-  );
+  const edgeRefs = useMemo(() => {
+    const raw = collectIncomingMediaFromEdges(nodes, edges, node.id);
+    if (!allowedRefKinds?.length) return raw;
+    const incoming = raw.incoming.filter((item) => {
+      const kind = canvasRefKindOf(item);
+      return kind != null && allowedRefKinds.includes(kind);
+    });
+    const edgeAssetIds = incoming
+      .filter((n) => n.type !== "text")
+      .map((n) => String(n.data.assetId ?? ""))
+      .filter(Boolean);
+    const edgeUrls = incoming
+      .filter((n) => n.type !== "text")
+      .map((n) => String(n.data.url ?? ""))
+      .filter((u) => u && !u.startsWith("data:"));
+    const texts = incoming
+      .filter((n) => n.type === "text")
+      .map((n) => String(n.data.text ?? "").trim())
+      .filter((text) => text && text !== "双击编辑文本");
+    return { edgeAssetIds, edgeUrls, incoming, texts };
+  }, [edges, node.id, nodes, allowedRefKinds]);
 
   const frameCandidates = useMemo(
     () => collectVideoFrameCandidates(nodes, edges, node),
@@ -524,24 +622,48 @@ export function NodeGenPanel({ node, viewport }: Props) {
   }
 
   function attachPickedNodes(nodeIds: string[]) {
-    const wanted = new Set(nodeIds);
+    const allowed = allowedRefKinds;
+    const allowedSource = (type: string) => {
+      if (!allowed?.length) return true;
+      const kind =
+        type === "panorama"
+          ? "image"
+          : type === "image" ||
+              type === "video" ||
+              type === "audio" ||
+              type === "text"
+            ? type
+            : null;
+      return kind != null && allowed.includes(kind);
+    };
+    const wanted = new Set(
+      nodeIds.filter((id) => {
+        const source = nodes.find((item) => item.id === id);
+        return source ? allowedSource(source.type) : false;
+      }),
+    );
     const refEdges = edges.filter((edge) => {
       if (edge.target !== node.id) return false;
       const source = nodes.find((item) => item.id === edge.source);
       if (!source) return false;
-      return (
-        source.type === "image" ||
-        source.type === "video" ||
-        source.type === "panorama" ||
-        source.type === "audio" ||
-        source.type === "text"
-      );
+      return allowedSource(source.type);
     });
     const linked = new Set(refEdges.map((edge) => edge.source));
 
     pushHistory();
     let added = 0;
     let removed = 0;
+    // Drop leftover edges that violate current host policy.
+    if (allowed?.length) {
+      for (const edge of edges) {
+        if (edge.target !== node.id) continue;
+        const source = nodes.find((item) => item.id === edge.source);
+        if (source && !allowedSource(source.type)) {
+          removeEdge(edge.id);
+          removed += 1;
+        }
+      }
+    }
     for (const edge of refEdges) {
       if (!wanted.has(edge.source)) {
         removeEdge(edge.id);
@@ -578,14 +700,36 @@ export function NodeGenPanel({ node, viewport }: Props) {
       originalName?: string | null;
     }[],
   ) {
-    if (!assets.length) return;
+    const allow = allowedAssetKinds;
+    const list = allow?.length
+      ? assets.filter((asset) =>
+          allow.includes(asset.kind as "image" | "video" | "audio"),
+        )
+      : assets;
+    if (!list.length) return;
     pushHistory();
     const box = nodeBox(node);
-    for (let i = 0; i < assets.length; i += 1) {
-      const asset = assets[i]!;
+    for (let i = 0; i < list.length; i += 1) {
+      const asset = list[i]!;
       let type = nodeTypeForAssetKind(asset.kind);
-      if (type !== "image" && type !== "video" && type !== "panorama") {
+      if (
+        type !== "image" &&
+        type !== "video" &&
+        type !== "panorama" &&
+        type !== "audio"
+      ) {
         type = "image";
+      }
+      if (
+        allow?.length &&
+        !allow.includes(
+          (type === "panorama" ? "image" : type) as
+            | "image"
+            | "video"
+            | "audio",
+        )
+      ) {
+        continue;
       }
       const id = addNode(type, {
         x: box.x - 220 - i * 36,
@@ -605,8 +749,46 @@ export function NodeGenPanel({ node, viewport }: Props) {
     }
     setMaterialOpen(false);
     toast.success(
-      assets.length > 1 ? `已添加 ${assets.length} 个参考` : "已添加参考",
+      list.length > 1 ? `已添加 ${list.length} 个参考` : "已添加参考",
     );
+  }
+
+  function applyVoicePreset(preset: SelectedVoicePreset) {
+    setVoice(preset.voiceId);
+    setSelectedVoicePreset(preset);
+    persistParams({
+      genVoice: preset.voiceId,
+      genVoicePresetId: preset.id,
+      genVoicePresetLabel: preset.label,
+    });
+    if (!preset.previewAudioUrl) {
+      toast.success(`已选用音色「${preset.label}」`);
+      return;
+    }
+    pushHistory();
+    const box = nodeBox(node);
+    const id = addNode("audio", {
+      x: box.x - 220,
+      y: box.y,
+    });
+    updateNodeData(id, {
+      url: preset.previewAudioUrl,
+      status: "succeeded",
+      title: preset.label,
+      titleManual: true,
+      fileName: `${preset.label}.mp3`,
+      ...mediaNamePatch(`${preset.label}.mp3`),
+    });
+    addEdge(id, node.id);
+    toast.success(`已选用「${preset.label}」并挂为参考`);
+  }
+
+  function clearVoicePreset() {
+    setSelectedVoicePreset(null);
+    persistParams({
+      genVoicePresetId: "",
+      genVoicePresetLabel: "",
+    });
   }
 
   async function submit() {
@@ -943,7 +1125,9 @@ export function NodeGenPanel({ node, viewport }: Props) {
     resolution;
   const ready = Boolean(prompt.trim() && projectId && modelId && !running);
   const shellLayout =
-    output === "video" || (output === "image" && !panorama);
+    output === "video" ||
+    output === "audio" ||
+    (output === "image" && !panorama);
   const activePresetId = matchCameraPreset(cameraControl);
   const cameraBtnLabel =
     cameraControl.enabled && activePresetId
@@ -958,12 +1142,18 @@ export function NodeGenPanel({ node, viewport }: Props) {
         ? selectedMoves[0]!.label
         : `${selectedMoves[0]!.label} +${selectedMoves.length - 1}`;
   const styleBtnLabel = selectedStyle?.label?.trim() || "风格";
-  const mediaRefCount = edgeRefs.incoming.filter(
-    (item) =>
-      item.type === "image" ||
-      item.type === "video" ||
-      item.type === "panorama",
-  ).length;
+  const voicePresetBtnLabel =
+    selectedVoicePreset?.label?.trim() || "预设";
+  const mediaRefCount = edgeRefs.incoming.filter((item) => {
+    const kind = canvasRefKindOf(item);
+    if (!kind) return false;
+    if (allowedRefKinds?.length) return allowedRefKinds.includes(kind);
+    return (
+      kind === "image" ||
+      kind === "video" ||
+      kind === "audio"
+    );
+  }).length;
   const modeLabel =
     output === "video" ? videoGenModeLabelById(videoGenMode) : null;
 
@@ -1073,7 +1263,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
           ) : null}
           {output === "audio" ? (
             <>
-              <span className="joy-chip-params-seg">{voice}</span>
+              <span className="joy-chip-params-seg">{voiceLabel}</span>
               <span className="joy-chip-params-sep" aria-hidden />
               <span className="joy-chip-params-seg">
                 {audioFormat.toUpperCase()}
@@ -1094,22 +1284,30 @@ export function NodeGenPanel({ node, viewport }: Props) {
           {output === "audio" ? (
             <>
               <div className="joy-composer-params-row">
-                <span className="joy-composer-params-label">音色</span>
+                <div className="joy-composer-params-label-row">
+                  <span className="joy-composer-params-label">音色</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {voiceOptions.some((o) => o.fromLibrary)
+                      ? "音色库"
+                      : "模型默认"}
+                  </span>
+                </div>
                 <div className="joy-composer-params-options">
                   {voiceOptions.map((item) => (
                     <button
-                      key={item}
+                      key={`${item.value}-${item.label}`}
                       type="button"
+                      title={item.value}
                       className={cn(
                         "joy-composer-params-option",
-                        voice === item && "is-on",
+                        voice === item.value && "is-on",
                       )}
                       onClick={() => {
-                        setVoice(item);
-                        persistParams({ genVoice: item });
+                        setVoice(item.value);
+                        persistParams({ genVoice: item.value });
                       }}
                     >
-                      {item}
+                      {item.label}
                     </button>
                   ))}
                 </div>
@@ -1437,20 +1635,41 @@ export function NodeGenPanel({ node, viewport }: Props) {
               </CanvasPromptPresets>
             ) : null}
 
-            <button
-              type="button"
-              className={cn(
-                "joy-node-gen-action",
-                (styleOpen || selectedStyle) && "is-active",
-              )}
-              title={selectedStyle?.prompt || "选择风格"}
-              onClick={() => setStyleOpen(true)}
-            >
-              <Palette className="size-3.5 shrink-0 opacity-80" />
-              <span className="joy-node-gen-action-label joy-node-gen-style-label">
-                {styleBtnLabel}
-              </span>
-            </button>
+            {output === "audio" ? (
+              <button
+                type="button"
+                className={cn(
+                  "joy-node-gen-action",
+                  (voicePresetOpen || selectedVoicePreset) && "is-active",
+                )}
+                title={
+                  selectedVoicePreset
+                    ? `${selectedVoicePreset.label}（${selectedVoicePreset.voiceId}）`
+                    : "从后台音色库选用预设"
+                }
+                onClick={() => setVoicePresetOpen(true)}
+              >
+                <Mic2 className="size-3.5 shrink-0 opacity-80" />
+                <span className="joy-node-gen-action-label joy-node-gen-style-label">
+                  {voicePresetBtnLabel}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={cn(
+                  "joy-node-gen-action",
+                  (styleOpen || selectedStyle) && "is-active",
+                )}
+                title={selectedStyle?.prompt || "选择风格"}
+                onClick={() => setStyleOpen(true)}
+              >
+                <Palette className="size-3.5 shrink-0 opacity-80" />
+                <span className="joy-node-gen-action-label joy-node-gen-style-label">
+                  {styleBtnLabel}
+                </span>
+              </button>
+            )}
           </div>
           <div className="joy-node-gen-head-actions">
             <button
@@ -1492,10 +1711,16 @@ export function NodeGenPanel({ node, viewport }: Props) {
               >
                 <Plus className="size-4" />
               </button>
-              <NodeRefBar nodeId={node.id} />
+              <NodeRefBar
+                nodeId={node.id}
+                allowedKinds={allowedRefKinds ?? undefined}
+              />
             </div>
           ) : (
-            <NodeRefBar nodeId={node.id} />
+            <NodeRefBar
+              nodeId={node.id}
+              allowedKinds={allowedRefKinds ?? undefined}
+            />
           )}
 
           <AiPromptEditor
@@ -1657,6 +1882,7 @@ export function NodeGenPanel({ node, viewport }: Props) {
                 ? "语音"
                 : "图像"
         }
+        allowedKinds={allowedRefKinds ?? undefined}
         onClose={() => setRefPickerOpen(false)}
         onConfirm={attachPickedNodes}
       />
@@ -1666,6 +1892,8 @@ export function NodeGenPanel({ node, viewport }: Props) {
         onClose={() => setMaterialOpen(false)}
         onConfirm={attachPickedAssets}
         onConfirmCanvasNodes={attachPickedNodes}
+        allowedAssetKinds={allowedAssetKinds ?? undefined}
+        allowedCanvasKinds={allowedRefKinds ?? undefined}
       />
       <CanvasStylePicker
         open={styleOpen}
@@ -1687,6 +1915,16 @@ export function NodeGenPanel({ node, viewport }: Props) {
             genStylePrompt: "",
           });
         }}
+      />
+      <CanvasVoicePresetPicker
+        open={voicePresetOpen}
+        onClose={() => setVoicePresetOpen(false)}
+        selectedId={selectedVoicePreset?.id}
+        channelId={selectedModel?.channel?.id}
+        platform={selectedModel?.channel?.platform}
+        onSelect={applyVoicePreset}
+        onClear={clearVoicePreset}
+        onPickFromLibrary={() => setMaterialOpen(true)}
       />
       <CanvasCameraMovePicker
         open={cameraMoveOpen}

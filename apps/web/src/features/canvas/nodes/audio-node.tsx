@@ -61,8 +61,8 @@ export function AudioNode({ node, onPointerDown }: Props) {
       style={{
         left: node.x,
         top: node.y,
-        width: node.width ?? 380,
-        height: node.height ?? 200,
+        width: node.width ?? 360,
+        height: node.height ?? 140,
       }}
     >
       <NodeTitleChip

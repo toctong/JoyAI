@@ -24,6 +24,14 @@ import { api } from "@/shared/lib/api";
 import { modelIconSrc } from "@/shared/lib/brand-icons";
 import { toast } from "@/shared/lib/toast";
 import { cn } from "@/shared/lib/utils";
+import {
+  fallbackVoiceChips,
+  fetchPublicTtsVoices,
+  libraryToVoiceChips,
+  pickLibraryVoices,
+  type PublicTtsVoice,
+  type VoiceChipOption,
+} from "@/shared/lib/tts-voices";
 import type { ComposerModelOption } from "@/features/studio/composer-model-menu";
 import type { ManjuAssetDetail, ManjuAssetDraft } from "./manju-types";
 import { registerVoiceJob } from "./lib/pending-voice-job";
@@ -56,6 +64,7 @@ export function ManjuVoiceTtsDialog({
   detail,
 }: Props) {
   const [models, setModels] = useState<ComposerModelOption[]>([]);
+  const [library, setLibrary] = useState<PublicTtsVoice[]>([]);
   const [modelId, setModelId] = useState("");
   const [prompt, setPrompt] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -79,20 +88,27 @@ export function ManjuVoiceTtsDialog({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    void api<ComposerModelOption[]>("/models")
-      .then((list) => {
+    void Promise.all([
+      api<ComposerModelOption[]>("/models"),
+      fetchPublicTtsVoices().catch(() => [] as PublicTtsVoice[]),
+    ])
+      .then(([list, voices]) => {
         if (cancelled) return;
         const audio = (list ?? []).filter((m) => m.kind === "audio");
         setModels(audio);
+        setLibrary(voices ?? []);
         if (audio[0] && !modelId) setModelId(audio[0].id);
       })
       .catch(() => {
-        if (!cancelled) setModels([]);
+        if (!cancelled) {
+          setModels([]);
+          setLibrary([]);
+        }
       });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed model once on open
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- seed once on open
   }, [open]);
 
   const selectedModel = useMemo(
@@ -100,10 +116,17 @@ export function ManjuVoiceTtsDialog({
     [models, modelId],
   );
 
-  const voiceOptions = useMemo(() => {
+  const voiceOptions = useMemo((): VoiceChipOption[] => {
+    const matched = pickLibraryVoices(library, {
+      channelId: selectedModel?.channel?.id,
+      platform: selectedModel?.channel?.platform,
+    });
+    if (matched.length) return libraryToVoiceChips(matched);
     const fromCaps = selectedModel?.capabilities?.voices?.filter(Boolean);
-    return fromCaps?.length ? fromCaps : [...DEFAULT_VOICES];
-  }, [selectedModel]);
+    return fallbackVoiceChips(
+      fromCaps?.length ? fromCaps : [...DEFAULT_VOICES],
+    );
+  }, [library, selectedModel]);
 
   const formatOptions = useMemo(() => {
     const fromCaps = selectedModel?.capabilities?.audioFormats?.filter(Boolean);
@@ -111,8 +134,8 @@ export function ManjuVoiceTtsDialog({
   }, [selectedModel]);
 
   useEffect(() => {
-    if (!voiceOptions.includes(voice) && voiceOptions[0]) {
-      setVoice(voiceOptions[0]);
+    if (!voiceOptions.some((o) => o.value === voice) && voiceOptions[0]) {
+      setVoice(voiceOptions[0].value);
     }
   }, [voiceOptions, voice]);
 
@@ -157,6 +180,7 @@ export function ManjuVoiceTtsDialog({
         name: selectedModel.name,
       })
     : null;
+  const fromLibrary = voiceOptions.some((o) => o.fromLibrary);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -231,48 +255,53 @@ export function ManjuVoiceTtsDialog({
             </DropdownMenu>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
               <Label>音色</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {voiceOptions.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className={cn(
-                      "rounded-md border px-2 py-1 text-[12px]",
-                      voice === item
-                        ? "border-ring bg-accent"
-                        : "border-border hover:bg-muted",
-                    )}
-                    onClick={() => setVoice(item)}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
+              <span className="text-[11px] text-muted-foreground">
+                {fromLibrary ? "音色库" : "模型默认"}
+              </span>
             </div>
-            <div className="space-y-2">
-              <Label>格式</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {formatOptions.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className={cn(
-                      "rounded-md border px-2 py-1 text-[12px] uppercase",
-                      format === item
-                        ? "border-ring bg-accent"
-                        : "border-border hover:bg-muted",
-                    )}
-                    onClick={() =>
-                      setFormat(item as (typeof DEFAULT_FORMATS)[number])
-                    }
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
+            <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto">
+              {voiceOptions.map((item) => (
+                <button
+                  key={`${item.value}-${item.label}`}
+                  type="button"
+                  title={item.value}
+                  className={cn(
+                    "rounded-md border px-2 py-1 text-[12px]",
+                    voice === item.value
+                      ? "border-ring bg-accent"
+                      : "border-border hover:bg-muted",
+                  )}
+                  onClick={() => setVoice(item.value)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>格式</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {formatOptions.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={cn(
+                    "rounded-md border px-2 py-1 text-[12px] uppercase",
+                    format === item
+                      ? "border-ring bg-accent"
+                      : "border-border hover:bg-muted",
+                  )}
+                  onClick={() =>
+                    setFormat(item as (typeof DEFAULT_FORMATS)[number])
+                  }
+                >
+                  {item}
+                </button>
+              ))}
             </div>
           </div>
 

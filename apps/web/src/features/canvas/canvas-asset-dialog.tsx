@@ -4,19 +4,23 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CanvasNode } from "@joyai/shared";
 import {
+  CanvasIconAudio,
   CanvasIconCheck,
   CanvasIconClose,
-  CanvasIconFile,
   CanvasIconImage,
   CanvasIconPlay,
   CanvasIconSearch,
+  CanvasIconText,
 } from "./icons/canvas-icons";
 import { api } from "@/shared/lib/api";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
 import { useCanvasStore } from "./store";
-import { isCanvasRefCandidate } from "./lib/canvas-ref-candidates";
+import {
+  isCanvasRefCandidate,
+  type CanvasRefKind,
+} from "./lib/canvas-ref-candidates";
 import { nodeTitleLabel } from "./lib/node-chrome";
 import { CanvasRefThumb } from "./canvas-ref-thumb";
 
@@ -40,7 +44,7 @@ const MAIN_TABS: { id: MainTab; label: string }[] = [
   { id: "canvas", label: "画布资产" },
 ];
 
-const KIND_TABS: { id: KindTab; label: string }[] = [
+const ALL_KIND_TABS: { id: KindTab; label: string }[] = [
   { id: "all", label: "全部" },
   { id: "image", label: "图片" },
   { id: "video", label: "视频" },
@@ -74,6 +78,10 @@ type Props = {
   /** Enable「画布资产」and wire selected nodes via onConfirmCanvasNodes. */
   canvasHostId?: string;
   onConfirmCanvasNodes?: (nodeIds: string[]) => void;
+  /** Limit history/library asset kinds (e.g. audio host → audio only). */
+  allowedAssetKinds?: readonly ("image" | "video" | "audio")[];
+  /** Limit canvas-tab node kinds (e.g. audio host → audio + text). */
+  allowedCanvasKinds?: readonly CanvasRefKind[];
 };
 
 const PAGE = 48;
@@ -99,6 +107,8 @@ export function CanvasAssetDialog({
   onConfirm,
   canvasHostId,
   onConfirmCanvasNodes,
+  allowedAssetKinds,
+  allowedCanvasKinds,
 }: Props) {
   const nodes = useCanvasStore((s) => s.nodes);
   const [main, setMain] = useState<MainTab>("history");
@@ -113,19 +123,43 @@ export function CanvasAssetDialog({
 
   const showCanvasTab = Boolean(canvasHostId && onConfirmCanvasNodes);
 
+  const kindTabs = useMemo(() => {
+    if (!allowedAssetKinds?.length) return ALL_KIND_TABS;
+    const tabs = ALL_KIND_TABS.filter(
+      (tab) => tab.id === "all" || allowedAssetKinds.includes(tab.id),
+    );
+    // Single kind → drop redundant「全部」
+    if (allowedAssetKinds.length === 1) {
+      return tabs.filter((tab) => tab.id !== "all");
+    }
+    return tabs;
+  }, [allowedAssetKinds]);
+
+  const defaultKind = useMemo((): KindTab => {
+    if (allowedAssetKinds?.length === 1) return allowedAssetKinds[0]!;
+    return "all";
+  }, [allowedAssetKinds]);
+
   const canvasNodes = useMemo(() => {
     if (!canvasHostId) return [];
-    return nodes.filter((n) => isCanvasRefCandidate(n, canvasHostId));
-  }, [nodes, canvasHostId]);
+    return nodes.filter((n) =>
+      isCanvasRefCandidate(n, canvasHostId, allowedCanvasKinds),
+    );
+  }, [nodes, canvasHostId, allowedCanvasKinds]);
 
   useEffect(() => {
     if (!open) return;
     setMain("history");
-    setKind("all");
+    setKind(defaultKind);
     setKeyword("");
     setSelectedAssets([]);
     setSelectedNodes([]);
-  }, [open]);
+  }, [open, defaultKind]);
+
+  const queryKind: KindTab =
+    kind === "all" && allowedAssetKinds?.length === 1
+      ? allowedAssetKinds[0]!
+      : kind;
 
   useEffect(() => {
     if (!open || main === "canvas") return;
@@ -136,7 +170,7 @@ export function CanvasAssetDialog({
     void api<AssetRow[]>(
       listQuery({
         uploaded: main === "library",
-        kind,
+        kind: queryKind,
         skip: 0,
       }),
     )
@@ -155,7 +189,7 @@ export function CanvasAssetDialog({
     return () => {
       alive = false;
     };
-  }, [open, main, kind]);
+  }, [open, main, queryKind]);
 
   useEffect(() => {
     if (!open) return;
@@ -172,6 +206,14 @@ export function CanvasAssetDialog({
       const uploaded = isUpload(asset);
       if (main === "library" && !uploaded) return false;
       if (main === "history" && uploaded) return false;
+      if (
+        allowedAssetKinds?.length &&
+        !allowedAssetKinds.includes(
+          asset.kind as "image" | "video" | "audio",
+        )
+      ) {
+        return false;
+      }
       if (kind !== "all" && asset.kind !== kind) return false;
       if (!q) return true;
       const hay = [
@@ -184,14 +226,23 @@ export function CanvasAssetDialog({
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [items, kind, keyword, main]);
+  }, [items, kind, keyword, main, allowedAssetKinds]);
 
   const filteredCanvas = useMemo(() => {
     const q = keyword.trim().toLowerCase();
     return canvasNodes.filter((n) => {
       if (kind === "image" || kind === "video" || kind === "audio") {
-        const k = canvasKind(n);
-        if (k !== kind) return false;
+        if (n.type === "text") {
+          if (
+            allowedCanvasKinds?.length &&
+            !allowedCanvasKinds.includes("text")
+          ) {
+            return false;
+          }
+        } else {
+          const k = canvasKind(n);
+          if (k !== kind) return false;
+        }
       }
       if (!q) return true;
       const hay = [
@@ -204,7 +255,7 @@ export function CanvasAssetDialog({
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [canvasNodes, kind, keyword]);
+  }, [canvasNodes, kind, keyword, allowedCanvasKinds]);
 
   function toggleAsset(id: string) {
     setSelectedAssets((current) =>
@@ -228,7 +279,7 @@ export function CanvasAssetDialog({
     void api<AssetRow[]>(
       listQuery({
         uploaded: main === "library",
-        kind,
+        kind: queryKind,
         skip: items.length,
       }),
     )
@@ -328,7 +379,7 @@ export function CanvasAssetDialog({
             </span>
           ) : null}
           <div className="flex flex-wrap gap-1">
-            {KIND_TABS.map((tab) => (
+            {kindTabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
@@ -383,8 +434,8 @@ export function CanvasAssetDialog({
                     >
                       <div className="relative aspect-square bg-muted">
                         {n.type === "text" ? (
-                          <div className="flex size-full flex-col gap-1 p-2.5">
-                            <CanvasIconFile className="size-4 opacity-60" />
+                          <div className="flex size-full flex-col gap-1.5 bg-muted/80 p-2.5">
+                            <CanvasIconText className="size-4 opacity-60" />
                             <p className="line-clamp-4 text-[11px] leading-snug text-muted-foreground">
                               {String(n.data.text ?? "")}
                             </p>
@@ -464,9 +515,11 @@ export function CanvasAssetDialog({
                         </span>
                       </>
                     ) : asset.kind === "audio" ? (
-                      <span className="grid size-full place-items-center text-xs text-muted-foreground">
-                        音频
-                      </span>
+                      <CanvasRefThumb
+                        kind="audio"
+                        url={asset.url}
+                        className="size-full"
+                      />
                     ) : (
                       <JoyAssetThumb
                         url={asset.url}

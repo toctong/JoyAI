@@ -115,12 +115,20 @@ export class VoicesService {
     private readonly storage: StorageService,
   ) {}
 
-  async listPublic(opts?: { provider?: string; category?: string }) {
+  async listPublic(opts?: {
+    provider?: string;
+    channelId?: string;
+    category?: string;
+  }) {
     const qb = this.voices
       .createQueryBuilder("v")
       .where("v.enabled = :enabled", { enabled: true })
       .orderBy("v.sortOrder", "ASC")
       .addOrderBy("v.createdAt", "ASC");
+    const channelId = opts?.channelId?.trim();
+    if (channelId) {
+      qb.andWhere("v.channelId = :channelId", { channelId });
+    }
     const provider = opts?.provider?.trim();
     if (provider) {
       qb.andWhere("v.provider = :provider", { provider });
