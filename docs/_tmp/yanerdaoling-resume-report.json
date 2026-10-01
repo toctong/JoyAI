@@ -1,0 +1,153 @@
+{
+  "startedAt": "2026-10-01T08:13:32.679Z",
+  "storyboards": [
+    {
+      "index": 8,
+      "ok": true,
+      "jobId": "cmup9c1ci88c70e03f5b21f14"
+    },
+    {
+      "index": 9,
+      "ok": true,
+      "jobId": "cmup9c1crf7995fe715bf7d49"
+    }
+  ],
+  "videos": [
+    {
+      "index": 1,
+      "ok": true,
+      "jobId": "cmup9fdhhdecf3bd0ec776240",
+      "url": "https://files.toapis.cn/videos/tsk_vid_01M3V8HXPQXW86HD70F3SXDCAW/1790842701_c32f0c84.mp4"
+    },
+    {
+      "index": 2,
+      "ok": true,
+      "jobId": "cmup9in37ff559dc57ec30870",
+      "url": "https://files.toapis.cn/videos/tsk_vid_01M3V8PK97WVVCDBY3E3GNJJD7/1790842877_87411998.mp4"
+    },
+    {
+      "index": 3,
+      "ok": true,
+      "jobId": "cmup9mf97520da386f45a7cd0",
+      "url": "https://files.toapis.cn/videos/tsk_vid_01M3V8W0K7R5WV3DB9HAFP1YJ4/1790843049_9b11fd1e.mp4"
+    },
+    {
+      "index": 4,
+      "ok": true,
+      "jobId": "cmup9q7g911151e4e2a4be8df",
+      "url": "https://aigc-joyai.tos-cn-beijing.volces.com/uploads/by-hash/fa660c3ad23beadb55c3dbee164d1899.mp4"
+    },
+    {
+      "index": 5,
+      "ok": true,
+      "jobId": "cmup9uuj6290b069aac1865a5",
+      "url": "https://files.toapis.cn/videos/tsk_vid_01M3V97YR4EFY2J4T2FNN4SNES/1790843535_f39ca03e.mp4"
+    },
+    {
+      "index": 6,
+      "ok": true,
+      "jobId": "cmupa0ox19c0874adbc963b4e",
+      "url": "https://files.toapis.cn/videos/tsk_vid_01M3V9G8PG8CEQM1B7C25VMRV1/1790843679_b883caac.mp4"
+    },
+    {
+      "index": 7,
+      "ok": true,
+      "jobId": "cmupa3sc0efb85fbed2bf97c2",
+      "url": "https://files.toapis.cn/videos/tsk_vid_01M3V9MTFAHA78TM4HCFJSJ6CN/1790843824_d6cadca7.mp4"
+    },
+    {
+      "index": 8,
+      "ok": true,
+      "jobId": "cmupa6pl25dfe86c37d601c9d",
+      "url": "https://files.toapis.cn/videos/tsk_vid_01M3V9S0MEAYXQPZ4Y30VPEV7B/1790843977_6852fb37.mp4"
+    },
+    {
+      "index": 9,
+      "ok": true,
+      "jobId": "cmupa9z7e82a51e2d9fa931db",
+      "url": "https://aigc-joyai.tos-cn-beijing.volces.com/uploads/by-hash/7b2d748ec96cda6c8fde14ad071c6295.mp4"
+    }
+  ],
+  "issues": [],
+  "workflow": {
+    "phase": "production",
+    "scriptConfirmed": true,
+    "blockers": [],
+    "nextAction": "preview",
+    "staleShotIds": [],
+    "counts": {
+      "assets": 8,
+      "assetsWithImage": 8,
+      "shots": 9,
+      "storyboards": 9,
+      "videos": 9
+    }
+  },
+  "jianying": {
+    "ok": true,
+    "bytes": 54259131,
+    "path": "G:\\project\\JoyAI\\docs\\_tmp\\yanerdaoling-jianying.zip"
+  },
+  "finishedAt": "2026-10-01T08:42:52.450Z",
+  "final": {
+    "assetsWithImage": 8,
+    "storyboards": 9,
+    "videos": 9,
+    "shots": [
+      {
+        "index": 1,
+        "title": "蹲伏窥伺",
+        "img": true,
+        "vid": true
+      },
+      {
+        "index": 2,
+        "title": "自语定计",
+        "img": true,
+        "vid": true
+      },
+      {
+        "index": 3,
+        "title": "掩耳塞听",
+        "img": true,
+        "vid": true
+      },
+      {
+        "index": 4,
+        "title": "发力拔钟",
+        "img": true,
+        "vid": true
+      },
+      {
+        "index": 5,
+        "title": "钟响鸟惊",
+        "img": true,
+        "vid": true
+      },
+      {
+        "index": 6,
+        "title": "脚步渐近",
+        "img": true,
+        "vid": true
+      },
+      {
+        "index": 7,
+        "title": "邻人喝问",
+        "img": true,
+        "vid": true
+      },
+      {
+        "index": 8,
+        "title": "死命拔钟",
+        "img": true,
+        "vid": true
+      },
+      {
+        "index": 9,
+        "title": "家主出府",
+        "img": true,
+        "vid": true
+      }
+    ]
+  }
+}

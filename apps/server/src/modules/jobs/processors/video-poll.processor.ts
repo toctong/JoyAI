@@ -154,6 +154,7 @@ export class VideoPollProcessor extends WorkerHost {
         status: "failed",
         error: result.error,
         kind: "video",
+        remoteTaskId: job.remoteTaskId ?? null,
       });
       return;
     }
@@ -171,6 +172,7 @@ export class VideoPollProcessor extends WorkerHost {
         status: "failed",
         error: timeoutMsg,
         kind: "video",
+        remoteTaskId: job.remoteTaskId ?? null,
       });
       return;
     }

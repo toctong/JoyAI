@@ -1,12 +1,17 @@
 import {
   Injectable,
   Logger,
+  OnModuleInit,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { TosClient } from "@volcengine/tos-sdk";
 import axios from "axios";
 import * as crypto from "crypto";
+import {
+  SettingsService,
+  configureTosSettingsReload,
+} from "../settings/settings.service";
 
 export interface StoragePutResult {
   key: string;
@@ -28,31 +33,100 @@ export type StorageObjectSummary = {
   lastModified?: string;
 };
 
+type TosRuntimeConfig = {
+  accessKey: string;
+  secretKey: string;
+  endpoint: string;
+  region: string;
+  bucket: string;
+  publicBase: string;
+};
+
 @Injectable()
-export class StorageService {
+export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private client: TosClient | null = null;
   private bucket = "";
   private publicBase = "";
   private endpoint = "";
+  private region = "cn-beijing";
+  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly config: ConfigService) {
-    const accessKey = config.get<string>("TOS_ACCESS_KEY");
-    const secretKey = config.get<string>("TOS_SECRET_KEY");
-    this.endpoint = config.get<string>("TOS_ENDPOINT") ?? "";
-    const region = config.get<string>("TOS_REGION") ?? "cn-beijing";
-    this.bucket = config.get<string>("TOS_BUCKET") ?? "";
-    this.publicBase = config.get<string>("TOS_PUBLIC_BASE_URL") ?? "";
+  constructor(
+    private readonly config: ConfigService,
+    private readonly settings: SettingsService,
+  ) {
+    // 启动早期先用环境变量，DB Settings 在 onModuleInit 再覆盖。
+    this.applyConfig({
+      accessKey: String(config.get<string>("TOS_ACCESS_KEY") ?? "").trim(),
+      secretKey: String(config.get<string>("TOS_SECRET_KEY") ?? "").trim(),
+      endpoint: String(config.get<string>("TOS_ENDPOINT") ?? "").trim(),
+      region: String(config.get<string>("TOS_REGION") ?? "cn-beijing").trim() ||
+        "cn-beijing",
+      bucket: String(config.get<string>("TOS_BUCKET") ?? "").trim(),
+      publicBase: String(config.get<string>("TOS_PUBLIC_BASE_URL") ?? "").trim(),
+    });
+  }
 
-    if (accessKey && secretKey && this.endpoint && this.bucket) {
+  async onModuleInit() {
+    configureTosSettingsReload(() => this.scheduleReloadFromSettings());
+    await this.reloadFromSettings();
+  }
+
+  /** 管理端连续写入多个 tos.* 时合并成一次重载。 */
+  scheduleReloadFromSettings() {
+    if (this.reloadTimer) clearTimeout(this.reloadTimer);
+    this.reloadTimer = setTimeout(() => {
+      this.reloadTimer = null;
+      void this.reloadFromSettings().catch((err) => {
+        this.logger.warn(
+          `TOS reload failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    }, 120);
+  }
+
+  async reloadFromSettings() {
+    const [accessKey, secretKey, endpoint, region, bucket, publicBase] =
+      await Promise.all([
+        this.settings.resolveString("tos.accessKey", "TOS_ACCESS_KEY"),
+        this.settings.resolveString("tos.secretKey", "TOS_SECRET_KEY"),
+        this.settings.resolveString("tos.endpoint", "TOS_ENDPOINT"),
+        this.settings.resolveString("tos.region", "TOS_REGION"),
+        this.settings.resolveString("tos.bucket", "TOS_BUCKET"),
+        this.settings.resolveString("tos.publicBaseUrl", "TOS_PUBLIC_BASE_URL"),
+      ]);
+    this.applyConfig({
+      accessKey,
+      secretKey,
+      endpoint,
+      region: region || "cn-beijing",
+      bucket,
+      publicBase,
+    });
+  }
+
+  private applyConfig(cfg: TosRuntimeConfig) {
+    this.endpoint = cfg.endpoint;
+    this.region = cfg.region || "cn-beijing";
+    this.bucket = cfg.bucket;
+    this.publicBase = cfg.publicBase;
+
+    if (cfg.accessKey && cfg.secretKey && this.endpoint && this.bucket) {
       this.client = new TosClient({
-        accessKeyId: accessKey,
-        accessKeySecret: secretKey,
-        region,
+        accessKeyId: cfg.accessKey,
+        accessKeySecret: cfg.secretKey,
+        region: this.region,
         endpoint: this.endpoint,
       });
+      this.logger.log(
+        `TOS configured (bucket=${this.bucket}, endpoint=${this.endpoint})`,
+      );
     } else {
-      this.logger.warn("TOS not fully configured; uploads will fail until set");
+      this.client = null;
+      this.logger.warn(
+        "TOS not fully configured; set admin Settings (tos.*) or TOS_* env",
+      );
     }
   }
 
@@ -148,7 +222,7 @@ export class StorageService {
   ): Promise<StoragePutResult> {
     if (!this.client || !this.bucket) {
       throw new ServiceUnavailableException(
-        "TOS 未配置，请设置 TOS_ACCESS_KEY / TOS_SECRET_KEY / TOS_BUCKET / TOS_ENDPOINT",
+        "TOS 未配置，请在管理端「设置 → 对象存储」填写，或设置 TOS_ACCESS_KEY / TOS_SECRET_KEY / TOS_BUCKET / TOS_ENDPOINT",
       );
     }
 
@@ -387,8 +461,7 @@ export class StorageService {
     if (this.publicBase) {
       return `${this.publicBase.replace(/\/$/, "")}/${key}`;
     }
-    const endpoint =
-      this.config.get<string>("TOS_ENDPOINT") ?? "tos-cn-beijing.volces.com";
+    const endpoint = this.endpoint || "tos-cn-beijing.volces.com";
     return `https://${this.bucket}.${endpoint}/${key}`;
   }
 }

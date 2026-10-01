@@ -1,0 +1,31 @@
+﻿{
+    "id":  "cmup7iu5v613a7089dfaab506",
+    "title":  "掩耳盗铃",
+    "coverUrl":  null,
+    "createdAt":  "2026-10-01T07:22:50.806Z",
+    "updatedAt":  "2026-10-01T07:25:05.000Z",
+    "phase":  "preparation",
+    "scriptConfirmed":  false,
+    "scriptLen":  0,
+    "overviewLen":  0,
+    "tags":  [
+
+             ],
+    "episodeCount":  0,
+    "assetCount":  0,
+    "shotCount":  0,
+    "settings":  {
+                     "ratio":  "9:16",
+                     "mode":  "i2v",
+                     "gridLayout":  "2x2",
+                     "style":  "3D 玄幻国漫，精致角色建模，飘逸衣袂，灵气光效，东方奇幻氛围",
+                     "styleId":  "fantasy3d",
+                     "duration":  5,
+                     "llmModelId":  "cmup70vl876278300a45c9127",
+                     "imageModelId":  "cmup70vm96fd4d7683168ae3a",
+                     "videoModelId":  "cmup70w0tf8a8800fbb00b780"
+                 },
+    "completedSteps":  [
+                           "video-settings"
+                       ]
+}

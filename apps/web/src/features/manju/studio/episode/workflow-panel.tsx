@@ -33,6 +33,7 @@ const BLOCKER_LABELS: Record<string, string> = {
 const ACTION_LABELS: Record<string, string> = {
   import_script: "导入或编写剧本",
   analyze_assets: "分析角色 / 场景 / 道具",
+  generate_asset_images: "生成资产参考图",
   confirm_script: "确认分镜脚本",
   generate_storyboard: "生成分镜图",
   generate_video: "生成镜头视频",

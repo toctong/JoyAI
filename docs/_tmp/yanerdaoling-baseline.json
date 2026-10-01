@@ -1,0 +1,203 @@
+{
+  "projectId": "cmup7iu5v613a7089dfaab506",
+  "title": "掩耳盗铃",
+  "episodeId": "cmup7ycaid3f2c76563ea4490",
+  "episodeTitle": "掩耳盗铃·第1集",
+  "tags": [
+    "古装",
+    "寓言",
+    "讽刺",
+    "喜剧"
+  ],
+  "overview": "春秋时期，范氏家仆阿瞒试图盗走青铜大钟，掩耳自欺以为他人亦听不见钟声，终致败露。",
+  "scriptConfirmed": true,
+  "settings": {
+    "ratio": "9:16",
+    "mode": "i2v",
+    "gridLayout": "2x2",
+    "style": "3D 玄幻国漫，精致角色建模，飘逸衣袂，灵气光效，东方奇幻氛围",
+    "styleId": "fantasy3d",
+    "duration": 5,
+    "llmModelId": "cmup70vl876278300a45c9127",
+    "imageModelId": "cmup70vm96fd4d7683168ae3a",
+    "videoModelId": "cmup70w0tf8a8800fbb00b780"
+  },
+  "assets": [
+    {
+      "kind": "character",
+      "name": "阿瞒",
+      "hasImage": false,
+      "aliases": [
+        "范氏家仆"
+      ]
+    },
+    {
+      "kind": "character",
+      "name": "邻人甲",
+      "hasImage": false,
+      "aliases": []
+    },
+    {
+      "kind": "character",
+      "name": "范氏家主",
+      "hasImage": false,
+      "aliases": [
+        "家主"
+      ]
+    },
+    {
+      "kind": "scene",
+      "name": "范氏府邸外院",
+      "hasImage": false,
+      "aliases": []
+    },
+    {
+      "kind": "scene",
+      "name": "府邸内院",
+      "hasImage": false,
+      "aliases": []
+    },
+    {
+      "kind": "prop",
+      "name": "青铜大钟",
+      "hasImage": false,
+      "aliases": [
+        "钟"
+      ]
+    },
+    {
+      "kind": "prop",
+      "name": "撕下的衣襟",
+      "hasImage": false,
+      "aliases": []
+    },
+    {
+      "kind": "prop",
+      "name": "提灯",
+      "hasImage": false,
+      "aliases": []
+    }
+  ],
+  "shots": [
+    {
+      "index": 1,
+      "title": "蹲伏窥伺",
+      "dialogue": "",
+      "visual": "黄昏暮色笼罩范氏府邸外院，石墙根下，瘦削的阿瞒背着一口青铜大钟蹲伏，眼珠左右乱转，四下张望。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 3
+    },
+    {
+      "index": 2,
+      "title": "自语定计",
+      "dialogue": "钟声一响，左右邻居必来。若我捂住耳朵，自己听不见——那别人也就听不见了吧？",
+      "visual": "阿瞒抬头望向府邸方向，嘴唇翕动，眼珠仍在转动，似在盘算。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 1
+    },
+    {
+      "index": 3,
+      "title": "掩耳塞听",
+      "dialogue": "",
+      "visual": "阿瞒撕下衣襟一角，双手将布条死死塞住双耳，动作急促。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 1
+    },
+    {
+      "index": 4,
+      "title": "发力拔钟",
+      "dialogue": "",
+      "visual": "阿瞒双手抱住钟钮，身体后倾，猛然发力一拔——青铜大钟离地寸许。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 2
+    },
+    {
+      "index": 5,
+      "title": "钟响鸟惊",
+      "dialogue": "",
+      "visual": "钟声轰然炸响，院内栖鸟惊飞四散，羽翼扑棱掠过暮色天空。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 1
+    },
+    {
+      "index": 6,
+      "title": "脚步渐近",
+      "dialogue": "",
+      "visual": "门外巷道，脚步声由远及近，尘土微动，人影未现。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 1
+    },
+    {
+      "index": 7,
+      "title": "邻人喝问",
+      "dialogue": "谁在偷钟？！",
+      "visual": "阿瞒捂耳瞪眼，面目扭曲，双手仍死命拽住钟钮不放，钟身摇晃。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 2
+    },
+    {
+      "index": 8,
+      "title": "死命拔钟",
+      "dialogue": "",
+      "visual": "阿瞒咬牙发力，钟钮松动，钟声更烈，他双耳被布堵死，浑然不觉。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 2
+    },
+    {
+      "index": 9,
+      "title": "家主出府",
+      "dialogue": "",
+      "visual": "范氏府邸大门洞开，家主手提灯笼步出，灯光摇曳，照亮阿瞒僵住的背影。",
+      "hasImagePrompt": false,
+      "hasVideoPrompt": false,
+      "hasImage": false,
+      "hasVideo": false,
+      "assetRefs": 2
+    }
+  ],
+  "workflow": {
+    "phase": "production",
+    "scriptConfirmed": true,
+    "blockers": [
+      "no_asset_images",
+      "storyboard_incomplete"
+    ],
+    "nextAction": "analyze_assets",
+    "staleShotIds": [],
+    "counts": {
+      "assets": 8,
+      "assetsWithImage": 0,
+      "shots": 9,
+      "storyboards": 0,
+      "videos": 0
+    }
+  },
+  "jobs": {
+    "analyze": "cmup7xv6h8c2765f37715b697",
+    "script_plan": "cmup7ydu6d266792fb9597123"
+  }
+}

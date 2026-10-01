@@ -51,6 +51,14 @@ export function configureSettingInvalidate(fn: SettingInvalidate) {
   onSettingInvalidate = fn;
 }
 
+type TosSettingsReload = () => void | Promise<void>;
+let onTosSettingsReload: TosSettingsReload | null = null;
+
+/** StorageService registers to rebuild TOS client when tos.* is saved. */
+export function configureTosSettingsReload(fn: TosSettingsReload) {
+  onTosSettingsReload = fn;
+}
+
 export type SettingListItem = {
   key: string;
   value: unknown;
@@ -156,6 +164,15 @@ export class SettingsService
     }
     if (GITHUB_SETTING_KEYS.has(key)) {
       onSettingInvalidate?.(key);
+    }
+    if (key.startsWith("tos.")) {
+      void Promise.resolve(onTosSettingsReload?.()).catch((err) => {
+        this.logger.warn(
+          `TOS settings reload failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
     }
   }
 

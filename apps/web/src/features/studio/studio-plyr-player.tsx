@@ -31,23 +31,11 @@ type PlyrLike = {
   media?: HTMLMediaElement | null;
 };
 
-function applyMediaAttrs(
-  el: HTMLVideoElement,
-  src: string,
-  poster?: string | null,
-) {
-  if (el.getAttribute("src") !== src) {
-    el.src = src;
-  }
-  if (poster) el.poster = poster;
-  else el.removeAttribute("poster");
-}
-
-function hasPlayableSrc(el: HTMLVideoElement) {
-  return Boolean(el.currentSrc || el.getAttribute("src"));
-}
-
-/** Studio feed video — Plyr controls, no autoplay (multiple cards on page). */
+/**
+ * Studio / 漫剧预览播放器。
+ * 视频节点由宿主 div 命令式挂载（非 React 子节点），避免 Plyr 改父节点后
+ * React unmount 触发 NotFoundError: removeChild。
+ */
 export function StudioPlyrPlayer({
   src,
   poster,
@@ -56,7 +44,8 @@ export function StudioPlyrPlayer({
   onEnded,
   onNaturalAspect,
 }: Props) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const hostRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerRef = useRef<PlyrLike | null>(null);
   const pendingSrcRef = useRef<string | null>(null);
   const appliedSrcRef = useRef(src);
@@ -64,17 +53,29 @@ export function StudioPlyrPlayer({
   const posterRef = useRef(poster);
   const onNaturalAspectRef = useRef(onNaturalAspect);
   const onEndedRef = useRef(onEnded);
+  const autoPlayRef = useRef(autoPlay);
   srcRef.current = src;
   posterRef.current = poster;
   onNaturalAspectRef.current = onNaturalAspect;
   onEndedRef.current = onEnded;
+  autoPlayRef.current = autoPlay;
 
   useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
+    const host = hostRef.current;
+    if (!host) return;
 
     let destroyed = false;
     let player: PlyrLike | null = null;
+
+    const video = document.createElement("video");
+    video.className = "joy-studio-plyr-el";
+    video.playsInline = true;
+    video.preload = "metadata";
+    if (posterRef.current) video.poster = posterRef.current;
+    video.src = srcRef.current;
+    host.appendChild(video);
+    videoRef.current = video;
+    appliedSrcRef.current = srcRef.current;
 
     const stopAudible = () => {
       try {
@@ -98,21 +99,15 @@ export function StudioPlyrPlayer({
       onNaturalAspectRef.current?.(`${v.videoWidth} / ${v.videoHeight}`);
     };
 
-    el.addEventListener("loadedmetadata", reportAspect);
-    if (el.readyState >= 1) reportAspect();
-
     const handleEnded = () => onEndedRef.current?.();
-    el.addEventListener("ended", handleEnded);
 
-    // Strict Mode / Plyr destroy call releaseHtmlMedia which strips `src`.
-    // Re-apply before init so we never mount Plyr on an empty element.
-    applyMediaAttrs(el, srcRef.current, posterRef.current);
-    appliedSrcRef.current = srcRef.current;
+    video.addEventListener("loadedmetadata", reportAspect);
+    video.addEventListener("ended", handleEnded);
+    if (video.readyState >= 1) reportAspect();
 
     void import("plyr").then(({ default: Plyr }) => {
-      if (destroyed || !videoRef.current) return;
-      applyMediaAttrs(videoRef.current, srcRef.current, posterRef.current);
-      player = new Plyr(videoRef.current, {
+      if (destroyed || !video.isConnected) return;
+      player = new Plyr(video, {
         controls: [
           "play-large",
           "play",
@@ -121,7 +116,7 @@ export function StudioPlyrPlayer({
           "mute",
           "fullscreen",
         ],
-        autoplay: autoPlay,
+        autoplay: autoPlayRef.current,
         muted: false,
         hideControls: true,
         resetOnEnd: false,
@@ -137,8 +132,8 @@ export function StudioPlyrPlayer({
       player.on("pause", syncAudible);
       player.on("volumechange", syncAudible);
       reportAspect();
-      if (autoPlay) {
-        void videoRef.current.play().catch(() => undefined);
+      if (autoPlayRef.current) {
+        void video.play().catch(() => undefined);
       }
       syncAudible();
     });
@@ -146,42 +141,71 @@ export function StudioPlyrPlayer({
     return () => {
       destroyed = true;
       releaseAudibleMedia(stopAudible);
-      el.removeEventListener("loadedmetadata", reportAspect);
-      el.removeEventListener("ended", handleEnded);
+      video.removeEventListener("loadedmetadata", reportAspect);
+      video.removeEventListener("ended", handleEnded);
       playerRef.current = null;
-      player?.off("ended", handleEnded);
-      player?.off("playing", syncAudible);
-      player?.off("pause", syncAudible);
-      player?.off("volumechange", syncAudible);
+      videoRef.current = null;
       try {
-        player?.destroy();
+        player?.off("ended", handleEnded);
+        player?.off("playing", syncAudible);
+        player?.off("pause", syncAudible);
+        player?.off("volumechange", syncAudible);
       } catch {
         /* ignore */
       }
-      releaseHtmlMedia(el);
+      try {
+        player?.destroy();
+      } catch {
+        /* Plyr may already have detached the node */
+      }
+      releaseHtmlMedia(video);
+      try {
+        if (video.parentNode) video.parentNode.removeChild(video);
+      } catch {
+        /* already gone */
+      }
+      try {
+        while (host.firstChild) {
+          host.removeChild(host.firstChild);
+        }
+      } catch {
+        /* ignore */
+      }
     };
-    // Mount once; src hot-swaps handled below.
+    // Mount once per host; src hot-swaps handled below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const player = playerRef.current;
     const video = videoRef.current;
-    const needsRestore = Boolean(video && src && !hasPlayableSrc(video));
+    if (!video) return;
+
+    const needsRestore = Boolean(
+      src && !(video.currentSrc || video.getAttribute("src")),
+    );
     if (src === appliedSrcRef.current && !needsRestore) {
-      if (video) applyMediaAttrs(video, src, poster);
+      if (poster) video.poster = poster;
+      else video.removeAttribute("poster");
       return;
     }
-    if (!player || !video) {
+
+    const applyAttrs = (next: string) => {
+      if (video.getAttribute("src") !== next) video.src = next;
+      if (poster) video.poster = poster;
+      else video.removeAttribute("poster");
+    };
+
+    if (!player) {
       pendingSrcRef.current = src;
-      if (video && src) applyMediaAttrs(video, src, poster);
+      if (src) applyAttrs(src);
       return;
     }
 
     const apply = (next: string) => {
       appliedSrcRef.current = next;
       pendingSrcRef.current = null;
-      applyMediaAttrs(video, next, poster);
+      applyAttrs(next);
       player.source = {
         type: "video",
         sources: [{ src: next, type: "video/mp4" }],
@@ -193,7 +217,6 @@ export function StudioPlyrPlayer({
       return;
     }
 
-    // Don't interrupt playback — swap when user pauses or clip ends.
     pendingSrcRef.current = src;
     const flush = () => {
       const pending = pendingSrcRef.current;
@@ -211,13 +234,9 @@ export function StudioPlyrPlayer({
   }, [src, poster]);
 
   return (
-    <video
-      ref={videoRef}
-      className={cn("joy-studio-plyr-el", className)}
-      src={src}
-      poster={poster || undefined}
-      playsInline
-      preload="metadata"
+    <div
+      ref={hostRef}
+      className={cn("joy-studio-plyr-host", className)}
     />
   );
 }

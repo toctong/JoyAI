@@ -15,7 +15,6 @@ import {
   Sparkles,
   Star,
   Trash2,
-  Upload,
   UserRound,
   Wand2,
 } from "lucide-react";
@@ -32,6 +31,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/shared/lib/utils";
 import { JoyVideoPoster } from "@/shared/ui/joy-video-poster";
+import { JoyReleasedVideo } from "@/shared/ui/joy-released-video";
 import { toast } from "@/shared/lib/toast";
 import { confirmDialog } from "@/shared/lib/confirm";
 import { ManjuExportDialog } from "../manju-export-dialog";
@@ -54,6 +54,11 @@ import { ManjuAssetPicker } from "../../manju-asset-picker";
 import { ManjuPromptField } from "../../manju-prompt-field";
 import { submitWorkflowSkill } from "../../lib/workflow-skill";
 import { manjuConfirmGenerateCopy } from "../../lib/manju-job-labels";
+import {
+  episodeRefCoverage,
+  isVoiceOnlyAsset,
+} from "../../lib/ref-coverage";
+import { api } from "@/shared/lib/api";
 import { EpisodeContinueDialog } from "../episode-continue-dialog";
 import { ProduceShotsVirtualList } from "./produce-shots-virtual-list";
 
@@ -91,6 +96,7 @@ function charactersMissingRefImage(project: ManjuProjectDraft) {
     (a) =>
       a.kind === "character" &&
       a.name.trim() &&
+      !isVoiceOnlyAsset(a) &&
       !a.imageUrl &&
       !a.assetId,
   );
@@ -156,6 +162,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
   const [continueOpen, setContinueOpen] = useState(false);
   const [promptBusy, setPromptBusy] = useState(false);
   const [batchBusy, setBatchBusy] = useState(false);
+  const [pipelineBusy, setPipelineBusy] = useState(false);
   const autoPlanStarted = useRef(false);
 
   const episode = project?.episodes.find((e) => e.id === episodeId);
@@ -170,6 +177,14 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
         .filter((s) => s.episodeId === episodeId)
         .sort((a, b) => a.index - b.index),
     [project?.shots, episodeId],
+  );
+
+  const refCoverage = useMemo(
+    () =>
+      project
+        ? episodeRefCoverage(project, shots)
+        : { needed: [], withImage: [], missing: [], ratio: 1 },
+    [project, shots],
   );
 
   useEffect(() => {
@@ -561,13 +576,13 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
     void generateImage();
   };
 
-  const generateAllImages = async () => {
-    if (!project || shots.length === 0) return;
+  const generateAllImages = async (opts?: { skipConfirm?: boolean }) => {
+    if (!project || shots.length === 0) return 0;
     if (project.settings.mode === "grid") {
       toast.message("多宫格模式请回到分镜卡片页批量生成");
-      return;
+      return 0;
     }
-    if (!(await ensureScriptConfirmed())) return;
+    if (!(await ensureScriptConfirmed())) return 0;
     const targets = shots.filter(
       (s) =>
         (s.visual.trim() || s.imagePrompt?.trim()) &&
@@ -575,16 +590,20 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
         !isBusyStatus(s.storyboardStatus),
     );
     if (targets.length === 0) {
-      toast.message("没有待生图的分镜（已有图或缺少描述）");
-      return;
+      if (!opts?.skipConfirm) {
+        toast.message("没有待生图的分镜（已有图或缺少描述）");
+      }
+      return 0;
     }
-    const ok = await confirmDialog({
-      title: "本集全部生图？",
-      description: `将为 ${targets.length} 个分镜提交生图任务（跳过已有静帧）。`,
-      confirmText: "开始生图",
-      cancelText: "取消",
-    });
-    if (!ok) return;
+    if (!opts?.skipConfirm) {
+      const ok = await confirmDialog({
+        title: "本集全部生图？",
+        description: `将为 ${targets.length} 个分镜提交生图任务（跳过已有静帧）。`,
+        confirmText: "开始生图",
+        cancelText: "取消",
+      });
+      if (!ok) return 0;
+    }
     setBatchBusy(true);
     let okCount = 0;
     const toastId = toast.loading(`正在提交生图 0/${targets.length}…`);
@@ -616,17 +635,24 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       }
       toast.dismiss(toastId);
       toast.success(`已提交 ${okCount}/${targets.length} 个生图任务`);
+      return okCount;
     } finally {
       toast.dismiss(toastId);
       setBatchBusy(false);
     }
   };
 
-  const generateAllVideos = async () => {
-    if (!project || shots.length === 0) return;
-    if (!(await ensureScriptConfirmed())) return;
+  const generateAllVideos = async (opts?: { skipConfirm?: boolean }) => {
+    if (!project || shots.length === 0) return 0;
+    if (!(await ensureScriptConfirmed())) return 0;
     const mode = resolveManjuGenMode(project.settings.mode);
-    const targets = shots.filter(
+    const liveShots =
+      useManjuStore
+        .getState()
+        .getProject(projectId)
+        ?.shots.filter((s) => s.episodeId === episodeId)
+        .sort((a, b) => a.index - b.index) ?? shots;
+    const targets = liveShots.filter(
       (s) =>
         !s.videoUrl &&
         !isBusyStatus(s.videoStatus) &&
@@ -636,20 +662,24 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
           s.videoPrompt?.trim()),
     );
     if (targets.length === 0) {
-      toast.message(
-        mode === "i2v"
-          ? "没有可图生视频的分镜（需先有静帧）"
-          : "没有待生视频的分镜",
-      );
-      return;
+      if (!opts?.skipConfirm) {
+        toast.message(
+          mode === "i2v"
+            ? "没有可生视频的分镜（需先有静帧）"
+            : "没有待生视频的分镜",
+        );
+      }
+      return 0;
     }
-    const ok = await confirmDialog({
-      title: "本集全部生视频？",
-      description: `将为 ${targets.length} 个分镜提交生视频任务（跳过已有视频）。`,
-      confirmText: "开始生视频",
-      cancelText: "取消",
-    });
-    if (!ok) return;
+    if (!opts?.skipConfirm) {
+      const ok = await confirmDialog({
+        title: "本集全部生视频？",
+        description: `将为 ${targets.length} 个分镜提交视频任务。`,
+        confirmText: "开始生视频",
+        cancelText: "取消",
+      });
+      if (!ok) return 0;
+    }
     setBatchBusy(true);
     let okCount = 0;
     const toastId = toast.loading(`正在提交生视频 0/${targets.length}…`);
@@ -657,11 +687,15 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       for (let i = 0; i < targets.length; i++) {
         const shot = targets[i]!;
         try {
-          const slots = resolveShotReferenceSlots(shot, project);
-          const fromAssets = referenceMediaFromSlots(slots);
+          const duration =
+            shot.duration && shot.duration > 0
+              ? shot.duration
+              : project.settings.duration || 5;
           const referenceAssetIds: string[] = [];
           const referenceUrls: string[] = [];
           if (mode === "ref") {
+            const slots = resolveShotReferenceSlots(shot, project);
+            const fromAssets = referenceMediaFromSlots(slots);
             referenceAssetIds.push(...fromAssets.referenceAssetIds);
             referenceUrls.push(...fromAssets.referenceUrls);
           } else if (shot.storyboardAssetId) {
@@ -669,10 +703,6 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
           } else if (shot.storyboardImageUrl) {
             referenceUrls.push(shot.storyboardImageUrl);
           }
-          const duration =
-            shot.duration && shot.duration > 0
-              ? shot.duration
-              : project.settings.duration || 5;
           const job = await submitVideoJob({
             prompt: buildShotVideoPrompt(shot, project, { mode }),
             ratio: project.settings.ratio,
@@ -696,8 +726,117 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
       }
       toast.dismiss(toastId);
       toast.success(`已提交 ${okCount}/${targets.length} 个生视频任务`);
+      return okCount;
     } finally {
       toast.dismiss(toastId);
+      setBatchBusy(false);
+    }
+  };
+
+  const waitJobSucceeded = async (jobId: string, label: string) => {
+    for (let i = 0; i < 90; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const job = await api<{
+        id: string;
+        status: string;
+        error?: string | null;
+      }>(`/jobs/${jobId}`);
+      if (job.status === "succeeded") return;
+      if (job.status === "failed" || job.status === "cancelled") {
+        throw new Error(job.error || `${label}失败`);
+      }
+    }
+    throw new Error(`${label}超时，请在任务完成后手动继续`);
+  };
+
+  /** 一键：规划(如需) → 确认 → 写词 → 批量生图 → 批量生视频 */
+  const runEpisodePipeline = async () => {
+    if (!project) return;
+    if (pipelineBusy || batchBusy || analyzing) return;
+    const ok = await confirmDialog({
+      title: "一键拉通本集？",
+      description:
+        "将依次：规划分镜（若为空）→ 确认脚本 → 写提示词 → 提交全部生图 → 提交全部生视频。生图/视频在后台排队，可随时在任务中心查看。",
+      confirmText: "开始拉通",
+      cancelText: "取消",
+    });
+    if (!ok) return;
+
+    setPipelineBusy(true);
+    const toastId = toast.loading("一键拉通：准备中…");
+    try {
+      let live = useManjuStore.getState().getProject(projectId) ?? project;
+      let epShots = live.shots
+        .filter((s) => s.episodeId === episodeId)
+        .sort((a, b) => a.index - b.index);
+
+      if (epShots.length === 0) {
+        if (!(await confirmMissingCharacterImages(live))) {
+          toast.dismiss(toastId);
+          return;
+        }
+        toast.loading("一键拉通：规划分镜…", { id: toastId });
+        setAnalyzing(projectId, true);
+        await flushSave(projectId);
+        const planJob = await submitWorkflowSkill({
+          project: live,
+          skill: "script_plan",
+          episodeId,
+        });
+        updateProject(projectId, { lastAnalyzeJobId: planJob.id });
+        await waitJobSucceeded(planJob.id, "分镜规划");
+        await useManjuStore.getState().loadProject(projectId);
+        live = useManjuStore.getState().getProject(projectId) ?? live;
+        epShots = live.shots
+          .filter((s) => s.episodeId === episodeId)
+          .sort((a, b) => a.index - b.index);
+        if (epShots.length === 0) {
+          throw new Error("规划完成但未写入镜头，请手动检查后重试");
+        }
+      }
+
+      if (!live.scriptConfirmed) {
+        toast.loading("一键拉通：确认脚本…", { id: toastId });
+        updateProject(projectId, { scriptConfirmed: true });
+        await flushSave(projectId);
+        live = {
+          ...(useManjuStore.getState().getProject(projectId) ?? live),
+          scriptConfirmed: true,
+        };
+      }
+
+      toast.loading("一键拉通：编写提示词…", { id: toastId });
+      setPromptBusy(true);
+      setAnalyzing(projectId, true);
+      await flushSave(projectId);
+      const promptJob = await submitWorkflowSkill({
+        project: { ...live, scriptConfirmed: true },
+        skill: "author_prompts",
+        episodeId,
+      });
+      updateProject(projectId, { lastAnalyzeJobId: promptJob.id });
+      await waitJobSucceeded(promptJob.id, "写提示词");
+      await useManjuStore.getState().loadProject(projectId);
+      setPromptBusy(false);
+
+      toast.loading("一键拉通：提交生图…", { id: toastId });
+      const imgN = await generateAllImages({ skipConfirm: true });
+
+      toast.loading("一键拉通：提交生视频…", { id: toastId });
+      // I2V 需要静帧；若刚提交生图，静帧可能尚未回来——先提交已有静帧的，其余提示稍后
+      const vidN = await generateAllVideos({ skipConfirm: true });
+
+      toast.dismiss(toastId);
+      toast.success(
+        `拉通已提交：生图 ${imgN}、生视频 ${vidN}。若部分镜尚无静帧，等生图完成后再点「本集全部生视频」。`,
+      );
+    } catch (e) {
+      toast.dismiss(toastId);
+      setAnalyzing(projectId, false);
+      setPromptBusy(false);
+      toast.error(e instanceof Error ? e.message : "一键拉通失败");
+    } finally {
+      setPipelineBusy(false);
       setBatchBusy(false);
     }
   };
@@ -775,7 +914,34 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
           <span className="manju-produce__crumb manju-produce__crumb--muted">
             风格：{project.settings.style || "默认"}
           </span>
-          <div className="ml-auto">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {refCoverage.needed.length > 0 ? (
+              <Link
+                href={manjuStudioHref(projectId, "characters")}
+                className={cn(
+                  "manju-produce__ref-chip",
+                  refCoverage.missing.length > 0 && "is-warn",
+                )}
+                title={
+                  refCoverage.missing.length
+                    ? `缺参考图：${refCoverage.missing.map((a) => a.name).join("、")}`
+                    : "本集引用资产参考图已齐"
+                }
+              >
+                参考图 {refCoverage.withImage.length}/{refCoverage.needed.length}
+              </Link>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              disabled={
+                pipelineBusy || batchBusy || analyzing || promptBusy
+              }
+              onClick={() => void runEpisodePipeline()}
+            >
+              <Wand2 className="size-3.5" />
+              {pipelineBusy ? "拉通中…" : "一键拉通"}
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -1151,14 +1317,6 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
                 <button
                   type="button"
                   className="manju-produce__icon-btn"
-                  aria-label="上传"
-                  onClick={() => toast.message("本地上传即将接入")}
-                >
-                  <Upload className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  className="manju-produce__icon-btn"
                   aria-label="下载"
                   disabled={!previewUrl}
                   onClick={() => {
@@ -1199,7 +1357,7 @@ export function EpisodeProduceWorkspace({ projectId, episodeId }: Props) {
             <div className="manju-produce__preview-canvas">
               {previewUrl ? (
                 previewKind === "video" ? (
-                  <video
+                  <JoyReleasedVideo
                     key={previewUrl}
                     src={previewUrl}
                     controls

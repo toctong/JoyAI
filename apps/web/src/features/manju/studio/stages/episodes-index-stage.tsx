@@ -10,7 +10,6 @@ import {
   FileText,
   Film,
   MoreHorizontal,
-  Music2,
   PenLine,
   Play,
   Plus,
@@ -575,16 +574,6 @@ export function EpisodesIndexStage({ projectId }: { projectId: string }) {
                         >
                           <PenLine className="size-3.5" />
                           AI 写下一集
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="manju-ep-card__ghost-btn"
-                          onClick={() => toast.message("BGM 制作即将接入")}
-                        >
-                          <Music2 className="size-3.5" />
-                          制作BGM
                         </Button>
                         <ManjuExportDialog
                           project={project}

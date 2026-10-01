@@ -238,8 +238,10 @@ export function useManjuJobBridge(activeProjectId?: string) {
         error?: string | null;
         status?: string;
         kind?: string;
+        remoteTaskId?: string | null;
         input?: { purpose?: string } | null;
       };
+      remoteTaskId?: string | null;
     }) => {
       const jobId = resolveJobId(payload);
       if (!jobId) return;
@@ -276,10 +278,27 @@ export function useManjuJobBridge(activeProjectId?: string) {
         ? manjuPurposeLabel(purpose)
         : manjuJobKindLabel(kind);
       const emptyLlm = /空内容|empty|模型不可用|没有可用的/i.test(err);
-      const hint = emptyLlm
-        ? "（请到「初始设定」更换可用的文本模型后再试）"
-        : "";
-      toast.error(`${label}失败：${err}${hint}`);
+      const emptyImage =
+        kind === "image" &&
+        /未返回图片|没有可用的|模型不可用|上游/i.test(err);
+      const emptyVideo =
+        kind === "video" &&
+        /未返回视频|没有可用的|模型不可用|上游/i.test(err);
+      const remoteTaskId =
+        (payload as { remoteTaskId?: string | null }).remoteTaskId ||
+        (payload.job as { remoteTaskId?: string | null } | undefined)
+          ?.remoteTaskId ||
+        null;
+      let hint = "";
+      if (emptyLlm) {
+        hint = "（请到「初始设定」更换可用的文本模型后再试）";
+      } else if (emptyImage) {
+        hint = "（可到「初始设定」更换图像模型；ToAPIs 高峰请稍后重试）";
+      } else if (emptyVideo) {
+        hint = "（可到「初始设定」更换视频模型后再试）";
+      }
+      const remote = remoteTaskId ? ` · 上游 ${remoteTaskId}` : "";
+      toast.error(`${label}失败：${err}${hint}${remote}`);
       if (
         activeProjectId &&
         (purpose === "analyze_assets" || purpose === "novel_analyze")

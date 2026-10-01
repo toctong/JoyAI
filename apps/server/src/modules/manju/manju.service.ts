@@ -36,6 +36,63 @@ function extractCoverUrl(draft: ManjuDraft): string | null {
   return null;
 }
 
+/**
+ * PATCH draft 合并：只覆盖传入的顶层字段；settings / scriptReview / series 浅合并。
+ * 避免 `{ draft: { settings } }` 整份 normalize 后清空资产与镜头。
+ */
+function mergeManjuDraftPatch(
+  currentRaw: unknown,
+  patchRaw: unknown,
+): ManjuDraft {
+  const current = normalizeManjuDraft(currentRaw);
+  if (!patchRaw || typeof patchRaw !== "object" || Array.isArray(patchRaw)) {
+    return current;
+  }
+  const patch = patchRaw as Record<string, unknown>;
+  const next: Record<string, unknown> = { ...current };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+    if (
+      key === "settings" &&
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
+      next.settings = {
+        ...current.settings,
+        ...(value as Record<string, unknown>),
+      };
+      continue;
+    }
+    if (
+      key === "scriptReview" &&
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
+      next.scriptReview = {
+        ...current.scriptReview,
+        ...(value as Record<string, unknown>),
+      };
+      continue;
+    }
+    if (
+      key === "series" &&
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
+      next.series = {
+        ...current.series,
+        ...(value as Record<string, unknown>),
+      };
+      continue;
+    }
+    next[key] = value;
+  }
+  return normalizeManjuDraft(next);
+}
+
 function sliceEpisodeSource(
   script: string,
   startQuote: string,
@@ -302,7 +359,7 @@ export class ManjuService {
       project.title = patch.title.trim();
     }
     if (patch.draft !== undefined) {
-      const draft = normalizeManjuDraft(patch.draft);
+      const draft = mergeManjuDraftPatch(project.draft, patch.draft);
       project.draft = draft as unknown as Record<string, unknown>;
       project.coverUrl = extractCoverUrl(draft);
     }
@@ -407,6 +464,7 @@ export class ManjuService {
     let nextAction:
       | "import_script"
       | "analyze_assets"
+      | "generate_asset_images"
       | "confirm_script"
       | "generate_storyboard"
       | "generate_video"
@@ -414,8 +472,11 @@ export class ManjuService {
 
     if (!hasScript) {
       nextAction = "import_script";
-    } else if (draft.assets.length === 0 || assetsWithImage.length === 0) {
+    } else if (draft.assets.length === 0) {
       nextAction = "analyze_assets";
+    } else if (assetsWithImage.length === 0) {
+      // 已有资产登记但无参考图：引导定妆/生图，勿再推「解析剧本」
+      nextAction = "generate_asset_images";
     } else if (!hasShots) {
       nextAction = "confirm_script";
     } else if (!scriptConfirmed) {
@@ -428,6 +489,16 @@ export class ManjuService {
       nextAction = "preview";
     }
 
+    const ACTION_LABELS: Record<string, string> = {
+      import_script: "导入或编写剧本",
+      analyze_assets: "分析角色 / 场景 / 道具",
+      generate_asset_images: "生成资产参考图",
+      confirm_script: "确认分镜脚本",
+      generate_storyboard: "生成分镜图",
+      generate_video: "生成镜头视频",
+      preview: "预览与导出",
+    };
+
     const staleShotIds = draft.shots
       .filter((s) => s.storyboardStale || s.videoStale)
       .map((s) => s.id);
@@ -437,6 +508,7 @@ export class ManjuService {
       scriptConfirmed,
       blockers,
       nextAction,
+      nextActionLabel: ACTION_LABELS[nextAction] ?? nextAction,
       staleShotIds,
       counts: {
         assets: draft.assets.length,
@@ -573,10 +645,18 @@ export class ManjuService {
           }
           const mergedDetail = mergeManjuAssetDetail(hit.detail, nextDetail);
           if (mergedDetail) hit.detail = mergedDetail;
+          if (kind === "character" && item.voiceOnly === true) {
+            hit.voiceOnly = true;
+          }
         }
         return;
       }
       existingKeys.add(key);
+      const voiceOnly =
+        item.voiceOnly === true ||
+        /画外|旁白|只闻其声|不露面|未出场/.test(
+          `${mergedDesc} ${item.roleType ?? ""} ${item.traits ?? ""}`,
+        );
       draft.assets.push({
         id: newId(),
         kind,
@@ -589,6 +669,7 @@ export class ManjuService {
         jobId: null,
         status: "idle",
         detail: nextDetail,
+        voiceOnly: kind === "character" ? voiceOnly : undefined,
       });
     };
 

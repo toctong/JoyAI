@@ -654,6 +654,17 @@
   border-radius: inherit;
 }
 
+.joy-studio-thumb-video .joy-studio-plyr-host,
+.joy-studio-thumb-video .plyr {
+  width: 100%;
+  height: 100%;
+}
+
+.joy-studio-thumb-video .joy-studio-plyr-host {
+  position: relative;
+  min-height: 0;
+}
+
 .joy-studio-thumb-video .plyr video,
 .joy-studio-thumb-video .joy-studio-plyr-el {
   position: absolute !important;

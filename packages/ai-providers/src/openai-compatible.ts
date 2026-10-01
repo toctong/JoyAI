@@ -254,13 +254,25 @@ function firstUrl(value: unknown): string | undefined {
 function mapMediaItem(
   item: unknown,
 ): { url?: string; b64?: string } | null {
-  if (typeof item === "string") return { url: item };
+  if (typeof item === "string") {
+    const s = item.trim();
+    if (!s) return null;
+    // 纯 base64（无 data: 前缀）也收下
+    if (/^https?:\/\//i.test(s) || s.startsWith("data:image")) {
+      return { url: s };
+    }
+    if (s.length > 64 && !s.includes(" ")) return { b64: s };
+    return { url: s };
+  }
   if (!item || typeof item !== "object") return null;
   const o = item as Record<string, unknown>;
   const url =
     firstUrl(o.url) ??
     firstUrl(o.image_url) ??
+    firstUrl(o.imageUrl) ??
     firstUrl(o.video_url) ??
+    firstUrl(o.download_url) ??
+    firstUrl(o.file_url) ??
     firstUrl(o.uri);
   const b64 =
     typeof o.b64_json === "string"
@@ -559,11 +571,20 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
     baseUrl: string;
     rawSubmit: unknown;
   }): Promise<ImageGenerateResult> {
-    const endpoints = [
-      `${params.baseUrl}/tasks/${params.taskId}`,
-      `${params.baseUrl}/images/generations/${params.taskId}`,
-      `${params.baseUrl}/images/tasks/${params.taskId}`,
-    ];
+    // ToAPIs 官方查询是 /images/generations/{id}；/tasks/{id} 偶发先报 completed
+    // 却不带 result.url，旧逻辑会立刻抛「未返回图片 URL」，而控制台稍后已有图。
+    const endpoints =
+      this.platform === ProviderPlatform.TOAPIS
+        ? [
+            `${params.baseUrl}/images/generations/${params.taskId}`,
+            `${params.baseUrl}/images/tasks/${params.taskId}`,
+            `${params.baseUrl}/tasks/${params.taskId}`,
+          ]
+        : [
+            `${params.baseUrl}/tasks/${params.taskId}`,
+            `${params.baseUrl}/images/generations/${params.taskId}`,
+            `${params.baseUrl}/images/tasks/${params.taskId}`,
+          ];
     const pollParams =
       this.platform === ProviderPlatform.APIMART
         ? { language: "zh" }
@@ -571,9 +592,13 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
 
     // ~15 min @ 2s (slow async gateways / peak queues)
     const maxAttempts = 450;
+    /** completed 但尚无 URL：多等一会（高峰时 result 会晚几拍挂上） */
+    let emptySuccessStreak = 0;
+    const emptySuccessLimit = 20; // ~40s
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       await sleep(2000);
       let lastError: unknown;
+      let sawEmptySuccess = false;
       for (const url of endpoints) {
         try {
           const { data, status } = await axios.get(url, {
@@ -589,7 +614,7 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
           const nestedError =
             (payload as { error?: unknown }).error ??
             (data as { error?: unknown })?.error;
-          if (FAILED_STATUSES.has(st) || nestedError) {
+          if (FAILED_STATUSES.has(st) || isProviderErrorValue(nestedError)) {
             throw new Error(
               formatProviderErrorBody(data, status, {
                 platform: this.platform,
@@ -603,17 +628,26 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
             return { images, raw: data };
           }
           if (SUCCESS_STATUSES.has(st) && !images.length) {
-            throw new Error("任务已完成但未返回图片 URL");
+            // 不立刻失败：换端点继续试，并计入空成功 streak
+            sawEmptySuccess = true;
+            continue;
           }
           if (images.length && attempt > 2) {
             return { images, raw: data };
           }
         } catch (e) {
-          // validateStatus never rejects — any Error here is a terminal
-          // business failure (failed task / missing URL). Do not swallow.
+          // 仅上游明确 failed 才终端；缺 URL 不在这里抛
           if (e instanceof Error) throw e;
           lastError = e;
         }
+      }
+      if (sawEmptySuccess) {
+        emptySuccessStreak += 1;
+        if (emptySuccessStreak >= emptySuccessLimit) {
+          throw new Error("任务已完成但未返回图片 URL");
+        }
+      } else {
+        emptySuccessStreak = 0;
       }
       if (attempt === maxAttempts - 1 && lastError) throw lastError;
     }
@@ -621,10 +655,25 @@ export class OpenAICompatibleImageProvider implements ImageProvider {
   }
 }
 
+/** 仅把真正的失败 error 当终端；忽略 null / "" / 空对象。 */
+function isProviderErrorValue(err: unknown): boolean {
+  if (err == null || err === false) return false;
+  if (typeof err === "string") return err.trim().length > 0;
+  if (typeof err === "object") {
+    const o = err as Record<string, unknown>;
+    return Boolean(
+      (typeof o.message === "string" && o.message.trim()) ||
+        o.code != null ||
+        (typeof o.error === "string" && o.error.trim()),
+    );
+  }
+  return true;
+}
+
 /**
  * Supports:
  * - OpenAI sync: `{ data: [{ url }] }`
- * - ToAPIs: `{ status, result: { data: [{ url }] } }`
+ * - ToAPIs: `{ status, result: { data: [{ url }] } }` 或顶层 `url`
  * - APIMart: `{ code, data: { result: { images: [{ url: [string] }] } } }`
  */
 export function extractImages(
@@ -647,11 +696,13 @@ export function extractImages(
   // ToAPIs: result.data[].url
   pushList(result?.data);
   pushList(result?.videos);
+  pushList(result?.files);
+  pushList(result?.output);
 
-  // OpenAI / nested bags
-  pushList(payload.data);
+  // OpenAI / nested bags — 注意：ToAPIs 的 data 是对象不是数组时勿当列表
+  if (Array.isArray(payload.data)) pushList(payload.data);
   pushList(payload.images);
-  pushList(root.data);
+  if (Array.isArray(root.data)) pushList(root.data);
   pushList((root.output as { data?: unknown[] } | undefined)?.data);
 
   const out: Array<{ url?: string; b64?: string }> = [];
@@ -671,7 +722,9 @@ export function extractImages(
     firstUrl(payload.url) ??
     firstUrl(payload.image_url) ??
     firstUrl(root.url) ??
-    firstUrl((result as { url?: unknown } | undefined)?.url);
+    firstUrl(root.image_url) ??
+    firstUrl((result as { url?: unknown } | undefined)?.url) ??
+    firstUrl((result as { image_url?: unknown } | undefined)?.image_url);
   if (single) return [{ url: single }];
   return [];
 }
@@ -1917,13 +1970,10 @@ export class OpenAICompatibleVideoProvider implements VideoProvider {
         const videoUrl = extractVideoUrl(data);
         if (SUCCESS_STATUSES.has(st)) {
           if (videoUrl) {
-          return { status: "succeeded", videoUrl, raw: data };
-        }
-          return {
-            status: "failed",
-            error: "任务已完成但未返回视频 URL",
-            raw: data,
-          };
+            return { status: "succeeded", videoUrl, raw: data };
+          }
+          // completed 但 URL 尚未挂上：继续由外层 poll worker 重试，勿立刻判失败
+          return { status: "running", raw: data };
         }
         if (videoUrl && !st) {
           return { status: "succeeded", videoUrl, raw: data };

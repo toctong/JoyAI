@@ -1,0 +1,209 @@
+﻿{
+    "id":  "cmup7u43962554688d8b7a293",
+    "userId":  "cmup6wbgq8cf6cd1470e35e82",
+    "kind":  "llm",
+    "status":  "succeeded",
+    "input":  {
+                  "prompt":  "# 掩耳盗铃 · 第1集\n\n【场景】春秋·范氏府邸外院。黄昏。石墙外，一男子背着一口青铜大钟蹲在墙根。\n\n【角色】范氏家仆阿瞒（年轻、瘦、眼珠乱转）\n\n阿瞒（自语）：钟声一响，左右邻居必来。若我捂住耳朵，自己听不见——那别人也就听不见了吧？\n\n他撕下衣襟，死死捂住双耳，双手抱住钟钮，用力一拔。\n\n【音效】青铜巨响！院内惊鸟四散。\n\n门外脚步声由远及近。\n\n邻人甲（画外）：谁在偷钟？！\n\n阿瞒捂耳瞪眼，仍死命拔钟——钟声更烈。\n\n（本集钩子：家主提灯出府，阿瞒无处可逃。）",
+                  "modelId":  "cmup70vl876278300a45c9127",
+                  "purpose":  "analyze_assets",
+                  "analyzeMode":  "incremental",
+                  "manjuProjectId":  "cmup7iu5v613a7089dfaab506"
+              },
+    "result":  {
+                   "text":  "```json\n{\n  \"overview\": \"春秋时期，范氏家仆阿瞒试图盗走青铜大钟，掩耳盗铃般捂住自己耳朵以为他人也听不见，终被当场抓获。\",\n  \"tags\": [\"古装\", \"寓言\", \"讽刺\", \"喜剧\"],\n  \"characters\": [\n    {\n      \"name\": \"阿瞒\",\n      \"description\": \"年轻瘦削男子，眼珠乱转，神态鬼祟；盗钟时撕衣襟捂耳，双手抱钟钮\",\n      \"aliases\": [\"范氏家仆\"],\n      \"continuityLock\": \"瘦+眼珠乱转\",\n      \"age\": \"年轻\",\n      \"gender\": \"男\",\n      \"roleType\": \"男主角\",\n      \"height\": \"\",\n      \"weight\": \"瘦\",\n      \"bodyType\": \"瘦削\",\n      \"hairstyle\": \"\",\n      \"face\": \"眼珠乱转\",\n      \"gaze\": \"乱转、鬼祟\",\n      \"skin\": \"\",\n      \"clothing\": \"衣襟被撕下一块\",\n      \"headwear\": \"\",\n      \"traits\": \"自作聪明、慌张\"\n    },\n    {\n      \"name\": \"邻人甲\",\n      \"description\": \"只闻其声，画外音角色\",\n      \"aliases\": [],\n      \"continuityLock\": \"\",\n      \"age\": \"\",\n      \"gender\": \"\",\n      \"roleType\": \"配角\",\n      \"height\": \"\",\n      \"weight\": \"\",\n      \"bodyType\": \"\",\n      \"hairstyle\": \"\",\n      \"face\": \"\",\n      \"gaze\": \"\",\n      \"skin\": \"\",\n      \"clothing\": \"\",\n      \"headwear\": \"\",\n      \"traits\": \"\"\n    },\n    {\n      \"name\": \"家主\",\n      \"description\": \"提灯出府，未正面出场\",\n      \"aliases\": [],\n      \"continuityLock\": \"提灯\",\n      \"age\": \"\",\n      \"gender\": \"\",\n      \"roleType\": \"配角\",\n      \"height\": \"\",\n      \"weight\": \"\",\n      \"bodyType\": \"\",\n      \"hairstyle\": \"\",\n      \"face\": \"\",\n      \"gaze\": \"\",\n      \"skin\": \"\",\n      \"clothing\": \"\",\n      \"headwear\": \"\",\n      \"traits\": \"提灯\"\n    }\n  ],\n  \"scenes\": [\n    {\n      \"name\": \"范氏府邸外院\",\n      \"description\": \"春秋时期贵族府邸外院，石墙围合，黄昏时分，墙根处蹲伏空间\",\n      \"aliases\": [],\n      \"continuityLock\": \"石墙+黄昏\",\n      \"location\": \"范氏府邸外院\",\n      \"timeOfDay\": \"黄昏\",\n      \"weather\": \"\",\n      \"sceneType\": \"室外\",\n      \"architecture\": \"春秋贵族府邸，石墙\",\n      \"lighting\": \"黄昏暖调，渐暗\",\n      \"atmosphere\": \"紧张、荒诞\",\n      \"sceneProps\": [\"石墙\", \"墙根\"]\n    },\n    {\n      \"name\": \"府邸内院\",\n      \"description\": \"钟声惊鸟，家主提灯出府之处，暗示空间\",\n      \"aliases\": [],\n      \"continuityLock\": \"\",\n      \"location\": \"范氏府邸内院\",\n      \"timeOfDay\": \"黄昏\",\n      \"weather\": \"\",\n      \"sceneType\": \"室内/半开放\",\n      \"architecture\": \"春秋贵族府邸\",\n      \"lighting\": \"提灯暖光\",\n      \"atmosphere\": \"惊动、追捕\",\n      \"sceneProps\": [\"灯\"]\n    }\n  ],\n  \"props\": [\n    {\n      \"name\": \"青铜大钟\",\n      \"description\": \"一口青铜大钟，体量巨大，需双手抱持钟钮搬运，撞击声洪亮\",\n      \"aliases\": [],\n      \"continuityLock\": \"青铜+钟钮\",\n      \"propTexture\": \"金属冷硬\",\n      \"propMaterial\": \"青铜\",\n      \"propSize\": \"巨大，需双手抱持\",\n      \"propWear\": \"\",\n      \"propSpecial\": \"撞击声洪亮，惊鸟散\",\n      \"propFinish\": \"青铜色泽\"\n    },\n    {\n      \"name\": \"衣襟碎片\",\n      \"description\": \"从衣服上撕下的布条，用于捂耳\",\n      \"aliases\": [],\n      \"continuityLock\": \"\",\n      \"propTexture\": \"布料\",\n      \"propMaterial\": \"麻或丝\",\n      \"propSize\": \"小块\",\n      \"propWear\": \"撕裂状\",\n      \"propSpecial\": \"\",\n      \"propFinish\": \"\"\n    },\n    {\n      \"name\": \"灯\",\n      \"description\": \"家主手持提灯，暖光源\",\n      \"aliases\": [\"提灯\"],\n      \"continuityLock\": \"提灯\",\n      \"propTexture\": \"\",\n      \"propMaterial\": \"\",\n      \"propSize\": \"手持\",\n      \"propWear\": \"\",\n      \"propSpecial\": \"发光\",\n      \"propFinish\": \"\"\n    }\n  ],\n  \"episodes\": [\n    {\n      \"title\": \"第1集\",\n      \"summary\": \"范氏家仆阿瞒黄昏时分蹲在府邸石墙外，欲盗青铜大钟。他撕衣捂耳，以为听不见便无人听见，奋力拔钟致巨响惊鸟。邻人闻声质问，家主提灯出府，阿瞒无处可逃。\"\n    }\n  ]\n}\n```",
+                   "review":  null,
+                   "analyze":  {
+                                   "tags":  [
+                                                "古装",
+                                                "寓言",
+                                                "讽刺",
+                                                "喜剧"
+                                            ],
+                                   "props":  [
+                                                 {
+                                                     "name":  "青铜大钟",
+                                                     "aliases":  [
+
+                                                                 ],
+                                                     "propSize":  "巨大，需双手抱持",
+                                                     "propWear":  "",
+                                                     "propFinish":  "青铜色泽",
+                                                     "description":  "一口青铜大钟，体量巨大，需双手抱持钟钮搬运，撞击声洪亮",
+                                                     "propSpecial":  "撞击声洪亮，惊鸟散",
+                                                     "propTexture":  "金属冷硬",
+                                                     "propMaterial":  "青铜",
+                                                     "continuityLock":  "青铜+钟钮"
+                                                 },
+                                                 {
+                                                     "name":  "衣襟碎片",
+                                                     "aliases":  [
+
+                                                                 ],
+                                                     "propSize":  "小块",
+                                                     "propWear":  "撕裂状",
+                                                     "propFinish":  "",
+                                                     "description":  "从衣服上撕下的布条，用于捂耳",
+                                                     "propSpecial":  "",
+                                                     "propTexture":  "布料",
+                                                     "propMaterial":  "麻或丝",
+                                                     "continuityLock":  ""
+                                                 },
+                                                 {
+                                                     "name":  "灯",
+                                                     "aliases":  [
+                                                                     "提灯"
+                                                                 ],
+                                                     "propSize":  "手持",
+                                                     "propWear":  "",
+                                                     "propFinish":  "",
+                                                     "description":  "家主手持提灯，暖光源",
+                                                     "propSpecial":  "发光",
+                                                     "propTexture":  "",
+                                                     "propMaterial":  "",
+                                                     "continuityLock":  "提灯"
+                                                 }
+                                             ],
+                                   "shots":  [
+
+                                             ],
+                                   "scenes":  [
+                                                  {
+                                                      "name":  "范氏府邸外院",
+                                                      "aliases":  [
+
+                                                                  ],
+                                                      "weather":  "",
+                                                      "lighting":  "黄昏暖调，渐暗",
+                                                      "location":  "范氏府邸外院",
+                                                      "sceneType":  "室外",
+                                                      "timeOfDay":  "黄昏",
+                                                      "atmosphere":  "紧张、荒诞",
+                                                      "sceneProps":  [
+                                                                         "石墙",
+                                                                         "墙根"
+                                                                     ],
+                                                      "description":  "春秋时期贵族府邸外院，石墙围合，黄昏时分，墙根处蹲伏空间",
+                                                      "architecture":  "春秋贵族府邸，石墙",
+                                                      "continuityLock":  "石墙+黄昏"
+                                                  },
+                                                  {
+                                                      "name":  "府邸内院",
+                                                      "aliases":  [
+
+                                                                  ],
+                                                      "weather":  "",
+                                                      "lighting":  "提灯暖光",
+                                                      "location":  "范氏府邸内院",
+                                                      "sceneType":  "室内/半开放",
+                                                      "timeOfDay":  "黄昏",
+                                                      "atmosphere":  "惊动、追捕",
+                                                      "sceneProps":  [
+                                                                         "灯"
+                                                                     ],
+                                                      "description":  "钟声惊鸟，家主提灯出府之处，暗示空间",
+                                                      "architecture":  "春秋贵族府邸",
+                                                      "continuityLock":  ""
+                                                  }
+                                              ],
+                                   "episodes":  [
+                                                    {
+                                                        "title":  "第1集",
+                                                        "summary":  "范氏家仆阿瞒黄昏时分蹲在府邸石墙外，欲盗青铜大钟。他撕衣捂耳，以为听不见便无人听见，奋力拔钟致巨响惊鸟。邻人闻声质问，家主提灯出府，阿瞒无处可逃。"
+                                                    }
+                                                ],
+                                   "overview":  "春秋时期，范氏家仆阿瞒试图盗走青铜大钟，掩耳盗铃般捂住自己耳朵以为他人也听不见，终被当场抓获。",
+                                   "characters":  [
+                                                      {
+                                                          "age":  "年轻",
+                                                          "face":  "眼珠乱转",
+                                                          "gaze":  "乱转、鬼祟",
+                                                          "name":  "阿瞒",
+                                                          "skin":  "",
+                                                          "gender":  "男",
+                                                          "height":  "",
+                                                          "traits":  "自作聪明、慌张",
+                                                          "weight":  "瘦",
+                                                          "aliases":  [
+                                                                          "范氏家仆"
+                                                                      ],
+                                                          "bodyType":  "瘦削",
+                                                          "clothing":  "衣襟被撕下一块",
+                                                          "headwear":  "",
+                                                          "roleType":  "男主角",
+                                                          "hairstyle":  "",
+                                                          "description":  "年轻瘦削男子，眼珠乱转，神态鬼祟；盗钟时撕衣襟捂耳，双手抱钟钮",
+                                                          "continuityLock":  "瘦+眼珠乱转"
+                                                      },
+                                                      {
+                                                          "age":  "",
+                                                          "face":  "",
+                                                          "gaze":  "",
+                                                          "name":  "邻人甲",
+                                                          "skin":  "",
+                                                          "gender":  "",
+                                                          "height":  "",
+                                                          "traits":  "",
+                                                          "weight":  "",
+                                                          "aliases":  [
+
+                                                                      ],
+                                                          "bodyType":  "",
+                                                          "clothing":  "",
+                                                          "headwear":  "",
+                                                          "roleType":  "配角",
+                                                          "hairstyle":  "",
+                                                          "description":  "只闻其声，画外音角色",
+                                                          "continuityLock":  ""
+                                                      },
+                                                      {
+                                                          "age":  "",
+                                                          "face":  "",
+                                                          "gaze":  "",
+                                                          "name":  "家主",
+                                                          "skin":  "",
+                                                          "gender":  "",
+                                                          "height":  "",
+                                                          "traits":  "提灯",
+                                                          "weight":  "",
+                                                          "aliases":  [
+
+                                                                      ],
+                                                          "bodyType":  "",
+                                                          "clothing":  "",
+                                                          "headwear":  "",
+                                                          "roleType":  "配角",
+                                                          "hairstyle":  "",
+                                                          "description":  "提灯出府，未正面出场",
+                                                          "continuityLock":  "提灯"
+                                                      }
+                                                  ]
+                               },
+                   "purpose":  "analyze_assets",
+                   "assetIds":  [
+
+                                ],
+                   "scriptWrite":  null,
+                   "canvasNodeId":  null,
+                   "manjuProjectId":  "cmup7iu5v613a7089dfaab506",
+                   "canvasProjectId":  null
+               },
+    "error":  null,
+    "remoteTaskId":  null,
+    "progress":  100,
+    "modelId":  "cmup70vl876278300a45c9127",
+    "modelName":  "Kimi K2.5",
+    "channelId":  "cmup70v0x4e2944d40352d6ec",
+    "channelName":  "ToAPIs 中转",
+    "platform":  "toapis",
+    "startedAt":  "2026-10-01T07:31:37.000Z",
+    "finishedAt":  "2026-10-01T07:31:58.000Z",
+    "canvasProjectId":  null,
+    "canvasNodeId":  null,
+    "createdAt":  "2026-10-01T07:31:36.886Z",
+    "updatedAt":  "2026-10-01T07:31:58.000Z",
+    "assets":  [
+
+               ],
+    "durationMs":  21000
+}

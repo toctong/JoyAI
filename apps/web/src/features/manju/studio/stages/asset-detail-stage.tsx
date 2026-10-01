@@ -505,18 +505,6 @@ export function AssetDetailStage({
                       用于 AI 生成此角色图像的默认提示词
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="manju-asset-detail__ai-btn"
-                    disabled={busy}
-                    onClick={() =>
-                      toast.message("文字人设 AI 总结即将接入，可先手写描述")
-                    }
-                  >
-                    <Sparkles className="size-3.5" />
-                    AI 总结
-                  </Button>
                 </div>
                 <ManjuTextField
                   value={asset.description}
@@ -540,20 +528,6 @@ export function AssetDetailStage({
                       用于 AI 生成此{kindLabel}图像的默认提示词
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="manju-asset-detail__ai-btn"
-                    disabled={busy}
-                    onClick={() =>
-                      toast.message(
-                        `${kindLabel}提示词 AI 总结即将接入，可先手写`,
-                      )
-                    }
-                  >
-                    <Sparkles className="size-3.5" />
-                    AI 总结
-                  </Button>
                 </div>
                 <ManjuTextField
                   value={asset.description}

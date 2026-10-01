@@ -17,6 +17,7 @@ export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文
     "age": "年龄感，没有就空",
     "gender": "男|女|其他，不确定就空",
     "roleType": "男主角|女主角|反派|配角等，不确定就空",
+    "voiceOnly": false,
     "height": "身高体感，没有就空",
     "weight": "体量感，没有就空",
     "bodyType": "体态，没有就空",
@@ -65,6 +66,7 @@ export const ANALYZE_ASSETS_SYSTEM = `你是短剧资产登记员。只从原文
 - continuityLock：2～12 字短短语，锁定发型/标志物/主色等；没有把握就空字符串，不要编造
 - 每类不超过 20 个，名称唯一、简短
 - aliases：称呼、外号、代称；没有就 []；不要把正式名再写一遍
+- voiceOnly：仅画外音/旁白、原文从未给出可视外形时为 true，其余 false；true 时 description 可极短
 - tags：2～5 个题材/类型标签（如都市、复仇、重生），不要写进 overview 或 description
 - overview：一两句概括剧情与基调
 - 分集至少 1 集；短篇可以只有「第1集」；最多 8 集

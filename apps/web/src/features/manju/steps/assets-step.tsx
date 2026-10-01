@@ -36,6 +36,7 @@ import {
   childAssets,
   rootAssets,
 } from "../lib/asset-registry";
+import { isVoiceOnlyAsset } from "../lib/ref-coverage";
 import { cancelManjuJob } from "../lib/cancel-manju-job";
 import {
   clearManjuAssetSubmitPending,
@@ -260,11 +261,12 @@ export function AssetsStep({
     }
   };
 
-  /** 一键为缺失参考图的角色提交定妆图 */
+  /** 一键为缺失参考图的角色提交定妆图（跳过画外音） */
   const generateMissingPortraits = async () => {
     const targets = rootAssets(project.assets, "character").filter(
       (a) =>
         a.name.trim() &&
+        !isVoiceOnlyAsset(a) &&
         !a.imageUrl &&
         !a.assetId &&
         !isBusyStatus(a.status),

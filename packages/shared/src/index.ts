@@ -268,6 +268,8 @@ export const ManjuAnalyzeAssetItemSchema = z
      * 可选；回写时并入 description，旧稿无此字段仍兼容。
      */
     continuityLock: z.string().default(""),
+    /** 无可视形象（画外音/旁白），不强制定妆 */
+    voiceOnly: z.boolean().optional(),
     /** 结构化外观/环境/道具信息；也可把同名字段直接写在条目上 */
     detail: optionalDetail.optional(),
   })
@@ -648,6 +650,11 @@ export const ManjuAssetDraftSchema = z.object({
   jobId: z.string().nullable().default(null),
   status: ManjuJobStatusSchema.default("idle"),
   detail: ManjuAssetDetailSchema.optional(),
+  /**
+   * 画外音 / 只闻其声等无可视形象角色；定妆与参考图覆盖率可跳过。
+   * 解析或启发式写入；旧稿缺省视为 false。
+   */
+  voiceOnly: z.boolean().optional(),
 });
 
 export const ManjuShotDraftSchema = z.object({

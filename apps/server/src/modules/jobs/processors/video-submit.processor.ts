@@ -127,6 +127,7 @@ export class VideoSubmitProcessor extends WorkerHost {
         status: "failed",
         error: message,
         kind: "video",
+        remoteTaskId: job.remoteTaskId ?? null,
       });
       throw error;
     }

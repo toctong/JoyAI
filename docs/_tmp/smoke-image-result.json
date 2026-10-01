@@ -1,0 +1,62 @@
+{
+  "id": "cmup8opys173d9ef07148b357",
+  "userId": "cmup6wbgq8cf6cd1470e35e82",
+  "kind": "image",
+  "status": "succeeded",
+  "input": {
+    "n": 1,
+    "ratio": "16:9",
+    "prompt": "角色设定图：阿瞒\n风格：3D 玄幻国漫，精致角色建模，飘逸衣袂，灵气光效，东方奇幻氛围\n描述：年轻瘦削男子，眼珠乱转，神态慌张；盗钟时撕衣襟捂耳，双手抱钟钮；连续性：瘦+捂耳撕衣\n布局：横版三视图，纯白干净背景；正面全身、正侧全身、背面全身一致。\n要求：细节清晰，适合作为后续分镜一致性参考。",
+    "modelId": "cmup70vm96fd4d7683168ae3a",
+    "operation": "generate",
+    "manjuProjectId": "cmup7iu5v613a7089dfaab506"
+  },
+  "result": {
+    "urls": [
+      "https://files.toapis.cn/images/tsk_img_01M3V7BY1GJ0ZDT0J1PZGG19PP/1790841362_d2b816e4.png"
+    ],
+    "assetIds": [
+      "cmup8pzbsce51b889a884fdb2"
+    ],
+    "requested": 1
+  },
+  "error": null,
+  "remoteTaskId": null,
+  "progress": 100,
+  "modelId": "cmup70vm96fd4d7683168ae3a",
+  "modelName": "GPT Image 2",
+  "channelId": "cmup70v0x4e2944d40352d6ec",
+  "channelName": "ToAPIs 中转",
+  "platform": "toapis",
+  "startedAt": "2026-10-01T07:55:25.000Z",
+  "finishedAt": "2026-10-01T07:56:24.000Z",
+  "canvasProjectId": null,
+  "canvasNodeId": null,
+  "createdAt": "2026-10-01T07:55:24.919Z",
+  "updatedAt": "2026-10-01T07:56:23.000Z",
+  "assets": [
+    {
+      "id": "cmup8pzbsce51b889a884fdb2",
+      "userId": "cmup6wbgq8cf6cd1470e35e82",
+      "jobId": "cmup8opys173d9ef07148b357",
+      "kind": "image",
+      "source": "manju",
+      "url": "https://aigc-joyai.tos-cn-beijing.volces.com/uploads/by-hash/c5899c94a95ae00a410cb0ee0d7534b8.png",
+      "md5": "c5899c94a95ae00a410cb0ee0d7534b8",
+      "mimeType": "image/png",
+      "size": 2265830,
+      "width": null,
+      "height": null,
+      "meta": {
+        "sha256": "f534df81537713a9306b3d5efaaa53fa03c3588e15a6aff417ada903bfd12309",
+        "source": "manju",
+        "originUrl": "https://files.toapis.cn/images/tsk_img_01M3V7BY1GJ0ZDT0J1PZGG19PP/1790841362_d2b816e4.png",
+        "storageKey": "uploads/by-hash/c5899c94a95ae00a410cb0ee0d7534b8.png",
+        "storageStatus": "ready",
+        "tosDeduplicated": false
+      },
+      "createdAt": "2026-10-01T07:56:23.705Z"
+    }
+  ],
+  "durationMs": 59000
+}

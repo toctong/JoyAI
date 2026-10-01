@@ -344,6 +344,7 @@ export class ImageProcessor extends WorkerHost {
         error: message,
         requested,
         kind: "image",
+        remoteTaskId: latest?.remoteTaskId ?? job.remoteTaskId ?? null,
       });
       throw error;
     }

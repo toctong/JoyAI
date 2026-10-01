@@ -3175,6 +3175,30 @@
   color: var(--muted-foreground);
 }
 
+.manju-produce__ref-chip {
+  display: inline-flex;
+  align-items: center;
+  height: var(--joy-control-h-sm, 32px);
+  padding: 0 10px;
+  border-radius: var(--joy-radius-sm, 6px);
+  border: 1px solid var(--border);
+  font-size: var(--joy-font-caption, 13px);
+  color: var(--muted-foreground);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.manju-produce__ref-chip:hover {
+  color: var(--foreground);
+  border-color: var(--foreground);
+}
+
+.manju-produce__ref-chip.is-warn {
+  color: var(--destructive);
+  border-color: color-mix(in oklab, var(--destructive) 40%, var(--border));
+  background: color-mix(in oklab, var(--destructive) 8%, transparent);
+}
+
 .manju-produce__crumb-sep {
   color: var(--muted-foreground);
   opacity: 0.6;

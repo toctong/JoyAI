@@ -112,6 +112,8 @@ export type ManjuAssetDraft = {
   status: ManjuJobStatus;
   /** 详情页扩展字段（角色信息 / 外观等） */
   detail?: ManjuAssetDetail;
+  /** 画外音等无可视形象；定妆可跳过 */
+  voiceOnly?: boolean;
 };
 
 export type ManjuEpisodeDraft = {
@@ -311,6 +313,7 @@ export function createEmptyAsset(
     assetId: null,
     jobId: null,
     status: "idle",
+    voiceOnly: false,
   };
 }
 
@@ -399,6 +402,7 @@ export function normalizeProject(raw: unknown): ManjuProjectDraft | null {
         assetId: a.assetId ?? null,
         jobId: a.jobId ?? null,
         aliases: Array.isArray(a.aliases) ? a.aliases.filter(Boolean) : [],
+        voiceOnly: a.voiceOnly === true,
         detail:
           a.detail && typeof a.detail === "object"
             ? (a.detail as ManjuAssetDetail)

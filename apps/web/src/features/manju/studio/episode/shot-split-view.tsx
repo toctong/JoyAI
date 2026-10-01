@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Film, ImageIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { JoyAssetThumb } from "@/shared/ui/joy-asset-thumb";
+import { JoyReleasedVideo } from "@/shared/ui/joy-released-video";
 import type { ManjuProjectDraft, ManjuShotDraft } from "../../manju-types";
 import { ManjuPromptField } from "../../manju-prompt-field";
 import { ManjuAssetPicker } from "../../manju-asset-picker";
@@ -225,7 +226,7 @@ function ShotDetail({
             <img src={shot.storyboardImageUrl} alt={`分镜 ${shot.index}`} />
           ) : null}
           {shot.videoUrl ? (
-            <video src={shot.videoUrl} controls playsInline />
+            <JoyReleasedVideo src={shot.videoUrl} controls playsInline />
           ) : null}
         </div>
       )}
